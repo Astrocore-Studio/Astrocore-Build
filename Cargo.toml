@@ -36,6 +36,9 @@ path = "crates/prototypes"
 [workspace.dependencies.atmos]
 path = "crates/atmos"
 
+[workspace.dependencies.power]
+path = "crates/power"
+
 [workspace.dependencies.maps]
 path = "crates/maps"
 

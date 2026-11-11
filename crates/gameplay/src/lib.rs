@@ -1,6 +1,7 @@
 mod body;
 mod doafter;
 mod edibles;
+pub mod electric;
 pub mod fire;
 pub mod handlers;
 mod hands;

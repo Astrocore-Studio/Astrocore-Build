@@ -1,0 +1,32 @@
+// Электричество (данные из Resources/Prototypes/Entities/Structures/Power SS14). Кабели лежат под
+// полом и на карте задаются зонами `power_cable` (`hv`, `mv`, `apc`); см. gameplay/electric.rs.
+// Компоненты билда: `PowerSupplier` (источник в сети группы `group`), `PowerBattery` (заряжается из
+// сети `from`, отдаёт в сеть `to`; `from: "terminal"` — по ближайшей клемме) и `ApcPowerReceiver`
+// (потребитель сети АПЦ, `load` Вт; без поля — 5 Вт, как в SS14).
+[
+    (id: "GeneratorBasic", name: Some("generator"), components: {
+        "Sprite": (sprite: "Structures/Power/power.rsi", state: "generator"),
+        "PowerSupplier": (group: "hv", maxSupply: 3000.0, rampRate: 500.0, rampTolerance: 500.0),
+    }),
+    // Солнечная панель: у SS14 выработка зависит от Солнца; здесь панель всегда даёт 1500 Вт.
+    (id: "SolarPanel", name: Some("solar panel"), components: {
+        "Sprite": (sprite: "Structures/Power/Generation/solar_panel.rsi", state: "solar_panel_glass"),
+        "PowerSupplier": (group: "hv", maxSupply: 1500.0, rampRate: 500.0, rampTolerance: 500.0),
+    }),
+    (id: "SubstationBasic", name: Some("substation"), components: {
+        "Sprite": (sprite: "Structures/Power/substation.rsi", state: "substation"),
+        "PowerBattery": (from: "hv", to: "mv", capacity: 2500000.0, startingCharge: 2500000.0, maxChargeRate: 150000.0, maxSupply: 150000.0, rampRate: 1000.0, rampTolerance: 5000.0),
+    }),
+    (id: "SMESBasic", name: Some("SMES"), components: {
+        "Sprite": (sprite: "Structures/Power/smes.rsi", state: "smes"),
+        "PowerBattery": (from: "terminal", to: "hv", capacity: 8000000.0, startingCharge: 8000000.0, maxChargeRate: 150000.0, maxSupply: 150000.0, rampRate: 1000.0, rampTolerance: 5000.0),
+    }),
+    (id: "CableTerminal", name: Some("cable terminal"), components: {
+        "Sprite": (sprite: "Structures/Power/cable_terminal.rsi", state: "term"),
+        "PowerTerminal": (),
+    }),
+    (id: "APCBasic", name: Some("APC"), components: {
+        "Sprite": (sprite: "Structures/Wallmounts/apc.rsi", state: "base"),
+        "PowerBattery": (from: "mv", to: "apc", capacity: 50000.0, startingCharge: 50000.0, maxChargeRate: 5000.0, maxSupply: 10000.0, rampRate: 500.0, rampTolerance: 1000.0),
+    }),
+]

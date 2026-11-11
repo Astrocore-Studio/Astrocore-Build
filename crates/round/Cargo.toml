@@ -18,6 +18,9 @@ thiserror.workspace = true
 
 [dev-dependencies]
 astrocore-core.workspace = true
+maps.workspace = true
+power.workspace = true
+atmos.workspace = true
 
 [lints]
 workspace = true

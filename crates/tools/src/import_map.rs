@@ -64,6 +64,8 @@ pub struct Report {
     pub items: usize,
     /// Трубы газовой сети (зоны `gas_pipe`).
     pub pipes: usize,
+    /// Клетки с кабелями (зоны `power_cable`).
+    pub cables: usize,
     pub skipped_entities: usize,
 }
 
@@ -126,6 +128,16 @@ fn pipe_base_dirs(proto: &str) -> Option<u8> {
         "GasPipeHalf" => S,
         _ => return None,
     })
+}
+
+/// Группа кабеля SS14 (`CableHV`, `CableMV`, `CableApcExtension`): значение `power_cable`.
+fn cable_group(proto: &str) -> Option<&'static str> {
+    match proto {
+        p if p.starts_with("CableHV") && !p.contains("Stack") => Some("hv"),
+        p if p.starts_with("CableMV") && !p.contains("Stack") => Some("mv"),
+        p if p.starts_with("CableApcExtension") => Some("apc"),
+        _ => None,
+    }
 }
 
 /// Повернуть стороны против часовой стрелки: юг → восток → север → запад (`RotatePipeDirection`).
@@ -277,6 +289,7 @@ pub fn import(
     let mut spawn: Option<(f32, f32)> = None;
     let mut items: Vec<MapItem> = Vec::new();
     let mut zones: Vec<MapZone> = Vec::new();
+    let mut cables_seen: BTreeSet<((i32, i32), &str)> = BTreeSet::new();
     for group in &groups {
         let proto = group
             .get("proto")
@@ -317,6 +330,20 @@ pub fn import(
                         metadata: [("gas_pipe".to_string(), dirs_text(dirs))].into(),
                     });
                     report.pipes += 1;
+                }
+                Kind::Other if cable_group(proto).is_some() => {
+                    let group = cable_group(proto).unwrap_or("hv");
+                    let key = (cell, group);
+                    if cables_seen.insert(key) {
+                        let (cx, cz) = (cell.0 as f32, cell.1 as f32);
+                        zones.push(MapZone {
+                            min: [cx + 0.01, 0.0, cz + 0.01],
+                            max: [cx + 0.99, 3.0, cz + 0.99],
+                            floor: 0,
+                            metadata: [("power_cable".to_string(), group.to_string())].into(),
+                        });
+                        report.cables += 1;
+                    }
                 }
                 Kind::Other if known_items.contains(proto) => {
                     items.push(MapItem {

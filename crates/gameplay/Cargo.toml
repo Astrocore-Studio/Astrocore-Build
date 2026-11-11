@@ -8,6 +8,7 @@ license.workspace = true
 
 [dependencies]
 atmos.workspace = true
+power.workspace = true
 astrocore-api.workspace = true
 astrocore-core.workspace = true
 astrocore-math.workspace = true

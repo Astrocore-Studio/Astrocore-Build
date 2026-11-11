@@ -282,3 +282,68 @@ mod survival {
         assert!(!v.low_oxygen);
     }
 }
+
+/// Диагностика электросетей импортированной карты: `ASTRO_MAP_FILE=/tmp/saltern.ron cargo test -p round
+/// saltern_power -- --ignored --nocapture`.
+#[test]
+#[ignore]
+fn saltern_power_report() {
+    use gameplay::electric::{PowerPart, build};
+    let Some(path) = std::env::var_os("ASTRO_MAP_FILE") else {
+        return;
+    };
+    let map = maps::MapFile::parse(&std::fs::read_to_string(path).unwrap()).unwrap();
+    let registry = polygon::load_registry(&content()).unwrap();
+    let mut cables = Vec::new();
+    for z in &map.zones {
+        if let Some(g) = z
+            .metadata
+            .get("power_cable")
+            .and_then(|v| power::CableGroup::parse(v))
+        {
+            cables.push((
+                g,
+                (
+                    ((z.min[0] + z.max[0]) / 2.0).floor() as i32,
+                    ((z.min[2] + z.max[2]) / 2.0).floor() as i32,
+                ),
+            ));
+        }
+    }
+    let mut parts = Vec::new();
+    for (i, it) in map.items.iter().enumerate() {
+        if let Ok(r) = registry.resolve(&it.prototype)
+            && let Some(p) = PowerPart::from_resolved(&r)
+        {
+            parts.push((
+                ObjectId::from_u128(i as u128 + 1),
+                (it.x.floor() as i32, it.z.floor() as i32),
+                p,
+            ));
+        }
+    }
+    let total = |f: fn(&PowerPart) -> bool| parts.iter().filter(|p| f(&p.2)).count();
+    let mut b = build(&cables, &parts, &Default::default());
+    println!(
+        "кабелей {}; источников {}/{}; аккумуляторов {}/{}; потребителей {}/{}",
+        cables.len(),
+        b.state.supplies.len(),
+        total(|p| p.supplier.is_some()),
+        b.batteries.len(),
+        total(|p| p.battery.is_some()),
+        b.receivers.len(),
+        total(|p| p.receiver_load.is_some()),
+    );
+    println!("сетей питания {}", b.state.networks.len());
+    for _ in 0..(180 * 20) {
+        b.state.tick(0.05);
+    }
+    let powered = b
+        .receivers
+        .iter()
+        .filter(|r| b.state.loads[r.1].receiving_power >= r.2 * 0.999)
+        .count();
+    println!("запитано потребителей {powered} из {}", b.receivers.len());
+    let supply: f32 = b.state.supplies.iter().map(|s| s.current_supply).sum();
+    println!("выдача источников {supply:.0} Вт");
+}

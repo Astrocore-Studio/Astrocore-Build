@@ -209,7 +209,8 @@ impl PowerState {
             let space = ((battery.capacity - battery.current_storage) * (1.0 / battery.efficiency))
                 .max(0.0);
             let scaled_space = space / dt;
-            let charge_rate = battery.max_charge_rate + battery.loading_network_demand / battery.efficiency;
+            let charge_rate =
+                battery.max_charge_rate + battery.loading_network_demand / battery.efficiency;
             battery.desired_power = charge_rate.min(scaled_space);
             demand += battery.desired_power;
         }
@@ -326,7 +327,13 @@ impl PowerState {
                 s.ramp_position = 0.0;
                 continue;
             }
-            s.ramp_position = ramp(s.ramp_position, s.ramp_target, s.ramp_rate, s.max_supply, dt);
+            s.ramp_position = ramp(
+                s.ramp_position,
+                s.ramp_target,
+                s.ramp_rate,
+                s.max_supply,
+                dt,
+            );
         }
         for b in &mut self.batteries {
             if !b.enabled {
@@ -445,13 +452,23 @@ mod tests {
         let apc_id = p.add_battery(mv, lv, apc);
         let lamp = p.add_load(lv, Load::new(500.0));
         run(&mut p, 60.0);
-        assert!(p.loads[lamp].receiving_power > 490.0, "{}", p.loads[lamp].receiving_power);
-        assert!(p.supplies[gen_].current_supply > 100.0, "генератор грузится");
+        assert!(
+            p.loads[lamp].receiving_power > 490.0,
+            "{}",
+            p.loads[lamp].receiving_power
+        );
+        assert!(
+            p.supplies[gen_].current_supply > 100.0,
+            "генератор грузится"
+        );
         // Авария: генератор выключен, подстанция пуста — АПЦ держится на своей батарее.
         p.supplies[gen_].enabled = false;
         p.batteries[0].current_storage = 0.0;
         run(&mut p, 20.0);
-        assert!(p.loads[lamp].receiving_power > 400.0, "работает от заряда АПЦ");
+        assert!(
+            p.loads[lamp].receiving_power > 400.0,
+            "работает от заряда АПЦ"
+        );
         let left = p.batteries[apc_id].current_storage;
         assert!(left < 50_000.0, "заряд АПЦ расходуется: {left}");
         // Пока батарея не сядет совсем.
@@ -470,7 +487,10 @@ mod tests {
         smes.max_supply = 150_000.0;
         let s = p.add_battery(input, output, smes);
         run(&mut p, 30.0);
-        assert!(p.batteries[s].current_storage > 10_000.0, "заряжается от генератора");
+        assert!(
+            p.batteries[s].current_storage > 10_000.0,
+            "заряжается от генератора"
+        );
         let load = p.add_load(output, Load::new(1500.0));
         run(&mut p, 10.0);
         assert!(p.loads[load].receiving_power > 1400.0, "СМЭС питает выход");

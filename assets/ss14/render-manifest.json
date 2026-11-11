@@ -72,6 +72,14 @@
         0.6000000238418579
       ]
     },
+    "ss14:apcbasic": {
+      "image": "Textures/Structures/Wallmounts/apc.rsi/base.png",
+      "layout": "billboard",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
     "ss14:box": {
       "image": "Textures/Objects/Storage/boxes.rsi/box.png",
       "layout": "flat",
@@ -99,6 +107,14 @@
     "ss14:bucket_water": {
       "image": "Textures/Objects/Tools/bucket.rsi/icon.png",
       "layout": "flat",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:cable_terminal": {
+      "image": "Textures/Structures/Power/cable_terminal.rsi/term.png",
+      "layout": "billboard",
       "size": [
         0.6000000238418579,
         0.6000000238418579
@@ -216,6 +232,14 @@
         0.36000001430511475
       ]
     },
+    "ss14:generator_basic": {
+      "image": "Textures/Structures/Power/power.rsi/generator.png",
+      "layout": "billboard",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
     "ss14:mop_item": {
       "image": "Textures/Objects/Specific/Janitorial/mop.rsi/mop.png",
       "layout": "flat",
@@ -296,12 +320,36 @@
         0.36000001430511475
       ]
     },
+    "ss14:smesbasic": {
+      "image": "Textures/Structures/Power/smes.rsi/smes.png",
+      "layout": "billboard",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:solar_panel": {
+      "image": "Textures/Structures/Power/Generation/solar_panel.rsi/solar_panel_glass.png",
+      "layout": "billboard",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
     "ss14:space_lube_bottle": {
       "image": "Textures/Objects/Consumable/Drinks/waterbottle.rsi/icon.png",
       "layout": "flat",
       "size": [
         0.36000001430511475,
         0.36000001430511475
+      ]
+    },
+    "ss14:substation_basic": {
+      "image": "Textures/Structures/Power/substation.rsi/substation.png",
+      "layout": "billboard",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
       ]
     },
     "ss14:tritium_canister": {

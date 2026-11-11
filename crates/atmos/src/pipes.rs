@@ -310,6 +310,8 @@ pub struct Pipes {
     nets: Vec<GasMixture>,
     net_sizes: Vec<usize>,
     devices: BTreeMap<u64, (Cell, Device)>,
+    /// Устройства без питания: не работают (`ApcPowerReceiver.Powered`).
+    unpowered: std::collections::BTreeSet<u64>,
     dirty: bool,
 }
 
@@ -330,6 +332,19 @@ impl Pipes {
         // Любое изменение (клапан, разъём) может поменять сети.
         self.dirty = true;
         self.devices.get_mut(&key).map(|(_, d)| d)
+    }
+
+    /// Включить или отключить питание устройства.
+    pub fn set_powered(&mut self, key: u64, powered: bool) {
+        if powered {
+            self.unpowered.remove(&key);
+        } else {
+            self.unpowered.insert(key);
+        }
+    }
+
+    pub fn is_powered(&self, key: u64) -> bool {
+        !self.unpowered.contains(&key)
     }
 
     pub fn device_keys(&self) -> impl Iterator<Item = u64> + '_ {
@@ -498,6 +513,9 @@ impl Pipes {
         let mut devices = std::mem::take(&mut self.devices);
         let mut gone = Vec::new();
         for (key, (cell, device)) in &mut devices {
+            if self.unpowered.contains(key) && !matches!(device, Device::Canister(_)) {
+                continue;
+            }
             match device {
                 Device::PressurePump {
                     inlet,

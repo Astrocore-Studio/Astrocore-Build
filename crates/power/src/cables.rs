@@ -110,7 +110,13 @@ mod tests {
     #[test]
     fn touching_cables_of_one_group_form_a_network() {
         let g = CableGroup::High;
-        let c = Cables::build([(g, (0, 0)), (g, (1, 0)), (g, (2, 0)), (g, (5, 5)), (CableGroup::Medium, (1, 0))]);
+        let c = Cables::build([
+            (g, (0, 0)),
+            (g, (1, 0)),
+            (g, (2, 0)),
+            (g, (5, 5)),
+            (CableGroup::Medium, (1, 0)),
+        ]);
         assert_eq!(c.net_at(g, (0, 0)), c.net_at(g, (2, 0)));
         assert_ne!(c.net_at(g, (0, 0)), c.net_at(g, (5, 5)));
         assert_ne!(

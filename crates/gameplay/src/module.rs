@@ -161,6 +161,17 @@ pub struct State {
     pub(crate) mop_ready: BTreeMap<ObjectId, f32>,
     /// Защита одежды от тепла (`TemperatureProtection.coefficient`).
     pub(crate) heat_protection: BTreeMap<PrototypeId, f32>,
+    /// Электричество: разбор прототипов, состояние решателя, подпись мира, заряды аккумуляторов.
+    pub(crate) power_parts: BTreeMap<PrototypeId, crate::electric::PowerPart>,
+    pub(crate) power: power::PowerState,
+    pub(crate) power_sig: Vec<(ObjectId, atmos::Cell, u8)>,
+    pub(crate) power_batteries: Vec<(ObjectId, usize)>,
+    pub(crate) power_receivers: Vec<(ObjectId, usize, f32)>,
+    pub(crate) power_charge: BTreeMap<ObjectId, f32>,
+    /// На карте есть проводка: устройства с `ApcPowerReceiver` требуют питания.
+    pub(crate) power_required: bool,
+    /// Объекты с `ApcPowerReceiver`: при проводке на карте без питания не работают.
+    pub(crate) power_gated: std::collections::BTreeSet<ObjectId>,
 }
 
 impl State {
@@ -178,6 +189,7 @@ impl State {
         let mut pipe_parts = BTreeMap::new();
         let mut absorbents = BTreeMap::new();
         let mut heat_protection = BTreeMap::new();
+        let mut power_parts = BTreeMap::new();
         let mut refillables = BTreeSet::new();
         let mut tank_templates = BTreeMap::new();
         for (id, name) in names {
@@ -207,6 +219,9 @@ impl State {
                     .and_then(prototypes::Data::as_f64)
                 {
                     heat_protection.insert(id.clone(), c as f32);
+                }
+                if let Some(p) = crate::electric::PowerPart::from_resolved(r) {
+                    power_parts.insert(id.clone(), p);
                 }
                 if crate::mopping::is_refillable(r) {
                     refillables.insert(id.clone());
@@ -302,6 +317,14 @@ impl State {
             refillables,
             mop_ready: BTreeMap::new(),
             heat_protection,
+            power_parts,
+            power: power::PowerState::default(),
+            power_sig: Vec::new(),
+            power_batteries: Vec::new(),
+            power_receivers: Vec::new(),
+            power_charge: BTreeMap::new(),
+            power_required: false,
+            power_gated: std::collections::BTreeSet::new(),
         })
     }
 
@@ -1187,6 +1210,8 @@ impl State {
         self.tick_igniters(ctx);
         self.tick_puddles(ctx, dt);
         self.sync_pipes(ctx);
+        self.sync_power(ctx);
+        self.tick_power(dt);
         self.atmos.advance(dt);
         self.tick_devices(ctx, dt);
         self.publish_fires(ctx);
@@ -1523,6 +1548,87 @@ impl State {
         let all = sol.volume();
         let spilled = sol.split(all);
         self.puddles.spill(self.atmos.layout(), cell, &spilled)
+    }
+
+    /// Электросети мира: кабели-зоны и устройства → сети, источники, потребители и аккумуляторы.
+    /// Заряд аккумуляторов переживает перестройку.
+    fn sync_power(&mut self, ctx: &mut HookContext<'_>) {
+        use crate::electric::CABLE_KEY;
+        use power::CableGroup;
+        let mut cables: Vec<(CableGroup, atmos::Cell)> = Vec::new();
+        let mut parts: Vec<(ObjectId, atmos::Cell, crate::electric::PowerPart)> = Vec::new();
+        let mut sig: Vec<(ObjectId, atmos::Cell, u8)> = Vec::new();
+        for o in ctx.world.authored() {
+            let cell = crate::piping::cell_at(o.floor.0, (o.min() + o.max()) * 0.5);
+            match &o.kind {
+                AuthoredKind::Zone => {
+                    if let Some(g) = o.metadata.get(CABLE_KEY).and_then(|v| CableGroup::parse(v)) {
+                        cables.push((g, cell));
+                        sig.push((o.id, cell, g as u8 + 1));
+                    }
+                }
+                AuthoredKind::Placement { prototype } => {
+                    if let Some(p) = self.power_parts.get(prototype) {
+                        parts.push((o.id, cell, p.clone()));
+                        sig.push((o.id, cell, 0));
+                    }
+                }
+                _ => {}
+            }
+        }
+        sig.sort();
+        if sig == self.power_sig {
+            return;
+        }
+        // Сохранить заряды перед перестройкой.
+        for (id, idx) in &self.power_batteries {
+            if let Some(b) = self.power.batteries.get(*idx) {
+                self.power_charge.insert(*id, b.current_storage);
+            }
+        }
+        self.power_sig = sig;
+        self.power_required = !cables.is_empty()
+            || parts
+                .iter()
+                .any(|(_, _, p)| p.supplier.is_some() || p.battery.is_some());
+        self.power_gated = parts
+            .iter()
+            .filter(|(_, _, p)| p.receiver_load.is_some())
+            .map(|(id, _, _)| *id)
+            .collect();
+        let built = crate::electric::build(&cables, &parts, &self.power_charge);
+        self.power_batteries = built.batteries;
+        self.power_receivers = built.receivers;
+        self.power = built.state;
+    }
+
+    /// Шаг решателя и питание устройств труб (`ApcPowerReceiver.Powered`): устройство с потребителем
+    /// работает, только если получает всю мощность; без проводки на карте питание не требуется.
+    fn tick_power(&mut self, dt: f32) {
+        let gated = self.power_required;
+        if gated {
+            self.power.tick(dt);
+        }
+        let received: BTreeMap<ObjectId, bool> = self
+            .power_receivers
+            .iter()
+            .map(|(id, idx, want)| {
+                (
+                    *id,
+                    self.power
+                        .loads
+                        .get(*idx)
+                        .is_some_and(|l| l.receiving_power >= want * 0.999),
+                )
+            })
+            .collect();
+        let keys: Vec<(ObjectId, u64)> = self.pipe_keys.keys_iter().collect();
+        for (id, key) in keys {
+            let on = !gated
+                || !self.power_gated.contains(&id)
+                || received.get(&id).copied().unwrap_or(false);
+            self.atmos.pipes_mut().set_powered(key, on);
+        }
     }
 
     /// Устройства, баллончики и их события (лопнувший баллон).
