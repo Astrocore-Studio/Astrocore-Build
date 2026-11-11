@@ -50,6 +50,8 @@
 
 ## Запуск и просмотр
 
+Быстрее всего через скрипты в `scripts/` (Linux — `.sh`, Windows — `.bat`): `run_server`, `run_client`, `run_all` (сервер и клиент вместе). Ключ шифрования создаётся при первом запуске и хранится в `.astro-key` (или берётся из `ASTRO_KEY`), адрес — `ASTRO_ADDR` (по умолчанию `127.0.0.1:7779`). Остальные аргументы передаются программе: `scripts/run_client.sh --third-person`. Ручной запуск:
+
 Сервер раунда (транспорт Lightyear) и клиент движка с текстурами SS14:
 
 ```bash
@@ -129,3 +131,7 @@ AGPL движка (в том числе обязанность предоста�
 ```bash
 cargo test --workspace
 ```
+
+## CI
+
+`.github/workflows/ci.yml` на каждый PR запускает `cargo fmt --check`, `clippy -D warnings` и все тесты.
