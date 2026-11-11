@@ -9,6 +9,7 @@ pub mod interact;
 pub mod inventory;
 pub mod items;
 pub mod module;
+mod piping;
 mod reagents;
 pub mod storage;
 pub mod wire;

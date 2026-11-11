@@ -171,14 +171,126 @@ impl InteractionHandler for IgniterUse {
     }
 }
 
+/// F по переносному баллончику в руке — открыть или закрыть выпуск газа (`ToggleValve`).
+pub struct TankUse;
+
+impl InteractionHandler for TankUse {
+    fn use_in_hand(
+        &mut self,
+        state: &mut State,
+        _ctx: &mut HookContext<'_>,
+        _user: NetworkEntityId,
+        used: &Used,
+    ) -> bool {
+        match state.tank_of(&used.item) {
+            Some(t) => {
+                t.release_open = !t.release_open;
+                true
+            }
+            None => false,
+        }
+    }
+}
+
+/// Устройства труб: пустая рука включает насос, вентиляцию, скруббер, клапан и выпуск баллона;
+/// с гаечным ключом (`Anchoring`) баллон подключается к разъёму и отключается, насос меняет
+/// целевое давление, вентиль и скруббер переключают режим.
+pub struct GasDeviceUse;
+
+impl GasDeviceUse {
+    fn act(state: &mut State, target: &Target, wrench: bool) -> bool {
+        use atmos::Device;
+        let Target::Item { id, .. } = target else {
+            return false;
+        };
+        let Some(key) = state.pipe_keys.existing(*id) else {
+            return false;
+        };
+        let port = state
+            .pipe_sig
+            .iter()
+            .find(|(o, _, _)| o == id)
+            .and_then(|(_, cell, _)| state.port_node_at(*cell));
+        let Some(d) = state.atmos.pipes_mut().device_mut(key) else {
+            return false;
+        };
+        match d {
+            Device::PressurePump {
+                enabled, target, ..
+            } => {
+                if wrench {
+                    const PRESETS: [f32; 4] = [101.325, 303.975, 1013.25, 4500.0];
+                    let next = PRESETS.iter().position(|p| *p > *target + 0.01);
+                    *target = PRESETS[next.unwrap_or(0)];
+                } else {
+                    *enabled = !*enabled;
+                }
+            }
+            Device::VentPump(v) => {
+                if wrench {
+                    v.releasing = !v.releasing;
+                } else {
+                    v.enabled = !v.enabled;
+                }
+            }
+            Device::Scrubber(s) => {
+                if wrench {
+                    s.siphoning = !s.siphoning;
+                } else {
+                    s.enabled = !s.enabled;
+                }
+            }
+            Device::Valve { open, .. } => *open = !*open,
+            Device::Canister(c) => {
+                if wrench {
+                    c.port = if c.port.is_some() { None } else { port };
+                } else {
+                    c.release_open = !c.release_open;
+                }
+            }
+            Device::PassiveVent { .. } => return false,
+        }
+        true
+    }
+}
+
+impl InteractionHandler for GasDeviceUse {
+    fn interact_hand(
+        &mut self,
+        state: &mut State,
+        _ctx: &mut HookContext<'_>,
+        _user: NetworkEntityId,
+        target: &Target,
+    ) -> bool {
+        Self::act(state, target, false)
+    }
+
+    fn interact_using(
+        &mut self,
+        state: &mut State,
+        _ctx: &mut HookContext<'_>,
+        _user: NetworkEntityId,
+        used: &Used,
+        target: &Target,
+    ) -> bool {
+        let wrench = state
+            .infos
+            .get(&used.item.prototype)
+            .is_some_and(|i| i.qualities.contains("Anchoring"));
+        wrench && Self::act(state, target, true)
+    }
+}
+
 /// Базовая цепочка: порядок важен — первый обработавший прекращает обход.
 pub fn default_handlers() -> Vec<Box<dyn InteractionHandler>> {
     vec![
+        Box::new(GasDeviceUse),
         Box::new(PryDoor),
         Box::new(StorageClickInsert),
         Box::new(PickupHandler),
         Box::new(DoorActivate),
         Box::new(IgniterUse),
+        Box::new(TankUse),
         Box::new(OpenableUse),
         Box::new(EdibleUse),
     ]

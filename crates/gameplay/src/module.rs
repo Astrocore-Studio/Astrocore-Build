@@ -137,6 +137,15 @@ pub struct State {
     pub(crate) lit: BTreeSet<ObjectId>,
     /// Какие клетки с огнём уже разосланы.
     pub(crate) fires_sent: Vec<crate::fire::FireView>,
+    /// Трубы и газовые устройства: разбор прототипов, ключи объектов, подпись мира.
+    pub(crate) pipe_parts: BTreeMap<PrototypeId, crate::piping::PipePart>,
+    pub(crate) pipe_keys: crate::piping::PipeKeys,
+    pub(crate) pipe_sig: Vec<(ObjectId, atmos::Cell, u8)>,
+    /// Переносимые баллончики: шаблоны и экземпляры (создаются при первом обращении).
+    pub(crate) tank_templates: BTreeMap<PrototypeId, atmos::Tank>,
+    pub(crate) tanks: BTreeMap<ObjectId, atmos::Tank>,
+    pub(crate) tank_timer: f32,
+    pub(crate) pipe_ports: BTreeMap<atmos::Cell, u64>,
 }
 
 impl State {
@@ -151,6 +160,8 @@ impl State {
         let mut solution_templates = BTreeMap::new();
         let mut openable = BTreeMap::new();
         let mut igniters = BTreeMap::new();
+        let mut pipe_parts = BTreeMap::new();
+        let mut tank_templates = BTreeMap::new();
         for (id, name) in names {
             let resolved = registry.spawnable(&name).ok();
             if let Some(info) = resolved.as_ref().and_then(item_info) {
@@ -168,6 +179,12 @@ impl State {
                 }
                 if let Some(t) = crate::fire::ignition_temperature(r) {
                     igniters.insert(id.clone(), t);
+                }
+                if let Some(p) = crate::piping::PipePart::from_resolved(r) {
+                    pipe_parts.insert(id.clone(), p);
+                }
+                if let Some(t) = crate::piping::tank_template(r) {
+                    tank_templates.insert(id.clone(), t);
                 }
             }
             let delay = |key: &str| {
@@ -240,6 +257,13 @@ impl State {
             igniters,
             lit: BTreeSet::new(),
             fires_sent: Vec::new(),
+            pipe_parts,
+            pipe_keys: crate::piping::PipeKeys::default(),
+            pipe_sig: Vec::new(),
+            tank_templates,
+            tanks: BTreeMap::new(),
+            tank_timer: 0.0,
+            pipe_ports: BTreeMap::new(),
         })
     }
 
@@ -1111,7 +1135,9 @@ impl State {
             self.atmos.set_layout(layout);
         }
         self.tick_igniters(ctx);
+        self.sync_pipes(ctx);
         self.atmos.advance(dt);
+        self.tick_devices(ctx, dt);
         self.publish_fires(ctx);
     }
 
@@ -1139,6 +1165,169 @@ impl State {
                 self.atmos.ignite(cell, temperature, IGNITION_SOURCE_VOLUME);
             }
         }
+    }
+
+    /// Трубы-зоны и устройства мира → узлы и устройства атмосферы. Состояние устройств (клапаны,
+    /// баллоны) сохраняется, пока объект стоит на месте.
+    fn sync_pipes(&mut self, ctx: &mut HookContext<'_>) {
+        use crate::piping::{
+            DeviceSpec, PIPE_KEY, PIPE_VOLUME_KEY, cell_at, device_of, node_key, parse_dirs,
+        };
+        let mut layout = crate::piping::PipeLayout::default();
+        let mut sig: Vec<(ObjectId, atmos::Cell, u8)> = Vec::new();
+        let mut parts: Vec<(ObjectId, atmos::Cell, crate::piping::PipePart)> = Vec::new();
+        for o in ctx.world.authored() {
+            let centre = (o.min() + o.max()) * 0.5;
+            let cell = cell_at(o.floor.0, centre);
+            match &o.kind {
+                AuthoredKind::Zone => {
+                    let Some(dirs) = o.metadata.get(PIPE_KEY).map(|s| parse_dirs(s)) else {
+                        continue;
+                    };
+                    let volume = o
+                        .metadata
+                        .get(PIPE_VOLUME_KEY)
+                        .and_then(|v| v.parse::<f32>().ok())
+                        .unwrap_or(atmos::pipes::DEFAULT_PIPE_VOLUME);
+                    parts.push((
+                        o.id,
+                        cell,
+                        crate::piping::PipePart {
+                            nodes: vec![(dirs, volume)],
+                            device: None,
+                        },
+                    ));
+                    sig.push((o.id, cell, dirs));
+                }
+                AuthoredKind::Placement { prototype } => {
+                    if let Some(p) = self.pipe_parts.get(prototype) {
+                        parts.push((o.id, cell, p.clone()));
+                        sig.push((o.id, cell, 0));
+                    }
+                }
+                _ => {}
+            }
+        }
+        sig.sort();
+        if sig == self.pipe_sig {
+            return;
+        }
+        self.pipe_sig = sig;
+        for (id, cell, part) in &parts {
+            let key = self.pipe_keys.key_of(*id);
+            for (i, (dirs, volume)) in part.nodes.iter().enumerate() {
+                layout.nodes.push(atmos::NodeSpec {
+                    key: node_key(key, i),
+                    cell: *cell,
+                    dirs: *dirs,
+                    volume: *volume,
+                });
+                if matches!(part.device, Some(DeviceSpec::Port)) && i == 0 {
+                    layout.ports.insert(*cell, node_key(key, 0));
+                }
+            }
+        }
+        for (id, cell, part) in &parts {
+            let key = self.pipe_keys.key_of(*id);
+            if let Some(spec) = &part.device
+                && let Some(device) = device_of(spec, key, layout.ports.get(cell).copied())
+            {
+                layout.devices.push((key, *cell, device, *id));
+            }
+        }
+        self.pipe_ports = layout.ports.clone();
+        self.atmos.set_pipe_nodes(&layout.nodes);
+        let wanted: BTreeSet<u64> = layout.devices.iter().map(|d| d.0).collect();
+        let present: Vec<u64> = self.atmos.pipes().device_keys().collect();
+        for k in present {
+            if !wanted.contains(&k) {
+                self.atmos.pipes_mut().remove_device(k);
+            }
+        }
+        for (key, cell, device, _) in layout.devices {
+            if self.atmos.pipes().device(key).is_none() {
+                self.atmos.pipes_mut().add_device(key, cell, device);
+            }
+        }
+    }
+
+    /// Устройства, баллончики и их события (лопнувший баллон).
+    fn tick_devices(&mut self, ctx: &mut HookContext<'_>, dt: f32) {
+        self.tank_timer += dt;
+        let step = atmos::grid::ATMOS_TIME * 9.0;
+        while self.tank_timer >= step {
+            self.tank_timer -= step;
+            self.tick_tanks(ctx, step);
+        }
+        for event in self.atmos.take_device_events() {
+            let atmos::DeviceEvent::Ruptured { key, .. } = event;
+            // Лопнувший баллон исчезает из мира.
+            let victim = self
+                .pipe_keys
+                .keys_iter()
+                .find(|(_, k)| *k == key)
+                .map(|(id, _)| id);
+            if let Some(id) = victim {
+                ctx.request(WorldCommand::RemoveAuthored { id });
+            }
+        }
+    }
+
+    /// Узел разъёма в клетке (для подключения баллона).
+    pub(crate) fn port_node_at(&self, cell: atmos::Cell) -> Option<u64> {
+        self.pipe_ports.get(&cell).copied()
+    }
+
+    /// Переносные баллончики: выпуск газа, реакции, разрыв при перегрузке.
+    fn tick_tanks(&mut self, ctx: &mut HookContext<'_>, dt: f32) {
+        let ids: Vec<ObjectId> = self.tanks.keys().copied().collect();
+        for id in ids {
+            // Где баллончик: в руках игрока или на земле.
+            let holder = self.actors.iter().find_map(|(who, a)| {
+                a.hands
+                    .iter()
+                    .enumerate()
+                    .find(|(_, (_, _, it))| it.as_ref().is_some_and(|i| i.id == id))
+                    .map(|(hand, _)| (*who, hand))
+            });
+            let cell = match holder {
+                Some((who, _)) => self.cell_of(ctx, who),
+                None => ctx
+                    .world
+                    .authored_object(id)
+                    .map(|o| crate::piping::cell_at(o.floor.0, (o.min() + o.max()) * 0.5)),
+            };
+            let Some(cell) = cell else { continue };
+            let Some(mut tank) = self.tanks.remove(&id) else {
+                continue;
+            };
+            let status = self
+                .atmos
+                .with_air(cell, |air| tank.update(dt, Some(air)))
+                .unwrap_or_else(|| tank.update(dt, None));
+            if status == atmos::PressureStatus::Ruptured {
+                match holder {
+                    Some((who, hand)) => {
+                        if let Some(a) = self.actors.get_mut(&who) {
+                            let _ = a.hands.drop_hand(hand);
+                        }
+                        self.publish(ctx, who);
+                    }
+                    None => ctx.request(WorldCommand::RemoveAuthored { id }),
+                }
+                continue;
+            }
+            self.tanks.insert(id, tank);
+        }
+    }
+
+    /// Баллончик предмета: создаётся из шаблона при первом обращении.
+    pub(crate) fn tank_of(&mut self, item: &HeldItem) -> Option<&mut atmos::Tank> {
+        if !self.tanks.contains_key(&item.id) {
+            let t = self.tank_templates.get(&item.prototype)?.clone();
+            self.tanks.insert(item.id, t);
+        }
+        self.tanks.get_mut(&item.id)
     }
 
     /// Клетка атмосферы под ногами игрока.
