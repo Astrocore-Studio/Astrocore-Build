@@ -6,6 +6,8 @@ use bevy_egui::{EguiContexts, EguiPlugin, EguiPrimaryContextPass};
 mod body;
 mod hud;
 mod outfit;
+mod players;
+mod sounds;
 use gameplay::{
     CMD_DROP, CMD_EQUIP, CMD_SELECT_HAND, CMD_SWAP_HANDS, HANDS_COMPONENT, Hands,
     INVENTORY_COMPONENT, InventoryView, decode_hands, decode_inventory, drop_data, equip_data,
@@ -47,7 +49,7 @@ impl Plugin for BuildClientPlugin {
                 enabled: self.autoplay,
                 frame: 0,
             })
-            .add_systems(Startup, install_body)
+            .add_systems(Startup, (install_body, install_sounds))
             .add_systems(
                 Update,
                 (
@@ -59,12 +61,29 @@ impl Plugin for BuildClientPlugin {
                 )
                     .chain(),
             )
-            .add_systems(EguiPrimaryContextPass, loadout_window);
+            .add_systems(
+                Update,
+                (players::walk_bob, sounds::door_sounds, sounds::item_sounds),
+            )
+            .add_systems(
+                EguiPrimaryContextPass,
+                (loadout_window, players::other_bars),
+            );
     }
 }
 
 #[derive(Resource)]
 struct BodyRoot(std::path::PathBuf, Option<std::path::PathBuf>);
+
+fn install_sounds(
+    root: Option<Res<BodyRoot>>,
+    mut audio: ResMut<Assets<bevy::audio::AudioSource>>,
+    mut commands: Commands,
+) {
+    if let Some(root) = root {
+        commands.insert_resource(sounds::Sounds::load(&root.0, &mut audio));
+    }
+}
 
 fn install_body(
     root: Option<Res<BodyRoot>>,

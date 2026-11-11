@@ -12,7 +12,7 @@ astrocore-core.workspace = true
 astrocore-render = { git = "https://github.com/Astrocore-Studio/Astrocore-Engine", branch = "main" }
 astrocore-math.workspace = true
 astrocore-world.workspace = true
-bevy = { version = "=0.20.1", default-features = false, features = ["3d_bevy_render", "default_app", "bevy_winit", "bevy_window", "x11", "png", "std", "multi_threaded"] }
+bevy = { version = "=0.20.1", default-features = false, features = ["3d_bevy_render", "default_app", "bevy_winit", "bevy_window", "x11", "png", "std", "multi_threaded", "bevy_audio", "vorbis"] }
 bevy_egui = { version = "=0.43.1", default-features = false, features = ["render", "default_fonts"] }
 gameplay.workspace = true
 image = { version = "0.25", default-features = false, features = ["png"] }
