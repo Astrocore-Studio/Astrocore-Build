@@ -27,3 +27,9 @@
 | `Objects/Tools/screwdriver.rsi` | CC-BY-SA-3.0 |
 | `Objects/Tools/wrench.rsi` | CC-BY-SA-3.0 |
 | `Structures/Walls/solid.rsi` | см. `meta.json` |
+| `Structures/Doors/Airlocks/Standard/airlock-base.rsi` | CC-BY-SA-4.0 |
+| `Clothing/Back/Backpacks/backpack.rsi` | CC-BY-SA-3.0 |
+| `Objects/Misc/pens.rsi` | CC-BY-SA-3.0 |
+| `Tiles/Basic/Dark/dark.png` | CC0-1.0 (см. `attributions.yml` рядом) |
+
+`render-manifest.json` — служебный файл (соответствие идентификаторов и картинок), собирается из прототипов.

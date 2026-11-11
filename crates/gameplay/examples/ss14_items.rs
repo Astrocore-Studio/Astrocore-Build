@@ -5,7 +5,10 @@ fn main() {
     let path = std::env::args().nth(1).expect("файл прототипов SS14");
     let text = std::fs::read_to_string(&path).expect("чтение");
     let (defs, report) = parse_ss14_yaml(&text).expect("разбор YAML");
-    println!("{path}: прототипов entity {}, пропущено {}", report.entities, report.skipped_other_types);
+    println!(
+        "{path}: прототипов entity {}, пропущено {}",
+        report.entities, report.skipped_other_types
+    );
     for d in defs {
         // Наследование здесь не разрешается (родители лежат в других каталогах SS14): смотрим
         // только собственные компоненты прототипа.
