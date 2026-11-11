@@ -30,7 +30,8 @@
     (id: "ClothingBackpack", name: Some("backpack"), components: {
         "Item": (size: "Colossal"),
         "Sprite": (sprite: "Clothing/Back/Backpacks/backpack.rsi", state: "icon"),
-        "Clothing": (slots: ["back"]),
+        // Задержки надевания и снятия — решение билда (в SS14 у рюкзака их нет); задаются в `Clothing`.
+        "Clothing": (slots: ["back"], equipDelay: 1.0, unequipDelay: 0.5),
         "Storage": (grid: ["0,0,6,3"], maxItemSize: "Huge", blacklist: (tags: ["TrashBag"])),
     }),
 ]

@@ -4,22 +4,26 @@ use std::sync::Arc;
 use astrocore_api::{GameModule, HookContext, HookEvent};
 use astrocore_core::{NetworkEntityId, ObjectId, PrototypeId};
 use astrocore_math::glam::Vec3;
+use astrocore_runtime::modules::DoorAction;
 use astrocore_world::{
     AuthoredKind, AuthoredObject, FloorId, OpeningKind, Placement, StructureKind, WorldCommand,
 };
 use prototypes::PrototypeRegistry;
 
+use crate::doafter::{
+    Action, BREAK_DISTANCE_M, DOAFTER_COMPONENT, DoAfter, DoAfterView, PRY_TIME_S, encode_doafter,
+};
 use crate::hands::{Hands, HeldItem};
 use crate::interact::{InteractionHandler, Target, Used};
 use crate::inventory::Inventory;
 use crate::items::{ItemInfo, item_info};
 use crate::storage::Storage;
 use crate::wire::{
-    BagView, CMD_DROP, CMD_EQUIP, CMD_INTERACT, CMD_MOVE_HAND, CMD_MOVE_SLOT, CMD_PICKUP,
-    CMD_PICKUP_ANY, CMD_SELECT_HAND, CMD_STORE, CMD_SWAP_HANDS, CMD_TAKE, CMD_TAKE_TO, CMD_UNEQUIP,
-    CMD_UNEQUIP_TO, CMD_USE, HANDS_COMPONENT, INVENTORY_COMPONENT, InventoryView, encode_hands,
-    encode_inventory, parse_drop, parse_equip, parse_move_slot, parse_object_id, parse_store,
-    parse_take, parse_take_to, parse_unequip,
+    BagView, CMD_CANCEL, CMD_DROP, CMD_EQUIP, CMD_INTERACT, CMD_MOVE_HAND, CMD_MOVE_SLOT,
+    CMD_PICKUP, CMD_PICKUP_ANY, CMD_SELECT_HAND, CMD_STORE, CMD_SWAP_HANDS, CMD_TAKE, CMD_TAKE_TO,
+    CMD_UNEQUIP, CMD_UNEQUIP_TO, CMD_USE, HANDS_COMPONENT, INVENTORY_COMPONENT, InventoryView,
+    encode_hands, encode_inventory, parse_drop, parse_equip, parse_move_slot, parse_object_id,
+    parse_store, parse_take, parse_take_to, parse_unequip,
 };
 
 /// Дальность взаимодействия, м: `InteractionRange` в SS14 (1,5). Меряется от груди персонажа
@@ -39,6 +43,7 @@ pub const NAMESPACE: &str = "ss14";
 pub(crate) struct Actor {
     pub(crate) hands: Hands,
     pub(crate) inventory: Inventory,
+    pub(crate) doafter: Option<DoAfter>,
 }
 
 impl Actor {
@@ -46,6 +51,7 @@ impl Actor {
         Self {
             hands: Hands::humanoid(),
             inventory: Inventory::human(),
+            doafter: None,
         }
     }
 }
@@ -62,6 +68,8 @@ pub struct State {
     pub(crate) actors: BTreeMap<NetworkEntityId, Actor>,
     /// Содержимое сумок по идентификатору сумки: переживает смену владельца и выброс сумки.
     pub(crate) storages: BTreeMap<ObjectId, Storage>,
+    /// Задержки надевания и снятия одежды, с: (`equipDelay`, `unequipDelay`) из `Clothing`.
+    pub(crate) delays: BTreeMap<PrototypeId, (f32, f32)>,
 }
 
 impl State {
@@ -69,9 +77,23 @@ impl State {
     pub(crate) fn new(registry: Arc<PrototypeRegistry>) -> Result<Self, prototypes::ProtoError> {
         let names = registry.engine_index(NAMESPACE)?;
         let mut infos = BTreeMap::new();
+        let mut delays = BTreeMap::new();
         for (id, name) in names {
-            if let Some(info) = registry.spawnable(&name).ok().as_ref().and_then(item_info) {
-                infos.insert(id, info);
+            let resolved = registry.spawnable(&name).ok();
+            if let Some(info) = resolved.as_ref().and_then(item_info) {
+                infos.insert(id.clone(), info);
+            }
+            let delay = |key: &str| {
+                resolved
+                    .as_ref()
+                    .and_then(|r| r.component("Clothing"))
+                    .and_then(|c| c.get(key))
+                    .and_then(prototypes::Data::as_f64)
+                    .map_or(0.0, |v| v.max(0.0) as f32)
+            };
+            let pair = (delay("equipDelay"), delay("unequipDelay"));
+            if pair != (0.0, 0.0) {
+                delays.insert(id, pair);
             }
         }
         Ok(Self {
@@ -79,6 +101,7 @@ impl State {
             range_m: INTERACTION_RANGE_M,
             actors: BTreeMap::new(),
             storages: BTreeMap::new(),
+            delays,
         })
     }
 
@@ -384,6 +407,144 @@ impl State {
         self.publish(ctx, actor);
     }
 
+    /// Начать действие: сразу выполнить, если задержки нет, иначе запустить таймер. Пока идёт
+    /// другое действие, новое не принимается.
+    pub(crate) fn begin(
+        &mut self,
+        ctx: &mut HookContext<'_>,
+        actor: NetworkEntityId,
+        action: Action,
+    ) {
+        let Some(a) = self.actors.get(&actor) else {
+            return;
+        };
+        if a.doafter.is_some() || !self.can_start(ctx, actor, &action) {
+            return;
+        }
+        let delay = self.delay_of(actor, &action);
+        if delay <= 0.0 {
+            self.run(ctx, actor, action);
+            return;
+        }
+        let Some(start) = ctx.position_of(actor) else {
+            return;
+        };
+        self.actor(actor).doafter = Some(DoAfter {
+            action,
+            delay,
+            elapsed: 0.0,
+            start,
+        });
+        self.publish_doafter(ctx, actor);
+    }
+
+    /// Условия начала и завершения действия (проверяются в обоих случаях).
+    fn can_start(&self, ctx: &HookContext<'_>, actor: NetworkEntityId, action: &Action) -> bool {
+        let Some(a) = self.actors.get(&actor) else {
+            return false;
+        };
+        match action {
+            Action::Equip { hand, slot } => a.hands.get(*hand).is_some_and(|item| {
+                self.info(&item.prototype)
+                    .is_some_and(|info| a.inventory.can_equip(slot, info).is_ok())
+            }),
+            Action::Unequip { slot, .. } => a.inventory.get(slot).is_some(),
+            Action::Pry { element, hand } => {
+                ctx.door_open(*element) == Some(false)
+                    && a.hands.get(*hand).is_some_and(|i| {
+                        self.info(&i.prototype)
+                            .is_some_and(|x| x.qualities.contains("Prying"))
+                    })
+            }
+        }
+    }
+
+    fn delay_of(&self, actor: NetworkEntityId, action: &Action) -> f32 {
+        let Some(a) = self.actors.get(&actor) else {
+            return 0.0;
+        };
+        match action {
+            Action::Equip { hand, .. } => a
+                .hands
+                .get(*hand)
+                .and_then(|i| self.delays.get(&i.prototype))
+                .map_or(0.0, |d| d.0),
+            Action::Unequip { slot, .. } => a
+                .inventory
+                .get(slot)
+                .and_then(|i| self.delays.get(&i.prototype))
+                .map_or(0.0, |d| d.1),
+            Action::Pry { .. } => PRY_TIME_S,
+        }
+    }
+
+    fn run(&mut self, ctx: &mut HookContext<'_>, actor: NetworkEntityId, action: Action) {
+        match action {
+            Action::Equip { hand, slot } => self.equip(ctx, actor, hand, &slot),
+            Action::Unequip { slot, hand } => self.unequip(ctx, actor, &slot, hand),
+            Action::Pry { element, .. } => ctx.request_door(element, DoorAction::Open, true),
+        }
+    }
+
+    /// Отменить идущее действие.
+    pub(crate) fn cancel(&mut self, ctx: &mut HookContext<'_>, actor: NetworkEntityId) {
+        if self
+            .actors
+            .get_mut(&actor)
+            .and_then(|a| a.doafter.take())
+            .is_some()
+        {
+            self.publish_doafter(ctx, actor);
+        }
+    }
+
+    fn publish_doafter(&self, ctx: &mut HookContext<'_>, actor: NetworkEntityId) {
+        let view = self
+            .actors
+            .get(&actor)
+            .and_then(|a| a.doafter.as_ref())
+            .map(|d| DoAfterView {
+                kind: d.action.kind().into(),
+                delay_s: d.delay,
+            });
+        ctx.set_component(actor, DOAFTER_COMPONENT, encode_doafter(view.as_ref()));
+    }
+
+    /// Шаг времени: отсчёт, прерывание движением и потерей условий, завершение.
+    pub(crate) fn tick(&mut self, ctx: &mut HookContext<'_>, dt: f32) {
+        let waiting: Vec<NetworkEntityId> = self
+            .actors
+            .iter()
+            .filter(|(_, a)| a.doafter.is_some())
+            .map(|(id, _)| *id)
+            .collect();
+        for id in waiting {
+            let Some(pos) = ctx.position_of(id) else {
+                self.cancel(ctx, id);
+                continue;
+            };
+            let Some(d) = self.actors.get_mut(&id).and_then(|a| a.doafter.as_mut()) else {
+                continue;
+            };
+            if pos.distance(d.start) > BREAK_DISTANCE_M {
+                self.cancel(ctx, id);
+                continue;
+            }
+            d.elapsed += dt;
+            if d.elapsed < d.delay {
+                continue;
+            }
+            let action = d.action.clone();
+            if let Some(a) = self.actors.get_mut(&id) {
+                a.doafter = None;
+            }
+            self.publish_doafter(ctx, id);
+            if self.can_start(ctx, id, &action) {
+                self.run(ctx, id, action);
+            }
+        }
+    }
+
     /// Прототип сумки, если актёр может до неё дотянуться: она в руке, надета или лежит рядом.
     pub(crate) fn bag_proto(
         &self,
@@ -664,17 +825,39 @@ impl GameModule for GameplayModule {
                 }
                 CMD_EQUIP => {
                     if let Some((hand, slot)) = parse_equip(data) {
-                        st.equip(ctx, *actor, usize::from(hand), slot);
+                        st.begin(
+                            ctx,
+                            *actor,
+                            Action::Equip {
+                                hand: usize::from(hand),
+                                slot: slot.to_string(),
+                            },
+                        );
                     }
                 }
                 CMD_UNEQUIP => {
                     if let Some(slot) = parse_unequip(data) {
-                        st.unequip(ctx, *actor, slot, None);
+                        st.begin(
+                            ctx,
+                            *actor,
+                            Action::Unequip {
+                                slot: slot.to_string(),
+                                hand: None,
+                            },
+                        );
                     }
                 }
+                CMD_CANCEL => st.cancel(ctx, *actor),
                 CMD_UNEQUIP_TO => {
                     if let Some((hand, slot)) = parse_equip(data) {
-                        st.unequip(ctx, *actor, slot, Some(usize::from(hand)));
+                        st.begin(
+                            ctx,
+                            *actor,
+                            Action::Unequip {
+                                slot: slot.to_string(),
+                                hand: Some(usize::from(hand)),
+                            },
+                        );
                     }
                 }
                 CMD_TAKE_TO => {
@@ -709,6 +892,7 @@ impl GameModule for GameplayModule {
                 }
                 _ => {}
             },
+            HookEvent::Tick { dt, .. } => st.tick(ctx, *dt),
             HookEvent::PlayerLeft { actor, pos } => {
                 // Всё, что игрок держал и носил, остаётся лежать там, где он стоял (DropAll);
                 // содержимое сумок остаётся в сумках.

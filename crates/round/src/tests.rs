@@ -140,6 +140,64 @@ mod doors {
         assert_eq!(h.client(b).door_open(net), Some(false));
     }
 
+    /// Положить ломик у двери и взять его в руку.
+    fn arm_with_crowbar(h: &mut Harness, a: astrocore_network::server::ConnId) {
+        let crowbar = astrocore_world::AuthoredObject::new(
+            ObjectId::from_u128(0xC41),
+            astrocore_world::AuthoredKind::Placement {
+                prototype: astrocore_core::PrototypeId::new("ss14:crowbar").unwrap(),
+            },
+            astrocore_world::FloorId(0),
+            astrocore_math::glam::Vec3::new(5.0, polygon::FLOOR_TOP_M, 2.0),
+            astrocore_math::glam::Vec3::new(5.3, polygon::FLOOR_TOP_M + 0.3, 2.3),
+        );
+        let outs = h
+            .server
+            .apply_world_command(astrocore_world::WorldCommand::PlaceAuthored(crowbar))
+            .unwrap();
+        h.deliver(outs);
+        let p = h
+            .client(a)
+            .command_packet(
+                CMD_PICKUP_ANY,
+                gameplay::pickup_data(ObjectId::from_u128(0xC41)),
+            )
+            .unwrap();
+        h.send(a, p);
+    }
+
+    #[test]
+    fn walking_away_or_cancelling_stops_the_prying() {
+        let (mut h, a, _b) = setup();
+        let door = door_element(&h);
+        h.server.door_state_mut(door).unwrap().locked = true;
+        arm_with_crowbar(&mut h, a);
+        interact(&mut h, a, door);
+        h.ticks(5);
+        for _ in 0..6 {
+            h.input(a, 0, 1, 0.0);
+        }
+        h.ticks(40);
+        assert!(!h.server.doors().is_open(door), "ушёл — вскрытие прервано");
+        // Отмена командой.
+        let (mut h, a, _b) = setup();
+        let door = door_element(&h);
+        h.server.door_state_mut(door).unwrap().locked = true;
+        arm_with_crowbar(&mut h, a);
+        interact(&mut h, a, door);
+        h.ticks(5);
+        let p = h
+            .client(a)
+            .command_packet(gameplay::CMD_CANCEL, vec![])
+            .unwrap();
+        h.send(a, p);
+        h.ticks(40);
+        assert!(
+            !h.server.doors().is_open(door),
+            "отмена остановила вскрытие"
+        );
+    }
+
     #[test]
     fn a_locked_door_stays_shut_for_hands_but_a_crowbar_forces_it() {
         let (mut h, a, _b) = setup();
@@ -175,9 +233,22 @@ mod doors {
         h.send(a, p);
         interact(&mut h, a, door);
         assert!(
+            !h.server.doors().is_open(door),
+            "вскрытие занимает время: сразу дверь не открыта"
+        );
+        let me = h.client(a).net_id().unwrap();
+        let view = |h: &Harness| {
+            h.client(a)
+                .component(me, gameplay::DOAFTER_COMPONENT)
+                .and_then(gameplay::decode_doafter)
+        };
+        assert_eq!(view(&h).map(|v| v.kind), Some("pry".to_string()));
+        h.ticks(35);
+        assert!(
             h.server.doors().is_open(door),
             "монтировка вскрыла запертую дверь"
         );
+        assert_eq!(view(&h), None, "действие закончилось");
         // Открытую дверь монтировка не трогает; рука с предметом её не закрывает.
         interact(&mut h, a, door);
         assert!(h.server.doors().is_open(door));

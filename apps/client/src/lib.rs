@@ -16,6 +16,8 @@ use gameplay::{
 pub struct Loadout {
     pub hands: Option<Hands>,
     pub inventory: Option<InventoryView>,
+    /// Идущее действие с таймером и время (с игры), когда клиент о нём узнал.
+    pub doafter: Option<(gameplay::DoAfterView, f32)>,
 }
 
 /// Клиент билда: вид от первого лица, клавиши рук и худ по образцу SS14.
@@ -122,7 +124,7 @@ struct Autoplay {
 }
 
 /// Обновить копию состояния из реплик сервера.
-fn refresh_loadout(net: Option<NonSend<Net>>, mut loadout: ResMut<Loadout>) {
+fn refresh_loadout(net: Option<NonSend<Net>>, time: Res<Time>, mut loadout: ResMut<Loadout>) {
     let Some(net) = net else { return };
     let Some(me) = net.core.net_id() else { return };
     loadout.hands = net
@@ -133,6 +135,15 @@ fn refresh_loadout(net: Option<NonSend<Net>>, mut loadout: ResMut<Loadout>) {
         .core
         .component(me, INVENTORY_COMPONENT)
         .and_then(decode_inventory);
+    let view = net
+        .core
+        .component(me, gameplay::DOAFTER_COMPONENT)
+        .and_then(gameplay::decode_doafter);
+    loadout.doafter = match (view, loadout.doafter.take()) {
+        (Some(v), Some((old, since))) if old == v => Some((old, since)),
+        (Some(v), _) => Some((v, time.elapsed_secs())),
+        (None, _) => None,
+    };
 }
 
 fn hand_keys(keys: Res<ButtonInput<KeyCode>>, loadout: Res<Loadout>, net: Option<NonSendMut<Net>>) {
@@ -140,6 +151,9 @@ fn hand_keys(keys: Res<ButtonInput<KeyCode>>, loadout: Res<Loadout>, net: Option
     let active = loadout.hands.as_ref().map_or(0, |h| h.active() as u8);
     if keys.just_pressed(KeyCode::KeyG) {
         net.send_command(CMD_DROP, drop_data(active));
+    }
+    if keys.just_pressed(KeyCode::Escape) && loadout.doafter.is_some() {
+        net.send_command(gameplay::CMD_CANCEL, Vec::new());
     }
     if keys.just_pressed(KeyCode::KeyX) {
         net.send_command(CMD_SWAP_HANDS, vec![0]);
@@ -212,12 +226,25 @@ fn loadout_window(
     mut hud: ResMut<Hud>,
     look: Option<Res<astrocore_client::Look>>,
     ground: Res<Ground>,
+    time: Res<Time>,
     net: Option<NonSendMut<Net>>,
 ) -> Result {
     let ctx = contexts.ctx_mut()?.clone();
     let Some(mut net) = net else {
         return Ok(());
     };
+    let progress = loadout.doafter.as_ref().map(|(v, since)| {
+        let label = match v.kind.as_str() {
+            "equip" => "Надеваем…",
+            "unequip" => "Снимаем…",
+            "pry" => "Вскрываем…",
+            _ => "Действие…",
+        };
+        (
+            label,
+            ((time.elapsed_secs() - since) / v.delay_s.max(0.01)).min(1.0),
+        )
+    });
     let Hud { icons, state } = &mut *hud;
     let commands = hud::draw(
         &ctx,
@@ -227,6 +254,10 @@ fn loadout_window(
         loadout.inventory.as_ref(),
         look.is_some_and(|l| l.first_person),
         ground.0,
+        progress.as_ref().map(|(label, f)| hud::Progress {
+            label,
+            fraction: *f,
+        }),
     );
     for (kind, data) in commands {
         net.send_command(kind, data);

@@ -2,6 +2,7 @@ use astrocore_api::HookContext;
 use astrocore_core::NetworkEntityId;
 use astrocore_runtime::modules::DoorAction;
 
+use crate::doafter::Action;
 use crate::interact::{InteractionHandler, Target, Used};
 use crate::module::State;
 
@@ -77,7 +78,7 @@ impl InteractionHandler for PryDoor {
         &mut self,
         state: &mut State,
         ctx: &mut HookContext<'_>,
-        _user: NetworkEntityId,
+        user: NetworkEntityId,
         used: &Used,
         target: &Target,
     ) -> bool {
@@ -91,7 +92,14 @@ impl InteractionHandler for PryDoor {
         if !prying || ctx.door_open(*element) != Some(false) {
             return false;
         }
-        ctx.request_door(*element, DoorAction::Open, true);
+        state.begin(
+            ctx,
+            user,
+            Action::Pry {
+                element: *element,
+                hand: used.hand,
+            },
+        );
         true
     }
 }

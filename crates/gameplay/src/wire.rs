@@ -34,6 +34,8 @@ pub const CMD_UNEQUIP_TO: &str = "inv.unequip_to";
 pub const CMD_TAKE_TO: &str = "storage.take_to";
 /// Переложить надетое из слота в слот: `[слот откуда, 0, слот куда]`.
 pub const CMD_MOVE_SLOT: &str = "inv.move";
+/// Отменить идущее действие с таймером.
+pub const CMD_CANCEL: &str = "doafter.cancel";
 
 /// Взаимодействие с целью в мире (предмет на земле или дверь): `[id цели 16 байт]`.
 /// Что именно произойдёт, решает цепочка обработчиков: пустая рука — `InteractHand`, предмет в
@@ -133,6 +135,12 @@ pub fn register_replication(reg: &mut ReplicationRegistry) -> Result<(), Replica
         channel: ReplicationChannel::ReliableOrdered,
         interest: Interest::Owner,
         max_bytes: INVENTORY_MAX_BYTES,
+    })?;
+    reg.register(ReplicatedKind {
+        name: crate::doafter::DOAFTER_COMPONENT.into(),
+        channel: ReplicationChannel::ReliableOrdered,
+        interest: Interest::Everyone,
+        max_bytes: crate::doafter::DOAFTER_MAX_BYTES,
     })?;
     reg.register(ReplicatedKind {
         name: WORN_COMPONENT.into(),

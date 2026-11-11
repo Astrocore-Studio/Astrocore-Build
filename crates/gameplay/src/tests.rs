@@ -18,6 +18,10 @@ const PROTOS: &str = r#"[
     (id: "Pen", components: {"Item": (size: "Tiny")}),
     (id: "Toolbox", components: {"Item": (size: "Large")}),
     (id: "Jumpsuit", components: {"Item": (size: "Normal"), "Clothing": (slots: ["InnerClothing"])}),
+    (id: "HeavyCoat", components: {
+        "Item": (size: "Normal"),
+        "Clothing": (slots: ["OuterClothing"], equipDelay: 1.0, unequipDelay: 0.5),
+    }),
     (id: "Backpack", components: {
         "Item": (size: "Large"),
         "Clothing": (slots: ["Back"]),
@@ -459,6 +463,94 @@ fn near() -> Vec3 {
 
 mod inventory_and_storage {
     use super::*;
+
+    fn doafter(h: &Harness, who: ConnId) -> Option<crate::DoAfterView> {
+        let net = h.client(who).net_id()?;
+        crate::decode_doafter(h.client(who).component(net, crate::DOAFTER_COMPONENT)?)
+    }
+
+    #[test]
+    fn a_delayed_equip_waits_then_completes_and_everyone_sees_it() {
+        let mut h = harness();
+        let (a, b) = (h.join("a"), h.join("b"));
+        grab(&mut h, a, 10, near(), "ss14:heavy_coat");
+        command(&mut h, a, CMD_EQUIP, equip_data(0, "outerClothing"));
+        let seen_by_b = |h: &Harness| {
+            let net = h.client(a).net_id().unwrap();
+            crate::decode_doafter(h.client(b).component(net, crate::DOAFTER_COMPONENT)?)
+        };
+        assert_eq!(
+            doafter(&h, a).map(|d| (d.kind, d.delay_s)),
+            Some(("equip".to_string(), 1.0))
+        );
+        assert!(seen_by_b(&h).is_some(), "другие игроки видят полоску");
+        assert!(
+            hands_of(&h, a, a).unwrap().get(0).is_some(),
+            "пока предмет в руке"
+        );
+        // Второе действие во время первого не принимается.
+        command(&mut h, a, CMD_EQUIP, equip_data(0, "outerClothing"));
+        h.ticks(25);
+        assert!(
+            inv_of(&h, a, a)
+                .unwrap()
+                .inventory
+                .get("outerClothing")
+                .is_some()
+        );
+        assert!(hands_of(&h, a, a).unwrap().get(0).is_none());
+        assert_eq!(doafter(&h, a), None);
+        // Снятие длится 0,5 с.
+        command(&mut h, a, CMD_UNEQUIP, unequip_data("outerClothing"));
+        assert_eq!(doafter(&h, a).map(|d| d.delay_s), Some(0.5));
+        h.ticks(15);
+        assert!(
+            inv_of(&h, a, a)
+                .unwrap()
+                .inventory
+                .get("outerClothing")
+                .is_none()
+        );
+        assert!(hands_of(&h, a, a).unwrap().get(0).is_some());
+    }
+
+    #[test]
+    fn moving_cancels_a_delayed_equip_and_the_item_stays_in_hand() {
+        let mut h = harness();
+        let a = h.join("a");
+        grab(&mut h, a, 10, near(), "ss14:heavy_coat");
+        command(&mut h, a, CMD_EQUIP, equip_data(0, "outerClothing"));
+        for _ in 0..8 {
+            h.input(a, 0, 1, 0.0);
+        }
+        h.ticks(30);
+        assert_eq!(doafter(&h, a), None);
+        assert!(
+            inv_of(&h, a, a)
+                .unwrap()
+                .inventory
+                .get("outerClothing")
+                .is_none()
+        );
+        assert!(hands_of(&h, a, a).unwrap().get(0).is_some());
+    }
+
+    #[test]
+    fn dropping_the_item_mid_action_aborts_the_equip() {
+        let mut h = harness();
+        let a = h.join("a");
+        grab(&mut h, a, 10, near(), "ss14:heavy_coat");
+        command(&mut h, a, CMD_EQUIP, equip_data(0, "outerClothing"));
+        command(&mut h, a, CMD_DROP, drop_data(0));
+        h.ticks(30);
+        assert!(
+            inv_of(&h, a, a)
+                .unwrap()
+                .inventory
+                .get("outerClothing")
+                .is_none()
+        );
+    }
 
     fn hand_item(h: &Harness, who: ConnId, i: usize) -> Option<ObjectId> {
         hands_of(h, who, who).unwrap().get(i).map(|x| x.id)

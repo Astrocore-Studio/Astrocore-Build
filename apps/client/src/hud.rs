@@ -120,6 +120,12 @@ impl Icons {
     }
 }
 
+/// Идущее действие с таймером: подпись и доля выполненного (0…1).
+pub struct Progress<'a> {
+    pub label: &'a str,
+    pub fraction: f32,
+}
+
 /// Откуда тянут предмет.
 #[derive(Clone, Debug)]
 enum Src {
@@ -206,6 +212,7 @@ fn bag_id(b: &BagView) -> u128 {
 }
 
 /// Нарисовать весь худ. Возвращает команды для сервера.
+#[allow(clippy::too_many_arguments)]
 pub fn draw(
     ctx: &egui::Context,
     icons: &mut Icons,
@@ -214,6 +221,7 @@ pub fn draw(
     view: Option<&InventoryView>,
     first_person: bool,
     ground: Option<[f32; 3]>,
+    progress: Option<Progress>,
 ) -> Commands {
     let mut out: Commands = Vec::new();
     let Some(hands) = hands else {
@@ -221,6 +229,17 @@ pub fn draw(
     };
     if first_person {
         viewmodel(ctx, icons, hands);
+    }
+    if let Some(p) = progress {
+        egui::Area::new(egui::Id::new("hud_progress"))
+            .anchor(egui::Align2::CENTER_BOTTOM, Vec2::new(0.0, -92.0))
+            .show(ctx, |ui| {
+                ui.add(
+                    egui::ProgressBar::new(p.fraction.clamp(0.0, 1.0))
+                        .desired_width(220.0)
+                        .text(p.label),
+                );
+            });
     }
     let toggle = icons.ui(ctx, "Default/Slots/toggle");
     egui::Area::new(egui::Id::new("hud_bar"))
@@ -681,6 +700,7 @@ mod tests {
                 view,
                 false,
                 GROUND,
+                None,
             ));
             let mut out = ctx.end_pass();
             out.textures_delta.clear();
