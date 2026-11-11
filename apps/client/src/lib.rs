@@ -5,6 +5,7 @@ use bevy::prelude::*;
 use bevy_egui::{EguiContexts, EguiPlugin, EguiPrimaryContextPass};
 mod body;
 mod hud;
+mod outfit;
 use gameplay::{
     CMD_DROP, CMD_EQUIP, CMD_SELECT_HAND, CMD_SWAP_HANDS, HANDS_COMPONENT, Hands,
     INVENTORY_COMPONENT, InventoryView, decode_hands, decode_inventory, drop_data, equip_data,
@@ -31,7 +32,7 @@ pub struct BuildClientPlugin {
 impl Plugin for BuildClientPlugin {
     fn build(&self, app: &mut App) {
         if let Some(root) = self.manifest.as_ref().and_then(|m| m.parent()) {
-            app.insert_resource(BodyRoot(root.to_path_buf()));
+            app.insert_resource(BodyRoot(root.to_path_buf(), self.manifest.clone()));
         }
         app.add_plugins(EguiPlugin::default())
             .init_resource::<Loadout>()
@@ -44,13 +45,16 @@ impl Plugin for BuildClientPlugin {
                 frame: 0,
             })
             .add_systems(Startup, install_body)
-            .add_systems(Update, (refresh_loadout, hand_keys, autoplay).chain())
+            .add_systems(
+                Update,
+                (refresh_loadout, hand_keys, autoplay, outfit::sync_outfits).chain(),
+            )
             .add_systems(EguiPrimaryContextPass, loadout_window);
     }
 }
 
 #[derive(Resource)]
-struct BodyRoot(std::path::PathBuf);
+struct BodyRoot(std::path::PathBuf, Option<std::path::PathBuf>);
 
 fn install_body(
     root: Option<Res<BodyRoot>>,
@@ -58,7 +62,7 @@ fn install_body(
     mut commands: Commands,
 ) {
     if let Some(root) = root {
-        body::install(&root.0, &mut images, &mut commands);
+        body::install(&root.0, root.1.as_deref(), &mut images, &mut commands);
     }
 }
 

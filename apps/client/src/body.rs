@@ -48,11 +48,21 @@ pub fn compose(root: &Path) -> Option<image::RgbaImage> {
 }
 
 /// Подставить клиенту спрайт игрока; без файлов частей остаётся демонстрационный человечек.
-pub fn install(root: &Path, images: &mut Assets<Image>, commands: &mut Commands) {
+pub fn install(
+    root: &Path,
+    manifest: Option<&Path>,
+    images: &mut Assets<Image>,
+    commands: &mut Commands,
+) {
     let Some(sheet) = compose(root) else {
         eprintln!("части тела не найдены в {}", root.display());
         return;
     };
+    commands.insert_resource(crate::outfit::Outfits::new(
+        root.to_path_buf(),
+        sheet.clone(),
+        crate::hud::Icons::icon_paths(manifest),
+    ));
     let mut image = Image::new(
         Extent3d {
             width: sheet.width(),

@@ -130,6 +130,16 @@ impl State {
             return;
         };
         ctx.set_component(actor, HANDS_COMPONENT, encode_hands(&a.hands));
+        let worn: crate::wire::Worn = a
+            .inventory
+            .iter()
+            .filter_map(|(d, i)| Some((d.name.clone(), i?.prototype.to_string())))
+            .collect();
+        ctx.set_component(
+            actor,
+            crate::wire::WORN_COMPONENT,
+            crate::wire::encode_worn(&worn),
+        );
         let bags = a
             .hands
             .held()

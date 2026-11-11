@@ -41,6 +41,24 @@ pub const INVENTORY_MAX_BYTES: usize = 16 * 1024;
 /// Реплицируемое состояние рук игрока.
 pub const HANDS_COMPONENT: &str = "build.hands";
 
+/// Что надето на игроке, как его видят все: пары (слот, прототип). Нужно для внешнего вида.
+pub const WORN_COMPONENT: &str = "build.worn";
+pub const WORN_MAX_BYTES: usize = 2048;
+
+/// Надетое для рассылки: (имя слота, идентификатор прототипа).
+pub type Worn = Vec<(String, String)>;
+
+pub fn encode_worn(w: &Worn) -> Vec<u8> {
+    serde_json::to_vec(w).unwrap_or_default()
+}
+
+pub fn decode_worn(bytes: &[u8]) -> Option<Worn> {
+    if bytes.len() > WORN_MAX_BYTES {
+        return None;
+    }
+    serde_json::from_slice(bytes).ok()
+}
+
 /// Предел размера состояния рук в сообщении (двенадцать рук с длинными идентификаторами).
 pub const HANDS_MAX_BYTES: usize = 4096;
 
@@ -107,6 +125,12 @@ pub fn register_replication(reg: &mut ReplicationRegistry) -> Result<(), Replica
         channel: ReplicationChannel::ReliableOrdered,
         interest: Interest::Owner,
         max_bytes: INVENTORY_MAX_BYTES,
+    })?;
+    reg.register(ReplicatedKind {
+        name: WORN_COMPONENT.into(),
+        channel: ReplicationChannel::ReliableOrdered,
+        interest: Interest::Everyone,
+        max_bytes: WORN_MAX_BYTES,
     })
 }
 

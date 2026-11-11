@@ -9,17 +9,17 @@ publish = false
 license = "MIT"
 
 [workspace.dependencies]
-astrocore-api = { git = "https://github.com/Astrocore-Studio/Astrocore-Engine", branch = "master" }
-astrocore-core = { git = "https://github.com/Astrocore-Studio/Astrocore-Engine", branch = "master" }
-astrocore-math = { git = "https://github.com/Astrocore-Studio/Astrocore-Engine", branch = "master" }
-astrocore-editor = { git = "https://github.com/Astrocore-Studio/Astrocore-Engine", branch = "master" }
-astrocore-lightyear = { git = "https://github.com/Astrocore-Studio/Astrocore-Engine", branch = "master" }
-astrocore-network = { git = "https://github.com/Astrocore-Studio/Astrocore-Engine", branch = "master" }
-astrocore-physics = { git = "https://github.com/Astrocore-Studio/Astrocore-Engine", branch = "master" }
-astrocore-spatial = { git = "https://github.com/Astrocore-Studio/Astrocore-Engine", branch = "master" }
-astrocore-runtime = { git = "https://github.com/Astrocore-Studio/Astrocore-Engine", branch = "master" }
-astrocore-sprites = { git = "https://github.com/Astrocore-Studio/Astrocore-Engine", branch = "master" }
-astrocore-world = { git = "https://github.com/Astrocore-Studio/Astrocore-Engine", branch = "master" }
+astrocore-api = { git = "https://github.com/Astrocore-Studio/Astrocore-Engine", branch = "main" }
+astrocore-core = { git = "https://github.com/Astrocore-Studio/Astrocore-Engine", branch = "main" }
+astrocore-math = { git = "https://github.com/Astrocore-Studio/Astrocore-Engine", branch = "main" }
+astrocore-editor = { git = "https://github.com/Astrocore-Studio/Astrocore-Engine", branch = "main" }
+astrocore-lightyear = { git = "https://github.com/Astrocore-Studio/Astrocore-Engine", branch = "main" }
+astrocore-network = { git = "https://github.com/Astrocore-Studio/Astrocore-Engine", branch = "main" }
+astrocore-physics = { git = "https://github.com/Astrocore-Studio/Astrocore-Engine", branch = "main" }
+astrocore-spatial = { git = "https://github.com/Astrocore-Studio/Astrocore-Engine", branch = "main" }
+astrocore-runtime = { git = "https://github.com/Astrocore-Studio/Astrocore-Engine", branch = "main" }
+astrocore-sprites = { git = "https://github.com/Astrocore-Studio/Astrocore-Engine", branch = "main" }
+astrocore-world = { git = "https://github.com/Astrocore-Studio/Astrocore-Engine", branch = "main" }
 serde_json = "1"
 serde = { version = "1", features = ["derive"] }
 ron = "0.10"

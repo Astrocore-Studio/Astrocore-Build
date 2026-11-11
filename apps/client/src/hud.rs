@@ -67,6 +67,11 @@ impl Icons {
         }
     }
 
+    /// Значки предметов из манифеста: идентификатор → путь картинки относительно его каталога.
+    pub fn icon_paths(manifest: Option<&std::path::Path>) -> HashMap<String, String> {
+        manifest.map_or_else(HashMap::new, |p| Self::from_manifest(p).items)
+    }
+
     /// Прочитать манифест рендера: значки предметов.
     pub fn from_manifest(path: &std::path::Path) -> Self {
         let root = path.parent().map(PathBuf::from).unwrap_or_default();

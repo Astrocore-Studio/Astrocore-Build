@@ -498,6 +498,22 @@ mod inventory_and_storage {
     }
 
     #[test]
+    fn worn_items_are_visible_to_other_players() {
+        let mut h = harness();
+        let a = h.join("a");
+        let b = h.join("b");
+        grab(&mut h, a, 10, near(), "ss14:backpack");
+        command(&mut h, a, CMD_EQUIP, equip_data(0, "back"));
+        let net = h.client(a).net_id().unwrap();
+        let worn =
+            crate::decode_worn(h.client(b).component(net, crate::WORN_COMPONENT).unwrap()).unwrap();
+        assert_eq!(
+            worn,
+            vec![("back".to_string(), "ss14:backpack".to_string())]
+        );
+    }
+
+    #[test]
     fn a_backpack_holds_items_by_the_ss14_rules() {
         let mut h = harness();
         let a = h.join("a");
