@@ -126,6 +126,8 @@ pub struct SpriteSource {
     pub rsi: String,
     pub state: String,
     pub size: [f32; 2],
+    /// Лежит ли спрайт на полу плашмя (с толщиной) вместо стоячего билборда.
+    pub flat: bool,
 }
 
 fn safe_rel(p: &str) -> Result<(), AssetError> {
@@ -244,7 +246,11 @@ pub fn build_manifest(
         }
         sprs.insert(
             s.id.clone(),
-            serde_json::json!({ "image": format!("{textures_subdir}/{image}"), "size": s.size }),
+            serde_json::json!({
+                "image": format!("{textures_subdir}/{image}"),
+                "size": s.size,
+                "layout": if s.flat { "flat" } else { "billboard" },
+            }),
         );
     }
     let mut door_map = serde_json::Map::new();
@@ -305,6 +311,7 @@ mod tests {
             rsi: rsi.into(),
             state: state.into(),
             size: [0.4, 0.4],
+            flat: false,
         };
         let json = build_manifest(
             &root,

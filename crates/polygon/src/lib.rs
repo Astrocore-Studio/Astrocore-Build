@@ -170,6 +170,8 @@ pub fn sprites_of(registry: &PrototypeRegistry) -> Result<Vec<SpriteSource>, Pol
             rsi: rsi.to_string(),
             state: state.to_string(),
             size: [e.max(0.25) * 1.2, e.max(0.25) * 1.2],
+            // Предметы лежат на полу плашмя, декорации и устройства стоят.
+            flat: item.is_some(),
         });
     }
     Ok(out)

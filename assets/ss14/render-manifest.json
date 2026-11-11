@@ -58,6 +58,7 @@
   "sprites": {
     "ss14:air_canister": {
       "image": "Textures/Structures/Storage/canister.rsi/grey.png",
+      "layout": "billboard",
       "size": [
         0.6000000238418579,
         0.6000000238418579
@@ -65,6 +66,7 @@
     },
     "ss14:ammonia_canister": {
       "image": "Textures/Structures/Storage/canister.rsi/greenys.png",
+      "layout": "billboard",
       "size": [
         0.6000000238418579,
         0.6000000238418579
@@ -72,6 +74,7 @@
     },
     "ss14:box": {
       "image": "Textures/Objects/Storage/boxes.rsi/box.png",
+      "layout": "flat",
       "size": [
         0.48000001907348633,
         0.48000001907348633
@@ -79,6 +82,7 @@
     },
     "ss14:brutepack": {
       "image": "Textures/Objects/Specific/Medical/medical.rsi/brutepack.png",
+      "layout": "flat",
       "size": [
         0.36000001430511475,
         0.36000001430511475
@@ -86,6 +90,7 @@
     },
     "ss14:carbon_dioxide_canister": {
       "image": "Textures/Structures/Storage/canister.rsi/black.png",
+      "layout": "billboard",
       "size": [
         0.6000000238418579,
         0.6000000238418579
@@ -93,6 +98,7 @@
     },
     "ss14:clothing_backpack": {
       "image": "Textures/Clothing/Back/Backpacks/backpack.rsi/icon.png",
+      "layout": "flat",
       "size": [
         0.6000000238418579,
         0.6000000238418579
@@ -100,6 +106,7 @@
     },
     "ss14:corpse": {
       "image": "Textures/Mobs/Species/Human/parts.rsi/full.png",
+      "layout": "billboard",
       "size": [
         0.6000000238418579,
         0.6000000238418579
@@ -107,6 +114,7 @@
     },
     "ss14:crowbar": {
       "image": "Textures/Objects/Tools/crowbar.rsi/icon.png",
+      "layout": "flat",
       "size": [
         0.36000001430511475,
         0.36000001430511475
@@ -114,6 +122,7 @@
     },
     "ss14:drink_water_bottle_full": {
       "image": "Textures/Objects/Consumable/Drinks/waterbottle.rsi/icon.png",
+      "layout": "flat",
       "size": [
         0.36000001430511475,
         0.36000001430511475
@@ -121,6 +130,7 @@
     },
     "ss14:food_burger_plain": {
       "image": "Textures/Objects/Consumable/Food/burger.rsi/plain.png",
+      "layout": "flat",
       "size": [
         0.36000001430511475,
         0.36000001430511475
@@ -128,6 +138,7 @@
     },
     "ss14:frezon_canister": {
       "image": "Textures/Structures/Storage/canister.rsi/frezon.png",
+      "layout": "billboard",
       "size": [
         0.6000000238418579,
         0.6000000238418579
@@ -135,6 +146,7 @@
     },
     "ss14:gas_passive_vent": {
       "image": "Textures/Structures/Piping/Atmospherics/vent.rsi/vent_passive.png",
+      "layout": "billboard",
       "size": [
         0.6000000238418579,
         0.6000000238418579
@@ -142,6 +154,7 @@
     },
     "ss14:gas_port": {
       "image": "Textures/Structures/Piping/Atmospherics/gascanisterport.rsi/gasCanisterPort.png",
+      "layout": "billboard",
       "size": [
         0.6000000238418579,
         0.6000000238418579
@@ -149,6 +162,7 @@
     },
     "ss14:gas_pressure_pump": {
       "image": "Textures/Structures/Piping/Atmospherics/pump.rsi/pumpPressure.png",
+      "layout": "billboard",
       "size": [
         0.6000000238418579,
         0.6000000238418579
@@ -156,6 +170,7 @@
     },
     "ss14:gas_valve": {
       "image": "Textures/Structures/Piping/Atmospherics/pump.rsi/pumpManualValve.png",
+      "layout": "billboard",
       "size": [
         0.6000000238418579,
         0.6000000238418579
@@ -163,6 +178,7 @@
     },
     "ss14:gas_vent_pump": {
       "image": "Textures/Structures/Piping/Atmospherics/vent.rsi/vent_out.png",
+      "layout": "billboard",
       "size": [
         0.6000000238418579,
         0.6000000238418579
@@ -170,6 +186,7 @@
     },
     "ss14:gas_vent_scrubber": {
       "image": "Textures/Structures/Piping/Atmospherics/scrubber.rsi/scrub_on.png",
+      "layout": "billboard",
       "size": [
         0.6000000238418579,
         0.6000000238418579
@@ -177,6 +194,7 @@
     },
     "ss14:gauze": {
       "image": "Textures/Objects/Specific/Medical/medical.rsi/gauze.png",
+      "layout": "flat",
       "size": [
         0.36000001430511475,
         0.36000001430511475
@@ -184,6 +202,7 @@
     },
     "ss14:nitrogen_canister": {
       "image": "Textures/Structures/Storage/canister.rsi/red.png",
+      "layout": "billboard",
       "size": [
         0.6000000238418579,
         0.6000000238418579
@@ -191,6 +210,7 @@
     },
     "ss14:nitrous_oxide_canister": {
       "image": "Textures/Structures/Storage/canister.rsi/redws.png",
+      "layout": "billboard",
       "size": [
         0.6000000238418579,
         0.6000000238418579
@@ -198,6 +218,7 @@
     },
     "ss14:ointment": {
       "image": "Textures/Objects/Specific/Medical/medical.rsi/ointment.png",
+      "layout": "flat",
       "size": [
         0.36000001430511475,
         0.36000001430511475
@@ -205,6 +226,7 @@
     },
     "ss14:oxygen_canister": {
       "image": "Textures/Structures/Storage/canister.rsi/blue.png",
+      "layout": "billboard",
       "size": [
         0.6000000238418579,
         0.6000000238418579
@@ -212,6 +234,7 @@
     },
     "ss14:oxygen_tank": {
       "image": "Textures/Objects/Tanks/oxygen.rsi/icon.png",
+      "layout": "flat",
       "size": [
         0.48000001907348633,
         0.48000001907348633
@@ -219,6 +242,7 @@
     },
     "ss14:pen": {
       "image": "Textures/Objects/Misc/pens.rsi/pen.png",
+      "layout": "flat",
       "size": [
         0.30000001192092896,
         0.30000001192092896
@@ -226,6 +250,7 @@
     },
     "ss14:plasma_canister": {
       "image": "Textures/Structures/Storage/canister.rsi/orange.png",
+      "layout": "billboard",
       "size": [
         0.6000000238418579,
         0.6000000238418579
@@ -233,6 +258,7 @@
     },
     "ss14:plasma_tank": {
       "image": "Textures/Objects/Tanks/plasma.rsi/icon.png",
+      "layout": "flat",
       "size": [
         0.48000001907348633,
         0.48000001907348633
@@ -240,6 +266,7 @@
     },
     "ss14:screwdriver": {
       "image": "Textures/Objects/Tools/screwdriver.rsi/screwdriver.png",
+      "layout": "flat",
       "size": [
         0.36000001430511475,
         0.36000001430511475
@@ -247,6 +274,7 @@
     },
     "ss14:space_lube_bottle": {
       "image": "Textures/Objects/Consumable/Drinks/waterbottle.rsi/icon.png",
+      "layout": "flat",
       "size": [
         0.36000001430511475,
         0.36000001430511475
@@ -254,6 +282,7 @@
     },
     "ss14:tritium_canister": {
       "image": "Textures/Structures/Storage/canister.rsi/green.png",
+      "layout": "billboard",
       "size": [
         0.6000000238418579,
         0.6000000238418579
@@ -261,6 +290,7 @@
     },
     "ss14:water_vapor_canister": {
       "image": "Textures/Structures/Storage/canister.rsi/water_vapor.png",
+      "layout": "billboard",
       "size": [
         0.6000000238418579,
         0.6000000238418579
@@ -268,6 +298,7 @@
     },
     "ss14:welder": {
       "image": "Textures/Objects/Tools/welder.rsi/icon.png",
+      "layout": "flat",
       "size": [
         0.36000001430511475,
         0.36000001430511475
@@ -275,6 +306,7 @@
     },
     "ss14:wrench": {
       "image": "Textures/Objects/Tools/wrench.rsi/icon.png",
+      "layout": "flat",
       "size": [
         0.36000001430511475,
         0.36000001430511475
