@@ -27,6 +27,13 @@ pub const CMD_STORE: &str = "storage.insert";
 /// Достать предмет из сумки в свободную руку: `[id сумки 16 байт, id предмета 16 байт]`.
 pub const CMD_TAKE: &str = "storage.take";
 
+/// Взаимодействие с целью в мире (предмет на земле или дверь): `[id цели 16 байт]`.
+/// Что именно произойдёт, решает цепочка обработчиков: пустая рука — `InteractHand`, предмет в
+/// активной руке — `InteractUsing` цели, затем `AfterInteract` предмета (как в SS14).
+pub const CMD_INTERACT: &str = "interact";
+/// Использовать предмет в руке (`UseInHand`): `[рука]`.
+pub const CMD_USE: &str = "use";
+
 /// Состояние инвентаря и содержимое сумок игрока; видит только сам игрок.
 pub const INVENTORY_COMPONENT: &str = "build.inventory";
 pub const INVENTORY_MAX_BYTES: usize = 16 * 1024;
@@ -130,6 +137,14 @@ pub fn decode_inventory(bytes: &[u8]) -> Option<InventoryView> {
 
 fn id_bytes(id: ObjectId) -> [u8; 16] {
     id.as_uuid().as_u128().to_be_bytes()
+}
+
+pub fn interact_data(target: ObjectId) -> Vec<u8> {
+    id_bytes(target).to_vec()
+}
+
+pub fn use_data(hand: u8) -> Vec<u8> {
+    vec![hand]
 }
 
 pub fn equip_data(hand: u8, slot: &str) -> Vec<u8> {

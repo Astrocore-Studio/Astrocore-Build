@@ -69,6 +69,8 @@ pub struct ItemInfo {
     pub slots: BTreeSet<String>,
     /// Если предмет — сумка или ящик, его хранилище.
     pub storage: Option<StorageSpec>,
+    /// Качества инструмента (`Tool.qualities`: Prying, Screwing…).
+    pub qualities: BTreeSet<String>,
     pub tags: BTreeSet<String>,
     pub components: BTreeSet<String>,
 }
@@ -108,6 +110,10 @@ pub fn item_info(r: &Resolved) -> Option<ItemInfo> {
         size,
         slots,
         storage: r.component("Storage").and_then(StorageSpec::from_data),
+        qualities: r
+            .component("Tool")
+            .map(|t| strings(t.get("qualities")).into_iter().collect())
+            .unwrap_or_default(),
         tags,
         components: r.components.keys().cloned().collect(),
     })

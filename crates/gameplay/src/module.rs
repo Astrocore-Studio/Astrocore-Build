@@ -4,18 +4,21 @@ use std::sync::Arc;
 use astrocore_api::{GameModule, HookContext, HookEvent};
 use astrocore_core::{NetworkEntityId, ObjectId, PrototypeId};
 use astrocore_math::glam::Vec3;
-use astrocore_world::{AuthoredKind, AuthoredObject, FloorId, WorldCommand};
+use astrocore_world::{
+    AuthoredKind, AuthoredObject, FloorId, OpeningKind, Placement, StructureKind, WorldCommand,
+};
 use prototypes::PrototypeRegistry;
 
 use crate::hands::{Hands, HeldItem};
+use crate::interact::{InteractionHandler, Target, Used};
 use crate::inventory::Inventory;
 use crate::items::{ItemInfo, item_info};
 use crate::storage::Storage;
 use crate::wire::{
-    BagView, CMD_DROP, CMD_EQUIP, CMD_PICKUP, CMD_PICKUP_ANY, CMD_SELECT_HAND, CMD_STORE,
-    CMD_SWAP_HANDS, CMD_TAKE, CMD_UNEQUIP, HANDS_COMPONENT, INVENTORY_COMPONENT, InventoryView,
-    encode_hands, encode_inventory, parse_drop, parse_equip, parse_object_id, parse_store,
-    parse_take, parse_unequip,
+    BagView, CMD_DROP, CMD_EQUIP, CMD_INTERACT, CMD_PICKUP, CMD_PICKUP_ANY, CMD_SELECT_HAND,
+    CMD_STORE, CMD_SWAP_HANDS, CMD_TAKE, CMD_UNEQUIP, CMD_USE, HANDS_COMPONENT,
+    INVENTORY_COMPONENT, InventoryView, encode_hands, encode_inventory, parse_drop, parse_equip,
+    parse_object_id, parse_store, parse_take, parse_unequip,
 };
 
 /// Дальность взаимодействия, м: `InteractionRange` в SS14 (1,5). Меряется от груди персонажа
@@ -32,9 +35,9 @@ const DROP_CLEARANCE_M: f32 = 0.1;
 pub const NAMESPACE: &str = "ss14";
 
 /// Всё, что персонаж держит и носит.
-struct Actor {
-    hands: Hands,
-    inventory: Inventory,
+pub(crate) struct Actor {
+    pub(crate) hands: Hands,
+    pub(crate) inventory: Inventory,
 }
 
 impl Actor {
@@ -52,17 +55,17 @@ impl Actor {
 /// сохраняются и валидируются движком. Предметы в руках, на теле и в сумках живут в состоянии
 /// модуля; руки видны всем (`build.hands`), инвентарь и содержимое сумок — только владельцу
 /// (`build.inventory`).
-pub struct GameplayModule {
-    infos: BTreeMap<PrototypeId, ItemInfo>,
-    range_m: f32,
-    actors: BTreeMap<NetworkEntityId, Actor>,
+pub struct State {
+    pub(crate) infos: BTreeMap<PrototypeId, ItemInfo>,
+    pub(crate) range_m: f32,
+    pub(crate) actors: BTreeMap<NetworkEntityId, Actor>,
     /// Содержимое сумок по идентификатору сумки: переживает смену владельца и выброс сумки.
-    storages: BTreeMap<ObjectId, Storage>,
+    pub(crate) storages: BTreeMap<ObjectId, Storage>,
 }
 
-impl GameplayModule {
+impl State {
     /// `Err`, если два имени прототипов дают один идентификатор движка.
-    pub fn new(registry: Arc<PrototypeRegistry>) -> Result<Self, prototypes::ProtoError> {
+    pub(crate) fn new(registry: Arc<PrototypeRegistry>) -> Result<Self, prototypes::ProtoError> {
         let names = registry.engine_index(NAMESPACE)?;
         let mut infos = BTreeMap::new();
         for (id, name) in names {
@@ -96,16 +99,33 @@ impl GameplayModule {
         self.storages.get(&bag)
     }
 
-    fn actor(&mut self, id: NetworkEntityId) -> &mut Actor {
+    /// Предмет в активной руке: рука и сам предмет.
+    pub(crate) fn used_item(&self, actor: NetworkEntityId) -> Option<Used> {
+        let a = self.actors.get(&actor)?;
+        let hand = a.hands.active();
+        a.hands.get(hand).map(|i| Used {
+            hand,
+            item: i.clone(),
+        })
+    }
+
+    pub(crate) fn used_in(&self, actor: NetworkEntityId, hand: usize) -> Option<Used> {
+        self.actors.get(&actor)?.hands.get(hand).map(|i| Used {
+            hand,
+            item: i.clone(),
+        })
+    }
+
+    pub(crate) fn actor(&mut self, id: NetworkEntityId) -> &mut Actor {
         self.actors.entry(id).or_insert_with(Actor::new)
     }
 
-    fn info(&self, proto: &PrototypeId) -> Option<&ItemInfo> {
+    pub(crate) fn info(&self, proto: &PrototypeId) -> Option<&ItemInfo> {
         self.infos.get(proto)
     }
 
     /// Рассылка состояния: руки всем, инвентарь с содержимым сумок — владельцу.
-    fn publish(&self, ctx: &mut HookContext<'_>, actor: NetworkEntityId) {
+    pub(crate) fn publish(&self, ctx: &mut HookContext<'_>, actor: NetworkEntityId) {
         let Some(a) = self.actors.get(&actor) else {
             return;
         };
@@ -132,28 +152,33 @@ impl GameplayModule {
     }
 
     /// Предмет в зоне досягаемости: близко, без преград между грудью и центром объекта.
-    fn reachable(&self, ctx: &HookContext<'_>, feet: Vec3, obj: &AuthoredObject) -> bool {
+    pub(crate) fn reachable(
+        &self,
+        ctx: &HookContext<'_>,
+        feet: Vec3,
+        obj: &AuthoredObject,
+    ) -> bool {
         let chest = feet + Vec3::Y * CHEST_M;
         let center = (obj.min() + obj.max()) * 0.5;
         (center - chest).length() <= self.range_m && ctx.is_unobstructed(chest, center)
     }
 
     /// Подбор. `any = false` — клик (только активная рука), `true` — глагол «поднять».
-    fn pickup(
+    pub(crate) fn pickup(
         &mut self,
         ctx: &mut HookContext<'_>,
         actor: NetworkEntityId,
         id: ObjectId,
         any: bool,
-    ) {
+    ) -> bool {
         let (Some(pos), Some(obj)) = (ctx.position_of(actor), ctx.world.authored_object(id)) else {
-            return;
+            return false;
         };
         let AuthoredKind::Placement { prototype } = &obj.kind else {
-            return;
+            return false;
         };
         if self.info(prototype).is_none() || !self.reachable(ctx, pos, obj) {
-            return;
+            return false;
         }
         let item = HeldItem {
             id,
@@ -166,14 +191,15 @@ impl GameplayModule {
             hands.pickup_active(item)
         };
         if taken.is_err() {
-            return;
+            return false;
         }
         ctx.request(WorldCommand::RemoveAuthored { id });
         self.publish(ctx, actor);
+        true
     }
 
     /// Положить предмет в мир в точке `at` (ступни предмета).
-    fn place(ctx: &mut HookContext<'_>, item: &HeldItem, at: Vec3) -> bool {
+    pub(crate) fn place(ctx: &mut HookContext<'_>, item: &HeldItem, at: Vec3) -> bool {
         let Some(floor) = floor_at(ctx, at.y) else {
             return false;
         };
@@ -193,7 +219,12 @@ impl GameplayModule {
 
     /// Куда ляжет выброшенный предмет (`GetFinalDropCoordinates` в SS14): цель обрезается
     /// дальностью взаимодействия и укорачивается до ближайшей преграды; без цели — под ноги.
-    fn drop_point(&self, ctx: &HookContext<'_>, feet: Vec3, target: Option<[f32; 3]>) -> Vec3 {
+    pub(crate) fn drop_point(
+        &self,
+        ctx: &HookContext<'_>,
+        feet: Vec3,
+        target: Option<[f32; 3]>,
+    ) -> Vec3 {
         let Some([tx, _, tz]) = target else {
             return feet;
         };
@@ -217,7 +248,7 @@ impl GameplayModule {
         Vec3::new(p.x, feet.y, p.z)
     }
 
-    fn drop_hand(
+    pub(crate) fn drop_hand(
         &mut self,
         ctx: &mut HookContext<'_>,
         actor: NetworkEntityId,
@@ -238,7 +269,7 @@ impl GameplayModule {
     }
 
     /// Надеть предмет из руки в слот (`CanEquip` + `TryEquip` в SS14).
-    fn equip(
+    pub(crate) fn equip(
         &mut self,
         ctx: &mut HookContext<'_>,
         actor: NetworkEntityId,
@@ -265,7 +296,12 @@ impl GameplayModule {
 
     /// Снять предмет: в свободную руку (`PickupOrDrop`), иначе на пол; зависимые слоты
     /// выпадают на пол.
-    fn unequip(&mut self, ctx: &mut HookContext<'_>, actor: NetworkEntityId, slot: &str) {
+    pub(crate) fn unequip(
+        &mut self,
+        ctx: &mut HookContext<'_>,
+        actor: NetworkEntityId,
+        slot: &str,
+    ) {
         let (Some(feet), Some(a)) = (ctx.position_of(actor), self.actors.get(&actor)) else {
             return;
         };
@@ -296,7 +332,7 @@ impl GameplayModule {
     }
 
     /// Прототип сумки, если актёр может до неё дотянуться: она в руке, надета или лежит рядом.
-    fn bag_proto(
+    pub(crate) fn bag_proto(
         &self,
         ctx: &HookContext<'_>,
         actor: NetworkEntityId,
@@ -320,67 +356,69 @@ impl GameplayModule {
     }
 
     /// Положить предмет из руки в сумку.
-    fn store(
+    pub(crate) fn store(
         &mut self,
         ctx: &mut HookContext<'_>,
         actor: NetworkEntityId,
         hand: usize,
         bag: ObjectId,
-    ) {
+    ) -> bool {
         let Some(item) = self
             .actors
             .get(&actor)
             .and_then(|a| a.hands.get(hand))
             .cloned()
         else {
-            return;
+            return false;
         };
         if item.id == bag {
-            return;
+            return false;
         }
         let (Some(bag_proto), Some(info)) = (
             self.bag_proto(ctx, actor, bag),
             self.info(&item.prototype).cloned(),
         ) else {
-            return;
+            return false;
         };
         let Some(spec) = self.info(&bag_proto).and_then(|i| i.storage.clone()) else {
-            return;
+            return false;
         };
         let storage = self.storages.entry(bag).or_default();
         if storage.insert(&spec, item, &info).is_err() {
-            return;
+            return false;
         }
         let _ = self.actor(actor).hands.drop_hand(hand);
         self.publish(ctx, actor);
+        true
     }
 
     /// Достать предмет из сумки в свободную руку.
-    fn take(
+    pub(crate) fn take(
         &mut self,
         ctx: &mut HookContext<'_>,
         actor: NetworkEntityId,
         bag: ObjectId,
         id: ObjectId,
-    ) {
+    ) -> bool {
         if self.bag_proto(ctx, actor, bag).is_none() {
-            return;
+            return false;
         }
         let Some(storage) = self.storages.get_mut(&bag) else {
-            return;
+            return false;
         };
         let Some(stored) = storage.items().iter().find(|s| s.item.id == id) else {
-            return;
+            return false;
         };
         let item = stored.item.clone();
         // Сначала место в руках: если его нет, предмет остаётся в сумке.
         if self.actor(actor).hands.pickup_any(item).is_err() {
-            return;
+            return false;
         }
         if let Some(s) = self.storages.get_mut(&bag) {
             let _ = s.remove(id);
         }
         self.publish(ctx, actor);
+        true
     }
 }
 
@@ -392,54 +430,194 @@ fn floor_at(ctx: &HookContext<'_>, y: f32) -> Option<FloorId> {
         .map(|f| f.id)
 }
 
+/// Модуль рук, инвентаря, хранилищ и взаимодействий; логика следует Content.Shared SS14.
+///
+/// Предметы на земле — авторские объекты мира (`AuthoredKind::Placement`): они реплицируются,
+/// сохраняются и валидируются движком. Предметы в руках, на теле и в сумках живут в состоянии
+/// модуля; руки видны всем (`build.hands`), инвентарь и содержимое сумок — только владельцу
+/// (`build.inventory`). Взаимодействия идут через цепочку обработчиков (`InteractionHandler`):
+/// форки добавляют свои, не трогая базовые.
+pub struct GameplayModule {
+    state: State,
+    handlers: Vec<Box<dyn InteractionHandler>>,
+}
+
+impl GameplayModule {
+    /// `Err`, если два имени прототипов дают один идентификатор движка.
+    pub fn new(registry: Arc<PrototypeRegistry>) -> Result<Self, prototypes::ProtoError> {
+        Ok(Self {
+            state: State::new(registry)?,
+            handlers: crate::handlers::default_handlers(),
+        })
+    }
+
+    #[must_use]
+    pub fn with_range(mut self, range_m: f32) -> Self {
+        self.state.range_m = range_m;
+        self
+    }
+
+    /// Добавить обработчик в конец цепочки (после базовых).
+    #[must_use]
+    pub fn with_handler(mut self, handler: Box<dyn InteractionHandler>) -> Self {
+        self.handlers.push(handler);
+        self
+    }
+
+    pub fn hands_of(&self, actor: NetworkEntityId) -> Option<&Hands> {
+        self.state.hands_of(actor)
+    }
+
+    pub fn inventory_of(&self, actor: NetworkEntityId) -> Option<&Inventory> {
+        self.state.inventory_of(actor)
+    }
+
+    pub fn storage_of(&self, bag: ObjectId) -> Option<&Storage> {
+        self.state.storage_of(bag)
+    }
+
+    /// Цель взаимодействия по идентификатору: предмет на земле или дверь.
+    fn resolve_target(&self, ctx: &HookContext<'_>, id: ObjectId) -> Option<Target> {
+        if let Some(obj) = ctx.world.authored_object(id)
+            && let AuthoredKind::Placement { prototype } = &obj.kind
+        {
+            return Some(Target::Item {
+                id,
+                prototype: prototype.clone(),
+                at: (obj.min() + obj.max()) * 0.5,
+            });
+        }
+        let e = ctx.world.element(id)?;
+        let (StructureKind::Opening(OpeningKind::Door), Placement::Edge(edge)) =
+            (e.kind, e.placement)
+        else {
+            return None;
+        };
+        let floor = ctx.world.floor(e.floor)?;
+        let (a, b) = edge.endpoints(ctx.world.config().grid_step_m, floor.base_y);
+        // Точка двери на высоте груди: от неё считаются дальность и видимость.
+        Some(Target::Door {
+            element: id,
+            at: Vec3::new((a.x + b.x) * 0.5, floor.base_y + CHEST_M, (a.z + b.z) * 0.5),
+        })
+    }
+
+    /// Взаимодействие с целью (`UserInteraction` в SS14): дальность и видимость, затем цепочка
+    /// обработчиков — пустая рука или предмет в активной руке.
+    fn interact(&mut self, ctx: &mut HookContext<'_>, user: NetworkEntityId, id: ObjectId) {
+        let (Some(feet), Some(target)) = (ctx.position_of(user), self.resolve_target(ctx, id))
+        else {
+            return;
+        };
+        let chest = feet + Vec3::Y * CHEST_M;
+        let at = target.at();
+        // Дверь стоит в стене: луч упирается в саму её коробку, поэтому для неё проверяем
+        // видимость до точки чуть перед проёмом.
+        let visible = match target {
+            Target::Door { .. } => {
+                ctx.unobstructed_distance(chest, at) >= (at - chest).length() - 0.35
+            }
+            Target::Item { .. } => ctx.is_unobstructed(chest, at),
+        };
+        if (at - chest).length() > self.state.range_m || !visible {
+            return;
+        }
+        let used = self.state.used_item(user);
+        let mut handlers = std::mem::take(&mut self.handlers);
+        match used {
+            None => {
+                for h in &mut handlers {
+                    if h.interact_hand(&mut self.state, ctx, user, &target) {
+                        break;
+                    }
+                }
+            }
+            Some(used) => {
+                let handled = handlers
+                    .iter_mut()
+                    .any(|h| h.interact_using(&mut self.state, ctx, user, &used, &target));
+                if !handled {
+                    // Обработчики самого предмета: инструмент в руке «после» взаимодействия.
+                    let _ = handlers
+                        .iter_mut()
+                        .any(|h| h.after_interact(&mut self.state, ctx, user, &used, &target));
+                }
+            }
+        }
+        self.handlers = handlers;
+    }
+
+    fn use_in_hand(&mut self, ctx: &mut HookContext<'_>, user: NetworkEntityId, hand: usize) {
+        let Some(used) = self.state.used_in(user, hand) else {
+            return;
+        };
+        let mut handlers = std::mem::take(&mut self.handlers);
+        let _ = handlers
+            .iter_mut()
+            .any(|h| h.use_in_hand(&mut self.state, ctx, user, &used));
+        self.handlers = handlers;
+    }
+}
+
 impl GameModule for GameplayModule {
     fn id(&self) -> &str {
         "build.gameplay"
     }
 
     fn handle(&mut self, ctx: &mut HookContext<'_>, event: &HookEvent) {
+        let st = &mut self.state;
         match event {
             HookEvent::Command { actor, kind, data } => match kind.as_str() {
                 CMD_PICKUP | CMD_PICKUP_ANY => {
                     if let Some(id) = parse_object_id(data) {
-                        self.pickup(ctx, *actor, id, kind == CMD_PICKUP_ANY);
+                        st.pickup(ctx, *actor, id, kind == CMD_PICKUP_ANY);
                     }
                 }
                 CMD_DROP => {
                     if let Some((hand, target)) = parse_drop(data) {
-                        self.drop_hand(ctx, *actor, usize::from(hand), target);
+                        st.drop_hand(ctx, *actor, usize::from(hand), target);
                     }
                 }
                 CMD_SELECT_HAND => {
                     if let [hand] = data[..]
-                        && self.actor(*actor).hands.select(usize::from(hand)).is_ok()
+                        && st.actor(*actor).hands.select(usize::from(hand)).is_ok()
                     {
-                        self.publish(ctx, *actor);
+                        st.publish(ctx, *actor);
                     }
                 }
                 CMD_SWAP_HANDS => {
                     let reverse = data.first() == Some(&1);
-                    self.actor(*actor).hands.swap(reverse);
-                    self.publish(ctx, *actor);
+                    st.actor(*actor).hands.swap(reverse);
+                    st.publish(ctx, *actor);
                 }
                 CMD_EQUIP => {
                     if let Some((hand, slot)) = parse_equip(data) {
-                        self.equip(ctx, *actor, usize::from(hand), slot);
+                        st.equip(ctx, *actor, usize::from(hand), slot);
                     }
                 }
                 CMD_UNEQUIP => {
                     if let Some(slot) = parse_unequip(data) {
-                        self.unequip(ctx, *actor, slot);
+                        st.unequip(ctx, *actor, slot);
                     }
                 }
                 CMD_STORE => {
                     if let Some((hand, bag)) = parse_store(data) {
-                        self.store(ctx, *actor, usize::from(hand), bag);
+                        st.store(ctx, *actor, usize::from(hand), bag);
                     }
                 }
                 CMD_TAKE => {
                     if let Some((bag, item)) = parse_take(data) {
-                        self.take(ctx, *actor, bag, item);
+                        st.take(ctx, *actor, bag, item);
+                    }
+                }
+                CMD_INTERACT => {
+                    if let Some(id) = parse_object_id(data) {
+                        self.interact(ctx, *actor, id);
+                    }
+                }
+                CMD_USE => {
+                    if let [hand] = data[..] {
+                        self.use_in_hand(ctx, *actor, usize::from(hand));
                     }
                 }
                 _ => {}
@@ -447,9 +625,9 @@ impl GameModule for GameplayModule {
             HookEvent::PlayerLeft { actor, pos } => {
                 // Всё, что игрок держал и носил, остаётся лежать там, где он стоял (DropAll);
                 // содержимое сумок остаётся в сумках.
-                if let Some(mut a) = self.actors.remove(actor) {
+                if let Some(mut a) = st.actors.remove(actor) {
                     for item in a.hands.take_all().into_iter().chain(a.inventory.take_all()) {
-                        Self::place(ctx, &item, *pos);
+                        State::place(ctx, &item, *pos);
                     }
                 }
             }

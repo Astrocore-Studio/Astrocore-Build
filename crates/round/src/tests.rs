@@ -76,3 +76,120 @@ fn restart_replaces_the_server_and_bumps_the_round_number() {
     assert_eq!(r.number, 6);
     assert_eq!(r.server.player_count(), 0);
 }
+
+mod doors {
+    use astrocore_world::{OpeningKind, StructureKind};
+    use gameplay::{CMD_INTERACT, CMD_PICKUP_ANY, interact_data};
+
+    use super::*;
+
+    fn door_element(h: &Harness) -> ObjectId {
+        h.server
+            .world()
+            .elements()
+            .find(|e| matches!(e.kind, StructureKind::Opening(OpeningKind::Door)))
+            .expect("на полигоне есть дверь")
+            .id
+    }
+
+    /// Подвести игрока к двери: из точки появления (2.5, 4.5) к (5.1, 2.5).
+    fn walk_to_door(h: &mut Harness, a: astrocore_network::server::ConnId) {
+        for _ in 0..10 {
+            h.input(a, 0, 1, 0.0);
+        }
+        for _ in 0..13 {
+            h.input(a, 0, 1, -std::f32::consts::FRAC_PI_2);
+        }
+    }
+
+    fn interact(h: &mut Harness, a: astrocore_network::server::ConnId, id: ObjectId) {
+        let p = h
+            .client(a)
+            .command_packet(CMD_INTERACT, interact_data(id))
+            .unwrap();
+        h.send(a, p);
+    }
+
+    fn setup() -> (
+        Harness,
+        astrocore_network::server::ConnId,
+        astrocore_network::server::ConnId,
+    ) {
+        let round = Round::start(1, &polygon::content_dir(), &RoundConfig::default()).unwrap();
+        let mut h = Harness::with_server(round.server);
+        let (a, b) = (h.join("a"), h.join("b"));
+        walk_to_door(&mut h, a);
+        (h, a, b)
+    }
+
+    #[test]
+    fn a_hand_opens_and_closes_the_door_for_everyone() {
+        let (mut h, a, b) = setup();
+        let door = door_element(&h);
+        let net = h.client(b).door_ids()[0];
+        assert_eq!(h.client(b).door_open(net), Some(false));
+        interact(&mut h, a, door);
+        assert!(h.server.doors().is_open(door));
+        assert_eq!(
+            h.client(b).door_open(net),
+            Some(true),
+            "второй клиент видит открытую дверь"
+        );
+        interact(&mut h, a, door);
+        assert!(!h.server.doors().is_open(door));
+        assert_eq!(h.client(b).door_open(net), Some(false));
+    }
+
+    #[test]
+    fn a_locked_door_stays_shut_for_hands_but_a_crowbar_forces_it() {
+        let (mut h, a, _b) = setup();
+        let door = door_element(&h);
+        h.server.door_state_mut(door).unwrap().locked = true;
+        interact(&mut h, a, door);
+        assert!(
+            !h.server.doors().is_open(door),
+            "рука запертую не открывает"
+        );
+        // Берём ломик, лежащий рядом, и ломаем замок.
+        let crowbar = astrocore_world::AuthoredObject::new(
+            ObjectId::from_u128(0xC40),
+            astrocore_world::AuthoredKind::Placement {
+                prototype: astrocore_core::PrototypeId::new("ss14:crowbar").unwrap(),
+            },
+            astrocore_world::FloorId(0),
+            astrocore_math::glam::Vec3::new(5.0, polygon::FLOOR_TOP_M, 2.0),
+            astrocore_math::glam::Vec3::new(5.3, polygon::FLOOR_TOP_M + 0.3, 2.3),
+        );
+        let outs = h
+            .server
+            .apply_world_command(astrocore_world::WorldCommand::PlaceAuthored(crowbar))
+            .unwrap();
+        h.deliver(outs);
+        let p = h
+            .client(a)
+            .command_packet(
+                CMD_PICKUP_ANY,
+                gameplay::pickup_data(ObjectId::from_u128(0xC40)),
+            )
+            .unwrap();
+        h.send(a, p);
+        interact(&mut h, a, door);
+        assert!(
+            h.server.doors().is_open(door),
+            "монтировка вскрыла запертую дверь"
+        );
+        // Открытую дверь монтировка не трогает; рука с предметом её не закрывает.
+        interact(&mut h, a, door);
+        assert!(h.server.doors().is_open(door));
+    }
+
+    #[test]
+    fn a_door_out_of_reach_does_not_respond() {
+        let round = Round::start(1, &polygon::content_dir(), &RoundConfig::default()).unwrap();
+        let mut h = Harness::with_server(round.server);
+        let a = h.join("a"); // стоит в точке появления, дверь далеко
+        let door = door_element(&h);
+        interact(&mut h, a, door);
+        assert!(!h.server.doors().is_open(door));
+    }
+}

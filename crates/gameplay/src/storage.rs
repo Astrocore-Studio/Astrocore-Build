@@ -284,6 +284,7 @@ mod tests {
             size,
             slots: BTreeSet::new(),
             storage: None,
+            qualities: BTreeSet::new(),
             tags: BTreeSet::new(),
             components: BTreeSet::from(["Item".to_string()]),
         }

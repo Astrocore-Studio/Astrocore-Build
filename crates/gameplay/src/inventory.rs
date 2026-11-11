@@ -180,6 +180,7 @@ mod tests {
             size,
             slots: slots.iter().map(|s| (*s).to_string()).collect(),
             storage: None,
+            qualities: BTreeSet::new(),
             tags: BTreeSet::new(),
             components: BTreeSet::new(),
         }

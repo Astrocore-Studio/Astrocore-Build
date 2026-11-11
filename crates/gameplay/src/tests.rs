@@ -647,3 +647,123 @@ mod inventory_and_storage {
         assert_eq!(hands_of(&h, a, a).map_or(0, |x| x.held().count()), 0);
     }
 }
+
+mod interactions {
+    use std::sync::{Arc, Mutex};
+
+    use super::*;
+    use crate::{
+        CMD_INTERACT, CMD_USE, InteractionHandler, State, Target, Used, interact_data, use_data,
+    };
+
+    #[test]
+    fn an_empty_hand_picks_up_an_item_and_a_full_active_hand_inserts_into_a_bag() {
+        let mut h = harness();
+        let a = h.join("a");
+        spawn(&mut h, item_at(1, "ss14:pen", near()));
+        spawn(
+            &mut h,
+            item_at(2, "ss14:backpack", Vec3::new(3.0, 0.9, 2.0)),
+        );
+        // Пустая рука: взаимодействие поднимает предмет в активную руку.
+        command(&mut h, a, CMD_INTERACT, interact_data(oid(1)));
+        assert!(!on_ground(&h, a, 1));
+        assert_eq!(hands_of(&h, a, a).unwrap().get(0).unwrap().id, oid(1));
+        // Предмет в руке + рюкзак на земле: предмет кладётся в рюкзак (ClickInsert).
+        command(&mut h, a, CMD_INTERACT, interact_data(oid(2)));
+        assert!(
+            on_ground(&h, a, 2),
+            "рюкзак остался на земле, его не подняли"
+        );
+        assert_eq!(
+            hands_of(&h, a, a).unwrap().held().count(),
+            0,
+            "ручка ушла в рюкзак"
+        );
+        // Теперь рука пуста — тот же клик поднимает сам рюкзак.
+        command(&mut h, a, CMD_INTERACT, interact_data(oid(2)));
+        assert!(!on_ground(&h, a, 2));
+        assert_eq!(inv_bag_items(&h, a, 2), 1);
+    }
+
+    fn inv_bag_items(h: &Harness, who: ConnId, bag: u128) -> usize {
+        // Рюкзак в руке: содержимое видно владельцу в build.inventory.
+        inv_of(h, who, who)
+            .and_then(|v| v.bags.into_iter().find(|b| b.id == oid(bag)))
+            .map_or(0, |b| b.items.len())
+    }
+
+    #[test]
+    fn interacting_out_of_reach_or_with_nothing_there_is_ignored() {
+        let mut h = harness();
+        let a = h.join("a");
+        spawn(&mut h, item_at(1, "ss14:pen", Vec3::new(30.0, 0.9, 3.0)));
+        command(&mut h, a, CMD_INTERACT, interact_data(oid(1)));
+        command(&mut h, a, CMD_INTERACT, interact_data(oid(777)));
+        command(&mut h, a, CMD_INTERACT, vec![1, 2, 3]);
+        command(&mut h, a, CMD_USE, vec![]);
+        command(&mut h, a, CMD_USE, use_data(9));
+        assert!(on_ground(&h, a, 1));
+        assert_eq!(h.server.player_count(), 1);
+    }
+
+    /// Записывает события и «съедает» их — так форк подменяет базовое поведение.
+    struct Spy(Arc<Mutex<Vec<String>>>);
+
+    impl InteractionHandler for Spy {
+        fn interact_hand(
+            &mut self,
+            _: &mut State,
+            _: &mut astrocore_api::HookContext<'_>,
+            _: astrocore_core::NetworkEntityId,
+            t: &Target,
+        ) -> bool {
+            self.0.lock().unwrap().push(format!("hand {:?}", t.id()));
+            false
+        }
+        fn use_in_hand(
+            &mut self,
+            _: &mut State,
+            _: &mut astrocore_api::HookContext<'_>,
+            _: astrocore_core::NetworkEntityId,
+            u: &Used,
+        ) -> bool {
+            self.0
+                .lock()
+                .unwrap()
+                .push(format!("use {}", u.item.prototype));
+            true
+        }
+    }
+
+    #[test]
+    fn forks_can_add_handlers_and_use_in_hand_reaches_them() {
+        let log = Arc::new(Mutex::new(Vec::new()));
+        let mut host = ModuleHost::new();
+        host.register(Box::new(
+            GameplayModule::new(registry())
+                .unwrap()
+                .with_handler(Box::new(Spy(log.clone()))),
+        ))
+        .unwrap();
+        host.finalize().unwrap();
+        let mut reg = ReplicationRegistry::new();
+        register_replication(&mut reg).unwrap();
+        let server = GameServer::new(test_world(), Harness::default_cfg(), Box::new(ByBuild))
+            .with_modules(host)
+            .with_replication(reg);
+        let mut h = Harness::with_server(server);
+        let a = h.join("a");
+        spawn(&mut h, item_at(1, "ss14:pen", near()));
+        command(&mut h, a, CMD_USE, use_data(0));
+        assert!(
+            log.lock().unwrap().is_empty(),
+            "пустая рука: использовать нечего"
+        );
+        command(&mut h, a, CMD_INTERACT, interact_data(oid(1)));
+        // Базовый обработчик поднял предмет, поэтому форк свой `interact_hand` уже не получил.
+        assert_eq!(hands_of(&h, a, a).unwrap().held().count(), 1);
+        command(&mut h, a, CMD_USE, use_data(0));
+        assert_eq!(*log.lock().unwrap(), vec!["use ss14:pen".to_string()]);
+    }
+}
