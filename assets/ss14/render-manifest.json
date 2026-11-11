@@ -245,6 +245,13 @@
         0.36000001430511475
       ]
     },
+    "ss14:space_lube_bottle": {
+      "image": "Textures/Objects/Consumable/Drinks/waterbottle.rsi/icon.png",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
     "ss14:tritium_canister": {
       "image": "Textures/Structures/Storage/canister.rsi/green.png",
       "size": [

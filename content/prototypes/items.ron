@@ -64,6 +64,11 @@
         "Openable": (opened: false),
         "Solution": (maxVol: 60.0, reagents: (Water: 60.0)),
     }),
+    // Бутылка космической смазки для опытов со скольжением: `V` выливает содержимое под ноги.
+    (id: "SpaceLubeBottle", parents: ["BaseItem"], name: Some("space lube bottle"), components: {
+        "Sprite": (sprite: "Objects/Consumable/Drinks/waterbottle.rsi", state: "icon"),
+        "Solution": (maxVol: 60.0, reagents: (SpaceLube: 60.0)),
+    }),
     (id: "Pen", name: Some("pen"), components: {
         "Item": (size: "Tiny"),
         "Sprite": (sprite: "Objects/Misc/pens.rsi", state: "pen"),

@@ -29,6 +29,8 @@ use atmos::{
 use serde::{Deserialize, Serialize};
 
 /// Горение (`FlammableComponent` людей из `MobFlammable`, `FlammableSystem`).
+/// Порог пролитой крови, после которого остаётся лужа (`BleedPuddleThreshold`).
+const BLEED_PUDDLE_THRESHOLD: f32 = 1.0;
 const FIRE_UPDATE_S: f32 = 1.0;
 const FIRE_DAMAGE_PER_STACK: f32 = 1.5;
 const FIRE_STACK_FADE: f32 = -0.1;
@@ -247,6 +249,8 @@ pub struct Outcome {
     pub damage: DamageSpec,
     /// Вид и число изменений здоровья, которые надо перерассылать.
     pub changed: bool,
+    /// Пролитая кровь: набралась больше `BleedPuddleThreshold` — надо оставить лужу.
+    pub blood_spilled: f32,
 }
 
 impl Outcome {
@@ -278,6 +282,7 @@ pub struct Body {
     blood: f32,
     bleed: f32,
     blood_timer: f32,
+    bleed_buffer: f32,
     /// Горение (`FlammableComponent`): горит ли, сколько «стопок» огня, сколько ещё сбивает огонь.
     pub on_fire: bool,
     pub fire_stacks: f32,
@@ -310,6 +315,7 @@ impl Body {
             blood: BLOOD_REFERENCE,
             bleed: 0.0,
             blood_timer: BLOOD_UPDATE_S,
+            bleed_buffer: 0.0,
             on_fire: false,
             fire_stacks: 0.0,
             resist_left: 0.0,
@@ -364,18 +370,25 @@ impl Body {
         }
     }
 
-    fn tick_bleed(&mut self) {
+    /// `TryBleedOut`: кровь вытекает во временный раствор, при превышении порога он проливается.
+    fn tick_bleed(&mut self, out: &mut Outcome) {
         if self.bleed <= 0.0 {
             return;
         }
+        let leaked = self.bleed.min(self.blood);
         self.blood = (self.blood - self.bleed).max(0.0);
+        self.bleed_buffer += leaked;
+        if self.bleed_buffer > BLEED_PUDDLE_THRESHOLD {
+            out.blood_spilled += self.bleed_buffer;
+            self.bleed_buffer = 0.0;
+        }
         self.modify_bleed(-BLEED_REDUCTION);
     }
 
     /// Раз в 3 секунды: кровь тянется к норме, кровотечение уносит её, малокровие ранит.
     fn bloodstream(&mut self, mob: MobState, out: &mut Outcome) {
         if mob == MobState::Dead {
-            self.tick_bleed();
+            self.tick_bleed(out);
             return;
         }
         if self.blood < BLOOD_REFERENCE {
@@ -383,7 +396,7 @@ impl Body {
         } else if self.blood > BLOOD_REFERENCE {
             self.blood = (self.blood - BLOOD_REFRESH).max(BLOOD_REFERENCE);
         }
-        self.tick_bleed();
+        self.tick_bleed(out);
         let level = (self.blood / BLOOD_REFERENCE).min(BLOOD_MAX_MODIFIER);
         if level < BLOODLOSS_THRESHOLD {
             out.add("Bloodloss", BLOODLOSS_DAMAGE / (0.1 + level));
@@ -799,6 +812,21 @@ mod tests {
     }
 
     /// Среда с огнём на клетке `(0, 0)`: тело горит, пока клетка горит.
+    #[test]
+    fn bleeding_leaks_blood_that_spills_past_the_threshold() {
+        let mut grid = sealed(1, 1);
+        let mut body = Body::new(7);
+        body.modify_bleed(4.0);
+        let mut spilled = 0.0;
+        let mut t = 0.0;
+        while t < 12.0 {
+            let out = body.tick(0.1, &mut Cell(&mut grid, (0, 0)), MobState::Alive, 0.0);
+            spilled += out.blood_spilled;
+            t += 0.1;
+        }
+        assert!(spilled > 3.0, "пролито: {spilled}");
+    }
+
     #[test]
     fn standing_in_a_fire_sets_a_person_alight_and_burns_them() {
         let mut grid = sealed(1, 1);

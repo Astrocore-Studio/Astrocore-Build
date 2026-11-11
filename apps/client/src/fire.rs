@@ -63,6 +63,38 @@ pub fn draw_fires(
         );
     };
 
+    // Лужи: цветные пятна на полу, размер по объёму; скользкие — с бликом.
+    let puddles = net
+        .core
+        .component(me, gameplay::puddles::PUDDLES_COMPONENT)
+        .and_then(gameplay::puddles::decode_puddles)
+        .unwrap_or_default();
+    for p in puddles {
+        let pos = Vec3::new(p.x, p.y + 0.02, p.z);
+        if eye.distance(pos) > SEE_M {
+            continue;
+        }
+        let (Ok(c), Ok(e)) = (
+            camera.world_to_viewport(cam_t, pos),
+            camera.world_to_viewport(
+                cam_t,
+                pos + cam_t.right() * 0.5 * p.fill.clamp(0.25, 1.0).sqrt(),
+            ),
+        ) else {
+            continue;
+        };
+        let r = (e.x - c.x).abs().clamp(3.0, 300.0);
+        let color = egui::Color32::from_rgba_unmultiplied(p.color[0], p.color[1], p.color[2], 180);
+        painter.circle_filled(egui::pos2(c.x, c.y), r, color);
+        if p.slippery {
+            painter.circle_stroke(
+                egui::pos2(c.x, c.y),
+                r,
+                egui::Stroke::new(1.5, egui::Color32::from_white_alpha(140)),
+            );
+        }
+    }
+
     let fires = net
         .core
         .component(me, FIRES_COMPONENT)

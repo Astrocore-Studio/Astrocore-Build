@@ -62,6 +62,10 @@ const PROTOS: &str = r#"[
     (id: "PlasmaCan", components: {
         "GasCanister": (volume: 1500.0, temperature: 293.15, moles: (Plasma: 400.0), releasePressure: 300.0),
     }),
+    (id: "LubeBottle", components: {
+        "Item": (size: "Small"),
+        "Solution": (maxVol: 100.0, reagents: (SpaceLube: 60.0)),
+    }),
     (id: "Satchel", components: {
         "Item": (size: "Small"),
         "Storage": (grid: ["0,0,1,1"], maxItemSize: "Tiny"),
@@ -1744,6 +1748,79 @@ mod fire {
         assert!(
             !fires.is_empty() || heat(&h, a) > 0.0,
             "плазма из баллона загорелась"
+        );
+    }
+}
+
+mod puddles {
+    use super::*;
+    use crate::CMD_SPILL;
+    use crate::puddles::{PUDDLES_COMPONENT, decode_puddles};
+
+    fn puddles(h: &Harness, who: ConnId) -> Vec<crate::puddles::PuddleView> {
+        let net = h.client(who).net_id().unwrap();
+        h.client(who)
+            .component(net, PUDDLES_COMPONENT)
+            .and_then(decode_puddles)
+            .unwrap_or_default()
+    }
+
+    fn take_lube(h: &mut Harness, a: ConnId) {
+        spawn(
+            h,
+            item_at(140, "ss14:lube_bottle", Vec3::new(2.6, 0.6, 2.6)),
+        );
+        h.ticks(3);
+        command(h, a, CMD_PICKUP, pickup_data(oid(140)));
+        h.ticks(5);
+    }
+
+    #[test]
+    fn spilling_a_bottle_leaves_a_puddle_that_clients_see() {
+        let mut h = harness();
+        let a = h.join("a");
+        h.ticks(5);
+        take_lube(&mut h, a);
+        let hand = hands_of(&h, a, a).unwrap().active() as u8;
+        command(&mut h, a, CMD_SPILL, vec![hand]);
+        h.ticks(30);
+        let p = puddles(&h, a);
+        // 60 ед. больше клетки (50): лишнее растекается по четырём соседним клеткам.
+        assert!(p.len() > 1 && p.len() <= 5, "{p:?}");
+        let centre = p.iter().find(|v| v.fill >= 1.0).expect("основная лужа");
+        assert!(centre.slippery);
+        // Бутылка опустела: второй раз лить нечего.
+        command(&mut h, a, CMD_SPILL, vec![hand]);
+        h.ticks(30);
+        assert!(puddles(&h, a).len() <= 5);
+    }
+
+    #[test]
+    fn running_over_a_slippery_puddle_drops_what_you_hold() {
+        let mut h = harness();
+        let a = h.join("a");
+        h.ticks(5);
+        take_lube(&mut h, a);
+        let hand = hands_of(&h, a, a).unwrap().active() as u8;
+        command(&mut h, a, CMD_SPILL, vec![hand]);
+        h.ticks(30);
+        // Берём что-нибудь ещё, чтобы было что ронять.
+        spawn(&mut h, item_at(141, "ss14:pen", Vec3::new(2.6, 0.6, 2.6)));
+        h.ticks(3);
+        command(&mut h, a, CMD_PICKUP, pickup_data(oid(141)));
+        h.ticks(5);
+        assert!(hands_of(&h, a, a).unwrap().held().count() >= 1);
+        for _ in 0..12 {
+            h.input(a, 0, 1, 0.0);
+        }
+        for _ in 0..12 {
+            h.input(a, 0, -1, 0.0);
+        }
+        h.ticks(5);
+        assert_eq!(
+            hands_of(&h, a, a).unwrap().held().count(),
+            0,
+            "поскользнулся и выронил всё"
         );
     }
 }

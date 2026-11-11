@@ -46,6 +46,9 @@ pub const CMD_HEAL: &str = "combat.heal";
 /// Накормить или напоить другого персонажа предметом из руки: `[рука, сетевой id цели, 4 байта LE]`.
 pub const CMD_FEED: &str = "feed.other";
 
+/// Вылить содержимое предмета из руки на пол под собой: `[рука]`.
+pub const CMD_SPILL: &str = "item.spill";
+
 /// Сбить огонь на себе (перекат): без данных. Тот же эффект у щелчка по значку огня.
 pub const CMD_RESIST: &str = "fire.resist";
 
@@ -159,6 +162,12 @@ pub fn register_replication(reg: &mut ReplicationRegistry) -> Result<(), Replica
         channel: ReplicationChannel::ReliableOrdered,
         interest: Interest::Owner,
         max_bytes: crate::health::HEALTH_MAX_BYTES,
+    })?;
+    reg.register(ReplicatedKind {
+        name: crate::puddles::PUDDLES_COMPONENT.into(),
+        channel: ReplicationChannel::ReliableOrdered,
+        interest: Interest::Everyone,
+        max_bytes: crate::puddles::PUDDLES_MAX_BYTES,
     })?;
     reg.register(ReplicatedKind {
         name: crate::fire::FIRES_COMPONENT.into(),

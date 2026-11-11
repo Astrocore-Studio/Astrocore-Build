@@ -1466,6 +1466,7 @@
         (prototype: "GasVentScrubber", x: 10.5, z: 3.5),
         (prototype: "OxygenTank", x: 8.5, z: 1.5),
         (prototype: "PlasmaTank", x: 9.5, z: 1.5),
+        (prototype: "SpaceLubeBottle", x: 5.5, z: 1.5),
     ],
     // Область без атмосферы добавляется так (клетки внутри станут космосом, комната вентилируется):
     //   zones: [(min: (10.0, 0.0, 0.0), max: (11.9, 3.0, 2.0), floor: 0, metadata: {"atmosphere": "space"})],

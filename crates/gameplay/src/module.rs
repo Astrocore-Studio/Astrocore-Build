@@ -29,10 +29,10 @@ use crate::storage::Storage;
 use crate::wire::{
     BagView, CMD_ATTACK, CMD_CANCEL, CMD_DROP, CMD_EQUIP, CMD_FEED, CMD_HEAL, CMD_INTERACT,
     CMD_MOVE_HAND, CMD_MOVE_SLOT, CMD_PICKUP, CMD_PICKUP_ANY, CMD_RESIST, CMD_RESPAWN,
-    CMD_SELECT_HAND, CMD_STORE, CMD_SWAP_HANDS, CMD_TAKE, CMD_TAKE_TO, CMD_UNEQUIP, CMD_UNEQUIP_TO,
-    CMD_USE, HANDS_COMPONENT, INVENTORY_COMPONENT, InventoryView, encode_hands, encode_inventory,
-    parse_attack_part, parse_drop, parse_equip, parse_heal, parse_move_slot, parse_object_id,
-    parse_store, parse_take, parse_take_to, parse_unequip,
+    CMD_SELECT_HAND, CMD_SPILL, CMD_STORE, CMD_SWAP_HANDS, CMD_TAKE, CMD_TAKE_TO, CMD_UNEQUIP,
+    CMD_UNEQUIP_TO, CMD_USE, HANDS_COMPONENT, INVENTORY_COMPONENT, InventoryView, encode_hands,
+    encode_inventory, parse_attack_part, parse_drop, parse_equip, parse_heal, parse_move_slot,
+    parse_object_id, parse_store, parse_take, parse_take_to, parse_unequip,
 };
 
 /// Дальность взаимодействия, м: `InteractionRange` в SS14 (1,5). Меряется от груди персонажа
@@ -73,6 +73,10 @@ pub(crate) struct Actor {
     pub(crate) body: Option<Body>,
     /// Последнее разосланное состояние тела (чтобы не слать повторы).
     pub(crate) last_vitals: Option<Vitals>,
+    /// Пока не прошло это время (по часам модуля), персонаж сбит с ног лужей.
+    pub(crate) slip_until: f32,
+    /// Где был на прошлом шаге: клетка и точка — для скорости и входа на клетку.
+    pub(crate) last_step: Option<(atmos::Cell, Vec3)>,
 }
 
 impl Actor {
@@ -92,6 +96,8 @@ impl Actor {
             death_pos: None,
             body: Some(Body::new(seed)),
             last_vitals: None,
+            slip_until: 0.0,
+            last_step: None,
         }
     }
 }
@@ -146,6 +152,9 @@ pub struct State {
     pub(crate) tanks: BTreeMap<ObjectId, atmos::Tank>,
     pub(crate) tank_timer: f32,
     pub(crate) pipe_ports: BTreeMap<atmos::Cell, u64>,
+    pub(crate) puddles: crate::puddles::Puddles,
+    pub(crate) puddles_sent: Vec<crate::puddles::PuddleView>,
+    pub(crate) puddle_timer: f32,
 }
 
 impl State {
@@ -264,6 +273,9 @@ impl State {
             tanks: BTreeMap::new(),
             tank_timer: 0.0,
             pipe_ports: BTreeMap::new(),
+            puddles: crate::puddles::Puddles::new(),
+            puddles_sent: Vec::new(),
+            puddle_timer: 0.0,
         })
     }
 
@@ -816,7 +828,8 @@ impl State {
         let legs = a.health.part_disabled("LeftLeg") && a.health.part_disabled("RightLeg");
         let died = now == MobState::Dead && before != MobState::Dead;
         let resisting = a.body.as_ref().is_some_and(Body::resisting);
-        let freeze = (!now.can_act() || legs || resisting) && !a.ghost && !died;
+        let slipped = a.slip_until > self.clock;
+        let freeze = (!now.can_act() || legs || resisting || slipped) && !a.ghost && !died;
         let feet = ctx.position_of(who);
         let mut to_floor: Vec<HeldItem> = Vec::new();
         let clock = self.clock;
@@ -1103,6 +1116,11 @@ impl State {
                 self.speed_sent.insert(id, speed);
                 ctx.set_speed(id, speed);
             }
+            if outcome.blood_spilled > 0.0 {
+                let mut blood = Solution::new(1.0e9);
+                blood.add("Blood", outcome.blood_spilled);
+                self.puddles.spill(self.atmos.layout(), cell, &blood);
+            }
             let a = self.actor(id);
             let dealt = a.health.apply(&outcome.damage);
             body.on_damage(&dealt);
@@ -1135,6 +1153,7 @@ impl State {
             self.atmos.set_layout(layout);
         }
         self.tick_igniters(ctx);
+        self.tick_puddles(ctx, dt);
         self.sync_pipes(ctx);
         self.atmos.advance(dt);
         self.tick_devices(ctx, dt);
@@ -1249,6 +1268,142 @@ impl State {
                 self.atmos.pipes_mut().add_device(key, cell, device);
             }
         }
+    }
+
+    /// Лужи: испарение, растекание, поскальзывание, рассылка клиентам.
+    fn tick_puddles(&mut self, ctx: &mut HookContext<'_>, dt: f32) {
+        self.puddles.tick(dt, self.atmos.layout());
+        // Поскальзывание: вход на скользкую клетку на достаточной скорости.
+        let ids: Vec<NetworkEntityId> = ctx.players().collect();
+        let mut slips: Vec<NetworkEntityId> = Vec::new();
+        for id in ids {
+            let (Some(pos), Some(cell)) = (ctx.position_of(id), self.cell_of(ctx, id)) else {
+                continue;
+            };
+            let clock = self.clock;
+            let a = self.actor(id);
+            let prev = a.last_step.replace((cell, pos));
+            let Some((old_cell, old_pos)) = prev else {
+                continue;
+            };
+            if old_cell == cell || a.ghost || !a.health.state().can_act() {
+                continue;
+            }
+            let speed =
+                ((pos.x - old_pos.x).powi(2) + (pos.z - old_pos.z).powi(2)).sqrt() / dt.max(1e-3);
+            let Some(slip) = self.puddles.slip(cell) else {
+                continue;
+            };
+            let down = self.actors[&id].slip_until > clock;
+            if speed >= slip.required_speed && (!down || slip.super_slippery) {
+                slips.push(id);
+            }
+        }
+        for id in slips {
+            self.slip(ctx, id);
+        }
+        // Окончание падения.
+        let clock = self.clock;
+        let risen: Vec<NetworkEntityId> = self
+            .actors
+            .iter()
+            .filter(|(_, a)| a.slip_until > 0.0 && a.slip_until <= clock)
+            .map(|(id, _)| *id)
+            .collect();
+        for id in risen {
+            self.actor(id).slip_until = 0.0;
+            self.after_health_change(ctx, id);
+        }
+        self.puddle_timer += dt;
+        if self.puddle_timer >= 0.5 {
+            self.puddle_timer = 0.0;
+            self.publish_puddles(ctx);
+        }
+    }
+
+    /// `SlipperySystem.TrySlip`: человек роняет всё из рук и падает (оглушение 0,5 с и сбивание 1,5 с).
+    fn slip(&mut self, ctx: &mut HookContext<'_>, id: NetworkEntityId) {
+        let clock = self.clock;
+        let feet = ctx.position_of(id);
+        let dropped: Vec<HeldItem> = {
+            let a = self.actor(id);
+            let knocked = a.slip_until > clock;
+            a.slip_until = clock + crate::puddles::SLIP_STUN_S + crate::puddles::SLIP_KNOCKDOWN_S;
+            if knocked {
+                Vec::new()
+            } else {
+                a.hands.take_all()
+            }
+        };
+        if let Some(at) = feet {
+            for item in &dropped {
+                State::place(ctx, item, at);
+            }
+        }
+        self.after_health_change(ctx, id);
+    }
+
+    fn publish_puddles(&mut self, ctx: &mut HookContext<'_>) {
+        let mut views: Vec<crate::puddles::PuddleView> = self
+            .puddles
+            .cells()
+            .map(|(c, s)| {
+                let floor = (c.1 + atmos::FLOOR_STRIDE / 2).div_euclid(atmos::FLOOR_STRIDE);
+                let z = c.1 - floor * atmos::FLOOR_STRIDE;
+                let y = ctx
+                    .world
+                    .floors()
+                    .find(|f| f.id.0 == floor)
+                    .map_or(0.0, |f| f.base_y);
+                crate::puddles::PuddleView {
+                    x: c.0 as f32 + 0.5,
+                    y,
+                    z: z as f32 + 0.5,
+                    fill: (s.volume() / crate::puddles::OVERFLOW_VOLUME * 10.0).round() / 10.0,
+                    color: self.puddles.color(*c),
+                    slippery: self.puddles.slip(*c).is_some(),
+                }
+            })
+            .collect();
+        views.truncate(crate::puddles::MAX_PUDDLES);
+        if views == self.puddles_sent {
+            return;
+        }
+        let bytes = crate::puddles::encode_puddles(&views);
+        self.puddles_sent = views;
+        let ids: Vec<NetworkEntityId> = ctx.players().collect();
+        for id in ids {
+            ctx.set_component(id, crate::puddles::PUDDLES_COMPONENT, bytes.clone());
+        }
+    }
+
+    /// Вылить содержимое предмета из руки под ноги (`SpillableComponent`, действие «Вылить»).
+    pub(crate) fn spill_item(
+        &mut self,
+        ctx: &HookContext<'_>,
+        actor: NetworkEntityId,
+        hand: usize,
+    ) -> bool {
+        let Some(item) = self
+            .actors
+            .get(&actor)
+            .and_then(|a| a.hands.get(hand))
+            .cloned()
+        else {
+            return false;
+        };
+        if self.is_closed(&item) || self.solution_volume(&item) <= 0.0 {
+            return false;
+        }
+        let Some(cell) = self.cell_of(ctx, actor) else {
+            return false;
+        };
+        let Some(sol) = self.solution_mut(&item) else {
+            return false;
+        };
+        let all = sol.volume();
+        let spilled = sol.split(all);
+        self.puddles.spill(self.atmos.layout(), cell, &spilled)
     }
 
     /// Устройства, баллончики и их события (лопнувший баллон).
@@ -1747,6 +1902,11 @@ impl GameModule for GameplayModule {
                     .get(actor)
                     .is_some_and(|a| !a.health.state().can_act()) => {}
             HookEvent::Command { actor, kind, data } => match kind.as_str() {
+                CMD_SPILL => {
+                    if let [hand] = data[..] {
+                        st.spill_item(ctx, *actor, usize::from(hand));
+                    }
+                }
                 CMD_RESIST => {
                     let resisted = st
                         .actors
