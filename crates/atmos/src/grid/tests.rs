@@ -340,3 +340,304 @@ fn the_reactions_run_in_priority_order() {
     let ids: Vec<i32> = reactions::REACTIONS.iter().map(|r| r.priority).collect();
     assert!(ids.windows(2).all(|w| w[0] >= w[1]));
 }
+
+mod piping {
+    use super::*;
+    use crate::pipes::{
+        Canister, Device, DeviceEvent, EAST, NodeSpec, SOUTH, Scrubber, Tank, VentPump, WEST,
+    };
+
+    fn pipe(key: u64, x: i32, z: i32, dirs: u8) -> NodeSpec {
+        NodeSpec {
+            key,
+            cell: (x, z),
+            dirs,
+            volume: 200.0,
+        }
+    }
+
+    /// Труба вдоль строки `z` от `x0` до `x1` (ключи `base..`).
+    fn line(base: u64, x0: i32, x1: i32, z: i32) -> Vec<NodeSpec> {
+        (x0..=x1)
+            .map(|x| pipe(base + (x - x0) as u64, x, z, EAST | WEST))
+            .collect()
+    }
+
+    fn total_pipe_moles(g: &Grid, keys: &[u64]) -> f32 {
+        let mut seen = Vec::new();
+        let mut sum = 0.0;
+        for &k in keys {
+            let a = g.pipes().air_of(k).unwrap();
+            let id = a as *const GasMixture as usize;
+            if !seen.contains(&id) {
+                seen.push(id);
+                sum += a.total_moles();
+            }
+        }
+        sum
+    }
+
+    #[test]
+    fn touching_pipes_form_one_network_and_a_gap_splits_it() {
+        let mut g = Grid::new();
+        g.set_layout(room(6, 1));
+        let mut specs = line(1, 0, 2, 0);
+        specs.extend(line(10, 4, 5, 0));
+        g.set_pipe_nodes(&specs);
+        g.run_cycles(1);
+        assert_eq!(g.pipes().net_count(), 2);
+        assert!(std::ptr::eq(
+            g.pipes().air_of(1).unwrap(),
+            g.pipes().air_of(3).unwrap()
+        ));
+        assert_eq!(g.pipes().air_of(1).unwrap().volume, 600.0);
+        // Пропущенный узел замыкает цепь.
+        specs.push(pipe(99, 3, 0, EAST | WEST));
+        g.set_pipe_nodes(&specs);
+        g.run_cycles(1);
+        assert_eq!(g.pipes().net_count(), 1);
+    }
+
+    #[test]
+    fn gas_is_kept_when_networks_merge_and_split() {
+        let mut g = Grid::new();
+        g.set_layout(room(4, 1));
+        let specs = line(1, 0, 3, 0);
+        g.set_pipe_nodes(&specs);
+        g.run_cycles(1);
+        let mut fill = GasMixture::standard_air();
+        fill.volume = 800.0;
+        fill.multiply(0.5);
+        g.pipes_mut().air_of_mut(1).unwrap().merge(&fill);
+        let before = total_pipe_moles(&g, &[1, 2, 3, 4]);
+        // Разрезаем посередине: газ делится поровну.
+        let mut cut = specs.clone();
+        cut.remove(2);
+        g.set_pipe_nodes(&cut);
+        g.run_cycles(1);
+        let left = g.pipes().air_of(1).unwrap().total_moles();
+        let right = g.pipes().air_of(4).unwrap().total_moles();
+        assert!((left + right - before * 0.75).abs() < 0.01, "ушёл газ узла");
+        assert!((left - 2.0 * right).abs() < 0.01, "делится по объёму");
+    }
+
+    #[test]
+    fn a_pressure_pump_fills_the_outlet_up_to_its_target() {
+        let mut g = Grid::new();
+        g.set_layout(room(6, 1));
+        // Вход: трубы 0..1, насос в клетке 2 (вход запад, выход восток), выход: 3..4.
+        let mut specs = line(1, 0, 1, 0);
+        specs.push(pipe(20, 2, 0, WEST));
+        specs.push(pipe(21, 2, 0, EAST));
+        specs.extend(line(30, 3, 4, 0));
+        g.set_pipe_nodes(&specs);
+        g.run_cycles(1);
+        g.pipes_mut().add_device(
+            500,
+            (2, 0),
+            Device::PressurePump {
+                inlet: 20,
+                outlet: 21,
+                target: 300.0,
+                enabled: true,
+            },
+        );
+        g.pipes_mut()
+            .air_of_mut(1)
+            .unwrap()
+            .adjust_moles(Gas::Oxygen, 150.0);
+        let inlet_start = g.pipes().air_of(1).unwrap().pressure();
+        g.run_cycles(20);
+        let out = g.pipes().air_of(30).unwrap().pressure();
+        assert!((out - 300.0).abs() < 5.0, "давление на выходе: {out}");
+        assert!(g.pipes().air_of(1).unwrap().pressure() < inlet_start);
+        // Выключенный насос ничего не качает.
+        if let Some(Device::PressurePump {
+            enabled, target, ..
+        }) = g.pipes_mut().device_mut(500)
+        {
+            *enabled = false;
+            *target = 1000.0;
+        }
+        g.run_cycles(10);
+        assert!(g.pipes().air_of(30).unwrap().pressure() < 310.0);
+    }
+
+    #[test]
+    fn a_canister_on_a_port_feeds_the_pipes_and_its_valve_vents_into_the_room() {
+        let mut g = Grid::new();
+        g.set_layout(room(5, 1));
+        let mut specs = vec![pipe(1, 0, 0, EAST)];
+        specs.extend(line(2, 1, 3, 0));
+        g.set_pipe_nodes(&specs);
+        let mut air = GasMixture::new(1500.0);
+        air.set_temperature(T20C);
+        air.adjust_moles(Gas::Oxygen, 1000.0);
+        let mut can = Canister::new(air);
+        can.port = Some(1);
+        g.pipes_mut()
+            .add_device(700, (0, 0), Device::Canister(Box::new(can)));
+        g.run_cycles(10);
+        let in_pipes = g.pipes().air_of(3).unwrap().total_moles();
+        assert!(in_pipes > 50.0, "баллон отдал газ в трубы: {in_pipes}");
+        // Клапан: открываем выпуск в помещение при давлении 300 кПа.
+        if let Some(Device::Canister(c)) = g.pipes_mut().device_mut(700) {
+            c.port = None;
+            c.release_open = true;
+            c.release_pressure = 300.0;
+        }
+        let before = g.pressure((0, 0));
+        g.run_cycles(60);
+        assert!(g.pressure((0, 0)) > before + 20.0, "{}", g.pressure((0, 0)));
+    }
+
+    #[test]
+    fn a_vent_pressurizes_a_vacuum_and_a_scrubber_cleans_the_room() {
+        let mut g = Grid::new();
+        g.set_layout(room(3, 1));
+        // Опустошаем центральную клетку и накачиваем через вентиляцию.
+        for x in 0..3 {
+            g.remove_volume((x, 0), CELL_VOLUME);
+        }
+        g.set_pipe_nodes(&[pipe(1, 1, 0, SOUTH)]);
+        g.run_cycles(1);
+        let mut gas = GasMixture::standard_air();
+        gas.volume = 200.0;
+        gas.multiply(40.0);
+        g.pipes_mut().air_of_mut(1).unwrap().merge(&gas);
+        g.pipes_mut()
+            .add_device(5, (1, 0), Device::VentPump(VentPump::new(1)));
+        g.run_cycles(120);
+        assert!(g.pressure((1, 0)) > 40.0, "{}", g.pressure((1, 0)));
+
+        // Скруббер вытягивает плазму.
+        let mut g = Grid::new();
+        g.set_layout(room(3, 1));
+        for x in 0..3 {
+            g.with_air((x, 0), |a| a.adjust_moles(Gas::Plasma, 10.0));
+        }
+        g.set_pipe_nodes(&[pipe(1, 1, 0, SOUTH)]);
+        g.pipes_mut()
+            .add_device(6, (1, 0), Device::Scrubber(Scrubber::new(1)));
+        g.run_cycles(200);
+        let plasma: f32 = (0..3).map(|x| g.air((x, 0)).moles(Gas::Plasma)).sum();
+        assert!(plasma < 15.0, "плазма ушла в трубу: {plasma}");
+        assert!(g.pipes().air_of(1).unwrap().moles(Gas::Plasma) > 5.0);
+        assert!(g.air((1, 0)).moles(Gas::Oxygen) > 10.0, "воздух не откачан");
+    }
+
+    #[test]
+    fn an_open_valve_joins_two_pipes_and_a_closed_one_does_not() {
+        let mut g = Grid::new();
+        g.set_layout(room(5, 1));
+        let mut specs = line(1, 0, 1, 0);
+        specs.push(pipe(20, 2, 0, WEST));
+        specs.push(pipe(21, 2, 0, EAST));
+        specs.extend(line(30, 3, 4, 0));
+        g.set_pipe_nodes(&specs);
+        g.pipes_mut().add_device(
+            9,
+            (2, 0),
+            Device::Valve {
+                a: 20,
+                b: 21,
+                open: false,
+            },
+        );
+        g.run_cycles(1);
+        assert_eq!(g.pipes().net_count(), 2);
+        if let Some(Device::Valve { open, .. }) = g.pipes_mut().device_mut(9) {
+            *open = true;
+        }
+        g.run_cycles(1);
+        assert_eq!(g.pipes().net_count(), 1);
+    }
+
+    #[test]
+    fn a_passive_vent_equalizes_pipe_and_room() {
+        let mut g = Grid::new();
+        g.set_layout(room(1, 1));
+        g.set_pipe_nodes(&[pipe(1, 0, 0, SOUTH)]);
+        g.run_cycles(1);
+        let mut gas = GasMixture::standard_air();
+        gas.volume = 200.0;
+        gas.multiply(0.2);
+        g.pipes_mut().air_of_mut(1).unwrap().merge(&gas);
+        g.pipes_mut()
+            .add_device(2, (0, 0), Device::PassiveVent { node: 1 });
+        g.run_cycles(5);
+        let (pipe_p, room_p) = (g.pipes().air_of(1).unwrap().pressure(), g.pressure((0, 0)));
+        assert!((pipe_p - room_p).abs() < 1.0, "{pipe_p} против {room_p}");
+    }
+
+    #[test]
+    fn a_tank_releases_gas_slowly_and_ruptures_over_pressure() {
+        let mut mix = GasMixture::new(5.0);
+        mix.set_temperature(T20C);
+        mix.adjust_moles(Gas::Oxygen, 0.5);
+        let mut tank = Tank::new(mix);
+        let mut env = GasMixture::standard_air();
+        // Закрытый баллончик ничего не теряет.
+        tank.update(0.6, Some(&mut env));
+        assert!((tank.air.total_moles() - 0.5).abs() < 1e-4);
+        tank.release_open = true;
+        let start = tank.air.total_moles();
+        for _ in 0..20 {
+            tank.update(0.6, Some(&mut env));
+        }
+        assert!(tank.air.total_moles() < start, "газ вышел");
+        // Перегрузка: давление выше 20 атм ломает за `integrity` секунд, выше (integrity+1) раз — сразу.
+        let mut mix = GasMixture::new(5.0);
+        mix.adjust_moles(Gas::Oxygen, 5.0);
+        mix.set_temperature(2000.0);
+        let mut tank = Tank::new(mix);
+        let status = tank.update(0.6, Some(&mut env));
+        assert_eq!(status, crate::pipes::PressureStatus::Ruptured);
+        assert_eq!(tank.air.total_moles(), 0.0);
+    }
+
+    #[test]
+    fn a_canister_over_its_limit_opens_the_safety_valve_and_a_weak_one_bursts() {
+        // Выше предохранительного давления клапан сам стравливает газ в помещение.
+        let mut g = Grid::new();
+        g.set_layout(room(2, 1));
+        let mut air = GasMixture::new(1500.0);
+        air.set_temperature(T20C);
+        air.adjust_moles(Gas::Oxygen, 9000.0); // ≈ 146 атм
+        g.pipes_mut()
+            .add_device(1, (0, 0), Device::Canister(Box::new(Canister::new(air))));
+        let before = g.total_moles();
+        g.run_cycles(40);
+        let Some(Device::Canister(c)) = g.pipes().device(1) else {
+            panic!("баллон цел");
+        };
+        assert!(c.safety_open, "предохранительный клапан открыт");
+        assert!(
+            c.air.total_moles() < 9000.0 - 20.0,
+            "клапан стравливает газ"
+        );
+        assert!(g.total_moles() > before, "газ вышел в помещение");
+
+        // Изношенный баллон (целостность 0) лопается при давлении выше перегрузки.
+        let mut g = Grid::new();
+        g.set_layout(room(2, 1));
+        let mut air = GasMixture::new(1500.0);
+        air.set_temperature(T20C);
+        air.adjust_moles(Gas::Oxygen, 20_000.0);
+        let mut can = Canister::new(air);
+        can.limits.integrity = 0.0;
+        g.pipes_mut()
+            .add_device(1, (0, 0), Device::Canister(Box::new(can)));
+        let before = g.total_moles();
+        g.run_cycles(2);
+        let events = g.take_device_events();
+        assert!(
+            events
+                .iter()
+                .any(|e| matches!(e, DeviceEvent::Ruptured { key: 1, .. })),
+            "баллон лопнул: {events:?}"
+        );
+        assert!(g.total_moles() > before + 15_000.0, "газ ушёл в помещение");
+        assert!(g.pipes().device(1).is_none());
+    }
+}

@@ -75,6 +75,9 @@ pub enum Gas {
 pub const MOLAR_HEAT_CAPACITY: [f32; GAS_COUNT] =
     [29.0, 29.0, 37.0, 200.0, 10.0, 40.0, 20.0, 40.0, 600.0];
 
+/// Молярная масса газов, г/моль (`molarMass` из `gases.yml`).
+pub const MOLAR_MASS: [f32; GAS_COUNT] = [32.0, 28.0, 44.0, 120.0, 3.0, 18.0, 44.0, 44.0, 50.0];
+
 /// Теплоёмкость с учётом масштаба: `GasMolarHeatCapacities` в SS14 заранее поделены на `HeatScale`.
 fn scaled_capacity(gas: usize) -> f32 {
     MOLAR_HEAT_CAPACITY[gas] / HEAT_SCALE
@@ -181,6 +184,22 @@ impl GasMixture {
             .map(|i| self.moles[i] * scaled_capacity(i))
             .sum();
         sum.max(MINIMUM_HEAT_CAPACITY)
+    }
+
+    /// Убрать `moles` молей пропорционально составу (`Remove`).
+    pub fn remove(&mut self, moles: f32) -> GasMixture {
+        let total = self.total_moles();
+        if total <= 0.0 || moles <= 0.0 {
+            let mut empty = GasMixture::new(self.volume);
+            empty.temperature = self.temperature;
+            return empty;
+        }
+        self.remove_ratio((moles / total).min(1.0))
+    }
+
+    /// Масса смеси, г (`GetMass`): моли на молярную массу газа.
+    pub fn mass(&self) -> f32 {
+        (0..GAS_COUNT).map(|i| self.moles[i] * MOLAR_MASS[i]).sum()
     }
 
     /// Есть ли топливо (плазма, тритий): `IsMixtureFuel`.

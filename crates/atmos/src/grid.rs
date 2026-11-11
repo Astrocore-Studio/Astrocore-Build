@@ -9,6 +9,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use crate::gas::*;
+use crate::pipes::{DeviceEvent, NodeSpec, Pipes, TileAccess, release_gas_to};
 use crate::reactions;
 
 /// Частота шагов атмосферы, Гц (`atmos.tickrate`).
@@ -181,6 +182,8 @@ pub struct Grid {
     index: BTreeMap<Cell, usize>,
     active: BTreeSet<usize>,
     hotspots: BTreeSet<usize>,
+    pipes: Pipes,
+    device_events: Vec<DeviceEvent>,
     groups: Vec<Option<Group>>,
     layout: Layout,
     timer: f32,
@@ -202,6 +205,8 @@ impl Grid {
             index: BTreeMap::new(),
             active: BTreeSet::new(),
             hotspots: BTreeSet::new(),
+            pipes: Pipes::default(),
+            device_events: Vec::new(),
             groups: Vec::new(),
             layout: Layout::default(),
             timer: 0.0,
@@ -410,13 +415,11 @@ impl Grid {
             State::TileEqualize => self.process_tile_equalize(),
             State::ActiveTiles => self.process_active_tiles(),
             State::Hotspots => self.process_hotspots(),
+            State::PipeNet => self.pipes.process_nets(),
+            State::AtmosDevices => self.process_devices(),
             State::ExcitedGroups => self.process_excited_groups(),
             // Остальные стадии SS14 заняты тем, что здесь не перенесено; они сохраняют длину цикла.
-            State::Revalidate
-            | State::HighPressureDelta
-            | State::DeltaPressure
-            | State::PipeNet
-            | State::AtmosDevices => {}
+            State::Revalidate | State::HighPressureDelta | State::DeltaPressure => {}
         }
         self.state += 1;
         if self.state == STATES.len() {
@@ -591,6 +594,44 @@ impl Grid {
         let &i = self.index.get(&cell)?;
         self.add_active(i);
         Some(f(&mut self.tiles[i].air))
+    }
+
+    /// Трубы и устройства.
+    pub fn pipes(&self) -> &Pipes {
+        &self.pipes
+    }
+
+    pub fn pipes_mut(&mut self) -> &mut Pipes {
+        &mut self.pipes
+    }
+
+    /// Заново задать узлы труб.
+    pub fn set_pipe_nodes(&mut self, specs: &[NodeSpec]) {
+        self.pipes.set_nodes(specs);
+    }
+
+    /// События устройств с прошлого вызова (лопнувший баллон).
+    pub fn take_device_events(&mut self) -> Vec<DeviceEvent> {
+        std::mem::take(&mut self.device_events)
+    }
+
+    /// Стадия `AtmosDevices`: за полный цикл устройства получают `RealAtmosTime`.
+    fn process_devices(&mut self) {
+        if self.pipes.is_empty() {
+            return;
+        }
+        let dt = ATMOS_TIME * STATES.len() as f32;
+        let mut env = TileEnv {
+            tiles: &mut self.tiles,
+            index: &self.index,
+            touched: Vec::new(),
+        };
+        let events = self.pipes.process_devices(dt, &mut env);
+        let touched = env.touched;
+        for i in touched {
+            self.add_active(i);
+        }
+        self.device_events.extend(events);
     }
 
     fn process_hotspots(&mut self) {
@@ -1308,24 +1349,22 @@ impl Grid {
     }
 }
 
-/// `ReleaseGasTo`: выпустить газ из `mixture` в `output` (или в никуда) до давления `target`.
-fn release_gas_to(mixture: &mut GasMixture, output: Option<&mut GasMixture>, target: f32) -> bool {
-    let out_pressure = output.as_ref().map_or(0.0, |o| o.pressure());
-    let in_pressure = mixture.pressure();
-    if out_pressure >= target.min(in_pressure - 10.0) {
-        return false;
+/// Воздух клеток для устройств труб.
+struct TileEnv<'a> {
+    tiles: &'a mut Vec<Tile>,
+    index: &'a BTreeMap<Cell, usize>,
+    touched: Vec<usize>,
+}
+
+impl TileAccess for TileEnv<'_> {
+    fn air(&mut self, cell: Cell) -> Option<&mut GasMixture> {
+        let &i = self.index.get(&cell)?;
+        if self.tiles[i].space {
+            return None;
+        }
+        self.touched.push(i);
+        Some(&mut self.tiles[i].air)
     }
-    if mixture.total_moles() <= 0.0 || mixture.temperature() <= 0.0 {
-        return false;
-    }
-    let delta = (target - out_pressure).min((in_pressure - out_pressure) / 2.0);
-    let volume = output.as_ref().map_or(CELL_VOLUME, |o| o.volume);
-    let transfer = delta * volume / (mixture.temperature() * R);
-    let removed = mixture.remove_ratio(transfer / mixture.total_moles());
-    if let Some(o) = output {
-        o.merge(&removed);
-    }
-    true
 }
 
 fn two_mut(tiles: &mut [Tile], a: usize, b: usize) -> (&mut Tile, &mut Tile) {
