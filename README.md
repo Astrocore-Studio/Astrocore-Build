@@ -56,6 +56,14 @@ cargo run -p astrocore-client -- --connect-lightyear 127.0.0.1:7779 --ly-key <т
 
 ![Полигон](docs/img/polygon.png)
 
+Двери анимированы по спрайтам SS14 (`airlock-base.rsi`: closed, opening, open, closing; кадры и
+задержки читаются из `meta.json`); состояние двери приходит с сервера, смена цели посреди
+анимации разворачивает её без скачка.
+
+| Закрыта | Открыта |
+| --- | --- |
+| ![закрыта](docs/img/door-closed.png) | ![открыта](docs/img/door-open.png) |
+
 Стены, пол и дверь используют спрайты SS14 (`assets/ss14`), предметы на земле — иконки из их RSI.
 
 ## Модель раунда

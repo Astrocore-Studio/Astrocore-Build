@@ -138,6 +138,73 @@ fn safe_rel(p: &str) -> Result<(), AssetError> {
     }
 }
 
+/// Дверь: идентификатор материала проёма и набор RSI со состояниями closed/open/opening/closing.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize)]
+pub struct DoorSource {
+    pub id: String,
+    pub rsi: String,
+}
+
+/// Размер PNG из заголовка (без полной загрузки картинки).
+fn png_size(path: &Path) -> Result<(u32, u32), AssetError> {
+    use std::io::Read;
+    let mut head = [0u8; 24];
+    std::fs::File::open(path)
+        .and_then(|mut f| f.read_exact(&mut head))
+        .map_err(|e| AssetError::Io(path.to_path_buf(), e))?;
+    if &head[..8] != b"\x89PNG\r\n\x1a\n" {
+        return Err(AssetError::Attribution(path.to_path_buf(), "не PNG".into()));
+    }
+    let w = u32::from_be_bytes([head[16], head[17], head[18], head[19]]);
+    let h = u32::from_be_bytes([head[20], head[21], head[22], head[23]]);
+    Ok((w, h))
+}
+
+/// Описание листа состояния: ячейки размера RSI идут по строкам (направление × кадр), берём
+/// первое направление. Кадров столько, сколько задержек в `meta.json`.
+fn door_sheet(
+    textures: &Path,
+    rsi: &str,
+    meta: &RsiMeta,
+    state: &str,
+    textures_subdir: &str,
+) -> Result<serde_json::Value, AssetError> {
+    let st = meta.state(state).ok_or_else(|| {
+        AssetError::MissingImage(textures.join(rsi), format!("состояние {state} в meta.json"))
+    })?;
+    let file = format!("{rsi}/{state}.png");
+    let path = textures.join(&file);
+    if !path.is_file() {
+        return Err(AssetError::MissingImage(textures.to_path_buf(), file));
+    }
+    let (w, h) = png_size(&path)?;
+    let (cw, ch) = meta.size;
+    if cw == 0 || ch == 0 || w % cw != 0 || h % ch != 0 {
+        return Err(AssetError::Attribution(
+            path,
+            "размер листа не кратен размеру ячейки".into(),
+        ));
+    }
+    let delays: Vec<f32> = if st.is_animated() {
+        st.delays.first().cloned().unwrap_or_default()
+    } else {
+        Vec::new()
+    };
+    let (cols, rows) = (w / cw, h / ch);
+    if delays.len() as u32 > cols * rows {
+        return Err(AssetError::Attribution(
+            path,
+            "кадров больше, чем ячеек".into(),
+        ));
+    }
+    Ok(serde_json::json!({
+        "image": format!("{textures_subdir}/{file}"),
+        "cols": cols,
+        "rows": rows,
+        "delays": delays,
+    }))
+}
+
 /// Манифест рендера для клиента движка (`RenderManifest`): идентификатор → PNG. Пути в нём
 /// относительны каталогу манифеста (`manifest_dir`), все файлы проверяются на существование,
 /// идентификаторы — на допустимость в движке.
@@ -146,6 +213,7 @@ pub fn build_manifest(
     textures_subdir: &str,
     materials: &[MaterialSource],
     sprites: &[SpriteSource],
+    doors: &[DoorSource],
 ) -> Result<String, AssetError> {
     let textures = assets_root.join(textures_subdir);
     let check_id = |id: &str| {
@@ -177,8 +245,26 @@ pub fn build_manifest(
             serde_json::json!({ "image": format!("{textures_subdir}/{image}"), "size": s.size }),
         );
     }
-    serde_json::to_string_pretty(&serde_json::json!({ "materials": mats, "sprites": sprs }))
-        .map_err(|e| AssetError::Attribution(textures, e.to_string()))
+    let mut door_map = serde_json::Map::new();
+    for d in doors {
+        check_id(&d.id)?;
+        safe_rel(&d.rsi)?;
+        let set = load_rsi(&textures.join(&d.rsi))?;
+        let sheet = |state: &str| door_sheet(&textures, &d.rsi, &set.meta, state, textures_subdir);
+        door_map.insert(
+            d.id.clone(),
+            serde_json::json!({
+                "closed": sheet("closed")?,
+                "open": sheet("open")?,
+                "opening": sheet("opening")?,
+                "closing": sheet("closing")?,
+            }),
+        );
+    }
+    serde_json::to_string_pretty(
+        &serde_json::json!({ "materials": mats, "sprites": sprs, "doors": door_map }),
+    )
+    .map_err(|e| AssetError::Attribution(textures, e.to_string()))
 }
 
 #[cfg(test)]
@@ -223,11 +309,12 @@ mod tests {
             "Textures",
             &mats,
             &[sprite("ss14:crowbar", "Objects/Tools/crowbar.rsi", "icon")],
+            &[],
         )
         .unwrap();
         assert!(json.contains("Textures/Objects/Tools/crowbar.rsi/icon.png"));
         assert!(json.contains("Textures/Structures/Walls/solid.rsi/full.png"));
-        let bad = |s: SpriteSource| build_manifest(&root, "Textures", &[], &[s]).is_err();
+        let bad = |s: SpriteSource| build_manifest(&root, "Textures", &[], &[s], &[]).is_err();
         assert!(bad(sprite(
             "ss14:crowbar",
             "Objects/Tools/crowbar.rsi",
@@ -235,6 +322,36 @@ mod tests {
         )));
         assert!(bad(sprite("Плохо", "Objects/Tools/crowbar.rsi", "icon")));
         assert!(bad(sprite("ss14:x", "../outside.rsi", "icon")));
+    }
+
+    #[test]
+    fn a_door_manifest_reads_frame_grids_and_delays_from_the_rsi() {
+        let root = ss14_textures_dir().join("..");
+        let rsi = "Structures/Doors/Airlocks/Standard/airlock-base.rsi";
+        let door = DoorSource {
+            id: "ss14:airlock".into(),
+            rsi: rsi.into(),
+        };
+        let json = build_manifest(&root, "Textures", &[], &[], &[door.clone()]).unwrap();
+        let v: serde_json::Value = serde_json::from_str(&json).unwrap();
+        let d = &v["doors"]["ss14:airlock"];
+        // Открытие: лист 288×128 из ячеек 32×32 — 9 кадров в 4 строки (по направлению на строку).
+        assert_eq!(d["opening"]["cols"], 9);
+        assert_eq!(d["opening"]["rows"], 4);
+        assert_eq!(d["opening"]["delays"].as_array().unwrap().len(), 9);
+        assert_eq!(d["closed"]["cols"], 2, "статичный лист 64×64: 2×2 ячейки");
+        assert_eq!(d["closed"]["delays"].as_array().unwrap().len(), 0);
+        // Дверь без нужных состояний или с неверным набором — ошибка.
+        let wrong = DoorSource {
+            id: "ss14:x".into(),
+            rsi: "Objects/Tools/crowbar.rsi".into(),
+        };
+        assert!(build_manifest(&root, "Textures", &[], &[], &[wrong]).is_err());
+        let escape = DoorSource {
+            id: "ss14:x".into(),
+            rsi: "../x.rsi".into(),
+        };
+        assert!(build_manifest(&root, "Textures", &[], &[], &[escape]).is_err());
     }
 
     #[test]

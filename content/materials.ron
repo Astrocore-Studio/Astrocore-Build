@@ -2,5 +2,4 @@
 [
     (id: "ss14:wall_solid", image: "Structures/Walls/solid.rsi/full.png"),
     (id: "ss14:floor_dark", image: "Tiles/Basic/Dark/dark.png"),
-    (id: "ss14:airlock", image: "Structures/Doors/Airlocks/Standard/airlock-base.rsi/closed.png"),
 ]

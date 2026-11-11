@@ -1,8 +1,53 @@
 {
-  "materials": {
+  "doors": {
     "ss14:airlock": {
-      "image": "Textures/Structures/Doors/Airlocks/Standard/airlock-base.rsi/closed.png"
-    },
+      "closed": {
+        "cols": 2,
+        "delays": [],
+        "image": "Textures/Structures/Doors/Airlocks/Standard/airlock-base.rsi/closed.png",
+        "rows": 2
+      },
+      "closing": {
+        "cols": 9,
+        "delays": [
+          0.10000000149011612,
+          0.05000000074505806,
+          0.05000000074505806,
+          0.029999999329447746,
+          0.029999999329447746,
+          0.029999999329447746,
+          0.05000000074505806,
+          0.05000000074505806,
+          0.10000000149011612
+        ],
+        "image": "Textures/Structures/Doors/Airlocks/Standard/airlock-base.rsi/closing.png",
+        "rows": 4
+      },
+      "open": {
+        "cols": 2,
+        "delays": [],
+        "image": "Textures/Structures/Doors/Airlocks/Standard/airlock-base.rsi/open.png",
+        "rows": 2
+      },
+      "opening": {
+        "cols": 9,
+        "delays": [
+          0.10000000149011612,
+          0.05000000074505806,
+          0.05000000074505806,
+          0.029999999329447746,
+          0.029999999329447746,
+          0.029999999329447746,
+          0.05000000074505806,
+          0.05000000074505806,
+          0.10000000149011612
+        ],
+        "image": "Textures/Structures/Doors/Airlocks/Standard/airlock-base.rsi/opening.png",
+        "rows": 4
+      }
+    }
+  },
+  "materials": {
     "ss14:floor_dark": {
       "image": "Textures/Tiles/Basic/Dark/dark.png"
     },

@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use assets::{MaterialSource, SpriteSource, build_manifest};
+use assets::{DoorSource, MaterialSource, SpriteSource, build_manifest};
 use astrocore_core::{ObjectId, PrototypeId};
 use astrocore_editor::tools::{self, SequentialIds};
 use astrocore_math::glam::Vec3;
@@ -222,6 +222,13 @@ pub fn load_materials(content: &Path) -> Result<Vec<MaterialSource>, PolygonErro
     ron::from_str(&text).map_err(|e| PolygonError::Ron(path, e.to_string()))
 }
 
+/// Двери из `content/doors.ron`: материал проёма → набор RSI со спрайтами состояний.
+pub fn load_doors(content: &Path) -> Result<Vec<DoorSource>, PolygonError> {
+    let path = content.join("doors.ron");
+    let text = std::fs::read_to_string(&path).map_err(|e| PolygonError::Io(path.clone(), e))?;
+    ron::from_str(&text).map_err(|e| PolygonError::Ron(path, e.to_string()))
+}
+
 /// Спрайты предметов: у каждого прототипа с `Sprite` (набор и состояние) и `Item`.
 pub fn sprites_of(registry: &PrototypeRegistry) -> Result<Vec<SpriteSource>, PolygonError> {
     let mut out = Vec::new();
@@ -249,18 +256,20 @@ pub fn sprites_of(registry: &PrototypeRegistry) -> Result<Vec<SpriteSource>, Pol
     Ok(out)
 }
 
-/// Манифест рендера для клиента: текстуры материалов и спрайты предметов.
+/// Манифест рендера для клиента: текстуры материалов, спрайты предметов и двери.
 pub fn render_manifest(
     content: &Path,
     registry: &PrototypeRegistry,
 ) -> Result<String, PolygonError> {
     let materials = load_materials(content)?;
     let sprites = sprites_of(registry)?;
+    let doors = load_doors(content)?;
     Ok(build_manifest(
         &assets_dir(),
         "Textures",
         &materials,
         &sprites,
+        &doors,
     )?)
 }
 
