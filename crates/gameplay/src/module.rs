@@ -28,9 +28,9 @@ use crate::reagents::Solution;
 use crate::storage::Storage;
 use crate::wire::{
     BagView, CMD_ATTACK, CMD_CANCEL, CMD_DROP, CMD_EQUIP, CMD_FEED, CMD_HEAL, CMD_INTERACT,
-    CMD_MOVE_HAND, CMD_MOVE_SLOT, CMD_PICKUP, CMD_PICKUP_ANY, CMD_RESPAWN, CMD_SELECT_HAND,
-    CMD_STORE, CMD_SWAP_HANDS, CMD_TAKE, CMD_TAKE_TO, CMD_UNEQUIP, CMD_UNEQUIP_TO, CMD_USE,
-    HANDS_COMPONENT, INVENTORY_COMPONENT, InventoryView, encode_hands, encode_inventory,
+    CMD_MOVE_HAND, CMD_MOVE_SLOT, CMD_PICKUP, CMD_PICKUP_ANY, CMD_RESIST, CMD_RESPAWN,
+    CMD_SELECT_HAND, CMD_STORE, CMD_SWAP_HANDS, CMD_TAKE, CMD_TAKE_TO, CMD_UNEQUIP, CMD_UNEQUIP_TO,
+    CMD_USE, HANDS_COMPONENT, INVENTORY_COMPONENT, InventoryView, encode_hands, encode_inventory,
     parse_attack_part, parse_drop, parse_equip, parse_heal, parse_move_slot, parse_object_id,
     parse_store, parse_take, parse_take_to, parse_unequip,
 };
@@ -132,6 +132,11 @@ pub struct State {
     pub(crate) solutions: BTreeMap<ObjectId, Solution>,
     /// Предметы, которые уже открыты.
     pub(crate) opened: BTreeSet<ObjectId>,
+    /// Температура огня у прототипов с `IgnitionSource` (сварка, спички) и зажжённые экземпляры.
+    pub(crate) igniters: BTreeMap<PrototypeId, f32>,
+    pub(crate) lit: BTreeSet<ObjectId>,
+    /// Какие клетки с огнём уже разосланы.
+    pub(crate) fires_sent: Vec<crate::fire::FireView>,
 }
 
 impl State {
@@ -145,6 +150,7 @@ impl State {
         let mut edibles = BTreeMap::new();
         let mut solution_templates = BTreeMap::new();
         let mut openable = BTreeMap::new();
+        let mut igniters = BTreeMap::new();
         for (id, name) in names {
             let resolved = registry.spawnable(&name).ok();
             if let Some(info) = resolved.as_ref().and_then(item_info) {
@@ -159,6 +165,9 @@ impl State {
                 }
                 if let Some(closed) = openable_closed(r) {
                     openable.insert(id.clone(), closed);
+                }
+                if let Some(t) = crate::fire::ignition_temperature(r) {
+                    igniters.insert(id.clone(), t);
                 }
             }
             let delay = |key: &str| {
@@ -228,6 +237,9 @@ impl State {
             openable,
             solutions: BTreeMap::new(),
             opened: BTreeSet::new(),
+            igniters,
+            lit: BTreeSet::new(),
+            fires_sent: Vec::new(),
         })
     }
 
@@ -293,6 +305,11 @@ impl State {
         ctx.set_component(actor, HEALTH_COMPONENT, encode_health(&health_view));
         ctx.set_component(actor, MOBSTATE_COMPONENT, vec![a.health.state().to_byte()]);
         ctx.set_component(actor, GHOST_COMPONENT, vec![u8::from(a.ghost)]);
+        ctx.set_component(
+            actor,
+            crate::fire::BURNING_COMPONENT,
+            vec![u8::from(a.body.as_ref().is_some_and(|b| b.on_fire))],
+        );
         if let Some(body) = a.body.as_ref() {
             ctx.set_component(actor, VITALS_COMPONENT, encode_vitals(&body.vitals()));
         }
@@ -774,7 +791,8 @@ impl State {
         let (now, before) = (a.health.state(), a.mob_state);
         let legs = a.health.part_disabled("LeftLeg") && a.health.part_disabled("RightLeg");
         let died = now == MobState::Dead && before != MobState::Dead;
-        let freeze = (!now.can_act() || legs) && !a.ghost && !died;
+        let resisting = a.body.as_ref().is_some_and(Body::resisting);
+        let freeze = (!now.can_act() || legs || resisting) && !a.ghost && !died;
         let feet = ctx.position_of(who);
         let mut to_floor: Vec<HeldItem> = Vec::new();
         let clock = self.clock;
@@ -1092,7 +1110,84 @@ impl State {
         if self.atmos.layout() != &layout {
             self.atmos.set_layout(layout);
         }
+        self.tick_igniters(ctx);
         self.atmos.advance(dt);
+        self.publish_fires(ctx);
+    }
+
+    /// Зажжённый предмет в руке поджигает воздух клетки владельца (`IgnitionSourceSystem.Update`);
+    /// выпавший из рук гаснет.
+    fn tick_igniters(&mut self, ctx: &mut HookContext<'_>) {
+        if self.lit.is_empty() {
+            return;
+        }
+        let mut held = BTreeSet::new();
+        let mut burning: Vec<(NetworkEntityId, f32)> = Vec::new();
+        for (id, a) in &self.actors {
+            for item in a.hands.held() {
+                if self.lit.contains(&item.id) {
+                    held.insert(item.id);
+                    if let Some(&t) = self.igniters.get(&item.prototype) {
+                        burning.push((*id, t));
+                    }
+                }
+            }
+        }
+        self.lit.retain(|i| held.contains(i));
+        for (id, temperature) in burning {
+            if let Some(cell) = self.cell_of(ctx, id) {
+                self.atmos.ignite(cell, temperature, IGNITION_SOURCE_VOLUME);
+            }
+        }
+    }
+
+    /// Клетка атмосферы под ногами игрока.
+    pub(crate) fn cell_of(
+        &self,
+        ctx: &HookContext<'_>,
+        id: NetworkEntityId,
+    ) -> Option<atmos::Cell> {
+        let pos = ctx.position_of(id)?;
+        let floor = floor_at(ctx, pos.y).map_or(0, |f| f.0);
+        Some(atmos::floor_cell(
+            floor,
+            pos.x.floor() as i32,
+            pos.z.floor() as i32,
+        ))
+    }
+
+    /// Разослать клиентам клетки с огнём, если их набор изменился.
+    fn publish_fires(&mut self, ctx: &mut HookContext<'_>) {
+        let mut views: Vec<crate::fire::FireView> = self
+            .atmos
+            .fires()
+            .into_iter()
+            .map(|f| {
+                let floor = (f.cell.1 + atmos::FLOOR_STRIDE / 2).div_euclid(atmos::FLOOR_STRIDE);
+                let z = f.cell.1 - floor * atmos::FLOOR_STRIDE;
+                let y = ctx
+                    .world
+                    .floors()
+                    .find(|x| x.id.0 == floor)
+                    .map_or(0.0, |x| x.base_y);
+                crate::fire::FireView {
+                    x: f.cell.0 as f32 + 0.5,
+                    y,
+                    z: z as f32 + 0.5,
+                    state: f.state,
+                }
+            })
+            .collect();
+        views.truncate(crate::fire::MAX_FIRES);
+        if views == self.fires_sent {
+            return;
+        }
+        let bytes = crate::fire::encode_fires(&views);
+        self.fires_sent = views;
+        let ids: Vec<NetworkEntityId> = ctx.players().collect();
+        for id in ids {
+            ctx.set_component(id, crate::fire::FIRES_COMPONENT, bytes.clone());
+        }
     }
 
     /// Шаг времени: отсчёт, прерывание движением и потерей условий, завершение.
@@ -1264,7 +1359,30 @@ impl Environment for ActorEnv<'_> {
     fn pressure(&self) -> f32 {
         self.grid.as_ref().map_or(0.0, |g| g.pressure(self.cell))
     }
+
+    fn fire_temperature(&self) -> Option<f32> {
+        self.grid
+            .as_ref()?
+            .hotspot(self.cell)
+            .map(|h| h.temperature)
+    }
+
+    fn oxygen_moles(&self) -> f32 {
+        self.grid
+            .as_ref()
+            .map_or(0.0, |g| g.air(self.cell).moles(atmos::Gas::Oxygen))
+    }
+
+    fn ignite_tile(&mut self, temperature: f32) {
+        let cell = self.cell;
+        if let Some(g) = self.grid.as_mut() {
+            g.ignite(cell, temperature, IGNITION_SOURCE_VOLUME);
+        }
+    }
 }
+
+/// Объём, которым источник огня «выдыхает» на клетку (`HotspotExpose(..., 50)`).
+pub const IGNITION_SOURCE_VOLUME: f32 = 50.0;
 
 /// Достаточно ли изменилось состояние тела, чтобы слать его заново.
 fn vitals_differ(a: &Vitals, b: &Vitals) -> bool {
@@ -1275,6 +1393,8 @@ fn vitals_differ(a: &Vitals, b: &Vitals) -> bool {
         || a.pressure_alert != b.pressure_alert
         || a.pressure_kpa.round() != b.pressure_kpa.round()
         || a.low_oxygen != b.low_oxygen
+        || a.on_fire != b.on_fire
+        || a.resisting != b.resisting
 }
 
 /// Этаж, в который попадает высота `y` (ступни стоят на нижней границе).
@@ -1438,6 +1558,16 @@ impl GameModule for GameplayModule {
                     .get(actor)
                     .is_some_and(|a| !a.health.state().can_act()) => {}
             HookEvent::Command { actor, kind, data } => match kind.as_str() {
+                CMD_RESIST => {
+                    let resisted = st
+                        .actors
+                        .get_mut(actor)
+                        .and_then(|a| a.body.as_mut())
+                        .is_some_and(Body::resist);
+                    if resisted {
+                        st.after_health_change(ctx, *actor);
+                    }
+                }
                 CMD_ATTACK => {
                     if let Some((target, part)) = parse_attack_part(data) {
                         st.attack(ctx, *actor, target, part);

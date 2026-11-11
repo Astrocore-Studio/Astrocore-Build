@@ -230,3 +230,113 @@ fn a_stair_link_lets_air_flow_between_floors() {
         "воздух поднялся: {low} и {high}"
     );
 }
+
+/// Комната, где в клетке `(0,0)` плазма с кислородом.
+fn plasma_room() -> Grid {
+    let mut g = Grid::new();
+    g.set_layout(room(5, 1));
+    for x in 0..5 {
+        g.with_air((x, 0), |a| {
+            a.adjust_moles(Gas::Plasma, 40.0);
+        });
+    }
+    g
+}
+
+#[test]
+fn cold_plasma_and_oxygen_do_not_burn_by_themselves() {
+    let mut g = plasma_room();
+    g.run_cycles(60);
+    assert!(g.fires().is_empty());
+    assert!(g.air((2, 0)).moles(Gas::Plasma) > 39.0);
+}
+
+#[test]
+fn a_spark_ignites_plasma_and_the_fire_spreads_and_burns_fuel() {
+    let mut g = plasma_room();
+    let plasma0: f32 = (0..5).map(|x| g.air((x, 0)).moles(Gas::Plasma)).sum();
+    g.ignite((0, 0), 1500.0, 50.0);
+    assert!(g.hotspot((0, 0)).is_some(), "искра зажигает смесь");
+    g.run_cycles(400);
+    let plasma: f32 = (0..5).map(|x| g.air((x, 0)).moles(Gas::Plasma)).sum();
+    assert!(
+        plasma < plasma0 * 0.97,
+        "плазма горит: {plasma0} → {plasma}"
+    );
+    let co2: f32 = (0..5)
+        .map(|x| g.air((x, 0)).moles(Gas::CarbonDioxide))
+        .sum();
+    assert!(co2 > 0.0, "при горении появляется углекислый газ");
+    let hottest = (0..5)
+        .map(|x| g.air((x, 0)).temperature())
+        .fold(0.0, f32::max);
+    assert!(hottest > 450.0, "горение греет воздух: {hottest}");
+    assert!(
+        g.hotspot((3, 0)).is_some() || g.air((3, 0)).temperature() > 400.0,
+        "огонь перекинулся по комнате"
+    );
+}
+
+#[test]
+fn fire_goes_out_without_oxygen_or_fuel() {
+    let mut g = Grid::new();
+    g.set_layout(room(1, 1));
+    g.with_air((0, 0), |a| {
+        a.adjust_moles(Gas::Plasma, 30.0);
+        a.set_moles(Gas::Oxygen, 0.0);
+    });
+    g.ignite((0, 0), 1500.0, 50.0);
+    assert!(g.hotspot((0, 0)).is_none(), "без кислорода зажечь нельзя");
+    g.with_air((0, 0), |a| a.adjust_moles(Gas::Oxygen, 20.0));
+    g.ignite((0, 0), 1500.0, 50.0);
+    assert!(g.hotspot((0, 0)).is_some());
+    g.with_air((0, 0), |a| a.set_moles(Gas::Plasma, 0.0));
+    g.run_cycles(10);
+    assert!(g.hotspot((0, 0)).is_none(), "без топлива огонь гаснет");
+}
+
+#[test]
+fn tritium_burns_into_water_vapor() {
+    let mut mix = GasMixture::standard_air();
+    mix.adjust_moles(Gas::Tritium, 10.0);
+    mix.set_temperature(600.0);
+    let out = reactions::react(&mut mix, false);
+    assert!(out.reacting);
+    assert!(mix.moles(Gas::WaterVapor) > 0.0);
+    assert!(mix.moles(Gas::Tritium) < 10.0);
+    assert!(mix.temperature() > 600.0, "горение выделяет тепло");
+}
+
+#[test]
+fn frezon_cools_the_mixture_and_makes_nitrous_oxide() {
+    let mut mix = GasMixture::standard_air();
+    mix.adjust_moles(Gas::Frezon, 20.0);
+    mix.set_temperature(300.0);
+    let out = reactions::react(&mut mix, false);
+    assert!(out.reacting);
+    assert!(mix.temperature() < 300.0);
+    assert!(mix.moles(Gas::NitrousOxide) > 0.0);
+}
+
+#[test]
+fn hot_nitrous_oxide_decomposes_and_ammonia_burns_in_oxygen() {
+    let mut mix = GasMixture::standard_air();
+    mix.adjust_moles(Gas::NitrousOxide, 10.0);
+    mix.set_temperature(900.0);
+    reactions::react(&mut mix, false);
+    assert!((mix.moles(Gas::NitrousOxide) - 5.0).abs() < 1e-3);
+
+    let mut mix = GasMixture::standard_air();
+    mix.adjust_moles(Gas::Ammonia, 30.0);
+    mix.set_temperature(400.0);
+    let before = mix.moles(Gas::Ammonia);
+    reactions::react(&mut mix, false);
+    assert!(mix.moles(Gas::Ammonia) < before);
+    assert!(mix.moles(Gas::WaterVapor) > 0.0);
+}
+
+#[test]
+fn the_reactions_run_in_priority_order() {
+    let ids: Vec<i32> = reactions::REACTIONS.iter().map(|r| r.priority).collect();
+    assert!(ids.windows(2).all(|w| w[0] >= w[1]));
+}

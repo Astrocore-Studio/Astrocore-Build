@@ -28,6 +28,18 @@ use atmos::{
 };
 use serde::{Deserialize, Serialize};
 
+/// Горение (`FlammableComponent` людей из `MobFlammable`, `FlammableSystem`).
+const FIRE_UPDATE_S: f32 = 1.0;
+const FIRE_DAMAGE_PER_STACK: f32 = 1.5;
+const FIRE_STACK_FADE: f32 = -0.1;
+const FIRE_RESIST_TIME_S: f32 = 2.0;
+const MAX_FIRE_STACKS: f32 = 10.0;
+const MIN_FIRE_STACKS: f32 = -10.0;
+/// `MinIgnitionTemperature`.
+const MIN_IGNITION_TEMPERATURE: f32 = 373.15;
+/// Температура `IgnitionSource` по умолчанию.
+pub const IGNITION_SOURCE_TEMPERATURE: f32 = 700.0;
+
 use crate::health::{DamageSpec, MobState};
 use crate::reagents::{Effect, SatiationKind, Solution, Stage, gas_to_reagents, reagent};
 
@@ -175,6 +187,14 @@ pub struct Vitals {
     pub blood: f32,
     #[serde(default)]
     pub bleed: f32,
+    /// Горит ли персонаж и сколько стопок огня на нём.
+    #[serde(default)]
+    pub on_fire: bool,
+    #[serde(default)]
+    pub fire_stacks: f32,
+    /// Катается, сбивая огонь (персонаж на это время неподвижен).
+    #[serde(default)]
+    pub resisting: bool,
 }
 
 fn one() -> f32 {
@@ -182,7 +202,7 @@ fn one() -> f32 {
 }
 
 pub const VITALS_COMPONENT: &str = "build.vitals";
-pub const VITALS_MAX_BYTES: usize = 512;
+pub const VITALS_MAX_BYTES: usize = 1024;
 
 pub fn encode_vitals(v: &Vitals) -> Vec<u8> {
     serde_json::to_vec(v).unwrap_or_default()
@@ -203,6 +223,16 @@ pub trait Environment {
     fn give_back(&mut self, gas: &GasMixture);
     /// Давление в клетке, кПа.
     fn pressure(&self) -> f32;
+    /// Температура огня на клетке (`TileFireEvent`), если она горит.
+    fn fire_temperature(&self) -> Option<f32> {
+        None
+    }
+    /// Сколько молей кислорода в клетке (без кислорода огонь на теле гаснет).
+    fn oxygen_moles(&self) -> f32 {
+        f32::MAX
+    }
+    /// Горящее тело поджигает воздух клетки (`IgnitionSource` с температурой 700 К).
+    fn ignite_tile(&mut self, _temperature: f32) {}
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -248,6 +278,11 @@ pub struct Body {
     blood: f32,
     bleed: f32,
     blood_timer: f32,
+    /// Горение (`FlammableComponent`): горит ли, сколько «стопок» огня, сколько ещё сбивает огонь.
+    pub on_fire: bool,
+    pub fire_stacks: f32,
+    resist_left: f32,
+    fire_timer: f32,
     rng: u32,
 }
 
@@ -275,6 +310,10 @@ impl Body {
             blood: BLOOD_REFERENCE,
             bleed: 0.0,
             blood_timer: BLOOD_UPDATE_S,
+            on_fire: false,
+            fire_stacks: 0.0,
+            resist_left: 0.0,
+            fire_timer: FIRE_UPDATE_S,
             rng: seed | 1,
         }
     }
@@ -292,6 +331,9 @@ impl Body {
             speed: self.speed(),
             blood: self.blood / BLOOD_REFERENCE,
             bleed: self.bleed,
+            on_fire: self.on_fire,
+            fire_stacks: self.fire_stacks,
+            resisting: self.resisting(),
         }
     }
 
@@ -389,6 +431,7 @@ impl Body {
     ) -> Outcome {
         let mut out = Outcome::default();
         self.tick_satiation(dt, mob);
+        self.tick_fire(dt, env, &mut out);
 
         self.respiration_timer -= dt;
         while self.respiration_timer <= 0.0 {
@@ -427,6 +470,83 @@ impl Body {
             self.barotrauma(env, mob, barotrauma_damage, &mut out);
         }
         out
+    }
+
+    /// Сколько секунд ещё длится «сбивание огня» (оцепенение при перекатывании).
+    pub fn resisting(&self) -> bool {
+        self.resist_left > 0.0
+    }
+
+    /// `FlammableSystem.Resist`: упасть и кататься, пока горишь; огонь тает в 15 раз быстрее.
+    pub fn resist(&mut self) -> bool {
+        if !self.on_fire || self.resisting() {
+            return false;
+        }
+        self.resist_left = FIRE_RESIST_TIME_S;
+        true
+    }
+
+    /// `FlammableSystem.AdjustFireStacks` / `SetFireStacks`.
+    pub fn adjust_fire_stacks(&mut self, delta: f32, ignite: bool) {
+        self.fire_stacks = (self.fire_stacks + delta).clamp(MIN_FIRE_STACKS, MAX_FIRE_STACKS);
+        if self.fire_stacks <= 0.0 {
+            self.extinguish();
+        } else {
+            self.on_fire |= ignite;
+        }
+    }
+
+    /// `TryExtinguish`.
+    pub fn extinguish(&mut self) -> bool {
+        if !self.on_fire {
+            return false;
+        }
+        self.on_fire = false;
+        self.fire_stacks = 0.0;
+        self.resist_left = 0.0;
+        true
+    }
+
+    /// `FlammableSystem.Ignite`: загореться, если на персонаже есть горючее.
+    pub fn ignite(&mut self) {
+        if self.fire_stacks > 0.0 {
+            self.on_fire = true;
+        }
+    }
+
+    /// `FlammableSystem.Update`: огонь на клетке поджигает (стопки по `log2(Δt/100) + 1`), горящий раз
+    /// в секунду получает `Heat 1,5 × стопки`, поджигает воздух вокруг и угасает; без кислорода гаснет.
+    fn tick_fire(&mut self, dt: f32, env: &mut dyn Environment, out: &mut Outcome) {
+        self.resist_left = (self.resist_left - dt).max(0.0);
+        if let Some(t) = env.fire_temperature() {
+            let delta = t - MIN_IGNITION_TEMPERATURE;
+            if delta > 0.0 {
+                let wanted = ((delta / 100.0).log2() + 1.0).max(0.0);
+                let add = wanted - self.fire_stacks;
+                if add > 0.0 {
+                    self.adjust_fire_stacks(add, false);
+                }
+                self.ignite();
+            }
+        }
+        self.fire_timer -= dt;
+        while self.fire_timer <= 0.0 {
+            self.fire_timer += FIRE_UPDATE_S;
+            if self.fire_stacks < 0.0 {
+                self.fire_stacks = (self.fire_stacks + 1.0).min(0.0);
+            }
+            if !self.on_fire {
+                continue;
+            }
+            if self.fire_stacks <= 0.0 || env.oxygen_moles() < 1.0 {
+                self.extinguish();
+                continue;
+            }
+            env.ignite_tile(IGNITION_SOURCE_TEMPERATURE);
+            out.add("Heat", FIRE_DAMAGE_PER_STACK * self.fire_stacks);
+            let fade = FIRE_STACK_FADE * if self.resisting() { 15.0 } else { 1.0 };
+            self.adjust_fire_stacks(fade, true);
+        }
     }
 
     fn tick_satiation(&mut self, dt: f32, mob: MobState) {
@@ -667,6 +787,74 @@ mod tests {
         fn pressure(&self) -> f32 {
             self.0.pressure(self.1)
         }
+        fn fire_temperature(&self) -> Option<f32> {
+            self.0.hotspot(self.1).map(|h| h.temperature)
+        }
+        fn oxygen_moles(&self) -> f32 {
+            self.0.air(self.1).moles(atmos::Gas::Oxygen)
+        }
+        fn ignite_tile(&mut self, temperature: f32) {
+            self.0.ignite(self.1, temperature, 50.0);
+        }
+    }
+
+    /// Среда с огнём на клетке `(0, 0)`: тело горит, пока клетка горит.
+    #[test]
+    fn standing_in_a_fire_sets_a_person_alight_and_burns_them() {
+        let mut grid = sealed(1, 1);
+        grid.with_air((0, 0), |a| a.adjust_moles(atmos::Gas::Plasma, 40.0));
+        grid.ignite((0, 0), 700.0, 50.0);
+        assert!(grid.hotspot((0, 0)).is_some());
+        let mut body = Body::new(7);
+        let damage = run(&mut body, &mut grid, 6.0);
+        assert!(body.on_fire, "огонь на клетке поджигает");
+        assert!(body.fire_stacks > 1.0, "стопок: {}", body.fire_stacks);
+        assert!(
+            damage.get("Heat").copied().unwrap_or(0.0) >= 1.5,
+            "{damage:?}"
+        );
+    }
+
+    #[test]
+    fn a_burning_person_goes_out_in_airless_space_and_by_resisting() {
+        let mut grid = sealed(1, 1);
+        let mut body = Body::new(7);
+        body.adjust_fire_stacks(4.0, true);
+        assert!(body.on_fire);
+        // Без кислорода огонь гаснет на ближайшем срабатывании.
+        grid.remove_volume((0, 0), atmos::CELL_VOLUME);
+        run(&mut body, &mut grid, 1.5);
+        assert!(!body.on_fire && body.fire_stacks == 0.0);
+
+        // Воздух есть: стопки тают медленно (−0,1 в секунду), а перекат ускоряет в 15 раз.
+        let mut grid = sealed(1, 1);
+        let mut slow = Body::new(7);
+        slow.adjust_fire_stacks(1.4, true);
+        run(&mut slow, &mut grid, 2.5);
+        assert!(
+            slow.on_fire && slow.fire_stacks > 1.0,
+            "{}",
+            slow.fire_stacks
+        );
+        let mut rolling = Body::new(7);
+        rolling.adjust_fire_stacks(1.4, true);
+        assert!(rolling.resist());
+        assert!(!rolling.resist(), "второй раз подряд нельзя");
+        run(&mut rolling, &mut grid, 2.5);
+        assert!(!rolling.on_fire, "перекат гасит огонь");
+    }
+
+    #[test]
+    fn a_burning_person_lights_flammable_air() {
+        let mut grid = sealed(1, 1);
+        grid.with_air((0, 0), |a| a.adjust_moles(atmos::Gas::Plasma, 30.0));
+        let mut body = Body::new(7);
+        body.adjust_fire_stacks(4.0, true);
+        run(&mut body, &mut grid, 1.5);
+        assert!(
+            grid.hotspot((0, 0)).is_some(),
+            "горящее тело зажигает плазму"
+        );
     }
 
     fn sealed(w: i32, h: i32) -> Grid {

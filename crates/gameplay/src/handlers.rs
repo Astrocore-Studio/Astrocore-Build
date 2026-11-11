@@ -150,6 +150,27 @@ impl InteractionHandler for EdibleUse {
     }
 }
 
+/// Использовать в руке источник огня (сварку, спичку) — зажечь или погасить его.
+pub struct IgniterUse;
+
+impl InteractionHandler for IgniterUse {
+    fn use_in_hand(
+        &mut self,
+        state: &mut State,
+        _ctx: &mut HookContext<'_>,
+        _user: NetworkEntityId,
+        used: &Used,
+    ) -> bool {
+        if !state.igniters.contains_key(&used.item.prototype) {
+            return false;
+        }
+        if !state.lit.remove(&used.item.id) {
+            state.lit.insert(used.item.id);
+        }
+        true
+    }
+}
+
 /// Базовая цепочка: порядок важен — первый обработавший прекращает обход.
 pub fn default_handlers() -> Vec<Box<dyn InteractionHandler>> {
     vec![
@@ -157,6 +178,7 @@ pub fn default_handlers() -> Vec<Box<dyn InteractionHandler>> {
         Box::new(StorageClickInsert),
         Box::new(PickupHandler),
         Box::new(DoorActivate),
+        Box::new(IgniterUse),
         Box::new(OpenableUse),
         Box::new(EdibleUse),
     ]

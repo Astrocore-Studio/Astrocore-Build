@@ -22,6 +22,9 @@ pub const FIXED_RSI: &[&str] = &[
     "Interface/Alerts/pressure.rsi",
     "Interface/Alerts/hunger.rsi",
     "Interface/Alerts/thirst.rsi",
+    // Огонь: на клетках и на горящих персонажах.
+    "Effects/fire.rsi",
+    "Mobs/Effects/onfire.rsi",
 ];
 /// Каталоги интерфейса (худ): копируются только картинки верхнего уровня с нужным началом имени
 /// (слоты; плитки и части рамки хранилища).
@@ -30,6 +33,7 @@ pub const FIXED_DIRS: &[(&str, &[&str])] = &[
     ("Interface/Default/Storage", &["tile_", "piece_"]),
 ];
 pub const FIXED_FILES: &[&str] = &[
+    "Interface/Alerts/Fire/fire.png",
     "Interface/Default/meta.json",
     "Interface/Default/SlotBackground.png",
     "Interface/Default/blocked.png",

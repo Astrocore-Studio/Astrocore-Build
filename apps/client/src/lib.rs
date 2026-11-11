@@ -5,6 +5,7 @@ use bevy::prelude::*;
 use bevy_egui::{EguiContexts, EguiPlugin, EguiPrimaryContextPass, egui};
 mod body;
 mod combat;
+mod fire;
 mod hud;
 mod outfit;
 mod players;
@@ -79,7 +80,7 @@ impl Plugin for BuildClientPlugin {
             )
             .add_systems(
                 EguiPrimaryContextPass,
-                (loadout_window, players::other_bars),
+                (loadout_window, players::other_bars, fire::draw_fires),
             );
     }
 }
@@ -143,8 +144,8 @@ fn cursor_ground(
 }
 
 #[derive(Resource)]
-struct Hud {
-    icons: hud::Icons,
+pub(crate) struct Hud {
+    pub(crate) icons: hud::Icons,
     state: hud::HudState,
 }
 
@@ -200,6 +201,9 @@ fn hand_keys(keys: Res<ButtonInput<KeyCode>>, loadout: Res<Loadout>, net: Option
     }
     if keys.just_pressed(KeyCode::KeyF) {
         net.send_command(gameplay::CMD_USE, gameplay::use_data(active));
+    }
+    if keys.just_pressed(KeyCode::KeyZ) {
+        net.send_command(gameplay::CMD_RESIST, Vec::new());
     }
     if keys.just_pressed(KeyCode::KeyX) {
         net.send_command(CMD_SWAP_HANDS, vec![0]);

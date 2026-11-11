@@ -9,6 +9,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use crate::gas::*;
+use crate::reactions;
 
 /// Частота шагов атмосферы, Гц (`atmos.tickrate`).
 pub const ATMOS_TICK_RATE: f32 = 15.0;
@@ -78,6 +79,31 @@ pub struct Layout {
     /// Вертикальные связи между этажами (лестницы): нижняя клетка, верхняя клетка. Газ идёт по ним
     /// как по обычному ребру. Этажи разнесены по `z` на `FLOOR_STRIDE`, см. [`floor_cell`].
     pub links: BTreeSet<(Cell, Cell)>,
+    /// Стартовый состав воздуха клеток, у которых он не стандартный (помещение с плазмой).
+    /// Применяется только к клеткам, которых раньше в сетке не было.
+    pub fills: BTreeMap<Cell, Fill>,
+}
+
+/// Нестандартный воздух: стандартный воздух станции плюс добавка газов.
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct Fill {
+    /// Сколько молей каждого газа добавить к стандартному воздуху (в стандартной клетке).
+    pub extra: Vec<(Gas, f32)>,
+    /// Температура смеси, К; `0` — как у стандартного воздуха.
+    pub temperature: f32,
+}
+
+impl Fill {
+    pub fn mixture(&self) -> GasMixture {
+        let mut m = GasMixture::standard_air();
+        for &(gas, moles) in &self.extra {
+            m.adjust_moles(gas, moles);
+        }
+        if self.temperature > 0.0 {
+            m.set_temperature(self.temperature);
+        }
+        m
+    }
 }
 
 /// Шаг по `z` между этажами в общей сетке: клетки разных этажей не бывают соседями по плоскости.
@@ -101,6 +127,29 @@ struct Tile {
     /// Соседи: север (z−1), юг (z+1), восток (x+1), запад (x−1).
     adjacent: [Option<usize>; ND],
     mm: Mm,
+    hotspot: Hotspot,
+}
+
+/// `Hotspot`: газовый огонь на клетке.
+#[derive(Clone, Copy, Default, Debug, PartialEq)]
+pub struct Hotspot {
+    pub valid: bool,
+    pub skipped_first_process: bool,
+    /// Огонь заполнил клетку и горит прямо в её воздухе.
+    pub bypassing: bool,
+    pub temperature: f32,
+    pub volume: f32,
+    /// Размер огня для отрисовки: 1 — искра, 2 — пламя, 3 — пожар на всю клетку.
+    pub state: u8,
+}
+
+/// Огонь на клетке, как его видят другие системы (`TileFireEvent`).
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Fire {
+    pub cell: Cell,
+    pub temperature: f32,
+    pub volume: f32,
+    pub state: u8,
 }
 
 /// `MonstermosInfo`: рабочие данные выравнивания клетки.
@@ -131,6 +180,7 @@ pub struct Grid {
     tiles: Vec<Tile>,
     index: BTreeMap<Cell, usize>,
     active: BTreeSet<usize>,
+    hotspots: BTreeSet<usize>,
     groups: Vec<Option<Group>>,
     layout: Layout,
     timer: f32,
@@ -151,6 +201,7 @@ impl Grid {
             tiles: Vec::new(),
             index: BTreeMap::new(),
             active: BTreeSet::new(),
+            hotspots: BTreeSet::new(),
             groups: Vec::new(),
             layout: Layout::default(),
             timer: 0.0,
@@ -226,6 +277,11 @@ impl Grid {
             .filter(|t| !t.space)
             .map(|t| (t.cell, t.air.clone()))
             .collect();
+        let old_hotspots: BTreeMap<Cell, Hotspot> = self
+            .hotspots
+            .iter()
+            .map(|&i| (self.tiles[i].cell, self.tiles[i].hotspot))
+            .collect();
         let old_blocked = std::mem::take(&mut self.layout.blocked);
         let old_links = std::mem::take(&mut self.layout.links);
         let first = self.tiles.is_empty();
@@ -233,6 +289,7 @@ impl Grid {
         self.index.clear();
         self.queue_cycle_control = 0;
         self.active.clear();
+        self.hotspots.clear();
         self.groups.clear();
 
         // Клетки сетки.
@@ -241,9 +298,12 @@ impl Grid {
             let air = if space {
                 GasMixture::space()
             } else {
-                old.get(&cell)
-                    .cloned()
-                    .unwrap_or_else(GasMixture::standard_air)
+                old.get(&cell).cloned().unwrap_or_else(|| {
+                    layout
+                        .fills
+                        .get(&cell)
+                        .map_or_else(GasMixture::standard_air, Fill::mixture)
+                })
             };
             self.push_tile(cell, space, air);
         }
@@ -301,6 +361,15 @@ impl Grid {
                 }
             }
         }
+        for (cell, hotspot) in old_hotspots {
+            if let Some(&i) = self.index.get(&cell)
+                && !self.tiles[i].space
+            {
+                self.tiles[i].hotspot = hotspot;
+                self.hotspots.insert(i);
+                self.add_active(i);
+            }
+        }
         self.layout = layout;
     }
 
@@ -318,6 +387,7 @@ impl Grid {
             group: None,
             adjacent: [None; ND],
             mm: Mm::default(),
+            hotspot: Hotspot::default(),
         });
         self.index.insert(cell, i);
     }
@@ -339,12 +409,12 @@ impl Grid {
         match STATES[self.state] {
             State::TileEqualize => self.process_tile_equalize(),
             State::ActiveTiles => self.process_active_tiles(),
+            State::Hotspots => self.process_hotspots(),
             State::ExcitedGroups => self.process_excited_groups(),
             // Остальные стадии SS14 заняты тем, что здесь не перенесено; они сохраняют длину цикла.
             State::Revalidate
             | State::HighPressureDelta
             | State::DeltaPressure
-            | State::Hotspots
             | State::PipeNet
             | State::AtmosDevices => {}
         }
@@ -448,9 +518,151 @@ impl Grid {
                 self.last_share_check(i);
             }
         }
+        let outcome = reactions::react(&mut self.tiles[i].air, true);
+        if let Some((temperature, volume)) = outcome.expose {
+            self.hotspot_expose(i, temperature, volume, false);
+        }
         let remove = true;
         if self.tiles[i].group.is_none() && remove {
             self.remove_active(i, true);
+        }
+    }
+
+    /// `HotspotExpose`: зажечь клетку, если в ней есть окислитель и топливо. С `soh` существующий
+    /// огонь раздувается до заданных температуры и объёма.
+    fn hotspot_expose(&mut self, i: usize, temperature: f32, volume: f32, soh: bool) {
+        if self.tiles[i].space || !self.tiles[i].air.is_oxidizer() {
+            return;
+        }
+        let flammable = self.tiles[i].air.is_fuel();
+        if self.tiles[i].hotspot.valid {
+            if soh && flammable {
+                let h = &mut self.tiles[i].hotspot;
+                h.temperature = h.temperature.max(temperature);
+                h.volume = h.volume.max(volume);
+            }
+            return;
+        }
+        if temperature > reactions::PLASMA_MINIMUM_BURN_TEMPERATURE && flammable {
+            self.tiles[i].hotspot = Hotspot {
+                valid: true,
+                skipped_first_process: self.tiles[i].current_cycle > self.cycle,
+                bypassing: false,
+                temperature,
+                volume: volume * 25.0,
+                state: 1,
+            };
+            self.add_active(i);
+            self.hotspots.insert(i);
+        }
+    }
+
+    /// Поджечь клетку снаружи (искра, сварка, зажигалка).
+    pub fn ignite(&mut self, cell: Cell, temperature: f32, volume: f32) {
+        if let Some(&i) = self.index.get(&cell) {
+            self.hotspot_expose(i, temperature, volume, true);
+        }
+    }
+
+    /// Горит ли клетка и чем.
+    pub fn hotspot(&self, cell: Cell) -> Option<Hotspot> {
+        let &i = self.index.get(&cell)?;
+        Some(self.tiles[i].hotspot).filter(|h| h.valid)
+    }
+
+    /// Все клетки с огнём.
+    pub fn fires(&self) -> Vec<Fire> {
+        self.hotspots
+            .iter()
+            .filter_map(|&i| {
+                let t = &self.tiles[i];
+                t.hotspot.valid.then_some(Fire {
+                    cell: t.cell,
+                    temperature: t.hotspot.temperature,
+                    volume: t.hotspot.volume,
+                    state: t.hotspot.state,
+                })
+            })
+            .collect()
+    }
+
+    /// Мгновенно изменить воздух клетки (для тестов, взрывов, содержимого баллонов).
+    pub fn with_air<R>(&mut self, cell: Cell, f: impl FnOnce(&mut GasMixture) -> R) -> Option<R> {
+        let &i = self.index.get(&cell)?;
+        self.add_active(i);
+        Some(f(&mut self.tiles[i].air))
+    }
+
+    fn process_hotspots(&mut self) {
+        let run: Vec<usize> = self.hotspots.iter().copied().collect();
+        for i in run {
+            self.process_hotspot(i);
+        }
+    }
+
+    /// `ProcessHotspot`.
+    fn process_hotspot(&mut self, i: usize) {
+        if !self.tiles[i].hotspot.valid {
+            self.hotspots.remove(&i);
+            return;
+        }
+        self.add_active(i);
+        if !self.tiles[i].hotspot.skipped_first_process {
+            self.tiles[i].hotspot.skipped_first_process = true;
+            return;
+        }
+        if let Some(g) = self.tiles[i].group {
+            self.group_reset(g);
+        }
+        let h = self.tiles[i].hotspot;
+        if h.temperature < FIRE_MINIMUM_TEMPERATURE_TO_EXIST
+            || h.volume <= 1.0
+            || self.tiles[i].space
+            || !self.tiles[i].air.is_ignitable()
+        {
+            self.tiles[i].hotspot = Hotspot::default();
+            return;
+        }
+        self.perform_hotspot_exposure(i);
+        if self.tiles[i].hotspot.bypassing {
+            self.tiles[i].hotspot.state = 3;
+            let air_temperature = self.tiles[i].air.temperature();
+            if air_temperature > FIRE_MINIMUM_TEMPERATURE_TO_SPREAD {
+                let radiated = air_temperature * FIRE_SPREAD_RADIOSITY_SCALE;
+                for e in self.tiles[i].adjacent.into_iter().flatten() {
+                    if !self.tiles[e].hotspot.valid {
+                        self.hotspot_expose(e, radiated, CELL_VOLUME / 4.0, false);
+                    }
+                }
+            }
+        } else {
+            let h = &mut self.tiles[i].hotspot;
+            h.state = if h.volume > CELL_VOLUME * 0.4 { 2 } else { 1 };
+        }
+    }
+
+    /// `PerformHotspotExposure`: огонь тратит топливо либо во всём воздухе клетки, либо в доле
+    /// объёма, равной размеру огня.
+    fn perform_hotspot_exposure(&mut self, i: usize) {
+        if self.tiles[i].space || !self.tiles[i].hotspot.valid {
+            return;
+        }
+        let air_volume = self.tiles[i].air.volume;
+        let h = self.tiles[i].hotspot;
+        let bypassing = h.skipped_first_process && h.volume > air_volume * 0.95;
+        self.tiles[i].hotspot.bypassing = bypassing;
+        if bypassing {
+            let t = &mut self.tiles[i];
+            t.hotspot.volume = t.air.fire * FIRE_GROWTH_RATE;
+            t.hotspot.temperature = t.air.temperature();
+        } else {
+            let mut affected = self.tiles[i].air.remove_volume(h.volume);
+            affected.set_temperature(h.temperature);
+            reactions::react(&mut affected, true);
+            let t = &mut self.tiles[i];
+            t.hotspot.temperature = affected.temperature();
+            t.hotspot.volume = affected.fire * FIRE_GROWTH_RATE;
+            t.air.merge(&affected);
         }
     }
 

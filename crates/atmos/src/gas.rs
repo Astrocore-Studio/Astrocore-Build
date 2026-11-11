@@ -45,6 +45,16 @@ pub const HEAT_SCALE: f32 = 8.0;
 pub const EXCITED_GROUP_BREAKDOWN_CYCLES: u32 = 4;
 pub const EXCITED_GROUPS_DISMANTLE_CYCLES: u32 = 16;
 
+/// Порог «есть топливо / окислитель» (`Atmospherics.Epsilon`).
+pub const GAS_EPSILON: f32 = 0.5;
+/// Огонь (`Atmospherics.cs`).
+pub const FIRE_MINIMUM_TEMPERATURE_TO_EXIST: f32 = T0C + 100.0;
+pub const FIRE_MINIMUM_TEMPERATURE_TO_SPREAD: f32 = T0C + 150.0;
+pub const FIRE_SPREAD_RADIOSITY_SCALE: f32 = 0.85;
+pub const FIRE_PLASMA_ENERGY_RELEASED: f32 = 160e3;
+pub const FIRE_HYDROGEN_ENERGY_RELEASED: f32 = 284e3;
+pub const FIRE_GROWTH_RATE: f32 = 40000.0;
+
 pub const GAS_COUNT: usize = 9;
 
 /// Газы в порядке `Gas` SS14 (он же порядок в `gases.yml`).
@@ -77,6 +87,8 @@ pub struct GasMixture {
     pub(crate) temperature: f32,
     pub volume: f32,
     pub(crate) immutable: bool,
+    /// `ReactionResults[Fire]`: сколько топлива сгорело в последней реакции горения.
+    pub(crate) fire: f32,
 }
 
 impl GasMixture {
@@ -86,6 +98,7 @@ impl GasMixture {
             temperature: TCMB,
             volume: volume.max(0.0),
             immutable: false,
+            fire: 0.0,
         }
     }
 
@@ -96,6 +109,7 @@ impl GasMixture {
             temperature: TCMB,
             volume: CELL_VOLUME,
             immutable: true,
+            fire: 0.0,
         }
     }
 
@@ -167,6 +181,20 @@ impl GasMixture {
             .map(|i| self.moles[i] * scaled_capacity(i))
             .sum();
         sum.max(MINIMUM_HEAT_CAPACITY)
+    }
+
+    /// Есть ли топливо (плазма, тритий): `IsMixtureFuel`.
+    pub fn is_fuel(&self) -> bool {
+        self.moles[Gas::Plasma as usize] + self.moles[Gas::Tritium as usize] > GAS_EPSILON
+    }
+
+    /// Есть ли окислитель (кислород): `IsMixtureOxidizer`.
+    pub fn is_oxidizer(&self) -> bool {
+        self.moles[Gas::Oxygen as usize] > GAS_EPSILON
+    }
+
+    pub fn is_ignitable(&self) -> bool {
+        self.is_fuel() && self.is_oxidizer()
     }
 
     pub fn thermal_energy(&self) -> f32 {

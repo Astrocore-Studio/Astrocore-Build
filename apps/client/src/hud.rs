@@ -124,18 +124,26 @@ impl Icons {
         rsi_state: &str,
         time: f64,
     ) -> Option<(egui::TextureId, Rect)> {
-        let tex = self.ui(ctx, rsi_state)?;
-        let rel = format!("Textures/Interface/{rsi_state}.png");
+        self.animated_in(ctx, "Interface", rsi_state, time)
+    }
+
+    /// То же для набора из любого каталога `Textures/<base>/` (огонь в мире лежит в `Effects`).
+    pub(crate) fn animated_in(
+        &mut self,
+        ctx: &egui::Context,
+        base: &str,
+        rsi_state: &str,
+        time: f64,
+    ) -> Option<(egui::TextureId, Rect)> {
+        let rel = format!("Textures/{base}/{rsi_state}.png");
+        let tex = self.load(ctx, &rel)?;
         if !self.sizes.contains_key(&rel) {
             let size = image::image_dimensions(self.root.join(&rel)).ok()?;
             self.sizes.insert(rel.clone(), size);
             let (dir, stem) = rsi_state.rsplit_once('/')?;
-            let meta = std::fs::read(
-                self.root
-                    .join(format!("Textures/Interface/{dir}/meta.json")),
-            )
-            .ok()
-            .and_then(|b| serde_json::from_slice::<serde_json::Value>(&b).ok());
+            let meta = std::fs::read(self.root.join(format!("Textures/{base}/{dir}/meta.json")))
+                .ok()
+                .and_then(|b| serde_json::from_slice::<serde_json::Value>(&b).ok());
             let delays = meta
                 .and_then(|m| {
                     m.get("states")?
@@ -329,7 +337,13 @@ pub fn draw(
                 state.clothes_open = !state.clothes_open;
             }
         });
-    alerts(ctx, icons, state.health.as_ref(), state.vitals.as_ref());
+    alerts(
+        ctx,
+        icons,
+        state.health.as_ref(),
+        state.vitals.as_ref(),
+        &mut out,
+    );
     egui::Area::new(egui::Id::new("hud_bar"))
         .anchor(egui::Align2::CENTER_BOTTOM, Vec2::new(0.0, -8.0))
         .show(ctx, |ui| {
@@ -381,10 +395,12 @@ fn alerts(
     icons: &mut Icons,
     health: Option<&gameplay::HealthView>,
     vitals: Option<&gameplay::Vitals>,
+    out: &mut Commands,
 ) {
     let Some(h) = health else { return };
     let total: f32 = h.damage.values().sum();
     let mut shown: Vec<(String, String)> = Vec::new();
+    let mut fire_at: Option<usize> = None;
     let mut parts: Vec<String> = h
         .parts
         .iter()
@@ -424,6 +440,13 @@ fn alerts(
             shown.push((
                 "Alerts/bleed.rsi/bleed0".to_string(),
                 format!("Малокровие: {:.0}% крови", v.blood * 100.0),
+            ));
+        }
+        if v.on_fire {
+            fire_at = Some(shown.len());
+            shown.push((
+                "Alerts/Fire/fire".to_string(),
+                "Вы горите! Нажмите, чтобы упасть и сбить огонь (Z)".to_string(),
             ));
         }
         if v.low_oxygen {
@@ -475,12 +498,19 @@ fn alerts(
         .anchor(egui::Align2::RIGHT_TOP, Vec2::new(-8.0, 8.0))
         .show(ctx, |ui| {
             ui.spacing_mut().item_spacing = Vec2::splat(GAP);
-            for ((_, tip), frame) in shown.iter().zip(frames) {
-                let (r, resp) = ui.allocate_exact_size(Vec2::splat(SLOT), Sense::hover());
+            for (i, ((_, tip), frame)) in shown.iter().zip(frames).enumerate() {
+                let sense = if fire_at == Some(i) {
+                    Sense::click()
+                } else {
+                    Sense::hover()
+                };
+                let (r, resp) = ui.allocate_exact_size(Vec2::splat(SLOT), sense);
                 if let Some((tex, uv)) = frame {
                     ui.painter().image(tex, r, uv, Color32::WHITE);
                 }
-                resp.on_hover_text(tip);
+                if resp.on_hover_text(tip).clicked() {
+                    out.push((gameplay::CMD_RESIST, Vec::new()));
+                }
             }
         });
 }

@@ -20,6 +20,14 @@
         "MeleeWeapon": (damage: (Piercing: 6.0), attackRate: 1.0),
         "Clothing": (slots: ["belt"]),
     }),
+    // Сварка: источник огня (`IgnitionSource`, 700 К); `F` в руке зажигает и гасит. Топливо и
+    // сварка металла не перенесены.
+    (id: "Welder", parents: ["BaseItem"], name: Some("welding tool"), components: {
+        "Sprite": (sprite: "Objects/Tools/welder.rsi", state: "icon"),
+        "Clothing": (slots: ["belt"]),
+        "IgnitionSource": (temperature: 700.0),
+        "MeleeWeapon": (damage: (Blunt: 5.0), attackRate: 1.0),
+    }),
     // Лечение: значения `Healing` из healing.yml SS14 (одна единица за применение); стопка по 10 применений, как в SS14;
     // задержка по умолчанию 3 с — выбор билда.
     (id: "Brutepack", parents: ["BaseItem"], name: Some("brutepack"), components: {

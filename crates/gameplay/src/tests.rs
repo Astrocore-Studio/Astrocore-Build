@@ -55,6 +55,10 @@ const PROTOS: &str = r#"[
         "Clothing": (slots: ["Back"]),
         "Storage": (grid: ["0,0,5,3"], maxItemSize: "Normal"),
     }),
+    (id: "Welder", components: {
+        "Item": (size: "Small"),
+        "IgnitionSource": (temperature: 700.0),
+    }),
     (id: "Satchel", components: {
         "Item": (size: "Small"),
         "Storage": (grid: ["0,0,1,1"], maxItemSize: "Tiny"),
@@ -1607,5 +1611,109 @@ mod survival {
         let net = h.client(target).net_id().unwrap();
         let i = crate::PARTS.iter().position(|p| *p == part).unwrap() as u8;
         command(h, who, crate::CMD_ATTACK, crate::attack_part_data(net, i));
+    }
+}
+
+mod fire {
+    use super::*;
+    use crate::fire::{BURNING_COMPONENT, FIRES_COMPONENT, decode_fires};
+    use crate::{CMD_RESIST, VITALS_COMPONENT, decode_vitals};
+
+    fn plasma_room(h: &mut Harness) {
+        let mut zone = AuthoredObject::new(
+            oid(91),
+            AuthoredKind::Zone,
+            FloorId(0),
+            Vec3::new(0.0, 0.0, 0.0),
+            Vec3::new(6.0, 3.0, 6.0),
+        );
+        zone.metadata.insert("atmosphere".into(), "plasma".into());
+        spawn(h, zone);
+    }
+
+    fn vitals(h: &Harness, who: ConnId) -> crate::Vitals {
+        let net = h.client(who).net_id().unwrap();
+        decode_vitals(h.client(who).component(net, VITALS_COMPONENT).unwrap()).unwrap()
+    }
+
+    fn heat(h: &Harness, who: ConnId) -> f32 {
+        let net = h.client(who).net_id().unwrap();
+        crate::decode_health(
+            h.client(who)
+                .component(net, crate::HEALTH_COMPONENT)
+                .unwrap(),
+        )
+        .unwrap()
+        .damage
+        .get("Heat")
+        .copied()
+        .unwrap_or(0.0)
+    }
+
+    fn light_welder(h: &mut Harness, a: ConnId) {
+        spawn(h, item_at(120, "ss14:welder", Vec3::new(3.0, 0.9, 3.0)));
+        command(h, a, CMD_PICKUP, pickup_data(oid(120)));
+        h.ticks(5);
+        let hand = hands_of(h, a, a).unwrap().active();
+        command(h, a, CMD_USE, use_data(hand as u8));
+    }
+
+    #[test]
+    fn a_lit_welder_in_a_plasma_room_starts_a_fire_that_burns_the_holder() {
+        let mut h = harness();
+        let a = h.join("a");
+        plasma_room(&mut h);
+        h.ticks(10);
+        light_welder(&mut h, a);
+        h.ticks(20 * 30);
+        let net = h.client(a).net_id().unwrap();
+        let fires = decode_fires(h.client(a).component(net, FIRES_COMPONENT).unwrap()).unwrap();
+        assert!(!fires.is_empty(), "пожар разослан клиентам");
+        assert!(vitals(&h, a).on_fire || heat(&h, a) > 0.0, "персонаж горит");
+        assert!(heat(&h, a) > 0.0, "ожоги: {}", heat(&h, a));
+        assert_eq!(
+            h.client(a).component(net, BURNING_COMPONENT),
+            Some(&[u8::from(vitals(&h, a).on_fire)][..])
+        );
+    }
+
+    #[test]
+    fn a_welder_in_normal_air_starts_nothing() {
+        let mut h = harness();
+        let a = h.join("a");
+        h.ticks(10);
+        light_welder(&mut h, a);
+        h.ticks(20 * 10);
+        let net = h.client(a).net_id().unwrap();
+        let fires = h
+            .client(a)
+            .component(net, FIRES_COMPONENT)
+            .and_then(decode_fires)
+            .unwrap_or_default();
+        assert!(fires.is_empty());
+        assert!(!vitals(&h, a).on_fire);
+    }
+
+    #[test]
+    fn resisting_freezes_the_player_and_puts_the_fire_out_faster() {
+        let mut h = harness();
+        let a = h.join("a");
+        plasma_room(&mut h);
+        h.ticks(10);
+        light_welder(&mut h, a);
+        for _ in 0..20 * 30 {
+            h.ticks(1);
+            if vitals(&h, a).on_fire {
+                break;
+            }
+        }
+        if !vitals(&h, a).on_fire {
+            panic!("не загорелся");
+        }
+        command(&mut h, a, CMD_RESIST, vec![]);
+        h.ticks(5);
+        assert!(vitals(&h, a).resisting);
+        h.ticks(20 * 3);
+        assert!(!vitals(&h, a).resisting, "перекат закончился");
     }
 }

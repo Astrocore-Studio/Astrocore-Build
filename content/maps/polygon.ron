@@ -1405,6 +1405,11 @@
             z: 1.5,
         ),
         (
+            prototype: "Welder",
+            x: 4.5,
+            z: 1.5,
+        ),
+        (
             prototype: "Screwdriver",
             x: 3.5,
             z: 1.5,
@@ -1457,5 +1462,6 @@
     ],
     // Область без атмосферы добавляется так (клетки внутри станут космосом, комната вентилируется):
     //   zones: [(min: (10.0, 0.0, 0.0), max: (11.9, 3.0, 2.0), floor: 0, metadata: {"atmosphere": "space"})],
+    //   зона с плазмой в воздухе (горит от сварки): metadata: {"atmosphere": "plasma"}; доступны plasma, tritium, frezon, n2o, ammonia, co2
     zones: [],
 )

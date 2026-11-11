@@ -133,6 +133,13 @@
         0.36000001430511475
       ]
     },
+    "ss14:welder": {
+      "image": "Textures/Objects/Tools/welder.rsi/icon.png",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
     "ss14:wrench": {
       "image": "Textures/Objects/Tools/wrench.rsi/icon.png",
       "size": [

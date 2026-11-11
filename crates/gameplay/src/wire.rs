@@ -46,6 +46,9 @@ pub const CMD_HEAL: &str = "combat.heal";
 /// Накормить или напоить другого персонажа предметом из руки: `[рука, сетевой id цели, 4 байта LE]`.
 pub const CMD_FEED: &str = "feed.other";
 
+/// Сбить огонь на себе (перекат): без данных. Тот же эффект у щелчка по значку огня.
+pub const CMD_RESIST: &str = "fire.resist";
+
 /// Взаимодействие с целью в мире (предмет на земле или дверь): `[id цели 16 байт]`.
 /// Что именно произойдёт, решает цепочка обработчиков: пустая рука — `InteractHand`, предмет в
 /// активной руке — `InteractUsing` цели, затем `AfterInteract` предмета (как в SS14).
@@ -156,6 +159,18 @@ pub fn register_replication(reg: &mut ReplicationRegistry) -> Result<(), Replica
         channel: ReplicationChannel::ReliableOrdered,
         interest: Interest::Owner,
         max_bytes: crate::health::HEALTH_MAX_BYTES,
+    })?;
+    reg.register(ReplicatedKind {
+        name: crate::fire::FIRES_COMPONENT.into(),
+        channel: ReplicationChannel::ReliableOrdered,
+        interest: Interest::Everyone,
+        max_bytes: crate::fire::FIRES_MAX_BYTES,
+    })?;
+    reg.register(ReplicatedKind {
+        name: crate::fire::BURNING_COMPONENT.into(),
+        channel: ReplicationChannel::ReliableOrdered,
+        interest: Interest::Everyone,
+        max_bytes: 4,
     })?;
     reg.register(ReplicatedKind {
         name: crate::health::MOBSTATE_COMPONENT.into(),

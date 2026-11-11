@@ -59,11 +59,10 @@ pub fn layout(world: &World, door_open: &dyn Fn(ObjectId) -> bool) -> Layout {
         if !matches!(o.kind, AuthoredKind::Zone) {
             continue;
         }
-        let is_space = o
-            .metadata
-            .get(ATMOSPHERE_KEY)
-            .is_some_and(|v| v == "space" || v == "vacuum");
-        if !is_space {
+        let value = o.metadata.get(ATMOSPHERE_KEY).map(String::as_str);
+        let is_space = matches!(value, Some("space" | "vacuum"));
+        let fill = value.and_then(fill_of);
+        if !is_space && fill.is_none() {
             continue;
         }
         let (min, max) = (o.min(), o.max());
@@ -75,11 +74,33 @@ pub fn layout(world: &World, door_open: &dyn Fn(ObjectId) -> bool) -> Layout {
             let z = cell.1 - f * FLOOR_STRIDE;
             let (cx, cz) = (cell.0 as f32 + 0.5, z as f32 + 0.5);
             if cx >= min.x && cx <= max.x && cz >= min.z && cz <= max.z {
-                *kind = CellKind::Space;
+                if is_space {
+                    *kind = CellKind::Space;
+                } else if let Some(f) = &fill {
+                    l.fills.insert(*cell, f.clone());
+                }
             }
         }
     }
     l
+}
+
+/// Состав воздуха области по значению `atmosphere`: `plasma` — плазма в воздухе станции,
+/// `tritium`, `frezon`, `n2o`, `ammonia`, `co2`.
+fn fill_of(value: &str) -> Option<atmos::Fill> {
+    let gas = match value {
+        "plasma" => atmos::Gas::Plasma,
+        "tritium" => atmos::Gas::Tritium,
+        "frezon" => atmos::Gas::Frezon,
+        "n2o" => atmos::Gas::NitrousOxide,
+        "ammonia" => atmos::Gas::Ammonia,
+        "co2" => atmos::Gas::CarbonDioxide,
+        _ => return None,
+    };
+    Some(atmos::Fill {
+        extra: vec![(gas, atmos::MOLES_CELL_STANDARD * 0.25)],
+        temperature: 0.0,
+    })
 }
 
 fn edge_cells(floor: i32, g: &astrocore_math::GridEdge) -> atmos::Edge {
