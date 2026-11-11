@@ -8419,6 +8419,25 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "009dbb7700f11c55ef83aebbe4c0e9cf1f1ac0844bd8d6f00dc38f302026e13a"
 
 [[package]]
+name = "tools"
+version = "0.1.0"
+dependencies = [
+ "assets",
+ "astrocore-core",
+ "astrocore-math",
+ "astrocore-world",
+ "base64 0.22.1",
+ "maps",
+ "polygon",
+ "prototypes",
+ "serde_json",
+ "serde_yaml",
+ "tempfile",
+ "thiserror 2.0.21",
+ "walkdir",
+]
+
+[[package]]
 name = "tracing"
 version = "0.1.44"
 source = "registry+https://github.com/rust-lang/crates.io-index"

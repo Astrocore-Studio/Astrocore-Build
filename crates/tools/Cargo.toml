@@ -1,0 +1,24 @@
+[package]
+name = "tools"
+description = "Инструменты Astrocore Build: импорт карт SS14 и синхронизация спрайтов"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+license.workspace = true
+
+[dependencies]
+assets.workspace = true
+astrocore-core.workspace = true
+astrocore-math.workspace = true
+astrocore-world.workspace = true
+base64 = "0.22"
+maps.workspace = true
+polygon.workspace = true
+prototypes.workspace = true
+serde_json.workspace = true
+serde_yaml.workspace = true
+thiserror.workspace = true
+walkdir = "2"
+
+[dev-dependencies]
+tempfile.workspace = true
