@@ -17,6 +17,8 @@ pub const CMD_PICKUP_ANY: &str = "item.pickup_any";
 pub const CMD_SWAP_HANDS: &str = "hands.swap";
 pub const CMD_DROP: &str = "item.drop";
 pub const CMD_SELECT_HAND: &str = "hands.select";
+/// Переложить предмет между руками (в пустую или с обменом): `[откуда, куда]`.
+pub const CMD_MOVE_HAND: &str = "hands.move";
 
 /// Надеть предмет из руки в слот: `[рука, имя слота utf-8]`.
 pub const CMD_EQUIP: &str = "inv.equip";
@@ -163,6 +165,10 @@ pub fn decode_inventory(bytes: &[u8]) -> Option<InventoryView> {
 
 fn id_bytes(id: ObjectId) -> [u8; 16] {
     id.as_uuid().as_u128().to_be_bytes()
+}
+
+pub fn move_hand_data(from: u8, to: u8) -> Vec<u8> {
+    vec![from, to]
 }
 
 pub fn interact_data(target: ObjectId) -> Vec<u8> {

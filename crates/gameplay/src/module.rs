@@ -15,8 +15,8 @@ use crate::inventory::Inventory;
 use crate::items::{ItemInfo, item_info};
 use crate::storage::Storage;
 use crate::wire::{
-    BagView, CMD_DROP, CMD_EQUIP, CMD_INTERACT, CMD_PICKUP, CMD_PICKUP_ANY, CMD_SELECT_HAND,
-    CMD_STORE, CMD_SWAP_HANDS, CMD_TAKE, CMD_UNEQUIP, CMD_USE, HANDS_COMPONENT,
+    BagView, CMD_DROP, CMD_EQUIP, CMD_INTERACT, CMD_MOVE_HAND, CMD_PICKUP, CMD_PICKUP_ANY,
+    CMD_SELECT_HAND, CMD_STORE, CMD_SWAP_HANDS, CMD_TAKE, CMD_UNEQUIP, CMD_USE, HANDS_COMPONENT,
     INVENTORY_COMPONENT, InventoryView, encode_hands, encode_inventory, parse_drop, parse_equip,
     parse_object_id, parse_store, parse_take, parse_unequip,
 };
@@ -596,6 +596,17 @@ impl GameModule for GameplayModule {
                 CMD_SELECT_HAND => {
                     if let [hand] = data[..]
                         && st.actor(*actor).hands.select(usize::from(hand)).is_ok()
+                    {
+                        st.publish(ctx, *actor);
+                    }
+                }
+                CMD_MOVE_HAND => {
+                    if let [from, to] = data[..]
+                        && st
+                            .actor(*actor)
+                            .hands
+                            .exchange(usize::from(from), usize::from(to))
+                            .is_ok()
                     {
                         st.publish(ctx, *actor);
                     }

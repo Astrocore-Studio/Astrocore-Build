@@ -3,10 +3,12 @@
 use std::collections::HashMap;
 use std::path::PathBuf;
 
+use astrocore_core::ObjectId;
 use bevy_egui::egui::{self, Color32, Pos2, Rect, Sense, Vec2};
 use gameplay::{
-    BagView, CMD_DROP, CMD_EQUIP, CMD_SELECT_HAND, CMD_STORE, CMD_TAKE, CMD_UNEQUIP, Hands,
-    InventoryView, drop_data, equip_data, store_data, take_data, unequip_data,
+    BagView, CMD_DROP, CMD_EQUIP, CMD_MOVE_HAND, CMD_SELECT_HAND, CMD_STORE, CMD_TAKE, CMD_UNEQUIP,
+    Hands, InventoryView, drop_data, equip_data, move_hand_data, store_data, take_data,
+    unequip_data,
 };
 
 const SLOT: f32 = 64.0;
@@ -111,6 +113,40 @@ impl Icons {
     fn item(&mut self, ctx: &egui::Context, proto: &str) -> Option<egui::TextureId> {
         let rel = self.items.get(proto)?.clone();
         self.load(ctx, &rel)
+    }
+}
+
+/// Откуда тянут предмет.
+#[derive(Clone, Debug)]
+enum Src {
+    Hand(u8),
+    Slot(String),
+    Bag { bag: ObjectId, item: ObjectId },
+}
+
+/// Содержимое перетаскивания: источник и прототип (для значка у курсора).
+#[derive(Clone, Debug)]
+struct Drag {
+    src: Src,
+    proto: String,
+}
+
+/// Действие, когда предмет отпустили на цель.
+fn drop_on_hand(d: &Drag, to: u8, out: &mut Commands) {
+    match &d.src {
+        Src::Hand(from) if *from != to => out.push((CMD_MOVE_HAND, move_hand_data(*from, to))),
+        Src::Slot(slot) => out.push((CMD_UNEQUIP, unequip_data(slot))),
+        Src::Bag { bag, item } => out.push((CMD_TAKE, take_data(*bag, *item))),
+        Src::Hand(_) => {}
+    }
+}
+
+/// Действие, когда предмет отпустили в пустое место экрана (на пол).
+fn drop_to_world(d: &Drag, out: &mut Commands) {
+    match &d.src {
+        Src::Hand(h) => out.push((CMD_DROP, drop_data(*h))),
+        Src::Slot(slot) => out.push((CMD_UNEQUIP, unequip_data(slot))),
+        Src::Bag { bag, item } => out.push((CMD_TAKE, take_data(*bag, *item))),
     }
 }
 
@@ -220,7 +256,34 @@ pub fn draw(
             bag_window(ctx, icons, state, hands, bag, n, &mut out);
         }
     }
+    drag_ghost_and_world_drop(ctx, icons, &mut out);
     out
+}
+
+/// Значок перетаскиваемого предмета у курсора; отпущенный вне окон худа предмет падает на пол.
+fn drag_ghost_and_world_drop(ctx: &egui::Context, icons: &mut Icons, out: &mut Commands) {
+    let Some(payload) = egui::DragAndDrop::payload::<Drag>(ctx) else {
+        return;
+    };
+    if let Some(pos) = ctx.pointer_interact_pos()
+        && let Some(tex) = icons.item(ctx, &payload.proto)
+    {
+        let layer = egui::LayerId::new(egui::Order::Tooltip, egui::Id::new("drag_ghost"));
+        ctx.layer_painter(layer).image(
+            tex,
+            Rect::from_center_size(pos, Vec2::splat(SLOT * 0.8)),
+            Rect::from_min_max(Pos2::ZERO, Pos2::new(1.0, 1.0)),
+            Color32::from_white_alpha(220),
+        );
+    }
+    let over_window = ctx
+        .pointer_latest_pos()
+        .and_then(|p| ctx.layer_id_at(p))
+        .is_some_and(|l| l.order != egui::Order::Background);
+    if ctx.input(|i| i.pointer.any_released()) && !over_window {
+        drop_to_world(&payload, out);
+        egui::DragAndDrop::clear_payload(ctx);
+    }
 }
 
 /// Вид от первого лица: прицел и предметы в руках крупно по нижним углам экрана.
@@ -276,7 +339,7 @@ fn hand_slots(
     out: &mut Commands,
 ) {
     for (i, name, item) in hands.iter() {
-        let (rect, resp) = ui.allocate_exact_size(Vec2::splat(SLOT), Sense::click());
+        let (rect, resp) = ui.allocate_exact_size(Vec2::splat(SLOT), Sense::click_and_drag());
         let active = i == hands.active();
         let letter = if name.starts_with('l') {
             "Default/Slots/hand_l"
@@ -296,6 +359,17 @@ fn hand_slots(
             }
         }
         slot_overlays(ctx, ui, icons, rect, active, resp.hovered());
+        if let Some(it) = item
+            && resp.drag_started()
+        {
+            resp.dnd_set_drag_payload(Drag {
+                src: Src::Hand(i as u8),
+                proto: it.prototype.to_string(),
+            });
+        }
+        if let Some(d) = resp.dnd_release_payload::<Drag>() {
+            drop_on_hand(&d, i as u8, out);
+        }
         if resp.clicked() {
             out.push((CMD_SELECT_HAND, vec![i as u8]));
         }
@@ -354,7 +428,7 @@ fn equip_slot_at(
     slot: &str,
     out: &mut Commands,
 ) {
-    let resp = ui.interact(rect, ui.id().with(slot), Sense::click());
+    let resp = ui.interact(rect, ui.id().with(slot), Sense::click_and_drag());
     let worn = view.and_then(|v| v.inventory.get(slot));
     match worn {
         Some(it) => {
@@ -380,6 +454,19 @@ fn equip_slot_at(
         }
     }
     slot_overlays(ctx, ui, icons, rect, false, resp.hovered());
+    if let Some(it) = worn
+        && resp.drag_started()
+    {
+        resp.dnd_set_drag_payload(Drag {
+            src: Src::Slot(slot.to_string()),
+            proto: it.prototype.to_string(),
+        });
+    }
+    if let Some(d) = resp.dnd_release_payload::<Drag>()
+        && let Src::Hand(h) = d.src
+    {
+        out.push((CMD_EQUIP, equip_data(h, slot)));
+    }
     if view.is_none() {
         return;
     }
@@ -463,7 +550,12 @@ fn bag_window(
             const FRAME: f32 = 16.0;
             let size =
                 Vec2::new((max_x + 1) as f32, (max_y + 1) as f32) * TILE + Vec2::splat(FRAME * 2.0);
-            let (outer, _) = ui.allocate_exact_size(size, Sense::hover());
+            let (outer, bag_resp) = ui.allocate_exact_size(size, Sense::hover());
+            if let Some(d) = bag_resp.dnd_release_payload::<Drag>()
+                && let Src::Hand(h) = d.src
+            {
+                out.push((CMD_STORE, store_data(h, bag.id)));
+            }
             draw_frame(ctx, ui, icons, outer, FRAME);
             let area = Rect::from_min_size(
                 outer.min + Vec2::splat(FRAME),
@@ -501,8 +593,17 @@ fn bag_window(
                 let resp = ui.interact(
                     r,
                     ui.id().with(st.item.id.as_uuid().as_u128()),
-                    Sense::click(),
+                    Sense::click_and_drag(),
                 );
+                if resp.drag_started() {
+                    resp.dnd_set_drag_payload(Drag {
+                        src: Src::Bag {
+                            bag: bag.id,
+                            item: st.item.id,
+                        },
+                        proto: st.item.prototype.to_string(),
+                    });
+                }
                 let t = icons.item(ctx, st.item.prototype.as_str());
                 paint_image(ui, t, r.shrink(3.0), Color32::WHITE);
                 if resp
@@ -527,5 +628,111 @@ fn bag_window(
         });
     if !open {
         state.bags_closed.insert(bag_id(bag));
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use gameplay::HeldItem;
+
+    fn item(n: u128) -> HeldItem {
+        HeldItem {
+            id: ObjectId::from_u128(n),
+            prototype: astrocore_core::PrototypeId::new("ss14:pen").unwrap(),
+        }
+    }
+
+    /// Прогнать худ несколько кадров с событиями указателя; вернуть все команды.
+    fn run(hands: &Hands, view: Option<&InventoryView>, path: &[(f32, f32)]) -> Commands {
+        let ctx = egui::Context::default();
+        let mut icons = Icons::new(PathBuf::from("/nonexistent"), HashMap::new());
+        let mut state = HudState::default();
+        let mut all = Commands::new();
+        let mut frame = |events: Vec<egui::Event>| {
+            let raw = egui::RawInput {
+                screen_rect: Some(Rect::from_min_size(Pos2::ZERO, Vec2::new(1280.0, 720.0))),
+                events,
+                ..Default::default()
+            };
+            ctx.begin_pass(raw);
+            all.extend(draw(&ctx, &mut icons, &mut state, Some(hands), view, false));
+            let mut out = ctx.end_pass();
+            out.textures_delta.clear();
+        };
+        for _ in 0..3 {
+            frame(vec![]);
+        }
+        let at = |p: (f32, f32)| Pos2::new(p.0, p.1);
+        let button = |pos, pressed| egui::Event::PointerButton {
+            pos,
+            button: egui::PointerButton::Primary,
+            pressed,
+            modifiers: egui::Modifiers::NONE,
+        };
+        frame(vec![egui::Event::PointerMoved(at(path[0]))]);
+        frame(vec![button(at(path[0]), true)]);
+        for p in &path[1..] {
+            frame(vec![egui::Event::PointerMoved(at(*p))]);
+            frame(vec![]);
+        }
+        let end = at(path[path.len() - 1]);
+        frame(vec![button(end, false)]);
+        frame(vec![]);
+        all
+    }
+
+    // Раскладка нижней полосы: кнопка одежды 0,7 слота, затем три слота, две руки и три слота;
+    // слот 64 px, промежуток 4 px, полоса по центру экрана 1280 px и в 8 px от нижнего края.
+    const LEFT_HAND: (f32, f32) = (630.4, 680.0);
+    const RIGHT_HAND: (f32, f32) = (698.4, 680.0);
+
+    #[test]
+    fn dragging_an_item_to_the_other_hand_moves_it() {
+        let mut hands = Hands::humanoid();
+        hands.pickup_to(0, item(1)).unwrap();
+        let cmds = run(&hands, None, &[LEFT_HAND, (660.0, 680.0), RIGHT_HAND]);
+        assert!(
+            cmds.contains(&(CMD_MOVE_HAND, move_hand_data(0, 1))),
+            "{cmds:?}"
+        );
+    }
+
+    #[test]
+    fn releasing_an_item_over_empty_screen_drops_it() {
+        let mut hands = Hands::humanoid();
+        hands.pickup_to(0, item(1)).unwrap();
+        let cmds = run(&hands, None, &[LEFT_HAND, (600.0, 500.0), (600.0, 300.0)]);
+        assert!(cmds.contains(&(CMD_DROP, drop_data(0))), "{cmds:?}");
+    }
+
+    #[test]
+    fn dragging_an_empty_hand_does_nothing() {
+        let hands = Hands::humanoid();
+        let cmds = run(&hands, None, &[LEFT_HAND, RIGHT_HAND]);
+        assert!(
+            cmds.iter()
+                .all(|(k, _)| *k != CMD_MOVE_HAND && *k != CMD_DROP)
+        );
+    }
+
+    #[test]
+    fn dragging_an_item_onto_a_clothing_slot_equips_it() {
+        let mut hands = Hands::humanoid();
+        hands.pickup_to(0, item(1)).unwrap();
+        let view = InventoryView {
+            inventory: gameplay::Inventory::human(),
+            bags: Vec::new(),
+        };
+        // Слоты левой полосы: id, belt, back; «back» — третий.
+        let cmds = run(
+            &hands,
+            Some(&view),
+            &[LEFT_HAND, (600.0, 680.0), (562.4, 680.0)],
+        );
+        assert!(
+            cmds.contains(&(CMD_EQUIP, equip_data(0, "back"))),
+            "{cmds:?}"
+        );
     }
 }

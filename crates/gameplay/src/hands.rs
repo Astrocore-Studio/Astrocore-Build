@@ -143,6 +143,18 @@ impl Hands {
         self.slots.iter_mut().filter_map(Option::take).collect()
     }
 
+    /// Поменять содержимое двух рук местами (пустая рука тоже участвует). Активная рука остаётся.
+    pub fn exchange(&mut self, a: usize, b: usize) -> Result<(), HandsError> {
+        if a >= self.slots.len() || b >= self.slots.len() {
+            return Err(HandsError::NoSuchHand);
+        }
+        if self.slots[a].is_none() && self.slots[b].is_none() {
+            return Err(HandsError::Empty);
+        }
+        self.slots.swap(a, b);
+        Ok(())
+    }
+
     /// Переложить предмет из одной руки в другую свободную руку.
     pub fn move_between(&mut self, from: usize, to: usize) -> Result<(), HandsError> {
         if from >= self.slots.len() || to >= self.slots.len() {
@@ -190,6 +202,24 @@ mod tests {
         );
         assert_eq!(h.held().count(), 2);
         assert_eq!(h.pickup_to(5, item(9)), Err(HandsError::NoSuchHand));
+    }
+
+    #[test]
+    fn exchange_swaps_two_hands_and_moves_into_an_empty_one() {
+        let item = |n: u128| HeldItem {
+            id: ObjectId::from_u128(n),
+            prototype: PrototypeId::new("ss14:pen").unwrap(),
+        };
+        let mut h = Hands::new(["l", "r"]);
+        assert_eq!(h.exchange(0, 1), Err(HandsError::Empty));
+        h.pickup_to(0, item(1)).unwrap();
+        h.exchange(0, 1).unwrap();
+        assert!(h.get(0).is_none() && h.get(1).is_some());
+        h.pickup_to(0, item(2)).unwrap();
+        h.exchange(0, 1).unwrap();
+        assert_eq!(h.get(0).unwrap().id, ObjectId::from_u128(1));
+        assert_eq!(h.get(1).unwrap().id, ObjectId::from_u128(2));
+        assert_eq!(h.exchange(0, 5), Err(HandsError::NoSuchHand));
     }
 
     #[test]

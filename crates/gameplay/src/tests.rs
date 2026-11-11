@@ -248,6 +248,20 @@ fn swapping_hands_cycles_the_active_hand_for_everyone_to_see() {
 }
 
 #[test]
+fn an_item_moves_between_hands_by_command() {
+    let mut h = harness();
+    let a = h.join("a");
+    grab(&mut h, a, 10, near(), "ss14:pen");
+    let held = |h: &Harness, i: usize| hands_of(h, a, a).unwrap().get(i).map(|x| x.id);
+    assert_eq!(held(&h, 0), Some(oid(10)));
+    command(&mut h, a, crate::CMD_MOVE_HAND, crate::move_hand_data(0, 1));
+    assert_eq!((held(&h, 0), held(&h, 1)), (None, Some(oid(10))));
+    // Пустая рука с пустой — ничего; неверная рука — ничего.
+    command(&mut h, a, crate::CMD_MOVE_HAND, crate::move_hand_data(0, 9));
+    assert_eq!(held(&h, 1), Some(oid(10)));
+}
+
+#[test]
 fn a_target_drop_lands_where_asked_within_range() {
     let mut h = harness();
     let a = h.join("a");
