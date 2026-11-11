@@ -45,8 +45,8 @@ pub fn parse_drop(data: &[u8]) -> Option<(u8, Option<[f32; 3]>)> {
         [hand] => Some((*hand, None)),
         [hand, rest @ ..] if rest.len() == 12 => {
             let mut t = [0.0f32; 3];
-            for (i, c) in rest.chunks_exact(4).enumerate() {
-                t[i] = f32::from_le_bytes(c.try_into().ok()?);
+            for (slot, c) in t.iter_mut().zip(rest.as_chunks::<4>().0) {
+                *slot = f32::from_le_bytes(*c);
             }
             t.iter().all(|v| v.is_finite()).then_some((*hand, Some(t)))
         }
