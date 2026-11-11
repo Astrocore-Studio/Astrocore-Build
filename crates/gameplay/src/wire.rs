@@ -4,6 +4,9 @@ use astrocore_api::{
 use astrocore_core::ObjectId;
 
 use crate::hands::Hands;
+use crate::inventory::Inventory;
+use crate::storage::Stored;
+use serde::{Deserialize, Serialize};
 
 /// Команды клиента.
 /// Клик по предмету: только в активную руку (как `TryPickup` в SS14).
@@ -14,6 +17,19 @@ pub const CMD_PICKUP_ANY: &str = "item.pickup_any";
 pub const CMD_SWAP_HANDS: &str = "hands.swap";
 pub const CMD_DROP: &str = "item.drop";
 pub const CMD_SELECT_HAND: &str = "hands.select";
+
+/// Надеть предмет из руки в слот: `[рука, имя слота utf-8]`.
+pub const CMD_EQUIP: &str = "inv.equip";
+/// Снять предмет из слота: `[имя слота utf-8]`; предмет идёт в свободную руку, иначе на пол.
+pub const CMD_UNEQUIP: &str = "inv.unequip";
+/// Положить предмет из руки в сумку: `[рука, id сумки 16 байт]`.
+pub const CMD_STORE: &str = "storage.insert";
+/// Достать предмет из сумки в свободную руку: `[id сумки 16 байт, id предмета 16 байт]`.
+pub const CMD_TAKE: &str = "storage.take";
+
+/// Состояние инвентаря и содержимое сумок игрока; видит только сам игрок.
+pub const INVENTORY_COMPONENT: &str = "build.inventory";
+pub const INVENTORY_MAX_BYTES: usize = 16 * 1024;
 
 /// Реплицируемое состояние рук игрока.
 pub const HANDS_COMPONENT: &str = "build.hands";
@@ -78,5 +94,89 @@ pub fn register_replication(reg: &mut ReplicationRegistry) -> Result<(), Replica
         channel: ReplicationChannel::ReliableOrdered,
         interest: Interest::Everyone,
         max_bytes: HANDS_MAX_BYTES,
+    })?;
+    reg.register(ReplicatedKind {
+        name: INVENTORY_COMPONENT.into(),
+        channel: ReplicationChannel::ReliableOrdered,
+        interest: Interest::Owner,
+        max_bytes: INVENTORY_MAX_BYTES,
     })
+}
+
+/// Содержимое одной сумки в состоянии инвентаря.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct BagView {
+    pub id: ObjectId,
+    pub items: Vec<Stored>,
+}
+
+/// Состояние инвентаря игрока: слоты и сумки, которые он держит или носит.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct InventoryView {
+    pub inventory: Inventory,
+    pub bags: Vec<BagView>,
+}
+
+pub fn encode_inventory(v: &InventoryView) -> Vec<u8> {
+    serde_json::to_vec(v).unwrap_or_default()
+}
+
+pub fn decode_inventory(bytes: &[u8]) -> Option<InventoryView> {
+    if bytes.len() > INVENTORY_MAX_BYTES {
+        return None;
+    }
+    serde_json::from_slice(bytes).ok()
+}
+
+fn id_bytes(id: ObjectId) -> [u8; 16] {
+    id.as_uuid().as_u128().to_be_bytes()
+}
+
+pub fn equip_data(hand: u8, slot: &str) -> Vec<u8> {
+    let mut v = vec![hand];
+    v.extend_from_slice(slot.as_bytes());
+    v
+}
+
+pub fn unequip_data(slot: &str) -> Vec<u8> {
+    slot.as_bytes().to_vec()
+}
+
+pub fn store_data(hand: u8, bag: ObjectId) -> Vec<u8> {
+    let mut v = vec![hand];
+    v.extend_from_slice(&id_bytes(bag));
+    v
+}
+
+pub fn take_data(bag: ObjectId, item: ObjectId) -> Vec<u8> {
+    let mut v = id_bytes(bag).to_vec();
+    v.extend_from_slice(&id_bytes(item));
+    v
+}
+
+/// Имя слота из команды: короткая строка из букв и цифр.
+fn slot_name(bytes: &[u8]) -> Option<&str> {
+    let s = std::str::from_utf8(bytes).ok()?;
+    (!s.is_empty() && s.len() <= 32 && s.bytes().all(|b| b.is_ascii_alphanumeric())).then_some(s)
+}
+
+pub fn parse_equip(data: &[u8]) -> Option<(u8, &str)> {
+    let (hand, rest) = data.split_first()?;
+    Some((*hand, slot_name(rest)?))
+}
+
+pub fn parse_unequip(data: &[u8]) -> Option<&str> {
+    slot_name(data)
+}
+
+pub fn parse_store(data: &[u8]) -> Option<(u8, ObjectId)> {
+    let (hand, rest) = data.split_first()?;
+    Some((*hand, parse_object_id(rest)?))
+}
+
+pub fn parse_take(data: &[u8]) -> Option<(ObjectId, ObjectId)> {
+    if data.len() != 32 {
+        return None;
+    }
+    Some((parse_object_id(&data[..16])?, parse_object_id(&data[16..])?))
 }

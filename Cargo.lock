@@ -23,7 +23,7 @@ dependencies = [
 [[package]]
 name = "astrocore-api"
 version = "0.1.0"
-source = "git+https://github.com/Astrocore-Studio/Astrocore-Engine?branch=master#a37c1f43897873d8330ecb0d5d3c34670d9d837f"
+source = "git+https://github.com/Astrocore-Studio/Astrocore-Engine?branch=master#3697d7f15f55716e46398066c262ebd2436c3539"
 dependencies = [
  "astrocore-assets",
  "astrocore-core",
@@ -38,7 +38,7 @@ dependencies = [
 [[package]]
 name = "astrocore-assets"
 version = "0.1.0"
-source = "git+https://github.com/Astrocore-Studio/Astrocore-Engine?branch=master#a37c1f43897873d8330ecb0d5d3c34670d9d837f"
+source = "git+https://github.com/Astrocore-Studio/Astrocore-Engine?branch=master#3697d7f15f55716e46398066c262ebd2436c3539"
 dependencies = [
  "astrocore-core",
  "serde",
@@ -50,7 +50,7 @@ dependencies = [
 [[package]]
 name = "astrocore-core"
 version = "0.1.0"
-source = "git+https://github.com/Astrocore-Studio/Astrocore-Engine?branch=master#a37c1f43897873d8330ecb0d5d3c34670d9d837f"
+source = "git+https://github.com/Astrocore-Studio/Astrocore-Engine?branch=master#3697d7f15f55716e46398066c262ebd2436c3539"
 dependencies = [
  "serde",
  "thiserror",
@@ -60,7 +60,7 @@ dependencies = [
 [[package]]
 name = "astrocore-geometry"
 version = "0.1.0"
-source = "git+https://github.com/Astrocore-Studio/Astrocore-Engine?branch=master#a37c1f43897873d8330ecb0d5d3c34670d9d837f"
+source = "git+https://github.com/Astrocore-Studio/Astrocore-Engine?branch=master#3697d7f15f55716e46398066c262ebd2436c3539"
 dependencies = [
  "astrocore-core",
  "astrocore-math",
@@ -74,7 +74,7 @@ dependencies = [
 [[package]]
 name = "astrocore-math"
 version = "0.1.0"
-source = "git+https://github.com/Astrocore-Studio/Astrocore-Engine?branch=master#a37c1f43897873d8330ecb0d5d3c34670d9d837f"
+source = "git+https://github.com/Astrocore-Studio/Astrocore-Engine?branch=master#3697d7f15f55716e46398066c262ebd2436c3539"
 dependencies = [
  "glam",
  "serde",
@@ -83,7 +83,7 @@ dependencies = [
 [[package]]
 name = "astrocore-network"
 version = "0.1.0"
-source = "git+https://github.com/Astrocore-Studio/Astrocore-Engine?branch=master#a37c1f43897873d8330ecb0d5d3c34670d9d837f"
+source = "git+https://github.com/Astrocore-Studio/Astrocore-Engine?branch=master#3697d7f15f55716e46398066c262ebd2436c3539"
 dependencies = [
  "astrocore-api",
  "astrocore-core",
@@ -108,7 +108,7 @@ dependencies = [
 [[package]]
 name = "astrocore-physics"
 version = "0.1.0"
-source = "git+https://github.com/Astrocore-Studio/Astrocore-Engine?branch=master#a37c1f43897873d8330ecb0d5d3c34670d9d837f"
+source = "git+https://github.com/Astrocore-Studio/Astrocore-Engine?branch=master#3697d7f15f55716e46398066c262ebd2436c3539"
 dependencies = [
  "astrocore-core",
  "astrocore-geometry",
@@ -120,7 +120,7 @@ dependencies = [
 [[package]]
 name = "astrocore-protocol"
 version = "0.1.0"
-source = "git+https://github.com/Astrocore-Studio/Astrocore-Engine?branch=master#a37c1f43897873d8330ecb0d5d3c34670d9d837f"
+source = "git+https://github.com/Astrocore-Studio/Astrocore-Engine?branch=master#3697d7f15f55716e46398066c262ebd2436c3539"
 dependencies = [
  "astrocore-core",
  "astrocore-world",
@@ -132,7 +132,7 @@ dependencies = [
 [[package]]
 name = "astrocore-runtime"
 version = "0.1.0"
-source = "git+https://github.com/Astrocore-Studio/Astrocore-Engine?branch=master#a37c1f43897873d8330ecb0d5d3c34670d9d837f"
+source = "git+https://github.com/Astrocore-Studio/Astrocore-Engine?branch=master#3697d7f15f55716e46398066c262ebd2436c3539"
 dependencies = [
  "astrocore-core",
  "astrocore-math",
@@ -145,7 +145,7 @@ dependencies = [
 [[package]]
 name = "astrocore-spatial"
 version = "0.1.0"
-source = "git+https://github.com/Astrocore-Studio/Astrocore-Engine?branch=master#a37c1f43897873d8330ecb0d5d3c34670d9d837f"
+source = "git+https://github.com/Astrocore-Studio/Astrocore-Engine?branch=master#3697d7f15f55716e46398066c262ebd2436c3539"
 dependencies = [
  "astrocore-core",
  "astrocore-math",
@@ -157,7 +157,7 @@ dependencies = [
 [[package]]
 name = "astrocore-sprites"
 version = "0.1.0"
-source = "git+https://github.com/Astrocore-Studio/Astrocore-Engine?branch=master#a37c1f43897873d8330ecb0d5d3c34670d9d837f"
+source = "git+https://github.com/Astrocore-Studio/Astrocore-Engine?branch=master#3697d7f15f55716e46398066c262ebd2436c3539"
 dependencies = [
  "astrocore-math",
  "serde",
@@ -168,7 +168,7 @@ dependencies = [
 [[package]]
 name = "astrocore-terrain"
 version = "0.1.0"
-source = "git+https://github.com/Astrocore-Studio/Astrocore-Engine?branch=master#a37c1f43897873d8330ecb0d5d3c34670d9d837f"
+source = "git+https://github.com/Astrocore-Studio/Astrocore-Engine?branch=master#3697d7f15f55716e46398066c262ebd2436c3539"
 dependencies = [
  "astrocore-core",
  "astrocore-geometry",
@@ -181,7 +181,7 @@ dependencies = [
 [[package]]
 name = "astrocore-world"
 version = "0.1.0"
-source = "git+https://github.com/Astrocore-Studio/Astrocore-Engine?branch=master#a37c1f43897873d8330ecb0d5d3c34670d9d837f"
+source = "git+https://github.com/Astrocore-Studio/Astrocore-Engine?branch=master#3697d7f15f55716e46398066c262ebd2436c3539"
 dependencies = [
  "astrocore-core",
  "astrocore-math",

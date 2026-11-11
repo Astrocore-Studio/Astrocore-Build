@@ -15,6 +15,18 @@ const PROTOS: &str = r#"[
     (id: "BaseItem", abstract: true, components: {"Item": (size: "Small")}),
     (id: "Crowbar", parents: ["BaseItem"], components: {"Tool": (qualities: ["Prying"])}),
     (id: "Boulder", components: {"Sprite": (state: "boulder")}),
+    (id: "Pen", components: {"Item": (size: "Tiny")}),
+    (id: "Toolbox", components: {"Item": (size: "Large")}),
+    (id: "Jumpsuit", components: {"Item": (size: "Normal"), "Clothing": (slots: ["InnerClothing"])}),
+    (id: "Backpack", components: {
+        "Item": (size: "Large"),
+        "Clothing": (slots: ["Back"]),
+        "Storage": (grid: ["0,0,5,3"], maxItemSize: "Normal"),
+    }),
+    (id: "Satchel", components: {
+        "Item": (size: "Small"),
+        "Storage": (grid: ["0,0,1,1"], maxItemSize: "Tiny"),
+    }),
 ]"#;
 
 /// Идентификаторы предметов не пересекаются с идентификаторами тестового мира.
@@ -412,5 +424,226 @@ mod module_level {
         // Мусорная цель (NaN) отвергается разбором команды.
         assert!(parse_drop(&drop_at_data(0, [f32::NAN, 0.0, 0.0])).is_none());
         assert!(parse_drop(&[0, 1, 2]).is_none());
+    }
+}
+
+fn inv_of(h: &Harness, viewer: ConnId, owner: ConnId) -> Option<InventoryView> {
+    let net = h.client(owner).net_id()?;
+    decode_inventory(h.client(viewer).component(net, INVENTORY_COMPONENT)?)
+}
+
+/// Подобрать предмет в руку и сразу проверить, что он в руках.
+fn grab(h: &mut Harness, who: ConnId, id: u128, at: Vec3, proto: &str) {
+    spawn(h, item_at(id, proto, at));
+    command(h, who, CMD_PICKUP_ANY, pickup_data(oid(id)));
+    assert!(!on_ground(h, who, id), "{proto} не подобран");
+}
+
+fn near() -> Vec3 {
+    Vec3::new(3.0, 0.9, 3.0)
+}
+
+mod inventory_and_storage {
+    use super::*;
+
+    #[test]
+    fn clothing_goes_on_pockets_need_it_and_removal_drops_the_pockets() {
+        let mut h = harness();
+        let a = h.join("a");
+        grab(&mut h, a, 1, near(), "ss14:pen");
+        // Без формы карманов нет.
+        command(&mut h, a, CMD_EQUIP, equip_data(0, "pocket1"));
+        assert!(inv_of(&h, a, a).unwrap().inventory.get("pocket1").is_none());
+        assert!(
+            hands_of(&h, a, a).unwrap().get(0).is_some(),
+            "ручка осталась в руке"
+        );
+        // Надеваем форму; потом ручка идёт в карман.
+        grab(&mut h, a, 2, near(), "ss14:jumpsuit");
+        command(&mut h, a, CMD_EQUIP, equip_data(1, "jumpsuit"));
+        assert!(
+            inv_of(&h, a, a)
+                .unwrap()
+                .inventory
+                .get("jumpsuit")
+                .is_some()
+        );
+        command(&mut h, a, CMD_EQUIP, equip_data(0, "pocket1"));
+        let inv = inv_of(&h, a, a).unwrap().inventory;
+        assert_eq!(inv.get("pocket1").unwrap().id, oid(1));
+        assert_eq!(
+            hands_of(&h, a, a).unwrap().held().count(),
+            0,
+            "руки свободны"
+        );
+        // Не подходит: форма в слот головы.
+        grab(&mut h, a, 3, near(), "ss14:jumpsuit");
+        command(&mut h, a, CMD_EQUIP, equip_data(0, "head"));
+        assert!(inv_of(&h, a, a).unwrap().inventory.get("head").is_none());
+        // Снимаем форму: она в руке, а ручка из кармана упала на пол.
+        command(&mut h, a, CMD_UNEQUIP, unequip_data("jumpsuit"));
+        assert!(on_ground(&h, a, 1), "карман без формы не держится");
+        assert_eq!(
+            hands_of(&h, a, a).unwrap().held().count(),
+            2,
+            "форма в руке рядом с лишней"
+        );
+        assert!(
+            inv_of(&h, a, a)
+                .unwrap()
+                .inventory
+                .get("jumpsuit")
+                .is_none()
+        );
+    }
+
+    #[test]
+    fn a_backpack_holds_items_by_the_ss14_rules() {
+        let mut h = harness();
+        let a = h.join("a");
+        grab(&mut h, a, 10, near(), "ss14:backpack");
+        command(&mut h, a, CMD_EQUIP, equip_data(0, "back"));
+        assert!(inv_of(&h, a, a).unwrap().inventory.get("back").is_some());
+        // Кладём ручку и ломик (Small): помещаются.
+        grab(&mut h, a, 1, near(), "ss14:pen");
+        command(&mut h, a, CMD_STORE, store_data(0, oid(10)));
+        grab(&mut h, a, 2, near(), "ss14:crowbar");
+        command(&mut h, a, CMD_STORE, store_data(0, oid(10)));
+        let view = inv_of(&h, a, a).unwrap();
+        assert_eq!(view.bags.len(), 1);
+        assert_eq!(view.bags[0].items.len(), 2);
+        assert_eq!(hands_of(&h, a, a).unwrap().held().count(), 0);
+        // Ящик (Large) больше максимума Normal: не входит и остаётся в руке.
+        grab(&mut h, a, 3, near(), "ss14:toolbox");
+        command(&mut h, a, CMD_STORE, store_data(0, oid(10)));
+        assert_eq!(inv_of(&h, a, a).unwrap().bags[0].items.len(), 2);
+        assert_eq!(hands_of(&h, a, a).unwrap().held().count(), 1);
+        // Рюкзак в рюкзак — нельзя (вложенный должен быть строго меньше).
+        // Достаём ручку обратно: рука занята ящиком, значит вторая рука свободна.
+        command(&mut h, a, CMD_TAKE, take_data(oid(10), oid(1)));
+        assert_eq!(hands_of(&h, a, a).unwrap().held().count(), 2);
+        assert_eq!(inv_of(&h, a, a).unwrap().bags[0].items.len(), 1);
+        // Обе руки заняты: достать ничего нельзя, предмет остаётся в сумке.
+        command(&mut h, a, CMD_TAKE, take_data(oid(10), oid(2)));
+        assert_eq!(inv_of(&h, a, a).unwrap().bags[0].items.len(), 1);
+    }
+
+    #[test]
+    fn nested_bags_follow_the_strictly_smaller_rule() {
+        let mut h = harness();
+        let a = h.join("a");
+        grab(&mut h, a, 10, near(), "ss14:backpack");
+        command(&mut h, a, CMD_EQUIP, equip_data(0, "back"));
+        // Сумка с максимумом Tiny внутри рюкзака с максимумом Normal: можно.
+        grab(&mut h, a, 11, near(), "ss14:satchel");
+        command(&mut h, a, CMD_STORE, store_data(0, oid(10)));
+        assert_eq!(inv_of(&h, a, a).unwrap().bags[0].items.len(), 1);
+        // Рюкзак (максимум Normal) в рюкзак (максимум Normal) — нет.
+        grab(&mut h, a, 12, near(), "ss14:backpack");
+        command(&mut h, a, CMD_STORE, store_data(0, oid(10)));
+        let worn_bag = |h: &Harness| {
+            inv_of(h, a, a)
+                .unwrap()
+                .bags
+                .into_iter()
+                .find(|b| b.id == oid(10))
+                .unwrap()
+        };
+        assert_eq!(worn_bag(&h).items.len(), 1, "рюкзак в рюкзак не лёг");
+        assert_eq!(
+            hands_of(&h, a, a).unwrap().held().count(),
+            1,
+            "остался в руке"
+        );
+        // Сумку нельзя положить в саму себя.
+        command(&mut h, a, CMD_SELECT_HAND, vec![0]);
+        grab(&mut h, a, 13, near(), "ss14:satchel");
+        command(&mut h, a, CMD_STORE, store_data(1, oid(13)));
+        assert_eq!(hands_of(&h, a, a).unwrap().held().count(), 2);
+    }
+
+    #[test]
+    fn bag_contents_are_private_to_the_owner_but_worn_and_held_items_are_visible_in_hands() {
+        let mut h = harness();
+        let (a, b) = (h.join("a"), h.join("b"));
+        grab(&mut h, a, 10, near(), "ss14:backpack");
+        command(&mut h, a, CMD_EQUIP, equip_data(0, "back"));
+        grab(&mut h, a, 1, near(), "ss14:pen");
+        command(&mut h, a, CMD_STORE, store_data(0, oid(10)));
+        assert!(inv_of(&h, a, a).is_some());
+        assert!(
+            inv_of(&h, b, a).is_none(),
+            "второй клиент не видит ни рюкзак, ни его содержимое"
+        );
+        // Даже после своего запроса снимка и входа третьего игрока.
+        let p = h.client(b).snapshot_request_packet();
+        h.send(b, p);
+        let c = h.join("c");
+        assert!(inv_of(&h, b, a).is_none() && inv_of(&h, c, a).is_none());
+    }
+
+    #[test]
+    fn a_bag_on_the_floor_keeps_its_contents_and_can_be_used_in_reach() {
+        let mut h = harness();
+        let a = h.join("a");
+        spawn(&mut h, item_at(10, "ss14:backpack", near()));
+        grab(&mut h, a, 1, Vec3::new(3.0, 0.9, 2.0), "ss14:pen");
+        // Рюкзак лежит рядом: кладём ручку прямо в него.
+        command(&mut h, a, CMD_STORE, store_data(0, oid(10)));
+        assert_eq!(hands_of(&h, a, a).unwrap().held().count(), 0);
+        // Поднимаем рюкзак, надеваем, содержимое на месте и достаётся.
+        command(&mut h, a, CMD_PICKUP, pickup_data(oid(10)));
+        command(&mut h, a, CMD_EQUIP, equip_data(0, "back"));
+        assert_eq!(inv_of(&h, a, a).unwrap().bags[0].items.len(), 1);
+        command(&mut h, a, CMD_TAKE, take_data(oid(10), oid(1)));
+        assert_eq!(hands_of(&h, a, a).unwrap().get(0).unwrap().id, oid(1));
+        // Слишком далёкий рюкзак недоступен.
+        spawn(
+            &mut h,
+            item_at(20, "ss14:backpack", Vec3::new(30.0, 0.9, 3.0)),
+        );
+        command(&mut h, a, CMD_STORE, store_data(1, oid(20)));
+        assert_eq!(
+            hands_of(&h, a, a).unwrap().held().count(),
+            1,
+            "рука не опустела"
+        );
+    }
+
+    #[test]
+    fn disconnecting_drops_worn_items_and_bags_keep_what_is_inside() {
+        let mut h = harness();
+        let (a, b) = (h.join("a"), h.join("b"));
+        grab(&mut h, a, 10, near(), "ss14:backpack");
+        command(&mut h, a, CMD_EQUIP, equip_data(0, "back"));
+        grab(&mut h, a, 1, near(), "ss14:pen");
+        command(&mut h, a, CMD_STORE, store_data(0, oid(10)));
+        let outs = h.server.disconnect(a);
+        h.deliver(outs);
+        assert!(on_ground(&h, b, 10), "рюкзак остался лежать");
+        assert!(!on_ground(&h, b, 1), "а ручка — внутри него, а не на полу");
+        // Другой игрок подбирает рюкзак и достаёт ручку.
+        command(&mut h, b, CMD_PICKUP, pickup_data(oid(10)));
+        command(&mut h, b, CMD_TAKE, take_data(oid(10), oid(1)));
+        assert_eq!(hands_of(&h, b, b).unwrap().held().count(), 2);
+    }
+
+    #[test]
+    fn malformed_inventory_commands_are_ignored() {
+        let mut h = harness();
+        let a = h.join("a");
+        for (kind, data) in [
+            (CMD_EQUIP, vec![]),
+            (CMD_EQUIP, vec![0]),
+            (CMD_EQUIP, vec![0, 0xFF, 0xFE]),
+            (CMD_EQUIP, [vec![0], b"x".repeat(40)].concat()),
+            (CMD_UNEQUIP, b"no such slot!".to_vec()),
+            (CMD_STORE, vec![0, 1, 2]),
+            (CMD_TAKE, vec![1; 31]),
+        ] {
+            command(&mut h, a, kind, data);
+        }
+        assert_eq!(h.server.player_count(), 1);
+        assert_eq!(hands_of(&h, a, a).map_or(0, |x| x.held().count()), 0);
     }
 }

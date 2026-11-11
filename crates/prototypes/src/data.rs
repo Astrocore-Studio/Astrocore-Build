@@ -45,6 +45,13 @@ impl Data {
         }
     }
 
+    pub fn as_list(&self) -> Option<&[Data]> {
+        match self {
+            Data::List(l) => Some(l),
+            _ => None,
+        }
+    }
+
     pub fn as_bool(&self) -> Option<bool> {
         match self {
             Data::Bool(b) => Some(*b),
