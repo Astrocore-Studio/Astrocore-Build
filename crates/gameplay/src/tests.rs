@@ -85,7 +85,7 @@ fn one_client_picks_up_and_the_other_sees_it() {
     // Игроки появляются в (2.5, 1, 2.5); предмет рядом.
     spawn(
         &mut h,
-        item_at(100, "ss14:crowbar", Vec3::new(3.0, 0.5, 3.0)),
+        item_at(100, "ss14:crowbar", Vec3::new(3.0, 0.9, 3.0)),
     );
     assert!(on_ground(&h, a, 100) && on_ground(&h, b, 100));
 
@@ -112,7 +112,7 @@ fn drop_returns_the_same_object_to_the_world_for_everyone() {
     let (a, b) = (h.join("a"), h.join("b"));
     spawn(
         &mut h,
-        item_at(100, "ss14:crowbar", Vec3::new(3.0, 0.5, 3.0)),
+        item_at(100, "ss14:crowbar", Vec3::new(3.0, 0.9, 3.0)),
     );
     command(&mut h, a, CMD_PICKUP, pickup_data(oid(100)));
     command(&mut h, a, CMD_DROP, drop_data(0));
@@ -137,12 +137,12 @@ fn reach_item_type_and_hand_capacity_are_enforced_by_the_server() {
     let a = h.join("a");
     spawn(
         &mut h,
-        item_at(1, "ss14:crowbar", Vec3::new(30.0, 0.5, 3.0)),
+        item_at(1, "ss14:crowbar", Vec3::new(30.0, 0.9, 3.0)),
     );
-    spawn(&mut h, item_at(2, "ss14:boulder", Vec3::new(3.0, 0.5, 3.0)));
-    spawn(&mut h, item_at(3, "ss14:crowbar", Vec3::new(3.0, 0.5, 2.0)));
-    spawn(&mut h, item_at(4, "ss14:crowbar", Vec3::new(2.0, 0.5, 3.0)));
-    spawn(&mut h, item_at(5, "ss14:crowbar", Vec3::new(2.5, 0.5, 3.0)));
+    spawn(&mut h, item_at(2, "ss14:boulder", Vec3::new(3.0, 0.9, 3.0)));
+    spawn(&mut h, item_at(3, "ss14:crowbar", Vec3::new(3.0, 0.9, 2.0)));
+    spawn(&mut h, item_at(4, "ss14:crowbar", Vec3::new(2.0, 0.9, 3.0)));
+    spawn(&mut h, item_at(5, "ss14:crowbar", Vec3::new(2.5, 0.9, 3.0)));
     for id in [1u128, 2] {
         command(&mut h, a, CMD_PICKUP, pickup_data(oid(id)));
         assert!(
@@ -151,7 +151,7 @@ fn reach_item_type_and_hand_capacity_are_enforced_by_the_server() {
         );
     }
     for id in [3u128, 4, 5] {
-        command(&mut h, a, CMD_PICKUP, pickup_data(oid(id)));
+        command(&mut h, a, CMD_PICKUP_ANY, pickup_data(oid(id)));
     }
     let hands = hands_of(&h, a, a).unwrap();
     assert_eq!(hands.held().count(), 2, "две руки");
@@ -170,7 +170,7 @@ fn reach_item_type_and_hand_capacity_are_enforced_by_the_server() {
 fn selecting_a_hand_changes_where_the_next_item_goes() {
     let mut h = harness();
     let a = h.join("a");
-    spawn(&mut h, item_at(1, "ss14:crowbar", Vec3::new(3.0, 0.5, 3.0)));
+    spawn(&mut h, item_at(1, "ss14:crowbar", Vec3::new(3.0, 0.9, 3.0)));
     command(&mut h, a, CMD_SELECT_HAND, vec![1]);
     command(&mut h, a, CMD_PICKUP, pickup_data(oid(1)));
     let hands = hands_of(&h, a, a).unwrap();
@@ -182,7 +182,7 @@ fn selecting_a_hand_changes_where_the_next_item_goes() {
 fn items_in_hands_are_left_on_the_floor_when_a_player_disconnects() {
     let mut h = harness();
     let (a, b) = (h.join("a"), h.join("b"));
-    spawn(&mut h, item_at(1, "ss14:crowbar", Vec3::new(3.0, 0.5, 3.0)));
+    spawn(&mut h, item_at(1, "ss14:crowbar", Vec3::new(3.0, 0.9, 3.0)));
     command(&mut h, a, CMD_PICKUP, pickup_data(oid(1)));
     assert!(!on_ground(&h, b, 1));
     let outs = h.server.disconnect(a);
@@ -204,4 +204,213 @@ fn wire_encoding_round_trips() {
         Some(ObjectId::from_u128(0xABCDEF))
     );
     assert_eq!(parse_object_id(&[1, 2]), None);
+}
+
+#[test]
+fn clicking_takes_into_the_active_hand_only_while_the_verb_finds_a_free_one() {
+    let mut h = harness();
+    let a = h.join("a");
+    spawn(&mut h, item_at(1, "ss14:crowbar", Vec3::new(3.0, 0.9, 3.0)));
+    spawn(&mut h, item_at(2, "ss14:crowbar", Vec3::new(3.0, 0.9, 2.0)));
+    command(&mut h, a, CMD_PICKUP, pickup_data(oid(1)));
+    assert!(!on_ground(&h, a, 1));
+    // Активная рука занята: клик по второму предмету ничего не делает (как в SS14).
+    command(&mut h, a, CMD_PICKUP, pickup_data(oid(2)));
+    assert!(on_ground(&h, a, 2));
+    // Глагол «поднять» берёт во вторую руку.
+    command(&mut h, a, CMD_PICKUP_ANY, pickup_data(oid(2)));
+    assert!(!on_ground(&h, a, 2));
+    assert_eq!(hands_of(&h, a, a).unwrap().held().count(), 2);
+}
+
+#[test]
+fn swapping_hands_cycles_the_active_hand_for_everyone_to_see() {
+    let mut h = harness();
+    let (a, b) = (h.join("a"), h.join("b"));
+    command(&mut h, a, CMD_SWAP_HANDS, vec![]);
+    assert_eq!(hands_of(&h, b, a).unwrap().active(), 1);
+    command(&mut h, a, CMD_SWAP_HANDS, vec![]);
+    assert_eq!(hands_of(&h, b, a).unwrap().active(), 0);
+    command(&mut h, a, CMD_SWAP_HANDS, vec![1]);
+    assert_eq!(hands_of(&h, b, a).unwrap().active(), 1, "назад по кругу");
+}
+
+#[test]
+fn a_target_drop_lands_where_asked_within_range() {
+    let mut h = harness();
+    let a = h.join("a");
+    spawn(&mut h, item_at(1, "ss14:crowbar", Vec3::new(3.0, 0.9, 3.0)));
+    command(&mut h, a, CMD_PICKUP, pickup_data(oid(1)));
+    // Цель в 1 м от персонажа (2.5, 1, 2.5) по +X, внутри дальности.
+    command(&mut h, a, CMD_DROP, drop_at_data(0, [3.5, 1.0, 2.5]));
+    let w = h.client(a).world().unwrap();
+    let o = w.authored_object(oid(1)).expect("выброшен");
+    assert!(
+        (o.min().x + o.max().x) * 0.5 > 3.3,
+        "лёг у цели, а не под ногами: {:?}",
+        o.min()
+    );
+}
+
+mod module_level {
+    // Проверки без сети: модуль получает мир с коллизией и позиции игроков напрямую.
+    use std::collections::BTreeMap;
+
+    use astrocore_api::GameModule;
+    use astrocore_core::NetworkEntityId;
+    use astrocore_math::GridEdge;
+    use astrocore_physics::BoxWorld;
+    use astrocore_world::{
+        FloorDef, Placement, StructureElement, StructureKind, World, WorldConfig,
+    };
+
+    use super::*;
+
+    const ME: NetworkEntityId = NetworkEntityId(7);
+
+    /// Этаж, стена между x = 3 и x = 4 (ребро вдоль Z на x = 4) и предмет по ту сторону.
+    fn walled_world() -> World {
+        let mut w = World::new("m", WorldConfig::default()).unwrap();
+        w.apply(WorldCommand::DefineFloor(FloorDef {
+            id: FloorId(0),
+            name: "g".into(),
+            base_y: 0.0,
+            height: 3.0,
+        }))
+        .unwrap();
+        for z in 0..6 {
+            w.apply(WorldCommand::PlaceElement(StructureElement {
+                id: oid(1000 + z),
+                kind: StructureKind::Wall,
+                placement: Placement::Edge(GridEdge::along_z(4, z as i32)),
+                floor: FloorId(0),
+                material: PrototypeId::new("t:m").unwrap(),
+                thickness: 0.2,
+            }))
+            .unwrap();
+        }
+        w
+    }
+
+    fn run(
+        module: &mut GameplayModule,
+        world: &World,
+        feet: Vec3,
+        kind: &str,
+        data: Vec<u8>,
+    ) -> astrocore_api::HookOutput {
+        let bw = BoxWorld::from_world(world);
+        let positions = BTreeMap::from([(ME, feet)]);
+        let mut ctx =
+            astrocore_api::HookContext::with_positions(world, &positions).with_physics(&bw);
+        module.handle(
+            &mut ctx,
+            &astrocore_api::HookEvent::Command {
+                actor: ME,
+                kind: kind.into(),
+                data,
+            },
+        );
+        ctx.into_output()
+    }
+
+    #[test]
+    fn an_item_behind_a_wall_cannot_be_picked_up_even_when_close() {
+        let mut world = walled_world();
+        // Предмет у самой стены с другой стороны (x ≈ 4.4), игрок с этой (x = 3.7): 0.7 м.
+        world
+            .apply(WorldCommand::PlaceAuthored(item_at(
+                1,
+                "ss14:crowbar",
+                Vec3::new(4.4, 0.7, 2.5),
+            )))
+            .unwrap();
+        let mut m = GameplayModule::new(registry()).unwrap();
+        let out = run(
+            &mut m,
+            &world,
+            Vec3::new(3.7, 0.0, 2.5),
+            CMD_PICKUP,
+            pickup_data(oid(1)),
+        );
+        assert!(
+            out.commands.is_empty(),
+            "стена перекрывает путь: {:?}",
+            out.commands
+        );
+        // С той же стороны, на том же расстоянии — подбирается.
+        let out = run(
+            &mut m,
+            &world,
+            Vec3::new(5.1, 0.0, 2.5),
+            CMD_PICKUP,
+            pickup_data(oid(1)),
+        );
+        assert_eq!(out.commands.len(), 1);
+    }
+
+    #[test]
+    fn a_drop_target_behind_a_wall_stops_in_front_of_it() {
+        let world = walled_world();
+        let mut m = GameplayModule::new(registry()).unwrap();
+        // Дадим игроку предмет в руки через подбор, затем выбросим за стену.
+        let mut w2 = world.clone();
+        w2.apply(WorldCommand::PlaceAuthored(item_at(
+            1,
+            "ss14:crowbar",
+            Vec3::new(3.2, 0.7, 2.5),
+        )))
+        .unwrap();
+        let feet = Vec3::new(3.0, 0.0, 2.5);
+        run(&mut m, &w2, feet, CMD_PICKUP, pickup_data(oid(1)));
+        assert_eq!(m.hands_of(ME).unwrap().held().count(), 1);
+        let out = run(
+            &mut m,
+            &world,
+            feet,
+            CMD_DROP,
+            drop_at_data(0, [5.0, 1.0, 2.5]),
+        );
+        let WorldCommand::PlaceAuthored(o) = &out.commands[0] else {
+            panic!("ожидалась постановка предмета: {:?}", out.commands)
+        };
+        let x = (o.min().x + o.max().x) * 0.5;
+        assert!(x < 4.0, "предмет не пролетел сквозь стену: x = {x}");
+        assert!(x > 3.0, "но и не остался под ногами: x = {x}");
+    }
+
+    #[test]
+    fn a_far_drop_target_is_clamped_to_the_interaction_range() {
+        let world = walled_world();
+        let mut m = GameplayModule::new(registry()).unwrap();
+        let mut w2 = world.clone();
+        w2.apply(WorldCommand::PlaceAuthored(item_at(
+            1,
+            "ss14:crowbar",
+            Vec3::new(2.2, 0.7, 2.5),
+        )))
+        .unwrap();
+        let feet = Vec3::new(2.0, 0.0, 2.5);
+        run(&mut m, &w2, feet, CMD_PICKUP, pickup_data(oid(1)));
+        // Цель в 50 м, но по -X: упрётся в границу дальности 1.5 м, а не улетит.
+        let out = run(
+            &mut m,
+            &world,
+            feet,
+            CMD_DROP,
+            drop_at_data(0, [-48.0, 1.0, 2.5]),
+        );
+        let WorldCommand::PlaceAuthored(o) = &out.commands[0] else {
+            panic!("{:?}", out.commands)
+        };
+        let x = (o.min().x + o.max().x) * 0.5;
+        assert!(
+            (2.0 - x) <= INTERACTION_RANGE_M + 0.01,
+            "обрезано дальностью: x = {x}"
+        );
+        assert!(x < 1.0, "в сторону цели: x = {x}");
+        // Мусорная цель (NaN) отвергается разбором команды.
+        assert!(parse_drop(&drop_at_data(0, [f32::NAN, 0.0, 0.0])).is_none());
+        assert!(parse_drop(&[0, 1, 2]).is_none());
+    }
 }

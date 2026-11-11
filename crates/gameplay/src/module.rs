@@ -9,28 +9,33 @@ use prototypes::PrototypeRegistry;
 
 use crate::hands::{Hands, HeldItem};
 use crate::wire::{
-    CMD_DROP, CMD_PICKUP, CMD_SELECT_HAND, HANDS_COMPONENT, encode_hands, parse_object_id,
+    CMD_DROP, CMD_PICKUP, CMD_PICKUP_ANY, CMD_SELECT_HAND, CMD_SWAP_HANDS, HANDS_COMPONENT,
+    encode_hands, parse_drop, parse_object_id,
 };
 
-/// Дальность взаимодействия по умолчанию, м (от груди персонажа до центра предмета).
-pub const DEFAULT_REACH_M: f32 = 2.0;
+/// Дальность взаимодействия, м: `InteractionRange` в SS14 (1,5). Меряется от груди персонажа
+/// до центра предмета; путь не должен перекрываться стенами и закрытыми дверями.
+pub const INTERACTION_RANGE_M: f32 = 1.5;
 /// Высота груди над ступнями, м.
 const CHEST_M: f32 = 1.0;
 /// Размер выброшенного предмета в мире, м.
 const DROPPED_SIZE_M: f32 = 0.3;
-
-/// Игровой модуль рук и предметов. Предметы на земле — авторские объекты мира
-/// (`AuthoredKind::Placement`), поэтому они реплицируются, сохраняются и валидируются движком;
-/// предметы в руках живут в состоянии модуля и реплицируются как `build.hands`.
-pub struct GameplayModule {
-    registry: Arc<PrototypeRegistry>,
-    names: BTreeMap<astrocore_core::PrototypeId, String>,
-    reach_m: f32,
-    hands: BTreeMap<NetworkEntityId, Hands>,
-}
+/// На сколько выброшенный предмет отступает от препятствия, м.
+const DROP_CLEARANCE_M: f32 = 0.1;
 
 /// Пространство имён идентификаторов прототипов билда в движке.
 pub const NAMESPACE: &str = "ss14";
+
+/// Игровой модуль рук и предметов; логика следует Content.Shared/Hands SS14.
+/// Предметы на земле — авторские объекты мира (`AuthoredKind::Placement`), поэтому они
+/// реплицируются, сохраняются и валидируются движком; предметы в руках живут в состоянии модуля
+/// и реплицируются как `build.hands`.
+pub struct GameplayModule {
+    registry: Arc<PrototypeRegistry>,
+    names: BTreeMap<astrocore_core::PrototypeId, String>,
+    range_m: f32,
+    hands: BTreeMap<NetworkEntityId, Hands>,
+}
 
 impl GameplayModule {
     /// `Err`, если два имени прототипов дают один идентификатор движка.
@@ -39,14 +44,14 @@ impl GameplayModule {
         Ok(Self {
             registry,
             names,
-            reach_m: DEFAULT_REACH_M,
+            range_m: INTERACTION_RANGE_M,
             hands: BTreeMap::new(),
         })
     }
 
     #[must_use]
-    pub fn with_reach(mut self, reach_m: f32) -> Self {
-        self.reach_m = reach_m;
+    pub fn with_range(mut self, range_m: f32) -> Self {
+        self.range_m = range_m;
         self
     }
 
@@ -68,7 +73,14 @@ impl GameplayModule {
         }
     }
 
-    fn pickup(&mut self, ctx: &mut HookContext<'_>, actor: NetworkEntityId, id: ObjectId) {
+    /// Подбор. `any = false` — клик (только активная рука), `true` — глагол «поднять».
+    fn pickup(
+        &mut self,
+        ctx: &mut HookContext<'_>,
+        actor: NetworkEntityId,
+        id: ObjectId,
+        any: bool,
+    ) {
         let (Some(pos), Some(obj)) = (ctx.position_of(actor), ctx.world.authored_object(id)) else {
             return;
         };
@@ -78,8 +90,10 @@ impl GameplayModule {
         if !self.is_item(prototype) {
             return;
         }
+        let chest = pos + Vec3::Y * CHEST_M;
         let center = (obj.min() + obj.max()) * 0.5;
-        if (center - (pos + Vec3::Y * CHEST_M)).length() > self.reach_m {
+        // В зоне досягаемости и без преград между грудью и предметом.
+        if (center - chest).length() > self.range_m || !ctx.is_unobstructed(chest, center) {
             return;
         }
         let item = HeldItem {
@@ -87,14 +101,19 @@ impl GameplayModule {
             prototype: prototype.clone(),
         };
         let hands = self.hands.entry(actor).or_insert_with(Hands::humanoid);
-        if hands.pickup(item).is_err() {
+        let taken = if any {
+            hands.pickup_any(item)
+        } else {
+            hands.pickup_active(item)
+        };
+        if taken.is_err() {
             return;
         }
         ctx.request(WorldCommand::RemoveAuthored { id });
         self.publish(ctx, actor);
     }
 
-    /// Положить предмет в мир у ног персонажа. Возвращает `false`, если места (этажа) нет.
+    /// Положить предмет в мир в точке `at` (ступни предмета).
     fn place(ctx: &mut HookContext<'_>, item: &HeldItem, at: Vec3) -> bool {
         let Some(floor) = floor_at(ctx, at.y) else {
             return false;
@@ -113,15 +132,51 @@ impl GameplayModule {
         true
     }
 
-    fn drop_hand(&mut self, ctx: &mut HookContext<'_>, actor: NetworkEntityId, hand: usize) {
-        let (Some(pos), Some(hands)) = (ctx.position_of(actor), self.hands.get_mut(&actor)) else {
+    /// Куда ляжет выброшенный предмет (`GetFinalDropCoordinates` в SS14): цель обрезается
+    /// дальностью взаимодействия и укорачивается до ближайшей преграды; без цели — под ноги.
+    fn drop_point(&self, ctx: &HookContext<'_>, feet: Vec3, target: Option<[f32; 3]>) -> Vec3 {
+        let Some([tx, _, tz]) = target else {
+            return feet;
+        };
+        let chest = feet + Vec3::Y * CHEST_M;
+        let want = Vec3::new(tx, chest.y, tz) - chest;
+        let len = want.length();
+        if len < 1e-4 {
+            return feet;
+        }
+        let dir = want / len;
+        let reach = len.min(self.range_m);
+        let free = ctx
+            .unobstructed_distance(chest, chest + dir * reach)
+            .min(reach);
+        // Если упёрлись в преграду — отступаем от неё; иначе предмет ложится в точку цели.
+        let dist = if free < reach {
+            (free - DROP_CLEARANCE_M).max(0.0)
+        } else {
+            free
+        };
+        let p = chest + dir * dist;
+        Vec3::new(p.x, feet.y, p.z)
+    }
+
+    fn drop_hand(
+        &mut self,
+        ctx: &mut HookContext<'_>,
+        actor: NetworkEntityId,
+        hand: usize,
+        target: Option<[f32; 3]>,
+    ) {
+        let (Some(feet), Some(hands)) = (ctx.position_of(actor), self.hands.get(&actor)) else {
             return;
         };
         let Some(item) = hands.get(hand).cloned() else {
             return;
         };
-        if Self::place(ctx, &item, pos) {
-            let _ = hands.drop_hand(hand);
+        let at = self.drop_point(ctx, feet, target);
+        if Self::place(ctx, &item, at) {
+            if let Some(h) = self.hands.get_mut(&actor) {
+                let _ = h.drop_hand(hand);
+            }
             self.publish(ctx, actor);
         }
     }
@@ -143,14 +198,14 @@ impl GameModule for GameplayModule {
     fn handle(&mut self, ctx: &mut HookContext<'_>, event: &HookEvent) {
         match event {
             HookEvent::Command { actor, kind, data } => match kind.as_str() {
-                CMD_PICKUP => {
+                CMD_PICKUP | CMD_PICKUP_ANY => {
                     if let Some(id) = parse_object_id(data) {
-                        self.pickup(ctx, *actor, id);
+                        self.pickup(ctx, *actor, id, kind == CMD_PICKUP_ANY);
                     }
                 }
                 CMD_DROP => {
-                    if let [hand] = data[..] {
-                        self.drop_hand(ctx, *actor, usize::from(hand));
+                    if let Some((hand, target)) = parse_drop(data) {
+                        self.drop_hand(ctx, *actor, usize::from(hand), target);
                     }
                 }
                 CMD_SELECT_HAND => {
@@ -161,10 +216,16 @@ impl GameModule for GameplayModule {
                         }
                     }
                 }
+                CMD_SWAP_HANDS => {
+                    let reverse = data.first() == Some(&1);
+                    let hands = self.hands.entry(*actor).or_insert_with(Hands::humanoid);
+                    hands.swap(reverse);
+                    self.publish(ctx, *actor);
+                }
                 _ => {}
             },
             HookEvent::PlayerLeft { actor, pos } => {
-                // Всё, что игрок держал, остаётся лежать там, где он стоял.
+                // Всё, что игрок держал, остаётся лежать там, где он стоял (DropAll).
                 if let Some(mut hands) = self.hands.remove(actor) {
                     for item in hands.take_all() {
                         Self::place(ctx, &item, *pos);

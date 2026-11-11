@@ -6,7 +6,12 @@ use astrocore_core::ObjectId;
 use crate::hands::Hands;
 
 /// Команды клиента.
+/// Клик по предмету: только в активную руку (как `TryPickup` в SS14).
 pub const CMD_PICKUP: &str = "item.pickup";
+/// Глагол «поднять»: в первую свободную руку, начиная с активной (`TryPickupAnyHand`).
+pub const CMD_PICKUP_ANY: &str = "item.pickup_any";
+/// Смена активной руки по кругу; данные — `[1]` для обратного направления.
+pub const CMD_SWAP_HANDS: &str = "hands.swap";
 pub const CMD_DROP: &str = "item.drop";
 pub const CMD_SELECT_HAND: &str = "hands.select";
 
@@ -20,8 +25,33 @@ pub fn pickup_data(item: ObjectId) -> Vec<u8> {
     item.as_uuid().as_u128().to_be_bytes().to_vec()
 }
 
+/// Выбросить предмет из руки под ноги.
 pub fn drop_data(hand: u8) -> Vec<u8> {
     vec![hand]
+}
+
+/// Выбросить предмет из руки в точку мира (дальность и препятствия учитывает сервер).
+pub fn drop_at_data(hand: u8, target: [f32; 3]) -> Vec<u8> {
+    let mut v = vec![hand];
+    for c in target {
+        v.extend_from_slice(&c.to_le_bytes());
+    }
+    v
+}
+
+/// Разобрать команду выброса: рука и необязательная цель; нечисловые координаты отвергаются.
+pub fn parse_drop(data: &[u8]) -> Option<(u8, Option<[f32; 3]>)> {
+    match data {
+        [hand] => Some((*hand, None)),
+        [hand, rest @ ..] if rest.len() == 12 => {
+            let mut t = [0.0f32; 3];
+            for (i, c) in rest.chunks_exact(4).enumerate() {
+                t[i] = f32::from_le_bytes(c.try_into().ok()?);
+            }
+            t.iter().all(|v| v.is_finite()).then_some((*hand, Some(t)))
+        }
+        _ => None,
+    }
 }
 
 pub fn parse_object_id(data: &[u8]) -> Option<ObjectId> {
