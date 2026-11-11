@@ -1,0 +1,14 @@
+[package]
+name = "build-assets"
+description = "Ассеты Astrocore Build: поиск и проверка наборов RSI из SS14"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+license-file.workspace = true
+
+[dependencies]
+astrocore-sprites.workspace = true
+thiserror.workspace = true
+
+[lints]
+workspace = true
