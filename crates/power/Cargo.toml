@@ -1,0 +1,9 @@
+[package]
+name = "power"
+description = "Электричество по образцу SS14: сети кабелей, источники, потребители, аккумуляторы и решатель Pow3r"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+license.workspace = true
+
+[dependencies]

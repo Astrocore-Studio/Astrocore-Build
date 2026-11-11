@@ -6993,6 +6993,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "power"
+version = "0.1.0"
+
+[[package]]
 name = "powerfmt"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
