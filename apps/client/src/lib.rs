@@ -245,6 +245,22 @@ fn autoplay(
         return;
     }
     state.frame += 1;
+    // Сценарий огня для снимков: поднять сварку и зажечь.
+    if std::env::var_os("ASTRO_AUTOPLAY_FIRE").is_some() {
+        match state.frame {
+            30 => {
+                if let Some(id) = nearest_item(&net, 2.5) {
+                    net.send_command(gameplay::CMD_INTERACT, gameplay::interact_data(id));
+                }
+            }
+            60 => {
+                let hand = loadout.hands.as_ref().map_or(0, |h| h.active() as u8);
+                net.send_command(gameplay::CMD_USE, gameplay::use_data(hand));
+            }
+            _ => {}
+        }
+        return;
+    }
     match state.frame {
         40 => {
             if let Some(id) = nearest_item(&net, 1.5) {
