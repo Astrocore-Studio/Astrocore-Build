@@ -46,12 +46,6 @@ pub const LIMB_DISABLED_AT: f32 = 50.0;
 /// Смертельный урон на голове и на торсе.
 pub const HEAD_FATAL_AT: f32 = 100.0;
 pub const TORSO_FATAL_AT: f32 = 150.0;
-/// Кровотечение от колющего и режущего урона: сила кровотечения на единицу урона.
-pub const BLEED_PER_DAMAGE: f32 = 0.15;
-/// На сколько в секунду кровотечение затухает само.
-pub const BLEED_DECAY_PER_S: f32 = 0.05;
-/// Потеря крови: урон `Bloodloss` в секунду на единицу кровотечения.
-pub const BLOODLOSS_PER_BLEED: f32 = 1.0;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum MobState {
@@ -92,9 +86,6 @@ pub struct Health {
     /// Урон по частям тела (только травмы и ожоги от ударов; потеря крови и удушье не локальны).
     #[serde(default)]
     parts: BTreeMap<String, f32>,
-    /// Сила кровотечения.
-    #[serde(default)]
-    bleed: f32,
 }
 
 impl Health {
@@ -123,15 +114,6 @@ impl Health {
         self.part_damage(part) >= LIMB_DISABLED_AT
     }
 
-    pub fn bleed(&self) -> f32 {
-        self.bleed
-    }
-
-    /// Остановить кровотечение (перевязка).
-    pub fn stop_bleed(&mut self, amount: f32) {
-        self.bleed = (self.bleed - amount.max(0.0)).max(0.0);
-    }
-
     pub fn state(&self) -> MobState {
         let t = self.total();
         if self.part_damage("Head") >= HEAD_FATAL_AT || self.part_damage("Torso") >= TORSO_FATAL_AT
@@ -149,13 +131,15 @@ impl Health {
 
     /// Применить урон или лечение к телу целиком (урон по частям не меняется, лечение снимает
     /// урон с самых повреждённых частей).
-    pub fn apply(&mut self, spec: &DamageSpec) {
-        self.apply_to(None, spec);
+    pub fn apply(&mut self, spec: &DamageSpec) -> DamageSpec {
+        self.apply_to(None, spec)
     }
 
     /// Применить урон к части тела. Неизвестные виды игнорируются, результат по каждому виду не
-    /// уходит ниже нуля. Мёртвого вылечить нельзя. Колющий и режущий урон вызывает кровотечение.
-    pub fn apply_to(&mut self, part: Option<&str>, spec: &DamageSpec) {
+    /// уходит ниже нуля. Мёртвого вылечить нельзя. Возвращает фактический прирост урона по видам
+    /// (только положительный): по нему кровеносная система считает кровотечение.
+    pub fn apply_to(&mut self, part: Option<&str>, spec: &DamageSpec) -> DamageSpec {
+        let mut dealt = DamageSpec::new();
         let dead = self.state() == MobState::Dead;
         for (kind, amount) in spec {
             if !KINDS.contains(&kind.as_str()) || !amount.is_finite() {
@@ -165,6 +149,10 @@ impl Health {
                 continue;
             }
             let v = (self.damage_of(kind) + amount).max(0.0);
+            let before = self.damage_of(kind);
+            if v > before {
+                dealt.insert(kind.clone(), v - before);
+            }
             if v == 0.0 {
                 self.damage.remove(kind);
             } else {
@@ -175,13 +163,11 @@ impl Health {
                 if local && let Some(p) = part.filter(|p| PARTS.contains(p)) {
                     *self.parts.entry(p.to_string()).or_insert(0.0) += amount;
                 }
-                if matches!(kind.as_str(), "Slash" | "Piercing") {
-                    self.bleed += amount * BLEED_PER_DAMAGE;
-                }
             } else if local {
                 self.heal_parts(-amount);
             }
         }
+        dealt
     }
 
     /// Лечение снимает урон с самых повреждённых частей по очереди.
@@ -205,21 +191,6 @@ impl Health {
             }
         }
     }
-
-    /// Шаг времени: кровотечение теряет кровь и затухает. Возвращает `true`, если что-то изменилось.
-    pub fn tick(&mut self, dt: f32) -> bool {
-        let mut changed = false;
-        if self.bleed > 0.0 {
-            let loss = self.bleed * BLOODLOSS_PER_BLEED * dt;
-            self.bleed = (self.bleed - BLEED_DECAY_PER_S * dt).max(0.0);
-            if self.state() != MobState::Dead {
-                let spec = DamageSpec::from([("Bloodloss".to_string(), loss)]);
-                self.apply_to(None, &spec);
-            }
-            changed = true;
-        }
-        changed
-    }
 }
 
 /// Что видит игрок о своём здоровье.
@@ -229,8 +200,6 @@ pub struct HealthView {
     pub state: MobState,
     #[serde(default)]
     pub parts: BTreeMap<String, f32>,
-    #[serde(default)]
-    pub bleed: f32,
     #[serde(default)]
     pub suffocating: bool,
     /// Игрок мёртв и летает призраком.
@@ -258,7 +227,6 @@ impl Health {
             damage: self.damage.clone(),
             state: self.state(),
             parts: self.parts.clone(),
-            bleed: self.bleed,
             suffocating: false,
             ghost: false,
             respawn_in: 0.0,
@@ -289,8 +257,8 @@ pub struct Melee {
 pub struct Healing {
     pub damage: DamageSpec,
     pub delay: f32,
-    /// На сколько применение уменьшает кровотечение.
-    pub stop_bleed: f32,
+    /// Изменение кровотечения за применение (`bloodlossModifier`; отрицательное — останавливает).
+    pub bleed_modifier: f32,
     /// Сколько раз можно применить (размер стопки).
     pub uses: u32,
 }
@@ -315,6 +283,14 @@ mod tests {
         assert_eq!(h.state(), MobState::Alive);
         h.apply(&spec(&[("Slash", 200.0)]));
         assert_eq!(h.state(), MobState::Dead);
+    }
+
+    #[test]
+    fn apply_reports_the_damage_actually_dealt() {
+        let mut h = Health::default();
+        let dealt = h.apply_to(Some("Torso"), &spec(&[("Slash", 20.0), ("Blunt", -5.0)]));
+        assert_eq!(dealt.get("Slash"), Some(&20.0));
+        assert!(!dealt.contains_key("Blunt"));
     }
 
     #[test]
@@ -359,25 +335,5 @@ mod tests {
         h.apply(&spec(&[("Blunt", -20.0)]));
         assert_eq!(h.part_damage("Torso"), 10.0);
         assert_eq!(h.part_damage("LeftLeg"), 10.0);
-    }
-
-    #[test]
-    fn cuts_bleed_the_bleeding_drains_and_fades_and_a_bandage_stops_it() {
-        let mut h = Health::default();
-        h.apply_to(Some("Torso"), &spec(&[("Slash", 20.0)]));
-        assert!((h.bleed() - 3.0).abs() < 1e-5);
-        for _ in 0..20 {
-            h.tick(0.05);
-        }
-        assert!(h.damage_of("Bloodloss") > 2.5, "за секунду теряется кровь");
-        assert!(h.bleed() < 3.0, "кровотечение затухает");
-        h.stop_bleed(10.0);
-        let before = h.damage_of("Bloodloss");
-        h.tick(1.0);
-        assert_eq!(h.damage_of("Bloodloss"), before);
-        // Тупой урон не кровоточит.
-        let mut b = Health::default();
-        b.apply_to(Some("Torso"), &spec(&[("Blunt", 50.0)]));
-        assert_eq!(b.bleed(), 0.0);
     }
 }

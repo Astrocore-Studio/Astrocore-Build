@@ -5,8 +5,7 @@
 //! (`Satiate`, `Oxygenate`, `ModifyLungGas`, `HealthChange`, `EvenHealthChange`) и их числа взяты
 //! из прототипов SS14 (коммит `910154a7`).
 //!
-//! Не перенесены: кровь и кровеносная система (`ModifyBloodLevel`, `ModifyBleed`), метаболиты,
-//! химия лекарств и реакции между реагентами.
+//! Не перенесены: метаболиты, химия лекарств и реакции между реагентами.
 
 use std::collections::BTreeMap;
 
@@ -127,6 +126,10 @@ pub enum Effect {
         amount: f32,
         probability: f32,
     },
+    /// `ModifyBleed`: изменение силы кровотечения на `amount × scale`.
+    ModifyBleed(f32),
+    /// `ModifyBloodLevel`: добавить (или убавить) крови на `amount × scale`, не выше нормы.
+    ModifyBloodLevel(f32),
     /// `Satiate` с необязательным условием «в растворе есть реагент не меньше `min`».
     Satiate {
         kind: SatiationKind,
@@ -226,6 +229,7 @@ pub const REAGENTS: &[Reagent] = &[
                     amount: -0.4,
                     probability: 0.5,
                 },
+                Effect::ModifyBloodLevel(1.0),
                 Effect::Satiate {
                     kind: SatiationKind::Hunger,
                     factor: DEFAULT_SATIATE_FACTOR,
@@ -250,6 +254,7 @@ pub const REAGENTS: &[Reagent] = &[
                     amount: -0.5,
                     probability: 0.5,
                 },
+                Effect::ModifyBleed(-0.25),
                 Effect::Satiate {
                     kind: SatiationKind::Hunger,
                     factor: DEFAULT_SATIATE_FACTOR,

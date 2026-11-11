@@ -13,6 +13,10 @@
 //!   на «Starving» и «Parched» скорость 0,75 (`BaseHungerThirstSlowdown`); при нуле сытости раз в
 //!   секунду идёт урон `Poison` (значение — выбор билда: у человека в прототипах SS14 этой версии
 //!   `SatiationDamage` не задан);
+//! * кровь (`BloodstreamSystem`): 600 ед., раз в 3 с восстанавливается на 1 ед. к норме; кровотечение
+//!   (`BleedAmount`, до 10) уносит столько же крови и само слабеет на 0,33; урон даёт кровотечение
+//!   по коэффициентам `BloodlossHuman` (тупой 0,08, колющий 0,2, режущий 0,25, ожог −0,5, остальное
+//!   0); ниже 90% крови идёт урон `Bloodloss` 0,5 / (0,1 + доля), выше — лечение на долю;
 //! * баротравма раз в секунду: давление ≤ 20 кПа — `Blunt 0,5 × 4` и `Heat 0,1 × 4`, ≥ 550 кПа —
 //!   тот же урон с множителем `min((p/550 − 1) × 4, 4)`; предупреждения при 50 и 385 кПа.
 
@@ -50,6 +54,26 @@ pub const STARVING_SPEED: f32 = 0.75;
 /// Урон от голода и жажды при нулевой сытости, раз в секунду (`SatiationDamageComponent.Frequency`).
 pub const STARVATION_DAMAGE: f32 = 1.0;
 pub const STARVATION_INTERVAL_S: f32 = 1.0;
+/// Кровь (`BloodstreamComponent` и прототип `Bloodstream` у `BaseMob`).
+pub const BLOOD_REFERENCE: f32 = 600.0;
+pub const BLOOD_MAX_MODIFIER: f32 = 1.2;
+pub const BLOOD_UPDATE_S: f32 = 3.0;
+pub const BLOOD_REFRESH: f32 = 1.0;
+pub const BLEED_REDUCTION: f32 = 0.33;
+pub const MAX_BLEED: f32 = 10.0;
+pub const BLOODLOSS_THRESHOLD: f32 = 0.9;
+pub const BLOODLOSS_DAMAGE: f32 = 0.5;
+pub const BLOODLOSS_HEAL: f32 = 1.0;
+/// Коэффициенты `BloodlossHuman`: сколько кровотечения даёт единица урона данного вида.
+pub fn bleed_coefficient(kind: &str) -> f32 {
+    match kind {
+        "Blunt" => 0.08,
+        "Piercing" => 0.2,
+        "Slash" => 0.25,
+        "Heat" => -0.5,
+        _ => 0.0,
+    }
+}
 
 /// Одна величина сытости: параметры взяты из `NormalSatiationHunger` и `NormalSatiationThirst`.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -146,6 +170,11 @@ pub struct Vitals {
     /// Множитель скорости ходьбы от голода и жажды.
     #[serde(default = "one")]
     pub speed: f32,
+    /// Доля крови от нормы (1,0 — норма) и сила кровотечения.
+    #[serde(default = "one")]
+    pub blood: f32,
+    #[serde(default)]
+    pub bleed: f32,
 }
 
 fn one() -> f32 {
@@ -216,6 +245,9 @@ pub struct Body {
     pub pressure_kpa: f32,
     pub low_oxygen: bool,
     starvation_timer: f32,
+    blood: f32,
+    bleed: f32,
+    blood_timer: f32,
     rng: u32,
 }
 
@@ -240,6 +272,9 @@ impl Body {
             pressure_kpa: ONE_ATMOSPHERE,
             low_oxygen: false,
             starvation_timer: STARVATION_INTERVAL_S,
+            blood: BLOOD_REFERENCE,
+            bleed: 0.0,
+            blood_timer: BLOOD_UPDATE_S,
             rng: seed | 1,
         }
     }
@@ -255,7 +290,69 @@ impl Body {
             low_oxygen: self.low_oxygen,
             saturation: self.saturation,
             speed: self.speed(),
+            blood: self.blood / BLOOD_REFERENCE,
+            bleed: self.bleed,
         }
+    }
+
+    pub fn bleed(&self) -> f32 {
+        self.bleed
+    }
+
+    /// `TryModifyBleedAmount`: изменить силу кровотечения, не выходя за 0…10.
+    pub fn modify_bleed(&mut self, amount: f32) {
+        self.bleed = (self.bleed + amount).clamp(0.0, MAX_BLEED);
+    }
+
+    /// `TryModifyBloodLevel`: добавить или убавить крови; добавлять можно только до нормы.
+    pub fn modify_blood(&mut self, amount: f32) {
+        self.blood = if amount > 0.0 {
+            (self.blood + amount).min(self.blood.max(BLOOD_REFERENCE))
+        } else {
+            (self.blood + amount).max(0.0)
+        };
+    }
+
+    /// `BloodstreamSystem.OnDamageChanged`: полученный урон открывает кровотечение; сильный удар
+    /// сразу выбивает часть крови (вероятность — доля урона к 25, потеря — пятая часть).
+    pub fn on_damage(&mut self, dealt: &DamageSpec) {
+        let total: f32 = dealt.iter().map(|(k, v)| bleed_coefficient(k) * v).sum();
+        if total == 0.0 {
+            return;
+        }
+        self.modify_bleed(total);
+        if total > 0.0 && self.random() < (total / 25.0).clamp(0.0, 1.0) {
+            self.blood = (self.blood - total / 5.0).max(0.0);
+        }
+    }
+
+    fn tick_bleed(&mut self) {
+        if self.bleed <= 0.0 {
+            return;
+        }
+        self.blood = (self.blood - self.bleed).max(0.0);
+        self.modify_bleed(-BLEED_REDUCTION);
+    }
+
+    /// Раз в 3 секунды: кровь тянется к норме, кровотечение уносит её, малокровие ранит.
+    fn bloodstream(&mut self, mob: MobState, out: &mut Outcome) {
+        if mob == MobState::Dead {
+            self.tick_bleed();
+            return;
+        }
+        if self.blood < BLOOD_REFERENCE {
+            self.blood = (self.blood + BLOOD_REFRESH).min(BLOOD_REFERENCE);
+        } else if self.blood > BLOOD_REFERENCE {
+            self.blood = (self.blood - BLOOD_REFRESH).max(BLOOD_REFERENCE);
+        }
+        self.tick_bleed();
+        let level = (self.blood / BLOOD_REFERENCE).min(BLOOD_MAX_MODIFIER);
+        if level < BLOODLOSS_THRESHOLD {
+            out.add("Bloodloss", BLOODLOSS_DAMAGE / (0.1 + level));
+        } else {
+            out.add("Bloodloss", -BLOODLOSS_HEAL * level);
+        }
+        out.changed = true;
     }
 
     /// Множитель скорости: каждая сытость на «Starving»/«Parched» даёт 0,75, множители перемножаются.
@@ -311,6 +408,11 @@ impl Body {
         while self.stomach_timer <= 0.0 {
             self.stomach_timer += METABOLISM_INTERVAL_S;
             self.metabolize(Stage::Digestion, mob, &mut out);
+        }
+        self.blood_timer -= dt;
+        while self.blood_timer <= 0.0 {
+            self.blood_timer += BLOOD_UPDATE_S;
+            self.bloodstream(mob, &mut out);
         }
         self.starvation_timer -= dt;
         while self.starvation_timer <= 0.0 {
@@ -477,6 +579,8 @@ impl Body {
                     out.add(kind, each);
                 }
             }
+            Effect::ModifyBleed(amount) => self.modify_bleed(amount * scale),
+            Effect::ModifyBloodLevel(amount) => self.modify_blood(amount * scale),
             Effect::Satiate {
                 kind,
                 factor,
@@ -701,6 +805,63 @@ mod tests {
         assert_eq!(HUNGER.modifier(190.0), 1.2);
         assert_eq!(HUNGER.modifier(10.0), 0.6);
         assert!((HUNGER.start_value(1)..=HUNGER.start_max).contains(&HUNGER.start_value(1)));
+    }
+
+    #[test]
+    fn cuts_bleed_the_blood_drains_slowly_and_low_blood_hurts() {
+        let mut g = sealed(1, 1);
+        let mut b = Body::new(9);
+        // Режущий удар в 20: кровотечение 5 (0,25 × 20); сильный удар может выбить часть крови сразу.
+        b.on_damage(&DamageSpec::from([("Slash".to_string(), 20.0)]));
+        assert!((b.bleed() - 5.0).abs() < 1e-5);
+        let start = b.blood;
+        run(&mut b, &mut g, 9.0);
+        assert!(
+            b.blood < start - 8.0,
+            "кровь уходит: {} → {}",
+            start,
+            b.blood
+        );
+        assert!(b.bleed() < 5.0, "кровотечение слабеет на 0,33 за такт");
+        // Ожог прижигает.
+        let mut c = Body::new(9);
+        c.modify_bleed(2.0);
+        c.on_damage(&DamageSpec::from([("Heat".to_string(), 10.0)]));
+        assert!(
+            c.bleed() < 0.01,
+            "10 ожога × −0,5 снимают кровотечение: {}",
+            c.bleed()
+        );
+        // Тупой урон почти не кровоточит.
+        let mut d = Body::new(9);
+        d.on_damage(&DamageSpec::from([("Blunt".to_string(), 50.0)]));
+        assert!((d.bleed() - 4.0).abs() < 1e-5);
+        // Малокровие: ниже 90% идёт Bloodloss 0,5 / (0,1 + доля).
+        let mut e = Body::new(9);
+        e.blood = 0.5 * BLOOD_REFERENCE;
+        let dmg = run(&mut e, &mut g, 3.1);
+        let loss = dmg.get("Bloodloss").copied().unwrap_or(0.0);
+        assert!((loss - 0.5 / 0.6).abs() < 0.05, "{loss}");
+        // В норме идёт лечение Bloodloss.
+        let mut f = Body::new(9);
+        let dmg = run(&mut f, &mut g, 3.1);
+        assert!(dmg.get("Bloodloss").copied().unwrap_or(0.0) < 0.0);
+    }
+
+    #[test]
+    fn protein_restores_blood_and_vitamin_slows_bleeding() {
+        let mut g = sealed(1, 1);
+        let mut b = Body::new(9);
+        b.blood = 500.0;
+        b.modify_bleed(3.0);
+        let mut meal = Solution::new(100.0);
+        meal.add("Protein", 4.0);
+        meal.add("Vitamin", 4.0);
+        b.swallow(&meal);
+        run(&mut b, &mut g, 10.0);
+        assert!(b.stomach.is_empty());
+        // Белок добавляет по единице крови за единицу переваренного (4 ед.), кровотечение же уносит больше.
+        assert!(b.bleed() < 3.0 - 0.33 * 3.0 + 0.1, "{}", b.bleed());
     }
 
     #[test]

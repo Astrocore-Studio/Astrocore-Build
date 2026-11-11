@@ -1435,6 +1435,11 @@
             z: 2.5,
         ),
         (
+            prototype: "Gauze",
+            x: 1.5,
+            z: 3.5,
+        ),
+        (
             prototype: "Ointment",
             x: 2.5,
             z: 2.5,

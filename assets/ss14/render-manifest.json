@@ -105,6 +105,13 @@
         0.36000001430511475
       ]
     },
+    "ss14:gauze": {
+      "image": "Textures/Objects/Specific/Medical/medical.rsi/gauze.png",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
     "ss14:ointment": {
       "image": "Textures/Objects/Specific/Medical/medical.rsi/ointment.png",
       "size": [

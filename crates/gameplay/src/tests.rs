@@ -29,7 +29,7 @@ const PROTOS: &str = r#"[
     (id: "Bandage", components: {
         "Item": (size: "Small"),
         "Stack": (stackType: "Bandage", count: 3),
-        "Healing": (damage: (Blunt: -1.0), delay: 0.2, bleedStop: 10.0),
+        "Healing": (damage: (Blunt: -1.0), delay: 0.2, bloodlossModifier: -10.0),
     }),
     (id: "Burger", components: {
         "Item": (size: "Small"),
@@ -1223,9 +1223,18 @@ mod combat {
         let (a, b) = (h.join("a"), h.join("b"));
         grab(&mut h, a, 10, near(), "ss14:dagger");
         hit_part(&mut h, a, b, "Torso");
-        assert!(view(&h, b).bleed > 2.9, "20 × 0,15");
-        h.ticks(30);
-        assert!(view(&h, b).damage.get("Bloodloss").copied().unwrap_or(0.0) > 1.0);
+        let bleed = |h: &Harness| {
+            let net = h.client(b).net_id().unwrap();
+            crate::decode_vitals(h.client(b).component(net, crate::VITALS_COMPONENT).unwrap())
+                .unwrap()
+        };
+        assert!(
+            bleed(&h).bleed > 4.9,
+            "режущий 20 × 0,25 = 5: {}",
+            bleed(&h).bleed
+        );
+        h.ticks(20 * 7);
+        assert!(bleed(&h).blood < 1.0, "кровь уходит: {}", bleed(&h).blood);
         // Перевязка: стопка из трёх; рука a держит кинжал, поэтому кладём его.
         command(&mut h, a, CMD_DROP, drop_data(0));
         grab(&mut h, a, 20, near(), "ss14:bandage");
@@ -1243,7 +1252,8 @@ mod combat {
                 .map(|(_, n)| *n);
             assert_eq!(left, (used < 3).then_some(3 - used));
         }
-        assert_eq!(view(&h, b).bleed, 0.0, "кровотечение остановлено");
+        h.ticks(10);
+        assert_eq!(bleed(&h).bleed, 0.0, "кровотечение остановлено");
     }
 
     fn ghost_flag(h: &Harness, viewer: ConnId, owner: ConnId) -> bool {

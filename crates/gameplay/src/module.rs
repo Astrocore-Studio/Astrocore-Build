@@ -190,10 +190,10 @@ impl State {
                             .get("delay")
                             .and_then(prototypes::Data::as_f64)
                             .map_or(3.0, |v| v.max(0.0) as f32),
-                        stop_bleed: c
-                            .get("bleedStop")
+                        bleed_modifier: c
+                            .get("bloodlossModifier")
                             .and_then(prototypes::Data::as_f64)
-                            .map_or(0.0, |v| v.max(0.0) as f32),
+                            .map_or(0.0, |v| v as f32),
                         // Размер стопки — `Stack.count`, как у лечащих предметов SS14.
                         uses: resolved
                             .as_ref()
@@ -618,9 +618,13 @@ impl State {
             });
         let clock = self.clock;
         self.actor(actor).next_attack = clock + 1.0 / weapon.rate;
-        self.actor(target)
+        let t = self.actor(target);
+        let dealt = t
             .health
             .apply_to(Some(part.unwrap_or("Torso")), &weapon.damage);
+        if let Some(body) = t.body.as_mut() {
+            body.on_damage(&dealt);
+        }
         self.after_health_change(ctx, target);
     }
 
@@ -753,7 +757,9 @@ impl State {
         }
         let t = self.actor(target);
         t.health.apply(&h.damage);
-        t.health.stop_bleed(h.stop_bleed);
+        if let Some(body) = t.body.as_mut() {
+            body.modify_bleed(h.bleed_modifier);
+        }
         self.after_health_change(ctx, target);
         self.publish(ctx, actor);
     }
@@ -876,7 +882,6 @@ impl State {
             }),
             Action::Unequip { slot, .. } => a.inventory.get(slot).is_some(),
             Action::Eat { hand, item, target } => {
-                let who = target.unwrap_or(actor);
                 if target.is_some_and(|t| !self.in_reach(ctx, actor, t)) {
                     return false;
                 }
@@ -1055,13 +1060,15 @@ impl State {
                 ctx.set_speed(id, speed);
             }
             let a = self.actor(id);
-            a.health.apply(&outcome.damage);
+            let dealt = a.health.apply(&outcome.damage);
+            body.on_damage(&dealt);
+            let vitals = body.vitals();
             let vitals_changed = a
                 .last_vitals
                 .as_ref()
                 .is_none_or(|v| vitals_differ(v, &vitals));
             a.body = Some(body);
-            let changed = a.health.tick(dt) || outcome.changed;
+            let changed = outcome.changed;
             a.health_dirty |= changed;
             let due = clock >= a.next_health_publish;
             if (a.health_dirty && (due || !changed))

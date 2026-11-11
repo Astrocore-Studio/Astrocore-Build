@@ -408,14 +408,24 @@ fn alerts(
         }
     };
     shown.push((health_icon, tip));
-    if h.bleed > 0.02 {
-        let sev = (h.bleed * 3.0).ceil().clamp(1.0, 10.0) as u8;
-        shown.push((
-            format!("Alerts/bleed.rsi/bleed{sev}"),
-            format!("Кровотечение: {:.1}", h.bleed),
-        ));
-    }
     if let Some(v) = vitals {
+        if v.bleed > 0.0 {
+            // Тяжесть значка — целая часть силы кровотечения, 0…10 (`TryModifyBleedAmount`).
+            let sev = v.bleed.floor().clamp(0.0, 10.0) as u8;
+            shown.push((
+                format!("Alerts/bleed.rsi/bleed{sev}"),
+                format!(
+                    "Кровотечение: {:.1}; крови {:.0}%",
+                    v.bleed,
+                    v.blood * 100.0
+                ),
+            ));
+        } else if v.blood < 0.9 {
+            shown.push((
+                "Alerts/bleed.rsi/bleed0".to_string(),
+                format!("Малокровие: {:.0}% крови", v.blood * 100.0),
+            ));
+        }
         if v.low_oxygen {
             shown.push((
                 "Alerts/breathing.rsi/not_enough_oxy".to_string(),

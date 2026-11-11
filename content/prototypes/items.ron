@@ -25,8 +25,13 @@
     (id: "Brutepack", parents: ["BaseItem"], name: Some("brutepack"), components: {
         "Sprite": (sprite: "Objects/Specific/Medical/medical.rsi", state: "brutepack"),
         "Stack": (stackType: "Brutepack", count: 10),
-        // `bleedStop` — выбор билда: перевязка снижает кровотечение на единицу за применение.
-        "Healing": (damage: (Blunt: -5.0, Piercing: -5.0, Slash: -5.0), delay: 3.0, bleedStop: 1.0),
+        "Healing": (damage: (Blunt: -5.0, Piercing: -5.0, Slash: -5.0), delay: 3.0),
+    }),
+    // Марля: `Gauze` из healing.yml — режет и колет, останавливает кровотечение (`bloodlossModifier`).
+    (id: "Gauze", parents: ["BaseItem"], name: Some("roll of gauze"), components: {
+        "Sprite": (sprite: "Objects/Specific/Medical/medical.rsi", state: "gauze"),
+        "Stack": (stackType: "Gauze", count: 10),
+        "Healing": (damage: (Slash: -5.0, Piercing: -10.0), delay: 3.0, bloodlossModifier: -10.0),
     }),
     (id: "Ointment", parents: ["BaseItem"], name: Some("ointment"), components: {
         "Sprite": (sprite: "Objects/Specific/Medical/medical.rsi", state: "ointment"),
