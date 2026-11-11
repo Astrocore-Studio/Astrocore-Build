@@ -36,6 +36,8 @@ pub enum ProtoError {
     Abstract(String),
     #[error("неверный идентификатор {0:?}")]
     BadId(String),
+    #[error("прототипы {0:?} и {1:?} дают один идентификатор движка {2:?}")]
+    IdCollision(String, String, String),
 }
 
 /// Прототип сущности в том виде, как он записан в файле.
@@ -74,6 +76,27 @@ fn valid_id(id: &str) -> bool {
         && id
             .bytes()
             .all(|b| b.is_ascii_alphanumeric() || b"_-.:".contains(&b))
+}
+
+/// Идентификатор прототипа для движка: `Crowbar` → `ss14:crowbar`, `CrowbarRed` → `ss14:crowbar_red`.
+/// Идентификаторы движка — нижний регистр, `пространство:имя`; имена SS14 — CamelCase.
+pub fn engine_id(namespace: &str, name: &str) -> Option<astrocore_core::PrototypeId> {
+    let mut out = String::new();
+    let mut prev: Option<char> = None;
+    for c in name.chars() {
+        if c.is_ascii_uppercase() {
+            if prev.is_some_and(|p| p.is_ascii_lowercase() || p.is_ascii_digit()) {
+                out.push('_');
+            }
+            out.push(c.to_ascii_lowercase());
+        } else if c.is_ascii_alphanumeric() || c == '_' {
+            out.push(c);
+        } else {
+            out.push('_');
+        }
+        prev = Some(c);
+    }
+    astrocore_core::PrototypeId::new(format!("{namespace}:{out}")).ok()
 }
 
 #[derive(Debug, Default)]
@@ -173,6 +196,22 @@ impl PrototypeRegistry {
             };
         }
         Ok(total)
+    }
+
+    /// Соответствие «идентификатор движка → имя в реестре» для всех прототипов. Коллизия двух
+    /// имён в один идентификатор — ошибка (иначе прототип подменился бы молча).
+    pub fn engine_index(
+        &self,
+        namespace: &str,
+    ) -> Result<BTreeMap<astrocore_core::PrototypeId, String>, ProtoError> {
+        let mut index: BTreeMap<astrocore_core::PrototypeId, String> = BTreeMap::new();
+        for name in self.defs.keys() {
+            let id = engine_id(namespace, name).ok_or_else(|| ProtoError::BadId(name.clone()))?;
+            if let Some(other) = index.insert(id.clone(), name.clone()) {
+                return Err(ProtoError::IdCollision(other, name.clone(), id.to_string()));
+            }
+        }
+        Ok(index)
     }
 
     /// Проверить все ссылки и цепочки наследования (вызывать после загрузки).

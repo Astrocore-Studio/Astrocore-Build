@@ -223,3 +223,26 @@ fn directories_load_both_formats_deterministically_and_refuse_huge_files() {
         Err(ProtoError::TooLarge(_))
     ));
 }
+
+#[test]
+fn engine_ids_are_snake_case_and_collisions_are_reported() {
+    use crate::engine_id;
+    let id = |n: &str| engine_id("ss14", n).unwrap().to_string();
+    assert_eq!(id("Crowbar"), "ss14:crowbar");
+    assert_eq!(id("CrowbarRed"), "ss14:crowbar_red");
+    assert_eq!(id("ID2Card"), "ss14:id2_card");
+    assert_eq!(id("already_snake"), "ss14:already_snake");
+    let mut r = PrototypeRegistry::new();
+    r.load_ron_str(r#"[(id: "CrowbarRed"), (id: "Crowbar")]"#, "t")
+        .unwrap();
+    let idx = r.engine_index("ss14").unwrap();
+    assert_eq!(idx.len(), 2);
+    assert_eq!(idx[&engine_id("ss14", "CrowbarRed").unwrap()], "CrowbarRed");
+    let mut r = PrototypeRegistry::new();
+    r.load_ron_str(r#"[(id: "CrowbarRed"), (id: "crowbar_red")]"#, "t")
+        .unwrap();
+    assert!(matches!(
+        r.engine_index("ss14"),
+        Err(ProtoError::IdCollision(..))
+    ));
+}
