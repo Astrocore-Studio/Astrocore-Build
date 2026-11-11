@@ -9,6 +9,10 @@
 //!   возвращает содержимое лёгких в клетку;
 //! * насыщение от −2 до 5; ниже 0 — урон `Asphyxiation` 1 за каждые 2 с, выше — лечение 1;
 //! * пищеварение: раз в секунду желудок метаболизирует до 3 реагентов (`Satiate`);
+//! * сытость замедляет и ранит так же, как компоненты `SatiationSpeedModifier` и `SatiationDamage`:
+//!   на «Starving» и «Parched» скорость 0,75 (`BaseHungerThirstSlowdown`); при нуле сытости раз в
+//!   секунду идёт урон `Poison` (значение — выбор билда: у человека в прототипах SS14 этой версии
+//!   `SatiationDamage` не задан);
 //! * баротравма раз в секунду: давление ≤ 20 кПа — `Blunt 0,5 × 4` и `Heat 0,1 × 4`, ≥ 550 кПа —
 //!   тот же урон с множителем `min((p/550 − 1) × 4, 4)`; предупреждения при 50 и 385 кПа.
 
@@ -41,6 +45,11 @@ pub const BAROTRAUMA_HEAT: f32 = 0.1;
 /// Пока урон баротравмы не достигнет этого, давление продолжает ранить (`MaxDamage`).
 pub const BAROTRAUMA_MAX_DAMAGE: f32 = 200.0;
 pub const BAROTRAUMA_INTERVAL_S: f32 = 1.0;
+/// Множитель скорости при «Starving» и «Parched» (`BaseHungerThirstSlowdown`).
+pub const STARVING_SPEED: f32 = 0.75;
+/// Урон от голода и жажды при нулевой сытости, раз в секунду (`SatiationDamageComponent.Frequency`).
+pub const STARVATION_DAMAGE: f32 = 1.0;
+pub const STARVATION_INTERVAL_S: f32 = 1.0;
 
 /// Одна величина сытости: параметры взяты из `NormalSatiationHunger` и `NormalSatiationThirst`.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -134,6 +143,13 @@ pub struct Vitals {
     /// Кислородное голодание: после трёх тактов удушья (`LowOxygen`).
     pub low_oxygen: bool,
     pub saturation: f32,
+    /// Множитель скорости ходьбы от голода и жажды.
+    #[serde(default = "one")]
+    pub speed: f32,
+}
+
+fn one() -> f32 {
+    1.0
 }
 
 pub const VITALS_COMPONENT: &str = "build.vitals";
@@ -199,6 +215,7 @@ pub struct Body {
     pub pressure_alert: PressureAlert,
     pub pressure_kpa: f32,
     pub low_oxygen: bool,
+    starvation_timer: f32,
     rng: u32,
 }
 
@@ -222,6 +239,7 @@ impl Body {
             pressure_alert: PressureAlert::None,
             pressure_kpa: ONE_ATMOSPHERE,
             low_oxygen: false,
+            starvation_timer: STARVATION_INTERVAL_S,
             rng: seed | 1,
         }
     }
@@ -236,7 +254,20 @@ impl Body {
             pressure_kpa: self.pressure_kpa,
             low_oxygen: self.low_oxygen,
             saturation: self.saturation,
+            speed: self.speed(),
         }
+    }
+
+    /// Множитель скорости: каждая сытость на «Starving»/«Parched» даёт 0,75, множители перемножаются.
+    pub fn speed(&self) -> f32 {
+        let slow = |v: f32, spec: &SatiationSpec| {
+            if spec.alert(v) == 2 {
+                STARVING_SPEED
+            } else {
+                1.0
+            }
+        };
+        slow(self.hunger, &HUNGER) * slow(self.thirst, &THIRST)
     }
 
     fn random(&mut self) -> f32 {
@@ -280,6 +311,17 @@ impl Body {
         while self.stomach_timer <= 0.0 {
             self.stomach_timer += METABOLISM_INTERVAL_S;
             self.metabolize(Stage::Digestion, mob, &mut out);
+        }
+        self.starvation_timer -= dt;
+        while self.starvation_timer <= 0.0 {
+            self.starvation_timer += STARVATION_INTERVAL_S;
+            if mob != MobState::Dead {
+                for v in [self.hunger, self.thirst] {
+                    if v <= 0.0 {
+                        out.add("Poison", STARVATION_DAMAGE);
+                    }
+                }
+            }
         }
         self.barotrauma_timer -= dt;
         while self.barotrauma_timer <= 0.0 {
@@ -659,6 +701,29 @@ mod tests {
         assert_eq!(HUNGER.modifier(190.0), 1.2);
         assert_eq!(HUNGER.modifier(10.0), 0.6);
         assert!((HUNGER.start_value(1)..=HUNGER.start_max).contains(&HUNGER.start_value(1)));
+    }
+
+    #[test]
+    fn starving_slows_you_down_and_zero_satiation_poisons() {
+        let mut g = sealed(1, 1);
+        let mut b = Body::new(5);
+        b.hunger = 120.0;
+        b.thirst = 400.0;
+        assert_eq!(b.speed(), 1.0);
+        b.hunger = 50.0;
+        assert_eq!(b.speed(), STARVING_SPEED);
+        b.thirst = 150.0;
+        assert!(
+            (b.speed() - 0.5625).abs() < 1e-6,
+            "голод и жажда перемножаются"
+        );
+        b.hunger = 0.0;
+        b.thirst = 0.0;
+        let dmg = run(&mut b, &mut g, 5.0);
+        assert!(
+            (dmg.get("Poison").copied().unwrap_or(0.0) - 10.0).abs() < 2.1,
+            "{dmg:?}"
+        );
     }
 
     #[test]

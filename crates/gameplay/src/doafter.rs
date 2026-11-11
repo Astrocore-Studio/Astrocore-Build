@@ -41,6 +41,8 @@ pub(crate) enum Action {
     Eat {
         hand: usize,
         item: ObjectId,
+        /// Кого кормят; `None` — себя.
+        target: Option<astrocore_core::NetworkEntityId>,
     },
 }
 
@@ -48,7 +50,7 @@ impl Action {
     /// Прерывается ли действие шагом в сторону: есть и пить можно на ходу (`BreakOnMove` у
     /// `EatingDoAfter` включён только при кормлении другого).
     pub(crate) fn breaks_on_move(&self) -> bool {
-        !matches!(self, Self::Eat { .. })
+        !matches!(self, Self::Eat { target: None, .. })
     }
 
     pub(crate) fn kind(&self) -> &'static str {

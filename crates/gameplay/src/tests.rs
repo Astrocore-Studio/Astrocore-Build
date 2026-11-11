@@ -1495,6 +1495,55 @@ mod survival {
     }
 
     #[test]
+    fn feeding_another_player_takes_three_seconds_a_bite_and_walking_away_cancels() {
+        let mut h = harness();
+        let (a, b) = (h.join("a"), h.join("b"));
+        grab(&mut h, a, 10, near(), "ss14:burger");
+        h.ticks(10);
+        let net_b = h.client(b).net_id().unwrap();
+        let before = vitals(&h, b).hunger;
+        command(&mut h, a, crate::CMD_FEED, crate::feed_data(0, net_b));
+        let net_a = h.client(a).net_id().unwrap();
+        let da = crate::decode_doafter(
+            h.client(a)
+                .component(net_a, crate::DOAFTER_COMPONENT)
+                .unwrap(),
+        );
+        assert_eq!(
+            da.map(|d| (d.kind, d.delay_s)),
+            Some(("eat".to_string(), 3.0))
+        );
+        h.ticks(20 * 4);
+        // Один укус: 5 из 50 единиц, больше сам не повторяется.
+        let fill = inv_of(&h, a, a)
+            .unwrap()
+            .fills
+            .iter()
+            .find(|f| f.0 == oid(10))
+            .copied()
+            .unwrap();
+        assert!((fill.1 - 45.0).abs() < 0.1, "{fill:?}");
+        assert!(vitals(&h, b).hunger > before, "накормленный сыт");
+        // Отошёл — кормление прерывается.
+        command(&mut h, a, crate::CMD_FEED, crate::feed_data(0, net_b));
+        for _ in 0..6 {
+            h.input(a, 0, 1, 0.0);
+        }
+        h.ticks(20 * 4);
+        let fill = inv_of(&h, a, a)
+            .unwrap()
+            .fills
+            .iter()
+            .find(|f| f.0 == oid(10))
+            .copied()
+            .unwrap();
+        assert!(
+            (fill.1 - 45.0).abs() < 0.1,
+            "второй укус не состоялся: {fill:?}"
+        );
+    }
+
+    #[test]
     fn eating_continues_while_walking_but_stops_when_the_stomach_is_full() {
         let mut h = harness();
         let a = h.join("a");

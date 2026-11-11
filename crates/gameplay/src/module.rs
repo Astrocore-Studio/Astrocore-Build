@@ -27,12 +27,12 @@ use crate::items::{ItemInfo, item_info};
 use crate::reagents::Solution;
 use crate::storage::Storage;
 use crate::wire::{
-    BagView, CMD_ATTACK, CMD_CANCEL, CMD_DROP, CMD_EQUIP, CMD_HEAL, CMD_INTERACT, CMD_MOVE_HAND,
-    CMD_MOVE_SLOT, CMD_PICKUP, CMD_PICKUP_ANY, CMD_RESPAWN, CMD_SELECT_HAND, CMD_STORE,
-    CMD_SWAP_HANDS, CMD_TAKE, CMD_TAKE_TO, CMD_UNEQUIP, CMD_UNEQUIP_TO, CMD_USE, HANDS_COMPONENT,
-    INVENTORY_COMPONENT, InventoryView, encode_hands, encode_inventory, parse_attack_part,
-    parse_drop, parse_equip, parse_heal, parse_move_slot, parse_object_id, parse_store, parse_take,
-    parse_take_to, parse_unequip,
+    BagView, CMD_ATTACK, CMD_CANCEL, CMD_DROP, CMD_EQUIP, CMD_FEED, CMD_HEAL, CMD_INTERACT,
+    CMD_MOVE_HAND, CMD_MOVE_SLOT, CMD_PICKUP, CMD_PICKUP_ANY, CMD_RESPAWN, CMD_SELECT_HAND,
+    CMD_STORE, CMD_SWAP_HANDS, CMD_TAKE, CMD_TAKE_TO, CMD_UNEQUIP, CMD_UNEQUIP_TO, CMD_USE,
+    HANDS_COMPONENT, INVENTORY_COMPONENT, InventoryView, encode_hands, encode_inventory,
+    parse_attack_part, parse_drop, parse_equip, parse_heal, parse_move_slot, parse_object_id,
+    parse_store, parse_take, parse_take_to, parse_unequip,
 };
 
 /// Дальность взаимодействия, м: `InteractionRange` в SS14 (1,5). Меряется от груди персонажа
@@ -122,6 +122,8 @@ pub struct State {
     pub(crate) corpses: u32,
     /// Атмосфера по этажам.
     pub(crate) atmos: BTreeMap<i32, atmos::Grid>,
+    /// Какой множитель скорости уже отправлен движку.
+    pub(crate) speed_sent: BTreeMap<NetworkEntityId, f32>,
     pub(crate) edibles: BTreeMap<PrototypeId, EdibleSpec>,
     pub(crate) solution_templates: BTreeMap<PrototypeId, Solution>,
     /// Прототипы, которые открываются и закрываются (бутылки).
@@ -220,6 +222,7 @@ impl State {
             spawn: None,
             corpses: 0,
             atmos: BTreeMap::new(),
+            speed_sent: BTreeMap::new(),
             edibles,
             solution_templates,
             openable,
@@ -665,7 +668,9 @@ impl State {
         actor: NetworkEntityId,
         hand: usize,
         id: ObjectId,
+        target: Option<NetworkEntityId>,
     ) {
+        let who = target.unwrap_or(actor);
         let Some(item) = self
             .actors
             .get(&actor)
@@ -680,7 +685,7 @@ impl State {
         };
         let room = self
             .actors
-            .get(&actor)
+            .get(&who)
             .and_then(|a| a.body.as_ref())
             .map_or(0.0, |b| b.stomach.available());
         let Some(sol) = self.solution_mut(&item) else {
@@ -689,7 +694,7 @@ impl State {
         let amount = spec.transfer.min(sol.volume()).min(room);
         let split = sol.split(amount);
         let empty = sol.is_empty();
-        if let Some(body) = self.actor(actor).body.as_mut() {
+        if let Some(body) = self.actor(who).body.as_mut() {
             let rest = body.swallow(&split);
             debug_assert!(rest.is_empty());
         }
@@ -699,7 +704,18 @@ impl State {
             let _ = self.actor(actor).hands.drop_hand(hand);
         } else if !empty {
             // Продолжаем есть, пока не кончится или не отменят.
-            self.begin(ctx, actor, Action::Eat { hand, item: id });
+            // Сам себя кормят подряд, пока не кончится; чужого — по одному укусу за раз.
+            if target.is_none() {
+                self.begin(
+                    ctx,
+                    actor,
+                    Action::Eat {
+                        hand,
+                        item: id,
+                        target: None,
+                    },
+                );
+            }
         }
         self.publish(ctx, actor);
     }
@@ -859,7 +875,11 @@ impl State {
                     .is_some_and(|info| a.inventory.can_equip(slot, info).is_ok())
             }),
             Action::Unequip { slot, .. } => a.inventory.get(slot).is_some(),
-            Action::Eat { hand, item } => {
+            Action::Eat { hand, item, target } => {
+                let who = target.unwrap_or(actor);
+                if target.is_some_and(|t| !self.in_reach(ctx, actor, t)) {
+                    return false;
+                }
                 let held = a.hands.get(*hand).filter(|i| i.id == *item);
                 let Some(held) = held else { return false };
                 let Some(_) = self.edibles.get(&held.prototype) else {
@@ -910,11 +930,17 @@ impl State {
                 .get(slot)
                 .and_then(|i| self.delays.get(&i.prototype))
                 .map_or(0.0, |d| d.1),
-            Action::Eat { hand, .. } => a
+            Action::Eat { hand, target, .. } => a
                 .hands
                 .get(*hand)
                 .and_then(|i| self.edibles.get(&i.prototype))
-                .map_or(0.0, |e| e.delay),
+                .map_or(0.0, |e| {
+                    if target.is_some() {
+                        e.force_delay
+                    } else {
+                        e.delay
+                    }
+                }),
             Action::Heal { hand, .. } => a
                 .hands
                 .get(*hand)
@@ -930,7 +956,7 @@ impl State {
             Action::Unequip { slot, hand } => self.unequip(ctx, actor, &slot, hand),
             Action::Pry { element, .. } => ctx.request_door(element, DoorAction::Open, true),
             Action::Heal { hand, target } => self.heal(ctx, actor, hand, target),
-            Action::Eat { hand, item } => self.bite(ctx, actor, hand, item),
+            Action::Eat { hand, item, target } => self.bite(ctx, actor, hand, item, target),
         }
     }
 
@@ -1016,14 +1042,20 @@ impl State {
                     a.health.damage_of("Blunt") + a.health.damage_of("Heat"),
                 )
             };
+            let a_ghost = self.actors[&id].ghost;
             let outcome = {
                 let grid = floor.and_then(|f| self.atmos.get_mut(&f));
                 let mut env = ActorEnv { grid, cell };
                 body.tick(dt, &mut env, mob, barotrauma)
             };
+            let vitals = body.vitals();
+            let speed = if a_ghost { 1.0 } else { vitals.speed };
+            if (speed - self.speed_sent.get(&id).copied().unwrap_or(1.0)).abs() > 1e-4 {
+                self.speed_sent.insert(id, speed);
+                ctx.set_speed(id, speed);
+            }
             let a = self.actor(id);
             a.health.apply(&outcome.damage);
-            let vitals = body.vitals();
             let vitals_changed = a
                 .last_vitals
                 .as_ref()
@@ -1404,6 +1436,28 @@ impl GameModule for GameplayModule {
                 CMD_ATTACK => {
                     if let Some((target, part)) = parse_attack_part(data) {
                         st.attack(ctx, *actor, target, part);
+                    }
+                }
+                CMD_FEED => {
+                    if let Some((hand, target)) = parse_heal(data)
+                        && target != *actor
+                    {
+                        if let Some(it) = st
+                            .actors
+                            .get(actor)
+                            .and_then(|a| a.hands.get(usize::from(hand)))
+                            .cloned()
+                        {
+                            st.begin(
+                                ctx,
+                                *actor,
+                                Action::Eat {
+                                    hand: usize::from(hand),
+                                    item: it.id,
+                                    target: Some(target),
+                                },
+                            );
+                        }
                     }
                 }
                 CMD_HEAL => {

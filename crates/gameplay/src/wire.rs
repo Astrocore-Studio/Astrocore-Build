@@ -43,6 +43,8 @@ pub const CMD_RESPAWN: &str = "ghost.respawn";
 pub const CMD_ATTACK: &str = "combat.attack";
 /// Применить лечащий предмет из руки на персонажа: `[рука, сетевой id цели, 4 байта LE]`.
 pub const CMD_HEAL: &str = "combat.heal";
+/// Накормить или напоить другого персонажа предметом из руки: `[рука, сетевой id цели, 4 байта LE]`.
+pub const CMD_FEED: &str = "feed.other";
 
 /// Взаимодействие с целью в мире (предмет на земле или дверь): `[id цели 16 байт]`.
 /// Что именно произойдёт, решает цепочка обработчиков: пустая рука — `InteractHand`, предмет в
@@ -296,6 +298,10 @@ pub fn parse_attack_part(
         }
         _ => None,
     }
+}
+
+pub fn feed_data(hand: u8, target: astrocore_core::NetworkEntityId) -> Vec<u8> {
+    heal_data(hand, target)
 }
 
 pub fn parse_heal(data: &[u8]) -> Option<(u8, astrocore_core::NetworkEntityId)> {

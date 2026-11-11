@@ -143,6 +143,7 @@ impl InteractionHandler for EdibleUse {
             Action::Eat {
                 hand: used.hand,
                 item: used.item.id,
+                target: None,
             },
         );
         true

@@ -315,6 +315,11 @@ fn loadout_window(
     // Призрак летает сквозь стены: клиент предсказывает движение так же, как сервер.
     let ghost = loadout.health.as_ref().is_some_and(|h| h.ghost);
     net.core.set_noclip(ghost);
+    net.core.set_speed(if ghost {
+        1.0
+    } else {
+        loadout.vitals.as_ref().map_or(1.0, |v| v.speed)
+    });
     if let Some(h) = loadout.health.as_ref().filter(|h| h.ghost) {
         let left = (h.respawn_in - (time.elapsed_secs() - loadout.health_at)).max(0.0);
         egui::Area::new(egui::Id::new("ghost_panel"))

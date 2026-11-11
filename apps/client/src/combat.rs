@@ -88,7 +88,8 @@ pub fn attack_and_heal(
     }
     let attack = buttons.just_pressed(MouseButton::Left) && !wants.wants_any_pointer_input();
     let heal_other = keys.just_pressed(KeyCode::KeyT);
-    if !attack && !heal_other {
+    let feed_other = keys.just_pressed(KeyCode::KeyC);
+    if !attack && !heal_other && !feed_other {
         return;
     }
     let (Ok(window), Ok((camera, cam_t))) = (windows.single(), cameras.single()) else {
@@ -111,6 +112,8 @@ pub fn attack_and_heal(
     if attack {
         let index = gameplay::PARTS.iter().position(|p| *p == part).unwrap_or(1) as u8;
         net.send_command(CMD_ATTACK, gameplay::attack_part_data(target, index));
+    } else if feed_other {
+        net.send_command(gameplay::CMD_FEED, gameplay::feed_data(active, target));
     } else {
         net.send_command(CMD_HEAL, gameplay::heal_data(active, target));
     }

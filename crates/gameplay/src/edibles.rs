@@ -13,6 +13,8 @@ pub struct EdibleSpec {
     pub transfer: f32,
     /// Время одного укуса, с (`Delay`, по умолчанию 1).
     pub delay: f32,
+    /// Время одного укуса при кормлении другого, с (`ForceFeedDelay`, по умолчанию 3).
+    pub force_delay: f32,
     /// Исчезает ли предмет, когда раствор кончился (`DestroyOnEmpty`).
     pub destroy_on_empty: bool,
 }
@@ -28,6 +30,7 @@ impl EdibleSpec {
         Some(Self {
             transfer: f("transferAmount", 5.0),
             delay: f("delay", 1.0),
+            force_delay: f("forceFeedDelay", 3.0),
             destroy_on_empty: c
                 .get("destroyOnEmpty")
                 .and_then(Data::as_bool)
