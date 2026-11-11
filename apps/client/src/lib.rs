@@ -17,7 +17,7 @@ pub struct Loadout {
     pub inventory: Option<InventoryView>,
 }
 
-/// Клиент билда: клавиши рук и худ по образцу SS14.
+/// Клиент билда: вид от первого лица, клавиши рук и худ по образцу SS14.
 ///
 /// E — взаимодействие с ближайшим предметом или дверью (обрабатывает клиент движка),
 /// G — выбросить предмет из активной руки, X — сменить активную руку, 1 и 2 — выбрать руку.
@@ -163,6 +163,7 @@ fn loadout_window(
     mut contexts: EguiContexts,
     loadout: Res<Loadout>,
     mut hud: ResMut<Hud>,
+    look: Option<Res<astrocore_client::Look>>,
     net: Option<NonSendMut<Net>>,
 ) -> Result {
     let ctx = contexts.ctx_mut()?.clone();
@@ -176,6 +177,7 @@ fn loadout_window(
         state,
         loadout.hands.as_ref(),
         loadout.inventory.as_ref(),
+        look.is_some_and(|l| l.first_person),
     );
     for (kind, data) in commands {
         net.send_command(kind, data);

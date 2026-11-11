@@ -164,11 +164,15 @@ pub fn draw(
     state: &mut HudState,
     hands: Option<&Hands>,
     view: Option<&InventoryView>,
+    first_person: bool,
 ) -> Commands {
     let mut out: Commands = Vec::new();
     let Some(hands) = hands else {
         return out;
     };
+    if first_person {
+        viewmodel(ctx, icons, hands);
+    }
     let toggle = icons.ui(ctx, "Default/Slots/toggle");
     egui::Area::new(egui::Id::new("hud_bar"))
         .anchor(egui::Align2::CENTER_BOTTOM, Vec2::new(0.0, -8.0))
@@ -212,6 +216,50 @@ pub fn draw(
         }
     }
     out
+}
+
+/// Вид от первого лица: прицел и предметы в руках крупно по нижним углам экрана.
+fn viewmodel(ctx: &egui::Context, icons: &mut Icons, hands: &Hands) {
+    let screen = ctx.content_rect();
+    let c = screen.center();
+    let p = ctx.layer_painter(egui::LayerId::new(
+        egui::Order::Background,
+        egui::Id::new("crosshair"),
+    ));
+    let stroke = egui::Stroke::new(2.0, Color32::from_white_alpha(180));
+    p.line_segment([c - Vec2::new(6.0, 0.0), c - Vec2::new(2.0, 0.0)], stroke);
+    p.line_segment([c + Vec2::new(2.0, 0.0), c + Vec2::new(6.0, 0.0)], stroke);
+    p.line_segment([c - Vec2::new(0.0, 6.0), c - Vec2::new(0.0, 2.0)], stroke);
+    p.line_segment([c + Vec2::new(0.0, 2.0), c + Vec2::new(0.0, 6.0)], stroke);
+    const BIG: f32 = 160.0;
+    for (i, _, item) in hands.iter() {
+        let Some(it) = item else { continue };
+        let Some(tex) = icons.item(ctx, it.prototype.as_str()) else {
+            continue;
+        };
+        let left = i == 0;
+        let x = if left {
+            screen.left() + 90.0
+        } else {
+            screen.right() - 90.0 - BIG
+        };
+        let rect = Rect::from_min_size(
+            Pos2::new(x, screen.bottom() - 100.0 - BIG),
+            Vec2::splat(BIG),
+        );
+        let tint = if i == hands.active() {
+            Color32::WHITE
+        } else {
+            Color32::from_gray(150)
+        };
+        let layer = egui::LayerId::new(egui::Order::Background, egui::Id::new(("viewmodel", i)));
+        ctx.layer_painter(layer).image(
+            tex,
+            rect,
+            Rect::from_min_max(Pos2::ZERO, Pos2::new(1.0, 1.0)),
+            tint,
+        );
+    }
 }
 
 fn hand_slots(
