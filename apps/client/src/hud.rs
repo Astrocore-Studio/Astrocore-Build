@@ -79,6 +79,11 @@ impl Icons {
         }
     }
 
+    /// Каталог с текстурами (`assets/ss14`).
+    pub(crate) fn root(&self) -> &std::path::Path {
+        &self.root
+    }
+
     /// Значки предметов из манифеста: идентификатор → путь картинки относительно его каталога.
     pub fn icon_paths(manifest: Option<&std::path::Path>) -> HashMap<String, String> {
         manifest.map_or_else(HashMap::new, |p| Self::from_manifest(p).items)

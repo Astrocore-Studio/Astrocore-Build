@@ -55,6 +55,7 @@ impl Plugin for BuildClientPlugin {
                 enabled: self.autoplay,
                 frame: 0,
             })
+            .init_resource::<fire::FxAssets>()
             .add_systems(Startup, (install_body, install_sounds))
             .add_systems(
                 Update,
@@ -76,11 +77,13 @@ impl Plugin for BuildClientPlugin {
                     sounds::door_sounds,
                     sounds::item_sounds,
                     combat::attack_and_heal,
+                    fire::sync_fx,
+                    fire::animate_flames,
                 ),
             )
             .add_systems(
                 EguiPrimaryContextPass,
-                (loadout_window, players::other_bars, fire::draw_fires),
+                (loadout_window, players::other_bars),
             );
     }
 }
@@ -239,6 +242,7 @@ fn autoplay(
     loadout: Res<Loadout>,
     remote: Res<astrocore_client::RemoteSprites>,
     net: Option<NonSendMut<Net>>,
+    look: Option<ResMut<astrocore_client::Look>>,
 ) {
     if !state.enabled {
         return;
@@ -248,6 +252,12 @@ fn autoplay(
         return;
     }
     state.frame += 1;
+    // Взгляд вниз для снимков пола (лужи, огонь).
+    if std::env::var_os("ASTRO_LOOK_DOWN").is_some()
+        && let Some(mut l) = look
+    {
+        l.pitch = 0.9;
+    }
     // Сценарий огня для снимков: поднять сварку и зажечь.
     if std::env::var_os("ASTRO_AUTOPLAY_FIRE").is_some() {
         match state.frame {
