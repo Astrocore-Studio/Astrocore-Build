@@ -1,4 +1,5 @@
 use astrocore_editor::validate::{Severity, validate_map};
+use astrocore_math::GridCell;
 use astrocore_spatial::Topology;
 
 use super::*;
@@ -49,7 +50,7 @@ fn items_are_spread_deterministically_and_every_spawn_is_inside_the_map() {
     let (a, registry) = world_with_items();
     let (b, _) = world_with_items();
     assert_eq!(a.content_hash(), b.content_hash(), "одна карта — один хеш");
-    assert_eq!(a.authored_count(), ITEM_SPAWNS.len());
+    assert_eq!(a.authored_count(), map().items.len());
     let ids: Vec<_> = a.authored().map(|o| o.id).collect();
     assert_eq!(
         ids.len(),
@@ -57,7 +58,7 @@ fn items_are_spread_deterministically_and_every_spawn_is_inside_the_map() {
     );
     // Точка появления лежит в комнате A и на этаже 0.
     let topo = Topology::build(&a, FloorId(0)).unwrap();
-    let spawn_cell = GridCell::from_world(Vec3::from_array(SPAWN), 1.0);
+    let spawn_cell = GridCell::from_world(Vec3::from_array(spawn()), 1.0);
     assert!(
         topo.room_at(spawn_cell).is_some(),
         "спавн в закрытой комнате"

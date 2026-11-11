@@ -58,7 +58,7 @@ impl Round {
 
         let net = ServerNetConfig {
             tick_hz: config.tick_hz,
-            spawn: astrocore_math::glam::Vec3::from_array(polygon::SPAWN),
+            spawn: astrocore_math::glam::Vec3::from_array(polygon::spawn()),
             ..ServerNetConfig::default()
         };
         let server = GameServer::new(

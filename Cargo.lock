@@ -5730,6 +5730,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "maps"
+version = "0.1.0"
+dependencies = [
+ "astrocore-core",
+ "astrocore-world",
+ "ron 0.10.1",
+ "serde",
+ "thiserror 2.0.21",
+]
+
+[[package]]
 name = "matchers"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6897,6 +6908,7 @@ dependencies = [
  "astrocore-math",
  "astrocore-spatial",
  "astrocore-world",
+ "maps",
  "prototypes",
  "ron 0.10.1",
  "thiserror 2.0.21",

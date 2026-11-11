@@ -8,8 +8,8 @@ license.workspace = true
 
 [dependencies]
 assets.workspace = true
+maps.workspace = true
 astrocore-core.workspace = true
-astrocore-editor.workspace = true
 astrocore-math.workspace = true
 astrocore-world.workspace = true
 prototypes.workspace = true
@@ -17,4 +17,6 @@ ron.workspace = true
 thiserror.workspace = true
 
 [dev-dependencies]
+astrocore-editor.workspace = true
+astrocore-math.workspace = true
 astrocore-spatial.workspace = true

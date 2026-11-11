@@ -1,0 +1,14 @@
+[package]
+name = "maps"
+description = "Формат карты Astrocore Build: структура, предметы, точка появления"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+license.workspace = true
+
+[dependencies]
+astrocore-core.workspace = true
+astrocore-world.workspace = true
+ron.workspace = true
+serde.workspace = true
+thiserror.workspace = true

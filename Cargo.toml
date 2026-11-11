@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["crates/prototypes", "crates/assets", "crates/gameplay", "crates/polygon", "crates/round", "apps/server", "apps/client"]
+members = ["crates/prototypes", "crates/assets", "crates/gameplay", "crates/polygon", "crates/maps", "crates/round", "apps/server", "apps/client"]
 
 [workspace.package]
 version = "0.1.0"
@@ -32,6 +32,9 @@ unsafe_code = "forbid"
 
 [workspace.dependencies.prototypes]
 path = "crates/prototypes"
+
+[workspace.dependencies.maps]
+path = "crates/maps"
 
 [workspace.dependencies.assets]
 path = "crates/assets"
