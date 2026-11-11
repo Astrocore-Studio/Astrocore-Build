@@ -63,6 +63,13 @@
         0.48000001907348633
       ]
     },
+    "ss14:brutepack": {
+      "image": "Textures/Objects/Specific/Medical/medical.rsi/brutepack.png",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
     "ss14:clothing_backpack": {
       "image": "Textures/Clothing/Back/Backpacks/backpack.rsi/icon.png",
       "size": [
@@ -72,6 +79,13 @@
     },
     "ss14:crowbar": {
       "image": "Textures/Objects/Tools/crowbar.rsi/icon.png",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:ointment": {
+      "image": "Textures/Objects/Specific/Medical/medical.rsi/ointment.png",
       "size": [
         0.36000001430511475,
         0.36000001430511475

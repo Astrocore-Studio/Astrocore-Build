@@ -52,6 +52,13 @@ impl Data {
         }
     }
 
+    pub fn as_map(&self) -> Option<&BTreeMap<String, Data>> {
+        match self {
+            Data::Map(m) => Some(m),
+            _ => None,
+        }
+    }
+
     pub fn as_bool(&self) -> Option<bool> {
         match self {
             Data::Bool(b) => Some(*b),

@@ -14,16 +14,21 @@ use crate::doafter::{
     Action, BREAK_DISTANCE_M, DOAFTER_COMPONENT, DoAfter, DoAfterView, PRY_TIME_S, encode_doafter,
 };
 use crate::hands::{Hands, HeldItem};
+use crate::health::{
+    DEFAULT_ATTACK_RATE, DamageSpec, FIST_DAMAGE, HEALTH_COMPONENT, Healing, Health, MELEE_RANGE_M,
+    MOBSTATE_COMPONENT, Melee, MobState, encode_health,
+};
 use crate::interact::{InteractionHandler, Target, Used};
 use crate::inventory::Inventory;
 use crate::items::{ItemInfo, item_info};
 use crate::storage::Storage;
 use crate::wire::{
-    BagView, CMD_CANCEL, CMD_DROP, CMD_EQUIP, CMD_INTERACT, CMD_MOVE_HAND, CMD_MOVE_SLOT,
-    CMD_PICKUP, CMD_PICKUP_ANY, CMD_SELECT_HAND, CMD_STORE, CMD_SWAP_HANDS, CMD_TAKE, CMD_TAKE_TO,
-    CMD_UNEQUIP, CMD_UNEQUIP_TO, CMD_USE, HANDS_COMPONENT, INVENTORY_COMPONENT, InventoryView,
-    encode_hands, encode_inventory, parse_drop, parse_equip, parse_move_slot, parse_object_id,
-    parse_store, parse_take, parse_take_to, parse_unequip,
+    BagView, CMD_ATTACK, CMD_CANCEL, CMD_DROP, CMD_EQUIP, CMD_HEAL, CMD_INTERACT, CMD_MOVE_HAND,
+    CMD_MOVE_SLOT, CMD_PICKUP, CMD_PICKUP_ANY, CMD_SELECT_HAND, CMD_STORE, CMD_SWAP_HANDS,
+    CMD_TAKE, CMD_TAKE_TO, CMD_UNEQUIP, CMD_UNEQUIP_TO, CMD_USE, HANDS_COMPONENT,
+    INVENTORY_COMPONENT, InventoryView, encode_hands, encode_inventory, parse_attack, parse_drop,
+    parse_equip, parse_heal, parse_move_slot, parse_object_id, parse_store, parse_take,
+    parse_take_to, parse_unequip,
 };
 
 /// Дальность взаимодействия, м: `InteractionRange` в SS14 (1,5). Меряется от груди персонажа
@@ -44,6 +49,11 @@ pub(crate) struct Actor {
     pub(crate) hands: Hands,
     pub(crate) inventory: Inventory,
     pub(crate) doafter: Option<DoAfter>,
+    pub(crate) health: Health,
+    /// Состояние, которое клиентам уже разослано (чтобы замечать переходы).
+    pub(crate) mob_state: MobState,
+    /// Когда персонаж снова может ударить, с (по часам модуля).
+    pub(crate) next_attack: f32,
 }
 
 impl Actor {
@@ -52,6 +62,9 @@ impl Actor {
             hands: Hands::humanoid(),
             inventory: Inventory::human(),
             doafter: None,
+            health: Health::default(),
+            mob_state: MobState::Alive,
+            next_attack: 0.0,
         }
     }
 }
@@ -70,6 +83,10 @@ pub struct State {
     pub(crate) storages: BTreeMap<ObjectId, Storage>,
     /// Задержки надевания и снятия одежды, с: (`equipDelay`, `unequipDelay`) из `Clothing`.
     pub(crate) delays: BTreeMap<PrototypeId, (f32, f32)>,
+    pub(crate) melee: BTreeMap<PrototypeId, Melee>,
+    pub(crate) healing: BTreeMap<PrototypeId, Healing>,
+    /// Часы модуля, с: копятся по `Tick`.
+    pub(crate) clock: f32,
 }
 
 impl State {
@@ -78,6 +95,8 @@ impl State {
         let names = registry.engine_index(NAMESPACE)?;
         let mut infos = BTreeMap::new();
         let mut delays = BTreeMap::new();
+        let mut melee = BTreeMap::new();
+        let mut healing = BTreeMap::new();
         for (id, name) in names {
             let resolved = registry.spawnable(&name).ok();
             if let Some(info) = resolved.as_ref().and_then(item_info) {
@@ -91,6 +110,30 @@ impl State {
                     .and_then(prototypes::Data::as_f64)
                     .map_or(0.0, |v| v.max(0.0) as f32)
             };
+            if let Some(c) = resolved.as_ref().and_then(|r| r.component("MeleeWeapon")) {
+                melee.insert(
+                    id.clone(),
+                    Melee {
+                        damage: damage_spec(c.get("damage")),
+                        rate: c
+                            .get("attackRate")
+                            .and_then(prototypes::Data::as_f64)
+                            .map_or(DEFAULT_ATTACK_RATE, |v| v.max(0.1) as f32),
+                    },
+                );
+            }
+            if let Some(c) = resolved.as_ref().and_then(|r| r.component("Healing")) {
+                healing.insert(
+                    id.clone(),
+                    Healing {
+                        damage: damage_spec(c.get("damage")),
+                        delay: c
+                            .get("delay")
+                            .and_then(prototypes::Data::as_f64)
+                            .map_or(3.0, |v| v.max(0.0) as f32),
+                    },
+                );
+            }
             let pair = (delay("equipDelay"), delay("unequipDelay"));
             if pair != (0.0, 0.0) {
                 delays.insert(id, pair);
@@ -102,6 +145,9 @@ impl State {
             actors: BTreeMap::new(),
             storages: BTreeMap::new(),
             delays,
+            melee,
+            healing,
+            clock: 0.0,
         })
     }
 
@@ -154,6 +200,8 @@ impl State {
             return;
         };
         ctx.set_component(actor, HANDS_COMPONENT, encode_hands(&a.hands));
+        ctx.set_component(actor, HEALTH_COMPONENT, encode_health(&a.health.view()));
+        ctx.set_component(actor, MOBSTATE_COMPONENT, vec![a.health.state().to_byte()]);
         let worn: crate::wire::Worn = a
             .inventory
             .iter()
@@ -407,6 +455,115 @@ impl State {
         self.publish(ctx, actor);
     }
 
+    /// Дотягивается ли `actor` до `target` (себя — всегда): расстояние между грудью и прямая видимость.
+    fn in_reach(
+        &self,
+        ctx: &HookContext<'_>,
+        actor: NetworkEntityId,
+        target: NetworkEntityId,
+    ) -> bool {
+        if actor == target {
+            return true;
+        }
+        let (Some(a), Some(t)) = (ctx.position_of(actor), ctx.position_of(target)) else {
+            return false;
+        };
+        let (a, t) = (a + Vec3::Y * CHEST_M, t + Vec3::Y * CHEST_M);
+        (a - t).length() <= MELEE_RANGE_M && ctx.is_unobstructed(a, t)
+    }
+
+    /// Ударить: оружие из активной руки или кулак; темп ограничен `attackRate`.
+    pub(crate) fn attack(
+        &mut self,
+        ctx: &mut HookContext<'_>,
+        actor: NetworkEntityId,
+        target: NetworkEntityId,
+    ) {
+        if actor == target || ctx.position_of(target).is_none() {
+            return;
+        }
+        // Состояние создаётся при первом обращении: стороны могли ещё ничего не делать.
+        self.actor(target);
+        self.actor(actor);
+        let Some(a) = self.actors.get(&actor) else {
+            return;
+        };
+        if self.clock < a.next_attack || !self.in_reach(ctx, actor, target) {
+            return;
+        }
+        if self
+            .actors
+            .get(&target)
+            .is_some_and(|t| t.health.state() == MobState::Dead)
+        {
+            return;
+        }
+        let weapon = a
+            .hands
+            .get(a.hands.active())
+            .and_then(|i| self.melee.get(&i.prototype))
+            .cloned()
+            .unwrap_or_else(|| Melee {
+                damage: DamageSpec::from([("Blunt".to_string(), FIST_DAMAGE)]),
+                rate: DEFAULT_ATTACK_RATE,
+            });
+        let clock = self.clock;
+        self.actor(actor).next_attack = clock + 1.0 / weapon.rate;
+        self.actor(target).health.apply(&weapon.damage);
+        self.after_health_change(ctx, target);
+    }
+
+    /// Лечение: применяет предмет к цели и расходует его.
+    fn heal(
+        &mut self,
+        ctx: &mut HookContext<'_>,
+        actor: NetworkEntityId,
+        hand: usize,
+        target: NetworkEntityId,
+    ) {
+        let Some(h) = self
+            .actors
+            .get(&actor)
+            .and_then(|a| a.hands.get(hand))
+            .and_then(|i| self.healing.get(&i.prototype))
+            .cloned()
+        else {
+            return;
+        };
+        let _ = self.actor(actor).hands.drop_hand(hand);
+        self.actor(target).health.apply(&h.damage);
+        self.after_health_change(ctx, target);
+        self.publish(ctx, actor);
+    }
+
+    /// После любого изменения здоровья: рассылка и переходы состояния. Тот, кто не может действовать,
+    /// замораживается, бросает действие и роняет всё из рук; пришедший в себя — свободен.
+    fn after_health_change(&mut self, ctx: &mut HookContext<'_>, who: NetworkEntityId) {
+        let Some(a) = self.actors.get(&who) else {
+            return;
+        };
+        let (now, before) = (a.health.state(), a.mob_state);
+        if now != before {
+            self.actor(who).mob_state = now;
+            if now.can_act() {
+                ctx.freeze(who, false);
+            } else {
+                ctx.freeze(who, true);
+                self.cancel(ctx, who);
+                if before.can_act() {
+                    let feet = ctx.position_of(who);
+                    let dropped = self.actor(who).hands.take_all();
+                    if let Some(feet) = feet {
+                        for i in &dropped {
+                            Self::place(ctx, i, feet);
+                        }
+                    }
+                }
+            }
+        }
+        self.publish(ctx, who);
+    }
+
     /// Начать действие: сразу выполнить, если задержки нет, иначе запустить таймер. Пока идёт
     /// другое действие, новое не принимается.
     pub(crate) fn begin(
@@ -449,6 +606,18 @@ impl State {
                     .is_some_and(|info| a.inventory.can_equip(slot, info).is_ok())
             }),
             Action::Unequip { slot, .. } => a.inventory.get(slot).is_some(),
+            Action::Heal { hand, target } => {
+                let healable = ctx.position_of(*target).is_some()
+                    && self
+                        .actors
+                        .get(target)
+                        .is_none_or(|t| t.health.state() != MobState::Dead);
+                let item_ok = a
+                    .hands
+                    .get(*hand)
+                    .is_some_and(|i| self.healing.contains_key(&i.prototype));
+                healable && item_ok && self.in_reach(ctx, actor, *target)
+            }
             Action::Pry { element, hand } => {
                 ctx.door_open(*element) == Some(false)
                     && a.hands.get(*hand).is_some_and(|i| {
@@ -474,6 +643,11 @@ impl State {
                 .get(slot)
                 .and_then(|i| self.delays.get(&i.prototype))
                 .map_or(0.0, |d| d.1),
+            Action::Heal { hand, .. } => a
+                .hands
+                .get(*hand)
+                .and_then(|i| self.healing.get(&i.prototype))
+                .map_or(0.0, |h| h.delay),
             Action::Pry { .. } => PRY_TIME_S,
         }
     }
@@ -483,6 +657,7 @@ impl State {
             Action::Equip { hand, slot } => self.equip(ctx, actor, hand, &slot),
             Action::Unequip { slot, hand } => self.unequip(ctx, actor, &slot, hand),
             Action::Pry { element, .. } => ctx.request_door(element, DoorAction::Open, true),
+            Action::Heal { hand, target } => self.heal(ctx, actor, hand, target),
         }
     }
 
@@ -512,6 +687,7 @@ impl State {
 
     /// Шаг времени: отсчёт, прерывание движением и потерей условий, завершение.
     pub(crate) fn tick(&mut self, ctx: &mut HookContext<'_>, dt: f32) {
+        self.clock += dt;
         let waiting: Vec<NetworkEntityId> = self
             .actors
             .iter()
@@ -642,6 +818,17 @@ impl State {
         self.publish(ctx, actor);
         true
     }
+}
+
+/// Урон из данных прототипа: карта «вид → число».
+fn damage_spec(d: Option<&prototypes::Data>) -> DamageSpec {
+    d.and_then(prototypes::Data::as_map)
+        .map(|m| {
+            m.iter()
+                .filter_map(|(k, v)| Some((k.clone(), v.as_f64()? as f32)))
+                .collect()
+        })
+        .unwrap_or_default()
 }
 
 /// Этаж, в который попадает высота `y` (ступни стоят на нижней границе).
@@ -789,7 +976,29 @@ impl GameModule for GameplayModule {
     fn handle(&mut self, ctx: &mut HookContext<'_>, event: &HookEvent) {
         let st = &mut self.state;
         match event {
+            HookEvent::Command { actor, .. }
+                if st
+                    .actors
+                    .get(actor)
+                    .is_some_and(|a| !a.health.state().can_act()) => {}
             HookEvent::Command { actor, kind, data } => match kind.as_str() {
+                CMD_ATTACK => {
+                    if let Some(target) = parse_attack(data) {
+                        st.attack(ctx, *actor, target);
+                    }
+                }
+                CMD_HEAL => {
+                    if let Some((hand, target)) = parse_heal(data) {
+                        st.begin(
+                            ctx,
+                            *actor,
+                            Action::Heal {
+                                hand: usize::from(hand),
+                                target,
+                            },
+                        );
+                    }
+                }
                 CMD_PICKUP | CMD_PICKUP_ANY => {
                     if let Some(id) = parse_object_id(data) {
                         st.pickup(ctx, *actor, id, kind == CMD_PICKUP_ANY);

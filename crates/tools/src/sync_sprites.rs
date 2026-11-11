@@ -12,8 +12,12 @@ use prototypes::Data;
 
 /// Наборы, которые нужны клиенту независимо от прототипов.
 pub const FIXED_RSI: &[&str] = &["Mobs/Species/Human/parts.rsi"];
-/// Файлы интерфейса (худ): слоты, рамки хранилища, подсветки.
-pub const FIXED_DIRS: &[&str] = &["Interface/Default/Slots", "Interface/Default/Storage"];
+/// Каталоги интерфейса (худ): копируются только картинки верхнего уровня с нужным началом имени
+/// (слоты; плитки и части рамки хранилища).
+pub const FIXED_DIRS: &[(&str, &[&str])] = &[
+    ("Interface/Default/Slots", &[""]),
+    ("Interface/Default/Storage", &["tile_", "piece_"]),
+];
 pub const FIXED_FILES: &[&str] = &[
     "Interface/Default/meta.json",
     "Interface/Default/SlotBackground.png",
@@ -155,13 +159,23 @@ pub fn sync(
         report.bytes += std::fs::copy(&src, &dst).map_err(|e| SyncError::Io(dst.clone(), e))?;
         report.copied.push(name.to_string());
     }
-    for name in FIXED_DIRS {
+    for (name, prefixes) in FIXED_DIRS {
         let src = source.join(name);
         if !src.is_dir() {
             report.missing.push((*name).to_string());
             continue;
         }
-        copy_dir(&src, &dest.join(name), &mut report.bytes)?;
+        let dst = dest.join(name);
+        std::fs::create_dir_all(&dst).map_err(|e| SyncError::Io(dst.clone(), e))?;
+        let entries = std::fs::read_dir(&src).map_err(|e| SyncError::Io(src.clone(), e))?;
+        for entry in entries.flatten() {
+            let file = entry.file_name().to_string_lossy().to_string();
+            let wanted = file.ends_with(".png") && prefixes.iter().any(|p| file.starts_with(p));
+            if wanted && entry.path().is_file() {
+                report.bytes += std::fs::copy(entry.path(), dst.join(&file))
+                    .map_err(|e| SyncError::Io(dst.join(&file), e))?;
+            }
+        }
         report.copied.push((*name).to_string());
     }
     Ok(report)

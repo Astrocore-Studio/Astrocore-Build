@@ -20,9 +20,23 @@ pub const PRY_TIME_S: f32 = 1.5;
 /// Что делает действие по завершении.
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) enum Action {
-    Equip { hand: usize, slot: String },
-    Unequip { slot: String, hand: Option<usize> },
-    Pry { element: ObjectId, hand: usize },
+    Equip {
+        hand: usize,
+        slot: String,
+    },
+    Unequip {
+        slot: String,
+        hand: Option<usize>,
+    },
+    Pry {
+        element: ObjectId,
+        hand: usize,
+    },
+    /// Лечение предметом из руки: цель — персонаж (в том числе сам).
+    Heal {
+        hand: usize,
+        target: astrocore_core::NetworkEntityId,
+    },
 }
 
 impl Action {
@@ -31,6 +45,7 @@ impl Action {
             Self::Equip { .. } => "equip",
             Self::Unequip { .. } => "unequip",
             Self::Pry { .. } => "pry",
+            Self::Heal { .. } => "heal",
         }
     }
 }

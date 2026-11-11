@@ -1429,5 +1429,15 @@
             x: 8.5,
             z: 2.5,
         ),
+        (
+            prototype: "Brutepack",
+            x: 1.5,
+            z: 2.5,
+        ),
+        (
+            prototype: "Ointment",
+            x: 2.5,
+            z: 2.5,
+        ),
     ],
 )

@@ -18,6 +18,14 @@ const PROTOS: &str = r#"[
     (id: "Pen", components: {"Item": (size: "Tiny")}),
     (id: "Toolbox", components: {"Item": (size: "Large")}),
     (id: "Jumpsuit", components: {"Item": (size: "Normal"), "Clothing": (slots: ["InnerClothing"])}),
+    (id: "Cudgel", components: {
+        "Item": (size: "Normal"),
+        "MeleeWeapon": (damage: (Blunt: 60.0), attackRate: 1.0),
+    }),
+    (id: "Brutepack", components: {
+        "Item": (size: "Small"),
+        "Healing": (damage: (Blunt: -30.0, Slash: -30.0), delay: 1.0),
+    }),
     (id: "HeavyCoat", components: {
         "Item": (size: "Normal"),
         "Clothing": (slots: ["OuterClothing"], equipDelay: 1.0, unequipDelay: 0.5),
@@ -975,5 +983,148 @@ mod interactions {
         assert_eq!(hands_of(&h, a, a).unwrap().held().count(), 1);
         command(&mut h, a, CMD_USE, use_data(0));
         assert_eq!(*log.lock().unwrap(), vec!["use ss14:pen".to_string()]);
+    }
+}
+
+mod combat {
+    use super::*;
+    use crate::{CMD_ATTACK, CMD_HEAL, HEALTH_COMPONENT, MOBSTATE_COMPONENT, MobState};
+
+    fn health(h: &Harness, viewer: ConnId, owner: ConnId) -> Option<crate::HealthView> {
+        let net = h.client(owner).net_id()?;
+        crate::decode_health(h.client(viewer).component(net, HEALTH_COMPONENT)?)
+    }
+
+    fn state(h: &Harness, viewer: ConnId, owner: ConnId) -> MobState {
+        let net = h.client(owner).net_id().unwrap();
+        h.client(viewer)
+            .component(net, MOBSTATE_COMPONENT)
+            .and_then(|b| b.first().copied())
+            .map_or(MobState::Alive, MobState::from_byte)
+    }
+
+    fn hit(h: &mut Harness, who: ConnId, target: ConnId) {
+        let net = h.client(target).net_id().unwrap();
+        command(h, who, CMD_ATTACK, crate::attack_data(net));
+    }
+
+    fn blunt(h: &Harness, viewer: ConnId, owner: ConnId) -> f32 {
+        health(h, viewer, owner)
+            .and_then(|v| v.damage.get("Blunt").copied())
+            .unwrap_or(0.0)
+    }
+
+    #[test]
+    fn a_fist_hurts_only_the_victim_sees_the_numbers_and_everyone_sees_the_state() {
+        let mut h = harness();
+        let (a, b) = (h.join("a"), h.join("b"));
+        hit(&mut h, a, b);
+        assert_eq!(blunt(&h, b, b), 5.0);
+        assert!(health(&h, a, b).is_none(), "чужие цифры здоровья не видны");
+        assert_eq!(state(&h, a, b), MobState::Alive);
+        // Бить себя нельзя.
+        hit(&mut h, a, a);
+        assert_eq!(blunt(&h, a, a), 0.0);
+    }
+
+    #[test]
+    fn attacks_respect_the_rate_and_the_reach() {
+        let mut h = harness();
+        let (a, b) = (h.join("a"), h.join("b"));
+        hit(&mut h, a, b);
+        hit(&mut h, a, b);
+        assert_eq!(blunt(&h, b, b), 5.0, "темп 1,5 удара в секунду");
+        h.ticks(20);
+        hit(&mut h, a, b);
+        assert_eq!(blunt(&h, b, b), 10.0);
+        // Отошёл дальше досягаемости.
+        for _ in 0..40 {
+            h.input(b, 0, 1, 0.0);
+        }
+        h.ticks(20);
+        hit(&mut h, a, b);
+        assert_eq!(blunt(&h, b, b), 10.0, "далеко: промах");
+    }
+
+    #[test]
+    fn a_weapon_in_hand_sets_the_damage_and_the_thresholds_change_the_state() {
+        let mut h = harness();
+        let (a, b) = (h.join("a"), h.join("b"));
+        grab(&mut h, a, 10, near(), "ss14:cudgel");
+        grab(&mut h, b, 11, near(), "ss14:pen");
+        hit(&mut h, a, b);
+        assert_eq!(blunt(&h, b, b), 60.0);
+        h.ticks(25);
+        hit(&mut h, a, b);
+        assert_eq!(state(&h, a, b), MobState::Critical, "120 ≥ 100");
+        assert!(
+            hands_of(&h, b, b).unwrap().held().next().is_none(),
+            "в критическом состоянии руки пусты: предмет упал"
+        );
+        h.ticks(25);
+        hit(&mut h, a, b);
+        h.ticks(25);
+        hit(&mut h, a, b);
+        assert_eq!(state(&h, a, b), MobState::Dead);
+        // Мёртвого не бьют дальше.
+        h.ticks(25);
+        hit(&mut h, a, b);
+        assert_eq!(blunt(&h, b, b), 240.0);
+    }
+
+    #[test]
+    fn the_incapacitated_cannot_move_or_act() {
+        let mut h = harness();
+        let (a, b) = (h.join("a"), h.join("b"));
+        grab(&mut h, a, 10, near(), "ss14:cudgel");
+        hit(&mut h, a, b);
+        h.ticks(25);
+        hit(&mut h, a, b);
+        assert_eq!(state(&h, a, b), MobState::Critical);
+        let flat = |h: &Harness| {
+            let p = h.client(b).position();
+            (p.x, p.z)
+        };
+        let start = flat(&h);
+        for _ in 0..10 {
+            h.input(b, 0, 1, 0.0);
+        }
+        assert_eq!(flat(&h), start, "крит не ходит");
+        spawn(&mut h, item_at(50, "ss14:pen", Vec3::new(2.5, 0.9, 2.5)));
+        command(&mut h, b, CMD_PICKUP_ANY, pickup_data(oid(50)));
+        assert!(on_ground(&h, b, 50), "и не поднимает");
+    }
+
+    #[test]
+    fn a_healing_item_takes_time_is_used_up_and_brings_the_patient_back() {
+        let mut h = harness();
+        let (a, b) = (h.join("a"), h.join("b"));
+        grab(&mut h, a, 10, near(), "ss14:cudgel");
+        hit(&mut h, a, b);
+        h.ticks(25);
+        hit(&mut h, a, b);
+        assert_eq!(state(&h, a, b), MobState::Critical);
+        // Лекарство лежит рядом с лежачим; подбирает и лечит третья сторона — сам себя он не вылечит.
+        grab(&mut h, a, 20, near(), "ss14:brutepack");
+        // Рука занята дубинкой: кладём её, чтобы освободить руку.
+        let net_b = h.client(b).net_id().unwrap();
+        command(&mut h, a, CMD_HEAL, crate::heal_data(1, net_b));
+        assert_eq!(blunt(&h, b, b), 120.0, "лечение занимает время");
+        h.ticks(25);
+        assert_eq!(blunt(&h, b, b), 90.0);
+        assert_eq!(state(&h, a, b), MobState::Alive, "90 < 100: пришёл в себя");
+        assert!(
+            hands_of(&h, a, a).unwrap().get(1).is_none(),
+            "пакет израсходован"
+        );
+        let flat = |h: &Harness| {
+            let p = h.client(b).position();
+            (p.x, p.z)
+        };
+        let start = flat(&h);
+        for _ in 0..10 {
+            h.input(b, 0, 1, 0.0);
+        }
+        assert_ne!(flat(&h), start, "снова ходит");
     }
 }

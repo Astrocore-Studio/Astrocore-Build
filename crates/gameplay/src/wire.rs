@@ -36,6 +36,11 @@ pub const CMD_TAKE_TO: &str = "storage.take_to";
 pub const CMD_MOVE_SLOT: &str = "inv.move";
 /// Отменить идущее действие с таймером.
 pub const CMD_CANCEL: &str = "doafter.cancel";
+/// Ударить персонажа в пределах досягаемости: `[сетевой id цели, 4 байта LE]`. Оружие — предмет в
+/// активной руке (`MeleeWeapon`), без него кулак.
+pub const CMD_ATTACK: &str = "combat.attack";
+/// Применить лечащий предмет из руки на персонажа: `[рука, сетевой id цели, 4 байта LE]`.
+pub const CMD_HEAL: &str = "combat.heal";
 
 /// Взаимодействие с целью в мире (предмет на земле или дверь): `[id цели 16 байт]`.
 /// Что именно произойдёт, решает цепочка обработчиков: пустая рука — `InteractHand`, предмет в
@@ -143,6 +148,18 @@ pub fn register_replication(reg: &mut ReplicationRegistry) -> Result<(), Replica
         max_bytes: crate::doafter::DOAFTER_MAX_BYTES,
     })?;
     reg.register(ReplicatedKind {
+        name: crate::health::HEALTH_COMPONENT.into(),
+        channel: ReplicationChannel::ReliableOrdered,
+        interest: Interest::Owner,
+        max_bytes: crate::health::HEALTH_MAX_BYTES,
+    })?;
+    reg.register(ReplicatedKind {
+        name: crate::health::MOBSTATE_COMPONENT.into(),
+        channel: ReplicationChannel::ReliableOrdered,
+        interest: Interest::Everyone,
+        max_bytes: 4,
+    })?;
+    reg.register(ReplicatedKind {
         name: WORN_COMPONENT.into(),
         channel: ReplicationChannel::ReliableOrdered,
         interest: Interest::Everyone,
@@ -223,6 +240,26 @@ pub fn take_to_data(hand: u8, bag: ObjectId, item: ObjectId) -> Vec<u8> {
     let mut v = vec![hand];
     v.extend(take_data(bag, item));
     v
+}
+
+pub fn attack_data(target: astrocore_core::NetworkEntityId) -> Vec<u8> {
+    target.0.to_le_bytes().to_vec()
+}
+
+pub fn heal_data(hand: u8, target: astrocore_core::NetworkEntityId) -> Vec<u8> {
+    let mut v = vec![hand];
+    v.extend_from_slice(&target.0.to_le_bytes());
+    v
+}
+
+pub fn parse_attack(data: &[u8]) -> Option<astrocore_core::NetworkEntityId> {
+    let b: [u8; 4] = data.try_into().ok()?;
+    Some(astrocore_core::NetworkEntityId(u32::from_le_bytes(b)))
+}
+
+pub fn parse_heal(data: &[u8]) -> Option<(u8, astrocore_core::NetworkEntityId)> {
+    let (hand, rest) = data.split_first()?;
+    Some((*hand, parse_attack(rest)?))
 }
 
 pub fn move_slot_data(from: &str, to: &str) -> Vec<u8> {
