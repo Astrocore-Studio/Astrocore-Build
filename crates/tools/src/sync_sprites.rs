@@ -22,6 +22,7 @@ pub const FIXED_RSI: &[&str] = &[
     "Interface/Alerts/pressure.rsi",
     "Interface/Alerts/hunger.rsi",
     "Interface/Alerts/thirst.rsi",
+    "Interface/Alerts/temperature.rsi",
     // Огонь: на клетках и на горящих персонажах.
     "Effects/fire.rsi",
     "Mobs/Effects/onfire.rsi",

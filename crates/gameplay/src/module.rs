@@ -159,6 +159,8 @@ pub struct State {
     pub(crate) absorbents: BTreeMap<PrototypeId, f32>,
     pub(crate) refillables: BTreeSet<PrototypeId>,
     pub(crate) mop_ready: BTreeMap<ObjectId, f32>,
+    /// Защита одежды от тепла (`TemperatureProtection.coefficient`).
+    pub(crate) heat_protection: BTreeMap<PrototypeId, f32>,
 }
 
 impl State {
@@ -175,6 +177,7 @@ impl State {
         let mut igniters = BTreeMap::new();
         let mut pipe_parts = BTreeMap::new();
         let mut absorbents = BTreeMap::new();
+        let mut heat_protection = BTreeMap::new();
         let mut refillables = BTreeSet::new();
         let mut tank_templates = BTreeMap::new();
         for (id, name) in names {
@@ -197,6 +200,13 @@ impl State {
                 }
                 if let Some(p) = crate::mopping::pickup_amount(r) {
                     absorbents.insert(id.clone(), p);
+                }
+                if let Some(c) = r
+                    .component("TemperatureProtection")
+                    .and_then(|c| c.get("coefficient"))
+                    .and_then(prototypes::Data::as_f64)
+                {
+                    heat_protection.insert(id.clone(), c as f32);
                 }
                 if crate::mopping::is_refillable(r) {
                     refillables.insert(id.clone());
@@ -291,6 +301,7 @@ impl State {
             absorbents,
             refillables,
             mop_ready: BTreeMap::new(),
+            heat_protection,
         })
     }
 
@@ -1118,6 +1129,12 @@ impl State {
                 )
             };
             let a_ghost = self.actors[&id].ghost;
+            let protection: f32 = self.actors[&id]
+                .inventory
+                .worn()
+                .filter_map(|i| self.heat_protection.get(&i.prototype))
+                .product();
+            body.set_heat_protection(protection);
             let outcome = {
                 let mut env = ActorEnv {
                     grid: Some(&mut self.atmos),
@@ -1810,6 +1827,19 @@ impl Environment for ActorEnv<'_> {
             .map_or(0.0, |g| g.air(self.cell).moles(atmos::Gas::Oxygen))
     }
 
+    fn air_thermal(&self) -> Option<(f32, f32)> {
+        let a = self.grid.as_ref()?.air(self.cell);
+        (!self.grid.as_ref()?.is_space(self.cell))
+            .then(|| (a.temperature(), a.heat_capacity() * atmos::HEAT_SCALE))
+    }
+
+    fn set_air_temperature(&mut self, t: f32) {
+        let cell = self.cell;
+        if let Some(g) = self.grid.as_mut() {
+            g.with_air(cell, |a| a.set_temperature(t));
+        }
+    }
+
     fn ignite_tile(&mut self, temperature: f32) {
         let cell = self.cell;
         if let Some(g) = self.grid.as_mut() {
@@ -1831,6 +1861,8 @@ fn vitals_differ(a: &Vitals, b: &Vitals) -> bool {
         || a.pressure_kpa.round() != b.pressure_kpa.round()
         || a.low_oxygen != b.low_oxygen
         || a.on_fire != b.on_fire
+        || a.temperature_alert != b.temperature_alert
+        || a.temperature.round() != b.temperature.round()
         || a.resisting != b.resisting
 }
 

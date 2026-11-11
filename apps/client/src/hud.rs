@@ -447,6 +447,22 @@ fn alerts(
                 format!("Малокровие: {:.0}% крови", v.blood * 100.0),
             ));
         }
+        if v.temperature_alert != 0 {
+            let kind = if v.temperature_alert > 0 {
+                "hot"
+            } else {
+                "cold"
+            };
+            let tip = if v.temperature_alert > 0 {
+                format!("Жарко: {:.0} °C", v.temperature - 273.15)
+            } else {
+                format!("Холодно: {:.0} °C", v.temperature - 273.15)
+            };
+            shown.push((
+                format!("Alerts/temperature.rsi/{kind}{}", v.temperature_alert.abs()),
+                tip,
+            ));
+        }
         if v.on_fire {
             fire_at = Some(shown.len());
             shown.push((

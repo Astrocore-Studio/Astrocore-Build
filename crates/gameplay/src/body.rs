@@ -31,6 +31,30 @@ use serde::{Deserialize, Serialize};
 /// Горение (`FlammableComponent` людей из `MobFlammable`, `FlammableSystem`).
 /// Порог пролитой крови, после которого остаётся лужа (`BleedPuddleThreshold`).
 const BLEED_PUDDLE_THRESHOLD: f32 = 1.0;
+/// Температура тела (`Temperature`, `TemperatureDamage`, `ThermalRegulator`, `TemperatureSpeed` человека
+/// из `species_base.yml`): масса 185 × π × 0,35² кг, удельная теплоёмкость 3000, проводимость 150 на
+/// площадь 2 м².
+const BODY_MASS_KG: f32 = 185.0 * std::f32::consts::PI * 0.35 * 0.35;
+const SPECIFIC_HEAT: f32 = 3000.0;
+const BODY_HEAT_CAPACITY: f32 = BODY_MASS_KG * SPECIFIC_HEAT;
+const THERMAL_CONDUCTIVITY: f32 = 150.0;
+const EXPOSED_AREA: f32 = 2.0;
+pub const THERMAL_NORMAL_BODY_TEMPERATURE: f32 = 310.15;
+const HEAT_DAMAGE_THRESHOLD: f32 = 316.15;
+const COLD_DAMAGE_THRESHOLD: f32 = 273.15;
+const HEAT_DAMAGE: f32 = 1.5;
+const COLD_DAMAGE: f32 = 0.1;
+const TEMPERATURE_DAMAGE_CAP: f32 = 8.0;
+const METABOLISM_HEAT: f32 = 800.0;
+const RADIATED_HEAT: f32 = 100.0;
+const IMPLICIT_HEAT_REGULATION: f32 = 500.0;
+const SWEAT_HEAT_REGULATION: f32 = 2000.0;
+const SHIVERING_HEAT_REGULATION: f32 = 2000.0;
+const THERMAL_REGULATION_THRESHOLD: f32 = 2.0;
+/// Энергия одной стопки огня, Дж (`FirestackEnergy`).
+const FIRESTACK_ENERGY: f32 = 37_500.0;
+const MIN_ALERT_TEMPERATURE_SCALE: f32 = 0.33;
+const TEMPERATURE_UPDATE_S: f32 = 1.0;
 const FIRE_UPDATE_S: f32 = 1.0;
 const FIRE_DAMAGE_PER_STACK: f32 = 1.5;
 const FIRE_STACK_FADE: f32 = -0.1;
@@ -189,6 +213,11 @@ pub struct Vitals {
     pub blood: f32,
     #[serde(default)]
     pub bleed: f32,
+    /// Температура тела, К, и уровень предупреждения: < 0 холод, > 0 жара (1…3).
+    #[serde(default = "normal_temperature")]
+    pub temperature: f32,
+    #[serde(default)]
+    pub temperature_alert: i8,
     /// Горит ли персонаж и сколько стопок огня на нём.
     #[serde(default)]
     pub on_fire: bool,
@@ -201,6 +230,10 @@ pub struct Vitals {
 
 fn one() -> f32 {
     1.0
+}
+
+fn normal_temperature() -> f32 {
+    THERMAL_NORMAL_BODY_TEMPERATURE
 }
 
 pub const VITALS_COMPONENT: &str = "build.vitals";
@@ -233,6 +266,12 @@ pub trait Environment {
     fn oxygen_moles(&self) -> f32 {
         f32::MAX
     }
+    /// Температура и теплоёмкость воздуха клетки (с `HeatScale`), если в клетке воздух.
+    fn air_thermal(&self) -> Option<(f32, f32)> {
+        None
+    }
+    /// Записать температуру воздуха клетки после теплообмена с телом.
+    fn set_air_temperature(&mut self, _temperature: f32) {}
     /// Горящее тело поджигает воздух клетки (`IgnitionSource` с температурой 700 К).
     fn ignite_tile(&mut self, _temperature: f32) {}
 }
@@ -283,6 +322,10 @@ pub struct Body {
     bleed: f32,
     blood_timer: f32,
     bleed_buffer: f32,
+    /// Температура тела, К, таймеры обмена с воздухом и терморегуляции, защита одежды.
+    pub temperature: f32,
+    temperature_timer: f32,
+    heat_protection: f32,
     /// Горение (`FlammableComponent`): горит ли, сколько «стопок» огня, сколько ещё сбивает огонь.
     pub on_fire: bool,
     pub fire_stacks: f32,
@@ -316,6 +359,9 @@ impl Body {
             bleed: 0.0,
             blood_timer: BLOOD_UPDATE_S,
             bleed_buffer: 0.0,
+            temperature: THERMAL_NORMAL_BODY_TEMPERATURE,
+            temperature_timer: TEMPERATURE_UPDATE_S,
+            heat_protection: 1.0,
             on_fire: false,
             fire_stacks: 0.0,
             resist_left: 0.0,
@@ -337,6 +383,8 @@ impl Body {
             speed: self.speed(),
             blood: self.blood / BLOOD_REFERENCE,
             bleed: self.bleed,
+            temperature: self.temperature,
+            temperature_alert: self.temperature_alert(),
             on_fire: self.on_fire,
             fire_stacks: self.fire_stacks,
             resisting: self.resisting(),
@@ -415,7 +463,110 @@ impl Body {
                 1.0
             }
         };
-        slow(self.hunger, &HUNGER) * slow(self.thirst, &THIRST)
+        slow(self.hunger, &HUNGER) * slow(self.thirst, &THIRST) * self.temperature_speed()
+    }
+
+    /// `TemperatureSpeed`: холод замедляет (293 К — 0,9, 280 К — 0,8, 260 К — 0,7).
+    fn temperature_speed(&self) -> f32 {
+        let t = self.temperature;
+        if t < 260.0 {
+            0.7
+        } else if t < 280.0 {
+            0.8
+        } else if t < 293.0 {
+            0.9
+        } else {
+            1.0
+        }
+    }
+
+    /// Уровень предупреждения о температуре (`TemperatureSystem.ServerAlert`).
+    fn temperature_alert(&self) -> i8 {
+        let ideal = THERMAL_NORMAL_BODY_TEMPERATURE;
+        let (threshold, sign) = if self.temperature <= ideal {
+            (COLD_DAMAGE_THRESHOLD, -1)
+        } else {
+            (HEAT_DAMAGE_THRESHOLD, 1)
+        };
+        let scale = (self.temperature - ideal) / (threshold - ideal);
+        let value = scale - MIN_ALERT_TEMPERATURE_SCALE;
+        let max = 1.0 - MIN_ALERT_TEMPERATURE_SCALE;
+        let levels = 4.0;
+        let level = if value <= 0.0 {
+            0
+        } else if value >= max {
+            3
+        } else {
+            (value / (max / levels)).floor() as i8
+        };
+        level.clamp(0, 3) * sign
+    }
+
+    /// Защита одежды от тепла (произведение `TemperatureProtection.coefficient` надетого).
+    pub fn set_heat_protection(&mut self, coefficient: f32) {
+        self.heat_protection = coefficient.clamp(0.0, 1.0);
+    }
+
+    /// `ChangeHeat`: добавить тепла телу (с учётом защиты одежды).
+    pub fn change_heat(&mut self, joules: f32, ignore_protection: bool) {
+        let dq = if ignore_protection {
+            joules
+        } else {
+            joules * self.heat_protection
+        };
+        self.temperature = (self.temperature + dq / BODY_HEAT_CAPACITY).max(0.0);
+    }
+
+    /// Раз в секунду: теплообмен с воздухом клетки (`OnAtmosExposedUpdate`, `ConductHeat`),
+    /// терморегуляция (`ThermalRegulatorSystem`) и урон от температуры (`TemperatureDamage`).
+    fn tick_temperature(&mut self, env: &mut dyn Environment, mob: MobState, out: &mut Outcome) {
+        // Обмен с воздухом.
+        if let Some((air_t, air_c)) = env.air_thermal()
+            && (air_t - self.temperature).abs() > 0.01
+        {
+            let g = THERMAL_CONDUCTIVITY * EXPOSED_AREA * self.heat_protection;
+            let dq_raw = g * (air_t - self.temperature) * TEMPERATURE_UPDATE_S;
+            let dq_max = ((self.temperature - air_t)
+                * (BODY_HEAT_CAPACITY * air_c / (BODY_HEAT_CAPACITY + air_c)))
+                .abs();
+            let dq = dq_raw.clamp(-dq_max, dq_max);
+            self.temperature = (self.temperature + dq / BODY_HEAT_CAPACITY).max(0.0);
+            env.set_air_temperature((air_t - dq / air_c).max(0.0));
+        }
+        // Терморегуляция живого.
+        if mob != MobState::Dead {
+            let mut change = METABOLISM_HEAT - RADIATED_HEAT;
+            let diff = (self.temperature - THERMAL_NORMAL_BODY_TEMPERATURE).abs();
+            let target = diff * BODY_HEAT_CAPACITY;
+            if self.temperature > THERMAL_NORMAL_BODY_TEMPERATURE {
+                change -= target.min(IMPLICIT_HEAT_REGULATION);
+            } else {
+                change += target.min(IMPLICIT_HEAT_REGULATION);
+            }
+            self.change_heat(change, true);
+            let diff = (self.temperature - THERMAL_NORMAL_BODY_TEMPERATURE).abs();
+            let target = diff * BODY_HEAT_CAPACITY;
+            if diff >= THERMAL_REGULATION_THRESHOLD {
+                if self.temperature > THERMAL_NORMAL_BODY_TEMPERATURE {
+                    self.change_heat(-target.min(SWEAT_HEAT_REGULATION), true);
+                } else {
+                    self.change_heat(target.min(SHIVERING_HEAT_REGULATION), true);
+                }
+            }
+        }
+        // Урон от жары и холода (формулы `TemperatureSystem.ChangeDamage`, интервал 1 с).
+        let (a, k) = (1.0f32, 0.005f32);
+        let y = TEMPERATURE_DAMAGE_CAP;
+        let c = y * 2.0;
+        if self.temperature >= HEAT_DAMAGE_THRESHOLD {
+            let diff = self.temperature - HEAT_DAMAGE_THRESHOLD;
+            let damage = c / (1.0 + a * (-k * diff).exp()) - y;
+            out.add("Heat", HEAT_DAMAGE * damage * TEMPERATURE_UPDATE_S);
+        } else if self.temperature <= COLD_DAMAGE_THRESHOLD {
+            let diff = COLD_DAMAGE_THRESHOLD - self.temperature;
+            let damage = (diff * (y * y / COLD_DAMAGE_THRESHOLD)).sqrt();
+            out.add("Cold", COLD_DAMAGE * damage * TEMPERATURE_UPDATE_S);
+        }
     }
 
     fn random(&mut self) -> f32 {
@@ -445,6 +596,11 @@ impl Body {
         let mut out = Outcome::default();
         self.tick_satiation(dt, mob);
         self.tick_fire(dt, env, &mut out);
+        self.temperature_timer -= dt;
+        while self.temperature_timer <= 0.0 {
+            self.temperature_timer += TEMPERATURE_UPDATE_S;
+            self.tick_temperature(env, mob, &mut out);
+        }
 
         self.respiration_timer -= dt;
         while self.respiration_timer <= 0.0 {
@@ -556,6 +712,8 @@ impl Body {
                 continue;
             }
             env.ignite_tile(IGNITION_SOURCE_TEMPERATURE);
+            // Горение греет тело: `ChangeHeat(FirestackEnergy × стопки)`.
+            self.change_heat(FIRESTACK_ENERGY * self.fire_stacks, false);
             out.add("Heat", FIRE_DAMAGE_PER_STACK * self.fire_stacks);
             let fade = FIRE_STACK_FADE * if self.resisting() { 15.0 } else { 1.0 };
             self.adjust_fire_stacks(fade, true);
@@ -809,9 +967,75 @@ mod tests {
         fn ignite_tile(&mut self, temperature: f32) {
             self.0.ignite(self.1, temperature, 50.0);
         }
+        fn air_thermal(&self) -> Option<(f32, f32)> {
+            let a = self.0.air(self.1);
+            Some((a.temperature(), a.heat_capacity() * atmos::HEAT_SCALE))
+        }
+        fn set_air_temperature(&mut self, t: f32) {
+            self.0.with_air(self.1, |a| a.set_temperature(t));
+        }
     }
 
     /// Среда с огнём на клетке `(0, 0)`: тело горит, пока клетка горит.
+    #[test]
+    fn a_naked_person_in_room_air_settles_near_thirty_degrees_without_damage() {
+        let mut grid = sealed(3, 3);
+        let mut body = Body::new(7);
+        let damage = run_at(&mut body, &mut grid, 1800.0, 293.15);
+        assert!(
+            body.temperature > 298.0 && body.temperature < 310.0,
+            "{}",
+            body.temperature
+        );
+        assert!(damage.get("Cold").copied().unwrap_or(0.0) < 1e-3);
+        assert_eq!(body.vitals().temperature_alert, 0);
+    }
+
+    #[test]
+    fn hot_air_heats_the_body_and_burns_it_and_cold_air_slows_and_freezes() {
+        let mut grid = sealed(1, 1);
+        let mut body = Body::new(7);
+        let damage = run_at(&mut body, &mut grid, 400.0, 420.0);
+        assert!(body.temperature > 330.0, "{}", body.temperature);
+        assert!(
+            damage.get("Heat").copied().unwrap_or(0.0) > 5.0,
+            "{damage:?}"
+        );
+        assert!(body.vitals().temperature_alert > 0, "значок жары");
+
+        let mut grid = sealed(1, 1);
+        let mut body = Body::new(7);
+        let damage = run_at(&mut body, &mut grid, 1500.0, 150.0);
+        assert!(body.temperature < 273.0, "{}", body.temperature);
+        assert!(
+            damage.get("Cold").copied().unwrap_or(0.0) > 0.5,
+            "{damage:?}"
+        );
+        assert!(body.speed() < 0.9, "холод замедляет: {}", body.speed());
+        assert!(body.vitals().temperature_alert < 0, "значок холода");
+    }
+
+    #[test]
+    fn clothing_protection_slows_the_heat_exchange() {
+        let mut bare = Body::new(7);
+        let mut dressed = Body::new(7);
+        dressed.set_heat_protection(0.1);
+        let mut g1 = sealed(1, 1);
+        let mut g2 = sealed(1, 1);
+        run_at(&mut bare, &mut g1, 200.0, 500.0);
+        run_at(&mut dressed, &mut g2, 200.0, 500.0);
+        assert!(bare.temperature > dressed.temperature + 10.0);
+    }
+
+    #[test]
+    fn burning_heats_the_body() {
+        let mut grid = sealed(3, 3);
+        let mut body = Body::new(7);
+        body.adjust_fire_stacks(3.0, true);
+        run(&mut body, &mut grid, 6.0);
+        assert!(body.temperature > 311.0, "{}", body.temperature);
+    }
+
     #[test]
     fn bleeding_leaks_blood_that_spills_past_the_threshold() {
         let mut grid = sealed(1, 1);
@@ -903,6 +1127,21 @@ mod tests {
         let mut g = Grid::new();
         g.set_layout(l);
         g
+    }
+
+    /// Прогон при постоянной температуре воздуха (воздух комнаты не прогревается телом).
+    fn run_at(body: &mut Body, grid: &mut Grid, seconds: f32, air_t: f32) -> DamageSpec {
+        let mut total = DamageSpec::new();
+        let mut t = 0.0;
+        while t < seconds {
+            grid.with_air((0, 0), |a| a.set_temperature(air_t));
+            let out = body.tick(0.1, &mut Cell(grid, (0, 0)), MobState::Alive, 0.0);
+            for (k, v) in out.damage {
+                *total.entry(k).or_insert(0.0) += v;
+            }
+            t += 0.1;
+        }
+        total
     }
 
     fn run(body: &mut Body, grid: &mut Grid, seconds: f32) -> DamageSpec {

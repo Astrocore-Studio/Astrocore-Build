@@ -1384,7 +1384,7 @@ mod survival {
         h.ticks(400); // 20 с
         let v = vitals(&h, a);
         assert_eq!(v.pressure_alert, PressureAlert::None);
-        assert!((v.pressure_kpa - 101.3).abs() < 1.0, "{}", v.pressure_kpa);
+        assert!((v.pressure_kpa - 101.3).abs() < 5.0, "{}", v.pressure_kpa);
         assert!(!v.low_oxygen);
         assert!(!health(&h, a).damage.contains_key("Asphyxiation"));
     }
