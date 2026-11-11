@@ -140,7 +140,7 @@ fn temperature_equalizes_between_neighbours() {
 }
 
 #[test]
-fn space_stays_a_vacuum_and_the_cycle_has_eight_steps() {
+fn space_stays_a_vacuum_and_the_cycle_has_nine_steps() {
     let mut g = Grid::new();
     let mut l = room(1, 1);
     l.blocked.remove(&edge((0, 0), (0, -1)));
@@ -150,6 +150,42 @@ fn space_stays_a_vacuum_and_the_cycle_has_eight_steps() {
     assert_eq!(g.air((0, -1)).temperature(), TCMB);
     let mut h = Grid::new();
     h.set_layout(room(1, 1));
-    h.advance(ATMOS_TIME * 8.0 + 0.001);
-    assert_eq!(h.cycles(), 1, "цикл — восемь шагов по 1/15 с");
+    h.advance(ATMOS_TIME * 9.0 + 0.001);
+    assert_eq!(h.cycles(), 1, "цикл — девять шагов по 1/15 с");
+}
+
+#[test]
+fn a_breach_depressurizes_the_room_in_seconds_with_monstermos() {
+    let mut l = room(5, 5);
+    l.blocked.remove(&edge((2, 0), (2, -1)));
+    let mut g = Grid::new();
+    g.set_layout(l);
+    let mut seconds = None;
+    for c in 1..=400 {
+        g.run_cycles(1);
+        if g.pressure((2, 4)) < HAZARD_LOW_PRESSURE {
+            seconds = Some(c as f32 * 9.0 / 15.0);
+            break;
+        }
+    }
+    let s = seconds.expect("комната опустела");
+    assert!(s < 15.0, "взрывная разгерметизация быстрая: {s} с");
+}
+
+#[test]
+fn equalization_moves_gas_between_distant_tiles_in_one_cycle_and_conserves_it() {
+    let mut g = Grid::new();
+    g.set_layout(room(8, 1));
+    let mut extra = GasMixture::standard_air();
+    extra.multiply(9.0);
+    g.merge_into((0, 0), &extra);
+    let before = g.total_moles();
+    g.run_cycles(2);
+    let spread = (0..8).map(|x| g.pressure((x, 0))).fold(0.0f32, f32::max)
+        - (0..8).map(|x| g.pressure((x, 0))).fold(f32::MAX, f32::min);
+    assert!(spread < 60.0, "после двух циклов почти ровно: {spread}");
+    assert!(
+        (g.total_moles() - before).abs() < before * 1e-3,
+        "газ сохраняется"
+    );
 }

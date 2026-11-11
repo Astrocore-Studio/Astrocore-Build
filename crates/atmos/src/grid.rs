@@ -2,9 +2,9 @@
 //! возбуждения (`AtmosphereSystem.LINDA.cs`, `AtmosphereSystem.ExcitedGroup.cs`,
 //! `AtmosphereSystem.Processing.cs` из SS14).
 //!
-//! Не перенесено (в README Build сказано явно): выравнивание Monstermos (`atmos.monstermos_*`),
-//! реакции и огонь, трубы и приборы, космический ветер (по умолчанию выключен в SS14),
-//! сверхпроводимость (выключена по умолчанию).
+//! Выравнивание давления и взрывная разгерметизация Monstermos (`AtmosphereSystem.Monstermos.cs`)
+//! включены, как в SS14 по умолчанию. Не перенесено (в README Build сказано явно): реакции и огонь,
+//! трубы и приборы, космический ветер (по умолчанию выключен в SS14), сверхпроводимость.
 
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -14,13 +14,21 @@ use crate::gas::*;
 pub const ATMOS_TICK_RATE: f32 = 15.0;
 pub const ATMOS_TIME: f32 = 1.0 / ATMOS_TICK_RATE;
 
-/// Стадии одного цикла в порядке SS14 при настройках по умолчанию, кроме `TileEqualize`
-/// (Monstermos не перенесён). Каждая стадия занимает один шаг по `ATMOS_TIME`; обмен газом
+/// Пределы выравнивания Monstermos (`Atmospherics.MonstermosTileLimit`, `...HardTileLimit`).
+pub const MONSTERMOS_TILE_LIMIT: usize = 200;
+pub const MONSTERMOS_HARD_TILE_LIMIT: usize = 2000;
+/// Параметры разгерметизации по умолчанию (`atmos.mmos_spacing_speed`, `mmos_min_gas`, `mmos_max_wind`).
+pub const SPACING_ESCAPE_RATIO: f32 = 0.15;
+pub const SPACING_MIN_GAS: f32 = 2.0;
+pub const SPACING_MAX_WIND: f32 = 500.0;
+
+/// Стадии одного цикла в порядке SS14 при настройках по умолчанию. Каждая стадия занимает один шаг по `ATMOS_TIME`; обмен газом
 /// выполняется на стадии `ActiveTiles`, поэтому полный проход по клеткам идёт раз в `STATES.len()`
 /// шагов.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum State {
     Revalidate,
+    TileEqualize,
     ActiveTiles,
     ExcitedGroups,
     HighPressureDelta,
@@ -30,8 +38,9 @@ enum State {
     AtmosDevices,
 }
 
-const STATES: [State; 8] = [
+const STATES: [State; 9] = [
     State::Revalidate,
+    State::TileEqualize,
     State::ActiveTiles,
     State::ExcitedGroups,
     State::HighPressureDelta,
@@ -80,6 +89,20 @@ struct Tile {
     group: Option<usize>,
     /// Соседи: север (z−1), юг (z+1), восток (x+1), запад (x−1).
     adjacent: [Option<usize>; 4],
+    mm: Mm,
+}
+
+/// `MonstermosInfo`: рабочие данные выравнивания клетки.
+#[derive(Clone, Copy, Default)]
+struct Mm {
+    last_cycle: i64,
+    last_queue_cycle: i64,
+    last_slow_queue_cycle: i64,
+    mole_delta: f32,
+    transfer: [f32; 4],
+    current_transfer_amount: f32,
+    current_transfer_dir: Option<usize>,
+    fast_done: bool,
 }
 
 const DIRS: [(i32, i32); 4] = [(0, -1), (0, 1), (1, 0), (-1, 0)];
@@ -100,6 +123,7 @@ pub struct Grid {
     timer: f32,
     state: usize,
     cycle: i64,
+    queue_cycle_control: i64,
 }
 
 impl Default for Grid {
@@ -119,6 +143,7 @@ impl Grid {
             timer: 0.0,
             state: 0,
             cycle: 0,
+            queue_cycle_control: 0,
         }
     }
 
@@ -192,6 +217,7 @@ impl Grid {
         let first = self.tiles.is_empty();
         self.tiles.clear();
         self.index.clear();
+        self.queue_cycle_control = 0;
         self.active.clear();
         self.groups.clear();
 
@@ -264,6 +290,7 @@ impl Grid {
             excited: false,
             group: None,
             adjacent: [None; 4],
+            mm: Mm::default(),
         });
         self.index.insert(cell, i);
     }
@@ -283,6 +310,7 @@ impl Grid {
 
     fn step(&mut self) {
         match STATES[self.state] {
+            State::TileEqualize => self.process_tile_equalize(),
             State::ActiveTiles => self.process_active_tiles(),
             State::ExcitedGroups => self.process_excited_groups(),
             // Остальные стадии SS14 заняты тем, что здесь не перенесено; они сохраняют длину цикла.
@@ -490,6 +518,459 @@ impl Grid {
         (ra.temperature() * (moles + moved) - sa.temperature() * (their - moved)) * R / a.air.volume
     }
 
+    // ---- Monstermos ---------------------------------------------------------------------------
+
+    fn process_tile_equalize(&mut self) {
+        let run: Vec<usize> = self.active.iter().copied().collect();
+        for i in run {
+            self.equalize_pressure_in_zone(i);
+        }
+    }
+
+    fn mole_total(&self, i: usize) -> f32 {
+        self.tiles[i].air.total_moles()
+    }
+
+    /// `EqualizePressureInZone`: выровнять количество газа по связной области вокруг клетки,
+    /// двигая газ по кратчайшим путям от избытка к нехватке; рядом с космосом — взрывная
+    /// разгерметизация.
+    fn equalize_pressure_in_zone(&mut self, start: usize) {
+        let cycle = self.cycle;
+        if self.tiles[start].mm.last_cycle >= cycle {
+            return;
+        }
+        self.tiles[start].mm = Mm::default();
+        let starting = self.mole_total(start);
+        let mut run_atmos = false;
+        for d in 0..4 {
+            let Some(o) = self.tiles[start].adjacent[d] else {
+                continue;
+            };
+            if (self.mole_total(o) - starting).abs() > MINIMUM_MOLES_DELTA_TO_MOVE {
+                run_atmos = true;
+                break;
+            }
+        }
+        if !run_atmos {
+            self.tiles[start].mm.last_cycle = cycle;
+            return;
+        }
+        self.queue_cycle_control += 1;
+        let queue_cycle = self.queue_cycle_control;
+        let mut total_moles = 0.0f32;
+        let mut eq: Vec<usize> = vec![start];
+        self.tiles[start].mm.last_queue_cycle = queue_cycle;
+        let mut i = 0;
+        while i < eq.len() {
+            if i > MONSTERMOS_HARD_TILE_LIMIT {
+                break;
+            }
+            let exploring = eq[i];
+            if i < MONSTERMOS_TILE_LIMIT {
+                let moles = self.mole_total(exploring);
+                self.tiles[exploring].mm.mole_delta = moles;
+                total_moles += moles;
+            }
+            for d in 0..4 {
+                let Some(adj) = self.tiles[exploring].adjacent[d] else {
+                    continue;
+                };
+                if self.tiles[adj].mm.last_queue_cycle == queue_cycle {
+                    continue;
+                }
+                self.tiles[adj].mm = Mm {
+                    last_queue_cycle: queue_cycle,
+                    ..Mm::default()
+                };
+                if eq.len() < MONSTERMOS_HARD_TILE_LIMIT {
+                    eq.push(adj);
+                }
+                if self.tiles[adj].space {
+                    // Кто-то открыл шлюз в космос.
+                    self.explosively_depressurize(start);
+                    return;
+                }
+            }
+            i += 1;
+        }
+        let mut tile_count = eq.len();
+        if tile_count > MONSTERMOS_TILE_LIMIT {
+            for &t in &eq[MONSTERMOS_TILE_LIMIT..] {
+                self.tiles[t].mm.last_queue_cycle = 0;
+            }
+            tile_count = MONSTERMOS_TILE_LIMIT;
+            eq.truncate(tile_count);
+        }
+        let average = total_moles / tile_count as f32;
+        let mut givers: Vec<usize> = Vec::new();
+        let mut takers: Vec<usize> = Vec::new();
+        for &t in &eq {
+            self.tiles[t].mm.last_cycle = cycle;
+            self.tiles[t].mm.mole_delta -= average;
+            if self.tiles[t].mm.mole_delta > 0.0 {
+                givers.push(t);
+            } else {
+                takers.push(t);
+            }
+        }
+        let log_n = (tile_count as f32).log2();
+        // Быстрый проход O(n log n): может не сработать, но ускорит следующий.
+        if givers.len() as f32 > log_n && takers.len() as f32 > log_n {
+            eq.sort_by(|a, b| {
+                self.tiles[*a]
+                    .mm
+                    .mole_delta
+                    .total_cmp(&self.tiles[*b].mm.mole_delta)
+            });
+            for t in eq.clone() {
+                self.tiles[t].mm.fast_done = true;
+                if self.tiles[t].mm.mole_delta <= 0.0 {
+                    continue;
+                }
+                let mut eligible: Vec<usize> = Vec::new();
+                for d in 0..4 {
+                    let Some(t2) = self.tiles[t].adjacent[d] else {
+                        continue;
+                    };
+                    if self.tiles[t2].mm.fast_done
+                        || self.tiles[t2].mm.last_queue_cycle != queue_cycle
+                    {
+                        continue;
+                    }
+                    eligible.push(d);
+                }
+                if eligible.is_empty() {
+                    continue;
+                }
+                let to_move = self.tiles[t].mm.mole_delta / eligible.len() as f32;
+                for d in eligible {
+                    self.adjust_eq_movement(t, d, to_move);
+                    self.tiles[t].mm.mole_delta -= to_move;
+                    if let Some(o) = self.tiles[t].adjacent[d] {
+                        self.tiles[o].mm.mole_delta += to_move;
+                    }
+                }
+            }
+            givers.clear();
+            takers.clear();
+            for &t in &eq {
+                if self.tiles[t].mm.mole_delta > 0.0 {
+                    givers.push(t);
+                } else {
+                    takers.push(t);
+                }
+            }
+        }
+        // Медленная часть: до O(n²); идём от меньшего списка.
+        if givers.len() < takers.len() {
+            for &giver in &givers {
+                self.tiles[giver].mm.current_transfer_dir = None;
+                self.tiles[giver].mm.current_transfer_amount = 0.0;
+                self.queue_cycle_control += 1;
+                let slow = self.queue_cycle_control;
+                let mut queue: Vec<usize> = vec![giver];
+                self.tiles[giver].mm.last_slow_queue_cycle = slow;
+                let mut qi = 0;
+                while qi < queue.len() {
+                    if self.tiles[giver].mm.mole_delta <= 0.0 {
+                        break;
+                    }
+                    let other = queue[qi];
+                    for k in 0..4 {
+                        let Some(_) = self.tiles[other].adjacent[k] else {
+                            continue;
+                        };
+                        if self.tiles[giver].mm.mole_delta <= 0.0 {
+                            break;
+                        }
+                        let o2 = self.tiles[other].adjacent[k].unwrap_or(other);
+                        if self.tiles[o2].mm.last_queue_cycle != queue_cycle
+                            || self.tiles[o2].mm.last_slow_queue_cycle == slow
+                        {
+                            continue;
+                        }
+                        queue.push(o2);
+                        self.tiles[o2].mm.last_slow_queue_cycle = slow;
+                        self.tiles[o2].mm.current_transfer_dir = Some(k ^ 1);
+                        self.tiles[o2].mm.current_transfer_amount = 0.0;
+                        let delta2 = self.tiles[o2].mm.mole_delta;
+                        if delta2 < 0.0 {
+                            let gd = self.tiles[giver].mm.mole_delta;
+                            if -delta2 > gd {
+                                self.tiles[o2].mm.current_transfer_amount -= gd;
+                                self.tiles[o2].mm.mole_delta += gd;
+                                self.tiles[giver].mm.mole_delta = 0.0;
+                            } else {
+                                self.tiles[o2].mm.current_transfer_amount += delta2;
+                                self.tiles[giver].mm.mole_delta += delta2;
+                                self.tiles[o2].mm.mole_delta = 0.0;
+                            }
+                        }
+                    }
+                    qi += 1;
+                }
+                self.settle_queue(&queue);
+            }
+        } else {
+            for &taker in &takers {
+                self.tiles[taker].mm.current_transfer_dir = None;
+                self.tiles[taker].mm.current_transfer_amount = 0.0;
+                self.queue_cycle_control += 1;
+                let slow = self.queue_cycle_control;
+                let mut queue: Vec<usize> = vec![taker];
+                self.tiles[taker].mm.last_slow_queue_cycle = slow;
+                let mut qi = 0;
+                while qi < queue.len() {
+                    if self.tiles[taker].mm.mole_delta >= 0.0 {
+                        break;
+                    }
+                    let other = queue[qi];
+                    for k in 0..4 {
+                        let Some(o2) = self.tiles[other].adjacent[k] else {
+                            continue;
+                        };
+                        if self.tiles[taker].mm.mole_delta >= 0.0 {
+                            break;
+                        }
+                        if self.tiles[o2].adjacent.iter().all(Option::is_none)
+                            || self.tiles[o2].mm.last_queue_cycle != queue_cycle
+                            || self.tiles[o2].mm.last_slow_queue_cycle == slow
+                        {
+                            continue;
+                        }
+                        queue.push(o2);
+                        self.tiles[o2].mm.last_slow_queue_cycle = slow;
+                        self.tiles[o2].mm.current_transfer_dir = Some(k ^ 1);
+                        self.tiles[o2].mm.current_transfer_amount = 0.0;
+                        let delta2 = self.tiles[o2].mm.mole_delta;
+                        if delta2 > 0.0 {
+                            let td = self.tiles[taker].mm.mole_delta;
+                            if delta2 > -td {
+                                self.tiles[o2].mm.current_transfer_amount -= td;
+                                self.tiles[o2].mm.mole_delta += td;
+                                self.tiles[taker].mm.mole_delta = 0.0;
+                            } else {
+                                self.tiles[o2].mm.current_transfer_amount += delta2;
+                                self.tiles[taker].mm.mole_delta += delta2;
+                                self.tiles[o2].mm.mole_delta = 0.0;
+                            }
+                        }
+                    }
+                    qi += 1;
+                }
+                self.settle_queue(&queue);
+            }
+        }
+        for &t in &eq {
+            self.finalize_eq(t);
+        }
+        for &t in &eq {
+            for d in 0..4 {
+                let Some(o2) = self.tiles[t].adjacent[d] else {
+                    continue;
+                };
+                if self.tiles[o2].adjacent.iter().all(Option::is_none) {
+                    continue;
+                }
+                if self.compare(o2, start) == Compare::NoExchange {
+                    continue;
+                }
+                self.add_active(o2);
+                break;
+            }
+        }
+    }
+
+    /// Обратный проход по очереди: накопленные потоки уходят по направлению к источнику.
+    fn settle_queue(&mut self, queue: &[usize]) {
+        for &t in queue.iter().rev() {
+            let (amount, dir) = (
+                self.tiles[t].mm.current_transfer_amount,
+                self.tiles[t].mm.current_transfer_dir,
+            );
+            if amount == 0.0 {
+                continue;
+            }
+            let Some(d) = dir else { continue };
+            self.adjust_eq_movement(t, d, amount);
+            if let Some(o) = self.tiles[t].adjacent[d] {
+                self.tiles[o].mm.current_transfer_amount += amount;
+            }
+            self.tiles[t].mm.current_transfer_amount = 0.0;
+        }
+    }
+
+    fn adjust_eq_movement(&mut self, t: usize, d: usize, amount: f32) {
+        let Some(adj) = self.tiles[t].adjacent[d] else {
+            return;
+        };
+        self.tiles[t].mm.transfer[d] += amount;
+        self.tiles[adj].mm.transfer[d ^ 1] -= amount;
+    }
+
+    /// `FinalizeEq`: перенести накопленные потоки между клетками.
+    fn finalize_eq(&mut self, t: usize) {
+        let mut dirs = [0.0f32; 4];
+        let mut has = false;
+        for d in 0..4 {
+            let amount = self.tiles[t].mm.transfer[d];
+            if amount == 0.0 {
+                continue;
+            }
+            dirs[d] = amount;
+            self.tiles[t].mm.transfer[d] = 0.0;
+            has = true;
+        }
+        if !has {
+            return;
+        }
+        #[allow(clippy::needless_range_loop)]
+        for d in 0..4 {
+            let Some(o) = self.tiles[t].adjacent[d] else {
+                continue;
+            };
+            let amount = dirs[d];
+            if amount <= 0.0 {
+                continue;
+            }
+            if self.tiles[t].air.total_moles() < amount {
+                // Не хватает газа: сначала дорабатываем соседей, у которых отрицательные потоки.
+                #[allow(clippy::needless_range_loop)]
+                for k in 0..4 {
+                    if dirs[k] < 0.0
+                        && let Some(n) = self.tiles[t].adjacent[k]
+                    {
+                        self.finalize_eq(n);
+                    }
+                }
+            }
+            self.tiles[o].mm.transfer[d ^ 1] = 0.0;
+            let total = self.tiles[t].air.total_moles();
+            let removed = self.tiles[t].air.remove_ratio(amount / total.max(1e-12));
+            self.tiles[o].air.merge(&removed);
+        }
+    }
+
+    /// `ExplosivelyDepressurize`: газ из комнаты уходит к пробоине волной; клетки у пробоины
+    /// пустеют быстрее всего.
+    fn explosively_depressurize(&mut self, start: usize) {
+        let cycle = self.cycle;
+        self.queue_cycle_control += 1;
+        let queue_cycle = self.queue_cycle_control;
+        let limit = MONSTERMOS_HARD_TILE_LIMIT;
+        let mut tiles: Vec<usize> = vec![start];
+        let mut space_tiles: Vec<usize> = Vec::new();
+        self.tiles[start].mm = Mm {
+            last_queue_cycle: queue_cycle,
+            ..Mm::default()
+        };
+        let mut i = 0;
+        while i < tiles.len() {
+            let other = tiles[i];
+            self.tiles[other].mm.last_cycle = cycle;
+            self.tiles[other].mm.current_transfer_dir = None;
+            if !self.tiles[other].space {
+                for j in 0..4 {
+                    let Some(o2) = self.tiles[other].adjacent[j] else {
+                        continue;
+                    };
+                    if self.tiles[o2].mm.last_queue_cycle == queue_cycle {
+                        continue;
+                    }
+                    self.tiles[o2].mm = Mm {
+                        last_queue_cycle: queue_cycle,
+                        ..Mm::default()
+                    };
+                    tiles.push(o2);
+                    if tiles.len() >= limit {
+                        break;
+                    }
+                }
+            } else {
+                space_tiles.push(other);
+            }
+            if tiles.len() < limit && space_tiles.len() < limit {
+                i += 1;
+                continue;
+            }
+            break;
+        }
+        self.queue_cycle_control += 1;
+        let slow = self.queue_cycle_control;
+        let mut order: Vec<usize> = Vec::new();
+        for &t in &space_tiles {
+            order.push(t);
+            self.tiles[t].mm.last_slow_queue_cycle = slow;
+            self.tiles[t].mm.current_transfer_dir = None;
+        }
+        // Из помещения от пробоины внутрь.
+        let mut oi = 0;
+        while oi < order.len() {
+            let other = order[oi];
+            for j in 0..4 {
+                if self.tiles[other].adjacent[j].is_none() && !self.tiles[other].space {
+                    continue;
+                }
+                let Some(t2) = self.tiles[other].adjacent[j] else {
+                    continue;
+                };
+                if self.tiles[t2].mm.last_queue_cycle != queue_cycle
+                    || self.tiles[t2].mm.last_slow_queue_cycle == slow
+                    || self.tiles[t2].space
+                {
+                    continue;
+                }
+                self.tiles[t2].mm.current_transfer_dir = Some(j ^ 1);
+                self.tiles[t2].mm.current_transfer_amount = 0.0;
+                self.tiles[t2].mm.last_slow_queue_cycle = slow;
+                order.push(t2);
+            }
+            oi += 1;
+        }
+        // Обратно к пробоине от краёв залитой области.
+        for k in (0..order.len()).rev() {
+            let other = order[k];
+            let Some(dir) = self.tiles[other].mm.current_transfer_dir else {
+                continue;
+            };
+            self.add_active(other);
+            let Some(other2) = self.tiles[other].adjacent[dir] else {
+                self.tiles[other].air.clear();
+                self.tiles[other].air.set_temperature(TCMB);
+                continue;
+            };
+            let mut sum = self.tiles[other].air.total_moles();
+            if SPACING_ESCAPE_RATIO < 1.0 {
+                sum *= SPACING_ESCAPE_RATIO;
+                if sum < SPACING_MIN_GAS {
+                    sum = SPACING_MIN_GAS.min(self.tiles[other].air.total_moles());
+                }
+                let carried = self.tiles[other].mm.current_transfer_amount;
+                if sum + carried > SPACING_MAX_WIND {
+                    sum = SPACING_MIN_GAS.max(SPACING_MAX_WIND - carried);
+                }
+            }
+            self.tiles[other].mm.current_transfer_amount += sum;
+            let carried = self.tiles[other].mm.current_transfer_amount;
+            self.tiles[other2].mm.current_transfer_amount += carried;
+            let enough = self.tiles[other].air.pressure() - sum > SPACING_MIN_GAS * 0.1;
+            if enough {
+                let (a, b) = two_mut(&mut self.tiles, other, other2);
+                release_gas_to(&mut a.air, Some(&mut b.air), sum);
+                release_gas_to(&mut b.air, None, sum * 0.3);
+                if a.air.temperature() > 280.0 {
+                    let total = a.air.total_moles();
+                    let real_loss = (total - sum) / total;
+                    let t = a.air.temperature() * (0.9 + 0.1 * real_loss);
+                    a.air.set_temperature(t);
+                }
+            } else {
+                self.tiles[other].air.clear();
+                self.tiles[other].air.set_temperature(TCMB);
+            }
+        }
+    }
+
     // ---- группы возбуждения -------------------------------------------------------------------
 
     fn group_add(&mut self, g: usize, tile: usize) {
@@ -587,6 +1068,26 @@ impl Grid {
             }
         }
     }
+}
+
+/// `ReleaseGasTo`: выпустить газ из `mixture` в `output` (или в никуда) до давления `target`.
+fn release_gas_to(mixture: &mut GasMixture, output: Option<&mut GasMixture>, target: f32) -> bool {
+    let out_pressure = output.as_ref().map_or(0.0, |o| o.pressure());
+    let in_pressure = mixture.pressure();
+    if out_pressure >= target.min(in_pressure - 10.0) {
+        return false;
+    }
+    if mixture.total_moles() <= 0.0 || mixture.temperature() <= 0.0 {
+        return false;
+    }
+    let delta = (target - out_pressure).min((in_pressure - out_pressure) / 2.0);
+    let volume = output.as_ref().map_or(CELL_VOLUME, |o| o.volume);
+    let transfer = delta * volume / (mixture.temperature() * R);
+    let removed = mixture.remove_ratio(transfer / mixture.total_moles());
+    if let Some(o) = output {
+        o.merge(&removed);
+    }
+    true
 }
 
 fn two_mut(tiles: &mut [Tile], a: usize, b: usize) -> (&mut Tile, &mut Tile) {
