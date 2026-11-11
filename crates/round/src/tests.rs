@@ -264,3 +264,21 @@ mod doors {
         assert!(!h.server.doors().is_open(door));
     }
 }
+
+mod survival {
+    use super::*;
+    use gameplay::{PressureAlert, VITALS_COMPONENT, decode_vitals};
+
+    #[test]
+    fn the_breach_in_the_second_room_does_not_touch_the_closed_first_room() {
+        let round = Round::start(1, &content(), &RoundConfig::default()).unwrap();
+        let mut h = Harness::with_server(round.server);
+        let a = h.join("a");
+        h.ticks(20 * 90);
+        let net = h.client(a).net_id().unwrap();
+        let v = decode_vitals(h.client(a).component(net, VITALS_COMPONENT).unwrap()).unwrap();
+        assert_eq!(v.pressure_alert, PressureAlert::None);
+        assert!((v.pressure_kpa - 101.3).abs() < 2.0, "{}", v.pressure_kpa);
+        assert!(!v.low_oxygen);
+    }
+}

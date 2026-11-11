@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
 
 use astrocore_api::{GameModule, HookContext, HookEvent};
@@ -10,9 +10,11 @@ use astrocore_world::{
 };
 use prototypes::PrototypeRegistry;
 
+use crate::body::{Body, Environment, VITALS_COMPONENT, Vitals, encode_vitals};
 use crate::doafter::{
     Action, BREAK_DISTANCE_M, DOAFTER_COMPONENT, DoAfter, DoAfterView, PRY_TIME_S, encode_doafter,
 };
+use crate::edibles::{EdibleSpec, openable_closed, solution_template};
 use crate::hands::{Hands, HeldItem};
 use crate::health::{
     CORPSE_PROTOTYPE, DEFAULT_ATTACK_RATE, DamageSpec, FIST_DAMAGE, GHOST_COMPONENT,
@@ -22,6 +24,7 @@ use crate::health::{
 use crate::interact::{InteractionHandler, Target, Used};
 use crate::inventory::Inventory;
 use crate::items::{ItemInfo, item_info};
+use crate::reagents::Solution;
 use crate::storage::Storage;
 use crate::wire::{
     BagView, CMD_ATTACK, CMD_CANCEL, CMD_DROP, CMD_EQUIP, CMD_HEAL, CMD_INTERACT, CMD_MOVE_HAND,
@@ -66,10 +69,14 @@ pub(crate) struct Actor {
     /// Когда призрак может возродиться, с (по часам модуля), и где умер.
     pub(crate) respawn_at: f32,
     pub(crate) death_pos: Option<Vec3>,
+    /// Физиология: дыхание, желудок, сытость, баротравма.
+    pub(crate) body: Option<Body>,
+    /// Последнее разосланное состояние тела (чтобы не слать повторы).
+    pub(crate) last_vitals: Option<Vitals>,
 }
 
 impl Actor {
-    fn new() -> Self {
+    fn new(seed: u32) -> Self {
         Self {
             hands: Hands::humanoid(),
             inventory: Inventory::human(),
@@ -83,6 +90,8 @@ impl Actor {
             ghost: false,
             respawn_at: 0.0,
             death_pos: None,
+            body: Some(Body::new(seed)),
+            last_vitals: None,
         }
     }
 }
@@ -111,6 +120,16 @@ pub struct State {
     pub(crate) spawn: Option<Vec3>,
     /// Сколько тел оставлено (для идентификаторов).
     pub(crate) corpses: u32,
+    /// Атмосфера по этажам.
+    pub(crate) atmos: BTreeMap<i32, atmos::Grid>,
+    pub(crate) edibles: BTreeMap<PrototypeId, EdibleSpec>,
+    pub(crate) solution_templates: BTreeMap<PrototypeId, Solution>,
+    /// Прототипы, которые открываются и закрываются (бутылки).
+    pub(crate) openable: BTreeMap<PrototypeId, bool>,
+    /// Растворы предметов (создаются при первом обращении).
+    pub(crate) solutions: BTreeMap<ObjectId, Solution>,
+    /// Предметы, которые уже открыты.
+    pub(crate) opened: BTreeSet<ObjectId>,
 }
 
 impl State {
@@ -121,10 +140,24 @@ impl State {
         let mut delays = BTreeMap::new();
         let mut melee = BTreeMap::new();
         let mut healing = BTreeMap::new();
+        let mut edibles = BTreeMap::new();
+        let mut solution_templates = BTreeMap::new();
+        let mut openable = BTreeMap::new();
         for (id, name) in names {
             let resolved = registry.spawnable(&name).ok();
             if let Some(info) = resolved.as_ref().and_then(item_info) {
                 infos.insert(id.clone(), info);
+            }
+            if let Some(r) = resolved.as_ref() {
+                if let Some(e) = EdibleSpec::from_resolved(r) {
+                    edibles.insert(id.clone(), e);
+                }
+                if let Some(s) = solution_template(r) {
+                    solution_templates.insert(id.clone(), s);
+                }
+                if let Some(closed) = openable_closed(r) {
+                    openable.insert(id.clone(), closed);
+                }
             }
             let delay = |key: &str| {
                 resolved
@@ -186,6 +219,12 @@ impl State {
             charges: BTreeMap::new(),
             spawn: None,
             corpses: 0,
+            atmos: BTreeMap::new(),
+            edibles,
+            solution_templates,
+            openable,
+            solutions: BTreeMap::new(),
+            opened: BTreeSet::new(),
         })
     }
 
@@ -225,7 +264,9 @@ impl State {
     }
 
     pub(crate) fn actor(&mut self, id: NetworkEntityId) -> &mut Actor {
-        self.actors.entry(id).or_insert_with(Actor::new)
+        self.actors
+            .entry(id)
+            .or_insert_with(|| Actor::new(id.0.wrapping_mul(2_246_822_519) ^ 0x85eb_ca6b))
     }
 
     pub(crate) fn info(&self, proto: &PrototypeId) -> Option<&ItemInfo> {
@@ -240,6 +281,7 @@ impl State {
         ctx.set_component(actor, HANDS_COMPONENT, encode_hands(&a.hands));
         let mut health_view = a.health.view();
         health_view.ghost = a.ghost;
+        health_view.suffocating = a.body.as_ref().is_some_and(|b| b.low_oxygen);
         health_view.respawn_in = if a.ghost {
             (a.respawn_at - self.clock).max(0.0)
         } else {
@@ -248,6 +290,9 @@ impl State {
         ctx.set_component(actor, HEALTH_COMPONENT, encode_health(&health_view));
         ctx.set_component(actor, MOBSTATE_COMPONENT, vec![a.health.state().to_byte()]);
         ctx.set_component(actor, GHOST_COMPONENT, vec![u8::from(a.ghost)]);
+        if let Some(body) = a.body.as_ref() {
+            ctx.set_component(actor, VITALS_COMPONENT, encode_vitals(&body.vitals()));
+        }
         let worn: crate::wire::Worn = a
             .inventory
             .iter()
@@ -281,6 +326,19 @@ impl State {
             inventory: a.inventory.clone(),
             bags,
             charges: self.charges.iter().map(|(id, n)| (*id, *n)).collect(),
+            fills: a
+                .hands
+                .held()
+                .chain(a.inventory.worn())
+                .filter_map(|i| {
+                    let t = self.solution_templates.get(&i.prototype)?;
+                    let vol = self
+                        .solutions
+                        .get(&i.id)
+                        .map_or_else(|| t.volume(), Solution::volume);
+                    Some((i.id, vol, t.max_volume, self.is_closed(i)))
+                })
+                .collect(),
         };
         ctx.set_component(actor, INVENTORY_COMPONENT, encode_inventory(&view));
     }
@@ -563,6 +621,89 @@ impl State {
         self.after_health_change(ctx, target);
     }
 
+    /// Закрыт ли предмет (бутылка, пока её не открыли).
+    pub(crate) fn is_closed(&self, item: &HeldItem) -> bool {
+        self.openable.get(&item.prototype).copied().unwrap_or(false)
+            && !self.opened.contains(&item.id)
+    }
+
+    /// Объём раствора предмета: созданный при первом обращении или шаблон прототипа.
+    pub(crate) fn solution_volume(&self, item: &HeldItem) -> f32 {
+        self.solutions.get(&item.id).map_or_else(
+            || {
+                self.solution_templates
+                    .get(&item.prototype)
+                    .map_or(0.0, Solution::volume)
+            },
+            Solution::volume,
+        )
+    }
+
+    /// Раствор предмета, создавая его из шаблона при первом обращении.
+    pub(crate) fn solution_mut(&mut self, item: &HeldItem) -> Option<&mut Solution> {
+        if !self.solutions.contains_key(&item.id) {
+            let t = self.solution_templates.get(&item.prototype)?.clone();
+            self.solutions.insert(item.id, t);
+        }
+        self.solutions.get_mut(&item.id)
+    }
+
+    /// Открыть предмет (`OpenableSystem.TryOpen`): `false`, если он не открывается или уже открыт.
+    pub(crate) fn open(&mut self, item: &HeldItem) -> bool {
+        if !self.is_closed(item) {
+            return false;
+        }
+        self.opened.insert(item.id);
+        true
+    }
+
+    /// Один укус: часть раствора переходит в желудок, пустая еда исчезает, а напиток остаётся.
+    /// Съеденное самому себе продолжается само, пока есть что есть и место в желудке.
+    fn bite(
+        &mut self,
+        ctx: &mut HookContext<'_>,
+        actor: NetworkEntityId,
+        hand: usize,
+        id: ObjectId,
+    ) {
+        let Some(item) = self
+            .actors
+            .get(&actor)
+            .and_then(|a| a.hands.get(hand))
+            .filter(|i| i.id == id)
+            .cloned()
+        else {
+            return;
+        };
+        let Some(spec) = self.edibles.get(&item.prototype).cloned() else {
+            return;
+        };
+        let room = self
+            .actors
+            .get(&actor)
+            .and_then(|a| a.body.as_ref())
+            .map_or(0.0, |b| b.stomach.available());
+        let Some(sol) = self.solution_mut(&item) else {
+            return;
+        };
+        let amount = spec.transfer.min(sol.volume()).min(room);
+        let split = sol.split(amount);
+        let empty = sol.is_empty();
+        if let Some(body) = self.actor(actor).body.as_mut() {
+            let rest = body.swallow(&split);
+            debug_assert!(rest.is_empty());
+        }
+        if empty && spec.destroy_on_empty {
+            self.solutions.remove(&item.id);
+            self.opened.remove(&item.id);
+            let _ = self.actor(actor).hands.drop_hand(hand);
+        } else if !empty {
+            // Продолжаем есть, пока не кончится или не отменят.
+            self.begin(ctx, actor, Action::Eat { hand, item: id });
+        }
+        self.publish(ctx, actor);
+    }
+
     /// Лечение: применяет предмет к цели и расходует его.
     fn heal(
         &mut self,
@@ -718,6 +859,20 @@ impl State {
                     .is_some_and(|info| a.inventory.can_equip(slot, info).is_ok())
             }),
             Action::Unequip { slot, .. } => a.inventory.get(slot).is_some(),
+            Action::Eat { hand, item } => {
+                let held = a.hands.get(*hand).filter(|i| i.id == *item);
+                let Some(held) = held else { return false };
+                let Some(_) = self.edibles.get(&held.prototype) else {
+                    return false;
+                };
+                let closed = self.is_closed(held);
+                let has_food = self.solution_volume(held) > 1e-4;
+                let room = a
+                    .body
+                    .as_ref()
+                    .is_some_and(|b| b.stomach.available() > 1e-4);
+                !closed && has_food && room
+            }
             Action::Heal { hand, target } => {
                 let healable = ctx.position_of(*target).is_some()
                     && self
@@ -755,6 +910,11 @@ impl State {
                 .get(slot)
                 .and_then(|i| self.delays.get(&i.prototype))
                 .map_or(0.0, |d| d.1),
+            Action::Eat { hand, .. } => a
+                .hands
+                .get(*hand)
+                .and_then(|i| self.edibles.get(&i.prototype))
+                .map_or(0.0, |e| e.delay),
             Action::Heal { hand, .. } => a
                 .hands
                 .get(*hand)
@@ -770,6 +930,7 @@ impl State {
             Action::Unequip { slot, hand } => self.unequip(ctx, actor, &slot, hand),
             Action::Pry { element, .. } => ctx.request_door(element, DoorAction::Open, true),
             Action::Heal { hand, target } => self.heal(ctx, actor, hand, target),
+            Action::Eat { hand, item } => self.bite(ctx, actor, hand, item),
         }
     }
 
@@ -810,6 +971,8 @@ impl State {
         let a = self.actor(actor);
         let worn = a.inventory.take_all();
         a.health = Health::default();
+        a.body = Some(Body::new(actor.0.wrapping_mul(97) ^ 0x5bd1_e995));
+        a.last_vitals = None;
         a.mob_state = MobState::Alive;
         a.ghost = false;
         a.frozen = false;
@@ -829,38 +992,69 @@ impl State {
         self.publish(ctx, actor);
     }
 
-    /// Кровотечение и удушье идут сами; разошлём здоровье не чаще двух раз в секунду.
+    /// Атмосфера и тело: обновить геометрию, продвинуть газ, дать каждому персонажу подышать,
+    /// переварить съеденное и проверить давление. Кровотечение идёт тут же. Здоровье рассылается не
+    /// чаще двух раз в секунду, но конец процесса — сразу, чтобы клиент не застрял на старом числе.
     fn tick_health(&mut self, ctx: &mut HookContext<'_>, dt: f32) {
+        self.tick_atmosphere(ctx, dt);
         let ids: Vec<NetworkEntityId> = ctx.players().collect();
         for id in ids {
             let Some(pos) = ctx.position_of(id) else {
                 continue;
             };
-            let vacuum = ctx
-                .world
-                .authored_at(pos + Vec3::Y * CHEST_M)
-                .iter()
-                .any(|o| {
-                    matches!(o.kind, AuthoredKind::Zone)
-                        && o.metadata.get("atmosphere").is_some_and(|v| v == "vacuum")
-                });
+            let floor = floor_at(ctx, pos.y).map(|f| f.0);
+            let cell = (pos.x.floor() as i32, pos.z.floor() as i32);
             let clock = self.clock;
+            self.actor(id);
+            let Some(mut body) = self.actors.get_mut(&id).and_then(|a| a.body.take()) else {
+                continue;
+            };
+            let (mob, barotrauma) = {
+                let a = &self.actors[&id];
+                (
+                    a.health.state(),
+                    a.health.damage_of("Blunt") + a.health.damage_of("Heat"),
+                )
+            };
+            let outcome = {
+                let grid = floor.and_then(|f| self.atmos.get_mut(&f));
+                let mut env = ActorEnv { grid, cell };
+                body.tick(dt, &mut env, mob, barotrauma)
+            };
             let a = self.actor(id);
-            let breath_changed = a.health.suffocating != vacuum;
-            a.health.suffocating = vacuum;
-            let changed = a.health.tick(dt);
+            a.health.apply(&outcome.damage);
+            let vitals = body.vitals();
+            let vitals_changed = a
+                .last_vitals
+                .as_ref()
+                .is_none_or(|v| vitals_differ(v, &vitals));
+            a.body = Some(body);
+            let changed = a.health.tick(dt) || outcome.changed;
             a.health_dirty |= changed;
-            // Не чаще двух раз в секунду, но конец процесса (кровь перестала течь, воздух
-            // вернулся) рассылается сразу, чтобы клиент не застрял на старом числе.
             let due = clock >= a.next_health_publish;
             if (a.health_dirty && (due || !changed))
-                || breath_changed
                 || a.health.state() != a.mob_state
+                || vitals_changed
             {
                 a.health_dirty = false;
                 a.next_health_publish = clock + 0.5;
+                a.last_vitals = Some(vitals);
                 self.after_health_change(ctx, id);
             }
+        }
+    }
+
+    /// Геометрия и ход газа: при любом изменении стен или дверей сетка перестраивается, воздух
+    /// уцелевших клеток сохраняется.
+    fn tick_atmosphere(&mut self, ctx: &mut HookContext<'_>, dt: f32) {
+        let layouts = crate::world_atmos::layouts(ctx.world, &|id| ctx.door_open(id) == Some(true));
+        self.atmos.retain(|f, _| layouts.contains_key(f));
+        for (floor, layout) in layouts {
+            let grid = self.atmos.entry(floor).or_default();
+            if grid.layout() != &layout {
+                grid.set_layout(layout);
+            }
+            grid.advance(dt);
         }
     }
 
@@ -882,7 +1076,7 @@ impl State {
             let Some(d) = self.actors.get_mut(&id).and_then(|a| a.doafter.as_mut()) else {
                 continue;
             };
-            if pos.distance(d.start) > BREAK_DISTANCE_M {
+            if d.action.breaks_on_move() && pos.distance(d.start) > BREAK_DISTANCE_M {
                 self.cancel(ctx, id);
                 continue;
             }
@@ -1009,6 +1203,41 @@ fn damage_spec(d: Option<&prototypes::Data>) -> DamageSpec {
                 .collect()
         })
         .unwrap_or_default()
+}
+
+/// Воздух под ногами персонажа: клетка сетки своего этажа. Вне сетки (в пустоте) дышать нечем.
+struct ActorEnv<'a> {
+    grid: Option<&'a mut atmos::Grid>,
+    cell: (i32, i32),
+}
+
+impl Environment for ActorEnv<'_> {
+    fn take_breath(&mut self, litres: f32) -> Option<atmos::GasMixture> {
+        let cell = self.cell;
+        self.grid.as_mut()?.remove_volume(cell, litres)
+    }
+
+    fn give_back(&mut self, gas: &atmos::GasMixture) {
+        let cell = self.cell;
+        if let Some(g) = self.grid.as_mut() {
+            g.merge_into(cell, gas);
+        }
+    }
+
+    fn pressure(&self) -> f32 {
+        self.grid.as_ref().map_or(0.0, |g| g.pressure(self.cell))
+    }
+}
+
+/// Достаточно ли изменилось состояние тела, чтобы слать его заново.
+fn vitals_differ(a: &Vitals, b: &Vitals) -> bool {
+    a.hunger.round() != b.hunger.round()
+        || a.thirst.round() != b.thirst.round()
+        || a.hunger_alert != b.hunger_alert
+        || a.thirst_alert != b.thirst_alert
+        || a.pressure_alert != b.pressure_alert
+        || a.pressure_kpa.round() != b.pressure_kpa.round()
+        || a.low_oxygen != b.low_oxygen
 }
 
 /// Этаж, в который попадает высота `y` (ступни стоят на нижней границе).

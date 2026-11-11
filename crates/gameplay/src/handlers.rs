@@ -104,6 +104,51 @@ impl InteractionHandler for PryDoor {
     }
 }
 
+/// Использовать закрытую бутылку в руке — открыть её (`OpenableSystem.OnUse`).
+pub struct OpenableUse;
+
+impl InteractionHandler for OpenableUse {
+    fn use_in_hand(
+        &mut self,
+        state: &mut State,
+        ctx: &mut HookContext<'_>,
+        user: NetworkEntityId,
+        used: &Used,
+    ) -> bool {
+        let opened = state.open(&used.item);
+        if opened {
+            state.publish(ctx, user);
+        }
+        opened
+    }
+}
+
+/// Использовать еду или питьё в руке — съесть или выпить укус (`IngestionSystem.OnUseEdibleInHand`).
+pub struct EdibleUse;
+
+impl InteractionHandler for EdibleUse {
+    fn use_in_hand(
+        &mut self,
+        state: &mut State,
+        ctx: &mut HookContext<'_>,
+        user: NetworkEntityId,
+        used: &Used,
+    ) -> bool {
+        if !state.edibles.contains_key(&used.item.prototype) {
+            return false;
+        }
+        state.begin(
+            ctx,
+            user,
+            Action::Eat {
+                hand: used.hand,
+                item: used.item.id,
+            },
+        );
+        true
+    }
+}
+
 /// Базовая цепочка: порядок важен — первый обработавший прекращает обход.
 pub fn default_handlers() -> Vec<Box<dyn InteractionHandler>> {
     vec![
@@ -111,5 +156,7 @@ pub fn default_handlers() -> Vec<Box<dyn InteractionHandler>> {
         Box::new(StorageClickInsert),
         Box::new(PickupHandler),
         Box::new(DoorActivate),
+        Box::new(OpenableUse),
+        Box::new(EdibleUse),
     ]
 }

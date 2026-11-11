@@ -829,6 +829,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "atmos"
+version = "0.1.0"
+
+[[package]]
 name = "atomic-polyfill"
 version = "1.0.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3975,6 +3979,7 @@ dependencies = [
  "astrocore-physics",
  "astrocore-runtime",
  "astrocore-world",
+ "atmos",
  "prototypes",
  "serde",
  "serde_json",

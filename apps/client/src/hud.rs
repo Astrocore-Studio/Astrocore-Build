@@ -243,6 +243,8 @@ pub type Commands = Vec<(&'static str, Vec<u8>)>;
 pub struct HudState {
     /// Здоровье игрока для значка состояния в панели алертов.
     pub health: Option<gameplay::HealthView>,
+    /// Состояние тела: сытость, давление, кислород.
+    pub vitals: Option<gameplay::Vitals>,
     pub clothes_open: bool,
     /// Сумки, окна которых закрыты вручную.
     pub bags_closed: std::collections::HashSet<u128>,
@@ -327,7 +329,7 @@ pub fn draw(
                 state.clothes_open = !state.clothes_open;
             }
         });
-    alerts(ctx, icons, state.health.as_ref());
+    alerts(ctx, icons, state.health.as_ref(), state.vitals.as_ref());
     egui::Area::new(egui::Id::new("hud_bar"))
         .anchor(egui::Align2::CENTER_BOTTOM, Vec2::new(0.0, -8.0))
         .show(ctx, |ui| {
@@ -374,7 +376,12 @@ pub fn draw(
 /// Панель алертов справа вверху (`AlertsUI` SS14), столбцом: здоровье (`health0…4` по доле урона до
 /// критического порога, критическое состояние и смерть — свои значки), кровотечение (`bleed0…10`) и
 /// «нечем дышать» (`not_enough_oxy`).
-fn alerts(ctx: &egui::Context, icons: &mut Icons, health: Option<&gameplay::HealthView>) {
+fn alerts(
+    ctx: &egui::Context,
+    icons: &mut Icons,
+    health: Option<&gameplay::HealthView>,
+    vitals: Option<&gameplay::Vitals>,
+) {
     let Some(h) = health else { return };
     let total: f32 = h.damage.values().sum();
     let mut shown: Vec<(String, String)> = Vec::new();
@@ -408,11 +415,46 @@ fn alerts(ctx: &egui::Context, icons: &mut Icons, health: Option<&gameplay::Heal
             format!("Кровотечение: {:.1}", h.bleed),
         ));
     }
-    if h.suffocating {
-        shown.push((
-            "Alerts/breathing.rsi/not_enough_oxy".to_string(),
-            "Нечем дышать".to_string(),
-        ));
+    if let Some(v) = vitals {
+        if v.low_oxygen {
+            shown.push((
+                "Alerts/breathing.rsi/not_enough_oxy".to_string(),
+                "Нечем дышать".to_string(),
+            ));
+        }
+        match v.pressure_alert {
+            gameplay::PressureAlert::None => {}
+            gameplay::PressureAlert::Low(n) => shown.push((
+                format!("Alerts/pressure.rsi/lowpressure{n}"),
+                format!("Низкое давление: {:.0} кПа", v.pressure_kpa),
+            )),
+            gameplay::PressureAlert::High(n) => shown.push((
+                format!("Alerts/pressure.rsi/highpressure{n}"),
+                format!("Высокое давление: {:.0} кПа", v.pressure_kpa),
+            )),
+        }
+        match v.hunger_alert {
+            1 => shown.push((
+                "Alerts/hunger.rsi/peckish".to_string(),
+                format!("Хочется есть ({:.0})", v.hunger),
+            )),
+            2 => shown.push((
+                "Alerts/hunger.rsi/starving".to_string(),
+                format!("Голод ({:.0})", v.hunger),
+            )),
+            _ => {}
+        }
+        match v.thirst_alert {
+            1 => shown.push((
+                "Alerts/thirst.rsi/thirsty".to_string(),
+                format!("Хочется пить ({:.0})", v.thirst),
+            )),
+            2 => shown.push((
+                "Alerts/thirst.rsi/parched".to_string(),
+                format!("Мучает жажда ({:.0})", v.thirst),
+            )),
+            _ => {}
+        }
     }
     let time = ctx.input(|i| i.time);
     let frames: Vec<_> = shown
@@ -579,8 +621,19 @@ fn hand_slots(
             out.push((CMD_SELECT_HAND, vec![i as u8]));
         }
         if let Some(it) = item {
-            let resp =
-                resp.on_hover_text(it.prototype.as_str().split_once(':').map_or("", |p| p.1));
+            let mut label = it
+                .prototype
+                .as_str()
+                .split_once(':')
+                .map_or("", |p| p.1)
+                .to_string();
+            if let Some(f) = view.and_then(|v| v.fills.iter().find(|f| f.0 == it.id)) {
+                label.push_str(&format!(" · {:.0}/{:.0}", f.1, f.2));
+                if f.3 {
+                    label.push_str(" · закрыто (F — открыть)");
+                }
+            }
+            let resp = resp.on_hover_text(label);
             resp.context_menu(|ui| {
                 if ui.button("Выбросить").clicked() {
                     out.push((CMD_DROP, drop_data(i as u8)));
@@ -946,6 +999,7 @@ mod tests {
             inventory: gameplay::Inventory::human(),
             bags: Vec::new(),
             charges: Vec::new(),
+            fills: Vec::new(),
         };
         // Слоты левой полосы: id, belt, back; «back» — третий.
         let cmds = run(
@@ -974,6 +1028,7 @@ mod tests {
             inventory,
             bags: Vec::new(),
             charges: Vec::new(),
+            fills: Vec::new(),
         }
     }
 

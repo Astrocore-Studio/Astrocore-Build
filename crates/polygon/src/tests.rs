@@ -86,10 +86,12 @@ fn content_prototypes_are_valid_and_every_item_has_a_sprite_that_exists() {
         "ClothingBackpack",
         "Brutepack",
         "Ointment",
+        "FoodBurgerPlain",
+        "DrinkWaterBottleFull",
     ] {
         assert!(registry.spawnable(name).is_ok(), "{name}");
     }
-    assert_eq!(sprites.len(), 9, "{sprites:?}");
+    assert_eq!(sprites.len(), 11, "{sprites:?}");
     // Манифест строится только из существующих файлов.
     let json = render_manifest(&content_dir(), &registry).unwrap();
     for needle in [

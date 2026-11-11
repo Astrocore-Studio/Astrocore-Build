@@ -1439,6 +1439,16 @@
             x: 2.5,
             z: 2.5,
         ),
+        (
+            prototype: "FoodBurgerPlain",
+            x: 3.5,
+            z: 2.5,
+        ),
+        (
+            prototype: "DrinkWaterBottleFull",
+            x: 4.5,
+            z: 2.5,
+        ),
     ],
     zones: [
         // Пробоина в северо-восточном углу второй комнаты: воздуха нет.

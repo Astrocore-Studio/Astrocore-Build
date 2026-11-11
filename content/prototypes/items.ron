@@ -37,6 +37,20 @@
     (id: "Corpse", name: Some("corpse"), components: {
         "Sprite": (sprite: "Mobs/Species/Human/parts.rsi", state: "full"),
     }),
+    // Еда и питьё: данные `FoodBurgerPlain` (burger.yml, `FoodBurgerBase`) и `DrinkWaterBottleFull`
+    // (drinks_bottles_plastic.yml): состав раствора и спрайты оттуда, `Edible` по умолчанию —
+    // укус 5 единиц за 1 с; бутылка закрыта, пока её не откроют, и после опустошения остаётся.
+    (id: "FoodBurgerPlain", parents: ["BaseItem"], name: Some("plain burger"), components: {
+        "Sprite": (sprite: "Objects/Consumable/Food/burger.rsi", state: "plain"),
+        "Edible": (transferAmount: 5.0, delay: 1.0, destroyOnEmpty: true),
+        "Solution": (maxVol: 50.0, reagents: (Nutriment: 30.0, Protein: 10.0, Vitamin: 10.0)),
+    }),
+    (id: "DrinkWaterBottleFull", parents: ["BaseItem"], name: Some("water bottle"), components: {
+        "Sprite": (sprite: "Objects/Consumable/Drinks/waterbottle.rsi", state: "icon"),
+        "Edible": (transferAmount: 5.0, delay: 1.0, destroyOnEmpty: false),
+        "Openable": (opened: false),
+        "Solution": (maxVol: 60.0, reagents: (Water: 60.0)),
+    }),
     (id: "Pen", name: Some("pen"), components: {
         "Item": (size: "Tiny"),
         "Sprite": (sprite: "Objects/Misc/pens.rsi", state: "pen"),

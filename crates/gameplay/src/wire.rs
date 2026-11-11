@@ -168,6 +168,12 @@ pub fn register_replication(reg: &mut ReplicationRegistry) -> Result<(), Replica
         max_bytes: 4,
     })?;
     reg.register(ReplicatedKind {
+        name: crate::body::VITALS_COMPONENT.into(),
+        channel: ReplicationChannel::ReliableOrdered,
+        interest: Interest::Owner,
+        max_bytes: crate::body::VITALS_MAX_BYTES,
+    })?;
+    reg.register(ReplicatedKind {
         name: WORN_COMPONENT.into(),
         channel: ReplicationChannel::ReliableOrdered,
         interest: Interest::Everyone,
@@ -185,13 +191,16 @@ pub struct BagView {
 }
 
 /// Состояние инвентаря игрока: слоты и сумки, которые он держит или носит.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct InventoryView {
     pub inventory: Inventory,
     pub bags: Vec<BagView>,
     /// Остаток применений у начатых стопок лечения (предмет, сколько осталось).
     #[serde(default)]
     pub charges: Vec<(ObjectId, u32)>,
+    /// Растворы предметов у персонажа: (предмет, объём, предел, закрыт ли).
+    #[serde(default)]
+    pub fills: Vec<(ObjectId, f32, f32, bool)>,
 }
 
 pub fn encode_inventory(v: &InventoryView) -> Vec<u8> {

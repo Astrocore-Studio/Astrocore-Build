@@ -91,6 +91,20 @@
         0.36000001430511475
       ]
     },
+    "ss14:drink_water_bottle_full": {
+      "image": "Textures/Objects/Consumable/Drinks/waterbottle.rsi/icon.png",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:food_burger_plain": {
+      "image": "Textures/Objects/Consumable/Food/burger.rsi/plain.png",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
     "ss14:ointment": {
       "image": "Textures/Objects/Specific/Medical/medical.rsi/ointment.png",
       "size": [

@@ -1,4 +1,6 @@
+mod body;
 mod doafter;
+mod edibles;
 pub mod handlers;
 mod hands;
 mod health;
@@ -6,9 +8,12 @@ pub mod interact;
 pub mod inventory;
 pub mod items;
 pub mod module;
+mod reagents;
 pub mod storage;
 pub mod wire;
+mod world_atmos;
 
+pub use body::{PressureAlert, VITALS_COMPONENT, Vitals, decode_vitals};
 pub use doafter::{BREAK_DISTANCE_M, DOAFTER_COMPONENT, DoAfterView, PRY_TIME_S, decode_doafter};
 pub use hands::{Hands, HandsError, HeldItem};
 pub use health::{

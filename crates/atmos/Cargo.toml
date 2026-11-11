@@ -1,0 +1,9 @@
+[package]
+name = "atmos"
+description = "Атмосфера по образцу SS14: газовые смеси, обмен газом между клетками (LINDA), группы возбуждения"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+license.workspace = true
+
+[dependencies]

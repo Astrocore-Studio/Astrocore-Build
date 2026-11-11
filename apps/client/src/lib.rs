@@ -22,6 +22,7 @@ pub struct Loadout {
     /// Идущее действие с таймером и время (с игры), когда клиент о нём узнал.
     pub doafter: Option<(gameplay::DoAfterView, f32)>,
     pub health: Option<gameplay::HealthView>,
+    pub vitals: Option<gameplay::Vitals>,
     /// Когда (по часам клиента) пришло последнее состояние здоровья.
     pub health_at: f32,
 }
@@ -169,6 +170,10 @@ fn refresh_loadout(net: Option<NonSend<Net>>, time: Res<Time>, mut loadout: ResM
         .core
         .component(me, gameplay::HEALTH_COMPONENT)
         .and_then(gameplay::decode_health);
+    loadout.vitals = net
+        .core
+        .component(me, gameplay::VITALS_COMPONENT)
+        .and_then(gameplay::decode_vitals);
     if health != loadout.health {
         loadout.health_at = time.elapsed_secs();
         loadout.health = health;
@@ -192,6 +197,9 @@ fn hand_keys(keys: Res<ButtonInput<KeyCode>>, loadout: Res<Loadout>, net: Option
     }
     if keys.just_pressed(KeyCode::Escape) && loadout.doafter.is_some() {
         net.send_command(gameplay::CMD_CANCEL, Vec::new());
+    }
+    if keys.just_pressed(KeyCode::KeyF) {
+        net.send_command(gameplay::CMD_USE, gameplay::use_data(active));
     }
     if keys.just_pressed(KeyCode::KeyX) {
         net.send_command(CMD_SWAP_HANDS, vec![0]);
@@ -331,6 +339,8 @@ fn loadout_window(
             "equip" => "Надеваем…",
             "unequip" => "Снимаем…",
             "pry" => "Вскрываем…",
+            "heal" => "Лечим…",
+            "eat" => "Едим…",
             _ => "Действие…",
         };
         (
@@ -340,6 +350,7 @@ fn loadout_window(
     });
     let Hud { icons, state } = &mut *hud;
     state.health = loadout.health.clone();
+    state.vitals = loadout.vitals.clone();
     let commands = hud::draw(
         &ctx,
         icons,

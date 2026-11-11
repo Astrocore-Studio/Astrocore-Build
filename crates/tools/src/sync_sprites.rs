@@ -19,6 +19,9 @@ pub const FIXED_RSI: &[&str] = &[
     "Interface/Alerts/human_dead.rsi",
     "Interface/Alerts/bleed.rsi",
     "Interface/Alerts/breathing.rsi",
+    "Interface/Alerts/pressure.rsi",
+    "Interface/Alerts/hunger.rsi",
+    "Interface/Alerts/thirst.rsi",
 ];
 /// Каталоги интерфейса (худ): копируются только картинки верхнего уровня с нужным началом имени
 /// (слоты; плитки и части рамки хранилища).

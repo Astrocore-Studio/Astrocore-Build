@@ -37,15 +37,27 @@ pub(crate) enum Action {
         hand: usize,
         target: astrocore_core::NetworkEntityId,
     },
+    /// Съесть или выпить укус из предмета в руке.
+    Eat {
+        hand: usize,
+        item: ObjectId,
+    },
 }
 
 impl Action {
+    /// Прерывается ли действие шагом в сторону: есть и пить можно на ходу (`BreakOnMove` у
+    /// `EatingDoAfter` включён только при кормлении другого).
+    pub(crate) fn breaks_on_move(&self) -> bool {
+        !matches!(self, Self::Eat { .. })
+    }
+
     pub(crate) fn kind(&self) -> &'static str {
         match self {
             Self::Equip { .. } => "equip",
             Self::Unequip { .. } => "unequip",
             Self::Pry { .. } => "pry",
             Self::Heal { .. } => "heal",
+            Self::Eat { .. } => "eat",
         }
     }
 }

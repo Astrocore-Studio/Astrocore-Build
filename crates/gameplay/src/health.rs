@@ -52,9 +52,6 @@ pub const BLEED_PER_DAMAGE: f32 = 0.15;
 pub const BLEED_DECAY_PER_S: f32 = 0.05;
 /// Потеря крови: урон `Bloodloss` в секунду на единицу кровотечения.
 pub const BLOODLOSS_PER_BLEED: f32 = 1.0;
-/// Удушье в безвоздушной области, урон в секунду, и восстановление на воздухе.
-pub const SUFFOCATION_PER_S: f32 = 1.0;
-pub const BREATHING_RECOVERY_PER_S: f32 = 1.0;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum MobState {
@@ -98,9 +95,6 @@ pub struct Health {
     /// Сила кровотечения.
     #[serde(default)]
     bleed: f32,
-    /// Дышать нечем (персонаж в безвоздушной области).
-    #[serde(default)]
-    pub suffocating: bool,
 }
 
 impl Health {
@@ -212,8 +206,7 @@ impl Health {
         }
     }
 
-    /// Шаг времени: кровотечение теряет кровь и затухает, удушье растёт или проходит. Возвращает
-    /// `true`, если что-то изменилось.
+    /// Шаг времени: кровотечение теряет кровь и затухает. Возвращает `true`, если что-то изменилось.
     pub fn tick(&mut self, dt: f32) -> bool {
         let mut changed = false;
         if self.bleed > 0.0 {
@@ -224,21 +217,6 @@ impl Health {
                 self.apply_to(None, &spec);
             }
             changed = true;
-        }
-        let air = self.damage_of("Asphyxiation");
-        if self.state() != MobState::Dead {
-            if self.suffocating {
-                let spec = DamageSpec::from([("Asphyxiation".to_string(), SUFFOCATION_PER_S * dt)]);
-                self.apply_to(None, &spec);
-                changed = true;
-            } else if air > 0.0 {
-                let spec = DamageSpec::from([(
-                    "Asphyxiation".to_string(),
-                    -BREATHING_RECOVERY_PER_S * dt,
-                )]);
-                self.apply_to(None, &spec);
-                changed = true;
-            }
         }
         changed
     }
@@ -281,7 +259,7 @@ impl Health {
             state: self.state(),
             parts: self.parts.clone(),
             bleed: self.bleed,
-            suffocating: self.suffocating,
+            suffocating: false,
             ghost: false,
             respawn_in: 0.0,
         }
@@ -401,22 +379,5 @@ mod tests {
         let mut b = Health::default();
         b.apply_to(Some("Torso"), &spec(&[("Blunt", 50.0)]));
         assert_eq!(b.bleed(), 0.0);
-    }
-
-    #[test]
-    fn suffocation_grows_without_air_and_passes_with_it() {
-        let mut h = Health {
-            suffocating: true,
-            ..Health::default()
-        };
-        for _ in 0..20 {
-            h.tick(0.1);
-        }
-        assert!((h.damage_of("Asphyxiation") - 2.0).abs() < 1e-4);
-        h.suffocating = false;
-        for _ in 0..30 {
-            h.tick(0.1);
-        }
-        assert_eq!(h.damage_of("Asphyxiation"), 0.0);
     }
 }
