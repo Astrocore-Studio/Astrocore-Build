@@ -121,7 +121,7 @@ pub struct State {
     /// Сколько тел оставлено (для идентификаторов).
     pub(crate) corpses: u32,
     /// Атмосфера по этажам.
-    pub(crate) atmos: BTreeMap<i32, atmos::Grid>,
+    pub(crate) atmos: atmos::Grid,
     /// Какой множитель скорости уже отправлен движку.
     pub(crate) speed_sent: BTreeMap<NetworkEntityId, f32>,
     pub(crate) edibles: BTreeMap<PrototypeId, EdibleSpec>,
@@ -221,7 +221,7 @@ impl State {
             charges: BTreeMap::new(),
             spawn: None,
             corpses: 0,
-            atmos: BTreeMap::new(),
+            atmos: atmos::Grid::new(),
             speed_sent: BTreeMap::new(),
             edibles,
             solution_templates,
@@ -1033,8 +1033,8 @@ impl State {
             let Some(pos) = ctx.position_of(id) else {
                 continue;
             };
-            let floor = floor_at(ctx, pos.y).map(|f| f.0);
-            let cell = (pos.x.floor() as i32, pos.z.floor() as i32);
+            let floor = floor_at(ctx, pos.y).map_or(0, |f| f.0);
+            let cell = atmos::floor_cell(floor, pos.x.floor() as i32, pos.z.floor() as i32);
             let clock = self.clock;
             self.actor(id);
             let Some(mut body) = self.actors.get_mut(&id).and_then(|a| a.body.take()) else {
@@ -1049,8 +1049,10 @@ impl State {
             };
             let a_ghost = self.actors[&id].ghost;
             let outcome = {
-                let grid = floor.and_then(|f| self.atmos.get_mut(&f));
-                let mut env = ActorEnv { grid, cell };
+                let mut env = ActorEnv {
+                    grid: Some(&mut self.atmos),
+                    cell,
+                };
                 body.tick(dt, &mut env, mob, barotrauma)
             };
             let vitals = body.vitals();
@@ -1086,15 +1088,11 @@ impl State {
     /// Геометрия и ход газа: при любом изменении стен или дверей сетка перестраивается, воздух
     /// уцелевших клеток сохраняется.
     fn tick_atmosphere(&mut self, ctx: &mut HookContext<'_>, dt: f32) {
-        let layouts = crate::world_atmos::layouts(ctx.world, &|id| ctx.door_open(id) == Some(true));
-        self.atmos.retain(|f, _| layouts.contains_key(f));
-        for (floor, layout) in layouts {
-            let grid = self.atmos.entry(floor).or_default();
-            if grid.layout() != &layout {
-                grid.set_layout(layout);
-            }
-            grid.advance(dt);
+        let layout = crate::world_atmos::layout(ctx.world, &|id| ctx.door_open(id) == Some(true));
+        if self.atmos.layout() != &layout {
+            self.atmos.set_layout(layout);
         }
+        self.atmos.advance(dt);
     }
 
     /// Шаг времени: отсчёт, прерывание движением и потерей условий, завершение.
@@ -1448,23 +1446,21 @@ impl GameModule for GameplayModule {
                 CMD_FEED => {
                     if let Some((hand, target)) = parse_heal(data)
                         && target != *actor
-                    {
-                        if let Some(it) = st
+                        && let Some(it) = st
                             .actors
                             .get(actor)
                             .and_then(|a| a.hands.get(usize::from(hand)))
                             .cloned()
-                        {
-                            st.begin(
-                                ctx,
-                                *actor,
-                                Action::Eat {
-                                    hand: usize::from(hand),
-                                    item: it.id,
-                                    target: Some(target),
-                                },
-                            );
-                        }
+                    {
+                        st.begin(
+                            ctx,
+                            *actor,
+                            Action::Eat {
+                                hand: usize::from(hand),
+                                item: it.id,
+                                target: Some(target),
+                            },
+                        );
                     }
                 }
                 CMD_HEAL => {

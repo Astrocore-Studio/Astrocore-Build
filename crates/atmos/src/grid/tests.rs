@@ -189,3 +189,44 @@ fn equalization_moves_gas_between_distant_tiles_in_one_cycle_and_conserves_it() 
         "газ сохраняется"
     );
 }
+
+#[test]
+fn a_stair_link_lets_air_flow_between_floors() {
+    // Нижний и верхний этаж — по комнате 2×1; лестница соединяет (1,0) нижнего и (0,0) верхнего.
+    let mut l = Layout::default();
+    for floor in 0..2 {
+        for x in 0..2 {
+            l.cells.insert(floor_cell(floor, x, 0), CellKind::Air);
+            l.blocked
+                .insert(edge(floor_cell(floor, x, 0), floor_cell(floor, x, -1)));
+            l.blocked
+                .insert(edge(floor_cell(floor, x, 0), floor_cell(floor, x, 1)));
+        }
+        l.blocked
+            .insert(edge(floor_cell(floor, 0, 0), floor_cell(floor, -1, 0)));
+        l.blocked
+            .insert(edge(floor_cell(floor, 1, 0), floor_cell(floor, 2, 0)));
+    }
+    let mut g = Grid::new();
+    g.set_layout(l.clone());
+    // Верхний этаж без воздуха.
+    for x in 0..2 {
+        g.remove_volume(floor_cell(1, x, 0), CELL_VOLUME);
+    }
+    g.run_cycles(60);
+    assert!(
+        g.pressure(floor_cell(1, 1, 0)) < 1.0,
+        "без лестницы воздух не поднимается"
+    );
+    l.links.insert((floor_cell(0, 1, 0), floor_cell(1, 0, 0)));
+    g.set_layout(l);
+    g.run_cycles(300);
+    let (low, high) = (
+        g.pressure(floor_cell(0, 0, 0)),
+        g.pressure(floor_cell(1, 1, 0)),
+    );
+    assert!(
+        high > 20.0 && (low - high).abs() < 20.0,
+        "воздух поднялся: {low} и {high}"
+    );
+}

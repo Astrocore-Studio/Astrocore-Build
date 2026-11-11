@@ -75,6 +75,17 @@ pub struct Layout {
     pub cells: BTreeMap<Cell, CellKind>,
     /// Рёбра, закрытые стеной, окном или закрытой дверью.
     pub blocked: BTreeSet<Edge>,
+    /// Вертикальные связи между этажами (лестницы): нижняя клетка, верхняя клетка. Газ идёт по ним
+    /// как по обычному ребру. Этажи разнесены по `z` на `FLOOR_STRIDE`, см. [`floor_cell`].
+    pub links: BTreeSet<(Cell, Cell)>,
+}
+
+/// Шаг по `z` между этажами в общей сетке: клетки разных этажей не бывают соседями по плоскости.
+pub const FLOOR_STRIDE: i32 = 1_000_000;
+
+/// Клетка этажа `floor` в общей сетке.
+pub fn floor_cell(floor: i32, x: i32, z: i32) -> Cell {
+    (x, z + floor * FLOOR_STRIDE)
 }
 
 struct Tile {
@@ -88,7 +99,7 @@ struct Tile {
     excited: bool,
     group: Option<usize>,
     /// Соседи: север (z−1), юг (z+1), восток (x+1), запад (x−1).
-    adjacent: [Option<usize>; 4],
+    adjacent: [Option<usize>; ND],
     mm: Mm,
 }
 
@@ -99,12 +110,14 @@ struct Mm {
     last_queue_cycle: i64,
     last_slow_queue_cycle: i64,
     mole_delta: f32,
-    transfer: [f32; 4],
+    transfer: [f32; ND],
     current_transfer_amount: f32,
     current_transfer_dir: Option<usize>,
     fast_done: bool,
 }
 
+/// Число направлений: север, юг, восток, запад, вверх, вниз (противоположное — `d ^ 1`).
+const ND: usize = 6;
 const DIRS: [(i32, i32); 4] = [(0, -1), (0, 1), (1, 0), (-1, 0)];
 
 struct Group {
@@ -214,6 +227,7 @@ impl Grid {
             .map(|t| (t.cell, t.air.clone()))
             .collect();
         let old_blocked = std::mem::take(&mut self.layout.blocked);
+        let old_links = std::mem::take(&mut self.layout.links);
         let first = self.tiles.is_empty();
         self.tiles.clear();
         self.index.clear();
@@ -256,13 +270,26 @@ impl Grid {
                 self.tiles[i].adjacent[d] = adj;
             }
         }
+        // Вертикальные связи.
+        for &(lower, upper) in &layout.links {
+            if let (Some(&a), Some(&b)) = (self.index.get(&lower), self.index.get(&upper)) {
+                self.tiles[a].adjacent[4] = Some(b);
+                self.tiles[b].adjacent[5] = Some(a);
+            }
+        }
         // Активные: при первой сборке — всё, что граничит с чем-то отличным; иначе — рёбра, что
         // изменились.
-        let changed: BTreeSet<Cell> = layout
+        let mut changed: BTreeSet<Cell> = layout
             .blocked
             .symmetric_difference(&old_blocked)
             .flat_map(|(a, b)| [*a, *b])
             .collect();
+        changed.extend(
+            layout
+                .links
+                .symmetric_difference(&old_links)
+                .flat_map(|(a, b)| [*a, *b]),
+        );
         for i in 0..self.tiles.len() {
             let t = &self.tiles[i];
             let touches_space = t.adjacent.iter().flatten().any(|&n| self.tiles[n].space);
@@ -289,7 +316,7 @@ impl Grid {
             last_share: 0.0,
             excited: false,
             group: None,
-            adjacent: [None; 4],
+            adjacent: [None; ND],
             mm: Mm::default(),
         });
         self.index.insert(cell, i);
@@ -380,7 +407,7 @@ impl Grid {
         }
         self.tiles[i].current_cycle = self.cycle;
         let adjacent_count = self.tiles[i].adjacent.iter().flatten().count();
-        for d in 0..4 {
+        for d in 0..ND {
             let Some(e) = self.tiles[i].adjacent[d] else {
                 continue;
             };
@@ -542,7 +569,7 @@ impl Grid {
         self.tiles[start].mm = Mm::default();
         let starting = self.mole_total(start);
         let mut run_atmos = false;
-        for d in 0..4 {
+        for d in 0..ND {
             let Some(o) = self.tiles[start].adjacent[d] else {
                 continue;
             };
@@ -571,7 +598,7 @@ impl Grid {
                 self.tiles[exploring].mm.mole_delta = moles;
                 total_moles += moles;
             }
-            for d in 0..4 {
+            for d in 0..ND {
                 let Some(adj) = self.tiles[exploring].adjacent[d] else {
                     continue;
                 };
@@ -628,7 +655,7 @@ impl Grid {
                     continue;
                 }
                 let mut eligible: Vec<usize> = Vec::new();
-                for d in 0..4 {
+                for d in 0..ND {
                     let Some(t2) = self.tiles[t].adjacent[d] else {
                         continue;
                     };
@@ -676,7 +703,7 @@ impl Grid {
                         break;
                     }
                     let other = queue[qi];
-                    for k in 0..4 {
+                    for k in 0..ND {
                         let Some(_) = self.tiles[other].adjacent[k] else {
                             continue;
                         };
@@ -725,7 +752,7 @@ impl Grid {
                         break;
                     }
                     let other = queue[qi];
-                    for k in 0..4 {
+                    for k in 0..ND {
                         let Some(o2) = self.tiles[other].adjacent[k] else {
                             continue;
                         };
@@ -765,7 +792,7 @@ impl Grid {
             self.finalize_eq(t);
         }
         for &t in &eq {
-            for d in 0..4 {
+            for d in 0..ND {
                 let Some(o2) = self.tiles[t].adjacent[d] else {
                     continue;
                 };
@@ -810,9 +837,10 @@ impl Grid {
 
     /// `FinalizeEq`: перенести накопленные потоки между клетками.
     fn finalize_eq(&mut self, t: usize) {
-        let mut dirs = [0.0f32; 4];
+        let mut dirs = [0.0f32; ND];
         let mut has = false;
-        for d in 0..4 {
+        #[allow(clippy::needless_range_loop)]
+        for d in 0..ND {
             let amount = self.tiles[t].mm.transfer[d];
             if amount == 0.0 {
                 continue;
@@ -824,19 +852,17 @@ impl Grid {
         if !has {
             return;
         }
-        #[allow(clippy::needless_range_loop)]
-        for d in 0..4 {
+        for (d, &amount) in dirs.iter().enumerate() {
             let Some(o) = self.tiles[t].adjacent[d] else {
                 continue;
             };
-            let amount = dirs[d];
             if amount <= 0.0 {
                 continue;
             }
             if self.tiles[t].air.total_moles() < amount {
                 // Не хватает газа: сначала дорабатываем соседей, у которых отрицательные потоки.
                 #[allow(clippy::needless_range_loop)]
-                for k in 0..4 {
+                for k in 0..ND {
                     if dirs[k] < 0.0
                         && let Some(n) = self.tiles[t].adjacent[k]
                     {
@@ -870,7 +896,7 @@ impl Grid {
             self.tiles[other].mm.last_cycle = cycle;
             self.tiles[other].mm.current_transfer_dir = None;
             if !self.tiles[other].space {
-                for j in 0..4 {
+                for j in 0..ND {
                     let Some(o2) = self.tiles[other].adjacent[j] else {
                         continue;
                     };
@@ -907,7 +933,7 @@ impl Grid {
         let mut oi = 0;
         while oi < order.len() {
             let other = order[oi];
-            for j in 0..4 {
+            for j in 0..ND {
                 if self.tiles[other].adjacent[j].is_none() && !self.tiles[other].space {
                     continue;
                 }

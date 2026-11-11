@@ -270,7 +270,7 @@ mod survival {
     use gameplay::{PressureAlert, VITALS_COMPONENT, decode_vitals};
 
     #[test]
-    fn the_breach_in_the_second_room_does_not_touch_the_closed_first_room() {
+    fn the_sealed_polygon_keeps_its_air_and_the_player_breathes_normally() {
         let round = Round::start(1, &content(), &RoundConfig::default()).unwrap();
         let mut h = Harness::with_server(round.server);
         let a = h.join("a");

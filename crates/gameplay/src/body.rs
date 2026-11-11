@@ -295,10 +295,6 @@ impl Body {
         }
     }
 
-    pub fn bleed(&self) -> f32 {
-        self.bleed
-    }
-
     /// `TryModifyBleedAmount`: изменить силу кровотечения, не выходя за 0…10.
     pub fn modify_bleed(&mut self, amount: f32) {
         self.bleed = (self.bleed + amount).clamp(0.0, MAX_BLEED);
@@ -813,7 +809,7 @@ mod tests {
         let mut b = Body::new(9);
         // Режущий удар в 20: кровотечение 5 (0,25 × 20); сильный удар может выбить часть крови сразу.
         b.on_damage(&DamageSpec::from([("Slash".to_string(), 20.0)]));
-        assert!((b.bleed() - 5.0).abs() < 1e-5);
+        assert!((b.bleed - 5.0).abs() < 1e-5);
         let start = b.blood;
         run(&mut b, &mut g, 9.0);
         assert!(
@@ -822,20 +818,20 @@ mod tests {
             start,
             b.blood
         );
-        assert!(b.bleed() < 5.0, "кровотечение слабеет на 0,33 за такт");
+        assert!(b.bleed < 5.0, "кровотечение слабеет на 0,33 за такт");
         // Ожог прижигает.
         let mut c = Body::new(9);
         c.modify_bleed(2.0);
         c.on_damage(&DamageSpec::from([("Heat".to_string(), 10.0)]));
         assert!(
-            c.bleed() < 0.01,
+            c.bleed < 0.01,
             "10 ожога × −0,5 снимают кровотечение: {}",
-            c.bleed()
+            c.bleed
         );
         // Тупой урон почти не кровоточит.
         let mut d = Body::new(9);
         d.on_damage(&DamageSpec::from([("Blunt".to_string(), 50.0)]));
-        assert!((d.bleed() - 4.0).abs() < 1e-5);
+        assert!((d.bleed - 4.0).abs() < 1e-5);
         // Малокровие: ниже 90% идёт Bloodloss 0,5 / (0,1 + доля).
         let mut e = Body::new(9);
         e.blood = 0.5 * BLOOD_REFERENCE;
@@ -861,7 +857,7 @@ mod tests {
         run(&mut b, &mut g, 10.0);
         assert!(b.stomach.is_empty());
         // Белок добавляет по единице крови за единицу переваренного (4 ед.), кровотечение же уносит больше.
-        assert!(b.bleed() < 3.0 - 0.33 * 3.0 + 0.1, "{}", b.bleed());
+        assert!(b.bleed < 3.0 - 0.33 * 3.0 + 0.1, "{}", b.bleed);
     }
 
     #[test]
