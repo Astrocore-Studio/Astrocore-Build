@@ -36,6 +36,8 @@ pub const CMD_TAKE_TO: &str = "storage.take_to";
 pub const CMD_MOVE_SLOT: &str = "inv.move";
 /// Отменить идущее действие с таймером.
 pub const CMD_CANCEL: &str = "doafter.cancel";
+/// Призраку: возродиться в точке появления, когда истекло время ожидания.
+pub const CMD_RESPAWN: &str = "ghost.respawn";
 /// Ударить персонажа в пределах досягаемости: `[сетевой id цели, 4 байта LE]`. Оружие — предмет в
 /// активной руке (`MeleeWeapon`), без него кулак.
 pub const CMD_ATTACK: &str = "combat.attack";
@@ -155,6 +157,12 @@ pub fn register_replication(reg: &mut ReplicationRegistry) -> Result<(), Replica
     })?;
     reg.register(ReplicatedKind {
         name: crate::health::MOBSTATE_COMPONENT.into(),
+        channel: ReplicationChannel::ReliableOrdered,
+        interest: Interest::Everyone,
+        max_bytes: 4,
+    })?;
+    reg.register(ReplicatedKind {
+        name: crate::health::GHOST_COMPONENT.into(),
         channel: ReplicationChannel::ReliableOrdered,
         interest: Interest::Everyone,
         max_bytes: 4,

@@ -33,6 +33,10 @@
         "Stack": (stackType: "Ointment", count: 10),
         "Healing": (damage: (Heat: -5.0, Cold: -5.0, Shock: -5.0), delay: 3.0),
     }),
+    // Тело умершего: не предмет (без `Item`), только декорация на месте смерти.
+    (id: "Corpse", name: Some("corpse"), components: {
+        "Sprite": (sprite: "Mobs/Species/Human/parts.rsi", state: "full"),
+    }),
     (id: "Pen", name: Some("pen"), components: {
         "Item": (size: "Tiny"),
         "Sprite": (sprite: "Objects/Misc/pens.rsi", state: "pen"),

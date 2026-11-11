@@ -255,12 +255,24 @@ pub struct HealthView {
     pub bleed: f32,
     #[serde(default)]
     pub suffocating: bool,
+    /// Игрок мёртв и летает призраком.
+    #[serde(default)]
+    pub ghost: bool,
+    /// Сколько секунд до возможности возродиться (на момент рассылки).
+    #[serde(default)]
+    pub respawn_in: f32,
 }
 
 pub const HEALTH_COMPONENT: &str = "build.health";
 pub const HEALTH_MAX_BYTES: usize = 1024;
 /// Состояние здоровья для всех: один байт (`MobState::to_byte`).
 pub const MOBSTATE_COMPONENT: &str = "build.mobstate";
+/// Призрак ли персонаж: один байт, видно всем (клиенты прячут призраков от живых).
+pub const GHOST_COMPONENT: &str = "build.ghost";
+/// Через сколько секунд после смерти призрак может возродиться (выбор билда).
+pub const RESPAWN_DELAY_S: f32 = 30.0;
+/// Прототип тела, остающегося на месте смерти.
+pub const CORPSE_PROTOTYPE: &str = "ss14:corpse";
 
 impl Health {
     pub fn view(&self) -> HealthView {
@@ -270,6 +282,8 @@ impl Health {
             parts: self.parts.clone(),
             bleed: self.bleed,
             suffocating: self.suffocating,
+            ghost: false,
+            respawn_in: 0.0,
         }
     }
 }

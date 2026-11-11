@@ -148,16 +148,23 @@ pub fn sprites_of(registry: &PrototypeRegistry) -> Result<Vec<SpriteSource>, Pol
         let Ok(r) = registry.spawnable(&name) else {
             continue;
         };
-        let (Some(item), Some(sprite)) = (r.component("Item"), r.component("Sprite")) else {
+        // Предметы и декорации (например, тело умершего): у декорации нет `Item`, размер — `size`
+        // из `Sprite`, по умолчанию крупный.
+        let Some(sprite) = r.component("Sprite") else {
             continue;
         };
+        let item = r.component("Item");
         let (Some(rsi), Some(state)) = (
             sprite.get("sprite").and_then(Data::as_str),
             sprite.get("state").and_then(Data::as_str),
         ) else {
             continue;
         };
-        let e = dropped_extent(item.get("size").and_then(Data::as_str).unwrap_or("small"));
+        let e = dropped_extent(
+            item.and_then(|i| i.get("size"))
+                .and_then(Data::as_str)
+                .unwrap_or("large"),
+        );
         out.push(SpriteSource {
             id: id.to_string(),
             rsi: rsi.to_string(),

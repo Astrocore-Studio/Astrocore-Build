@@ -81,6 +81,44 @@ pub fn other_bars(
 /// Покачивание при ходьбе: скорость берётся из смещения спрайта между кадрами, поэтому одинаково
 /// работает для своего тела и для чужих.
 #[allow(clippy::too_many_arguments)]
+/// Призраки полупрозрачны и бледны: чужой призрак виден тем, кто сам призрак, а живым — слабо.
+pub fn tint_ghosts(
+    net: Option<NonSend<Net>>,
+    remote: Res<RemoteSprites>,
+    children: Query<&Children>,
+    quads: Query<&MeshMaterial3d<StandardMaterial>, With<astrocore_render::BillboardQuad>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+) {
+    let Some(net) = net else { return };
+    for (id, e) in &remote.0 {
+        let ghost = net
+            .core
+            .component(*id, gameplay::GHOST_COMPONENT)
+            .is_some_and(|b| b.first() == Some(&1));
+        let Ok(kids) = children.get(*e) else { continue };
+        for &k in kids {
+            if let Ok(m) = quads.get(k)
+                && let Some(mut mat) = materials.get_mut(&m.0)
+            {
+                let want = if ghost {
+                    Color::srgba(0.7, 0.8, 1.0, 0.45)
+                } else {
+                    Color::WHITE
+                };
+                if mat.base_color != want {
+                    mat.base_color = want;
+                    mat.alpha_mode = if ghost {
+                        AlphaMode::Blend
+                    } else {
+                        AlphaMode::Mask(0.5)
+                    };
+                }
+            }
+        }
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
 pub fn walk_bob(
     net: Option<NonSend<Net>>,
     time: Res<Time>,

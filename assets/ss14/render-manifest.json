@@ -77,6 +77,13 @@
         0.6000000238418579
       ]
     },
+    "ss14:corpse": {
+      "image": "Textures/Mobs/Species/Human/parts.rsi/full.png",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
     "ss14:crowbar": {
       "image": "Textures/Objects/Tools/crowbar.rsi/icon.png",
       "size": [

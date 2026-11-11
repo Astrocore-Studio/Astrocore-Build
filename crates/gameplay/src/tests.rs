@@ -64,8 +64,12 @@ fn registry() -> Arc<PrototypeRegistry> {
 
 fn harness() -> Harness {
     let mut host = ModuleHost::new();
-    host.register(Box::new(GameplayModule::new(registry()).unwrap()))
-        .unwrap();
+    host.register(Box::new(
+        GameplayModule::new(registry())
+            .unwrap()
+            .with_spawn(Vec3::new(1.5, 0.25, 1.5)),
+    ))
+    .unwrap();
     host.finalize().unwrap();
     let mut reg = ReplicationRegistry::new();
     register_replication(&mut reg).unwrap();
@@ -1258,5 +1262,76 @@ mod combat {
         let v = view(&h, a);
         assert!(!v.suffocating);
         assert!(!v.damage.contains_key("Asphyxiation"), "{:?}", v.damage);
+    }
+
+    fn ghost_flag(h: &Harness, viewer: ConnId, owner: ConnId) -> bool {
+        let net = h.client(owner).net_id().unwrap();
+        h.client(viewer)
+            .component(net, crate::GHOST_COMPONENT)
+            .is_some_and(|b| b.first() == Some(&1))
+    }
+
+    fn kill(h: &mut Harness, killer: ConnId, victim: ConnId) {
+        hit_part(h, killer, victim, "Head");
+        h.ticks(25);
+        hit_part(h, killer, victim, "Head");
+    }
+
+    #[test]
+    fn the_dead_leave_a_body_and_become_ghosts_everyone_can_tell_apart() {
+        let mut h = harness();
+        let (a, b) = (h.join("a"), h.join("b"));
+        grab(&mut h, a, 10, near(), "ss14:cudgel");
+        let before = h.server.world().authored_count();
+        kill(&mut h, a, b);
+        assert_eq!(state(&h, a, b), MobState::Dead);
+        assert!(ghost_flag(&h, a, b), "все видят, что b — призрак");
+        assert!(!ghost_flag(&h, b, a));
+        assert_eq!(
+            h.server.world().authored_count(),
+            before + 1,
+            "на месте смерти осталось тело"
+        );
+        let corpse = h
+            .server
+            .world()
+            .authored()
+            .find(|o| matches!(&o.kind, AuthoredKind::Placement { prototype } if prototype.as_str() == crate::health::CORPSE_PROTOTYPE));
+        assert!(corpse.is_some());
+        assert!(view(&h, b).ghost && view(&h, b).respawn_in > 29.0);
+        // Призрак ничего не делает руками.
+        spawn(&mut h, item_at(50, "ss14:pen", Vec3::new(2.5, 0.9, 2.5)));
+        command(&mut h, b, CMD_PICKUP_ANY, pickup_data(oid(50)));
+        assert!(on_ground(&h, b, 50));
+    }
+
+    #[test]
+    fn a_ghost_respawns_only_after_the_delay_with_a_fresh_body_at_the_spawn() {
+        let mut h = harness();
+        let (a, b) = (h.join("a"), h.join("b"));
+        grab(&mut h, a, 10, near(), "ss14:cudgel");
+        // Одежда на теле до смерти.
+        grab(&mut h, b, 12, near(), "ss14:backpack");
+        command(&mut h, b, CMD_EQUIP, equip_data(0, "back"));
+        assert!(inv_of(&h, b, b).unwrap().inventory.get("back").is_some());
+        kill(&mut h, a, b);
+        command(&mut h, b, crate::CMD_RESPAWN, vec![]);
+        assert!(ghost_flag(&h, a, b), "рано: ещё призрак");
+        h.ticks(620);
+        command(&mut h, b, crate::CMD_RESPAWN, vec![]);
+        h.ticks(3);
+        assert!(!ghost_flag(&h, a, b));
+        assert_eq!(state(&h, a, b), MobState::Alive);
+        assert_eq!(view(&h, b).damage.len(), 0, "здоровье сброшено");
+        let p = h.client(b).position();
+        assert!(
+            (p.x - 1.5).abs() < 0.3 && (p.z - 1.5).abs() < 0.3,
+            "в точке появления: {p:?}"
+        );
+        assert!(
+            inv_of(&h, b, b).unwrap().inventory.get("back").is_none(),
+            "одежда не переехала в новое тело"
+        );
+        assert!(on_ground(&h, b, 12), "а лежит на месте смерти");
     }
 }

@@ -15,8 +15,9 @@ use crate::doafter::{
 };
 use crate::hands::{Hands, HeldItem};
 use crate::health::{
-    DEFAULT_ATTACK_RATE, DamageSpec, FIST_DAMAGE, HEALTH_COMPONENT, Healing, Health, MELEE_RANGE_M,
-    MOBSTATE_COMPONENT, Melee, MobState, encode_health,
+    CORPSE_PROTOTYPE, DEFAULT_ATTACK_RATE, DamageSpec, FIST_DAMAGE, GHOST_COMPONENT,
+    HEALTH_COMPONENT, Healing, Health, MELEE_RANGE_M, MOBSTATE_COMPONENT, Melee, MobState,
+    RESPAWN_DELAY_S, encode_health,
 };
 use crate::interact::{InteractionHandler, Target, Used};
 use crate::inventory::Inventory;
@@ -24,8 +25,8 @@ use crate::items::{ItemInfo, item_info};
 use crate::storage::Storage;
 use crate::wire::{
     BagView, CMD_ATTACK, CMD_CANCEL, CMD_DROP, CMD_EQUIP, CMD_HEAL, CMD_INTERACT, CMD_MOVE_HAND,
-    CMD_MOVE_SLOT, CMD_PICKUP, CMD_PICKUP_ANY, CMD_SELECT_HAND, CMD_STORE, CMD_SWAP_HANDS,
-    CMD_TAKE, CMD_TAKE_TO, CMD_UNEQUIP, CMD_UNEQUIP_TO, CMD_USE, HANDS_COMPONENT,
+    CMD_MOVE_SLOT, CMD_PICKUP, CMD_PICKUP_ANY, CMD_RESPAWN, CMD_SELECT_HAND, CMD_STORE,
+    CMD_SWAP_HANDS, CMD_TAKE, CMD_TAKE_TO, CMD_UNEQUIP, CMD_UNEQUIP_TO, CMD_USE, HANDS_COMPONENT,
     INVENTORY_COMPONENT, InventoryView, encode_hands, encode_inventory, parse_attack_part,
     parse_drop, parse_equip, parse_heal, parse_move_slot, parse_object_id, parse_store, parse_take,
     parse_take_to, parse_unequip,
@@ -60,6 +61,11 @@ pub(crate) struct Actor {
     pub(crate) next_health_publish: f32,
     /// Здоровье изменилось сидящими внутри процессами, а разослать ещё не успели.
     pub(crate) health_dirty: bool,
+    /// Умерший летает призраком; тело осталось лежать на месте смерти.
+    pub(crate) ghost: bool,
+    /// Когда призрак может возродиться, с (по часам модуля), и где умер.
+    pub(crate) respawn_at: f32,
+    pub(crate) death_pos: Option<Vec3>,
 }
 
 impl Actor {
@@ -74,6 +80,9 @@ impl Actor {
             frozen: false,
             next_health_publish: 0.0,
             health_dirty: false,
+            ghost: false,
+            respawn_at: 0.0,
+            death_pos: None,
         }
     }
 }
@@ -98,6 +107,10 @@ pub struct State {
     pub(crate) clock: f32,
     /// Сколько применений осталось у начатых стопок лечения (ключ — предмет).
     pub(crate) charges: BTreeMap<ObjectId, u32>,
+    /// Куда возрождаются; без точки возрождение недоступно.
+    pub(crate) spawn: Option<Vec3>,
+    /// Сколько тел оставлено (для идентификаторов).
+    pub(crate) corpses: u32,
 }
 
 impl State {
@@ -171,6 +184,8 @@ impl State {
             healing,
             clock: 0.0,
             charges: BTreeMap::new(),
+            spawn: None,
+            corpses: 0,
         })
     }
 
@@ -223,8 +238,16 @@ impl State {
             return;
         };
         ctx.set_component(actor, HANDS_COMPONENT, encode_hands(&a.hands));
-        ctx.set_component(actor, HEALTH_COMPONENT, encode_health(&a.health.view()));
+        let mut health_view = a.health.view();
+        health_view.ghost = a.ghost;
+        health_view.respawn_in = if a.ghost {
+            (a.respawn_at - self.clock).max(0.0)
+        } else {
+            0.0
+        };
+        ctx.set_component(actor, HEALTH_COMPONENT, encode_health(&health_view));
         ctx.set_component(actor, MOBSTATE_COMPONENT, vec![a.health.state().to_byte()]);
+        ctx.set_component(actor, GHOST_COMPONENT, vec![u8::from(a.ghost)]);
         let worn: crate::wire::Worn = a
             .inventory
             .iter()
@@ -587,12 +610,21 @@ impl State {
         };
         let (now, before) = (a.health.state(), a.mob_state);
         let legs = a.health.part_disabled("LeftLeg") && a.health.part_disabled("RightLeg");
-        let freeze = !now.can_act() || legs;
+        let died = now == MobState::Dead && before != MobState::Dead;
+        let freeze = (!now.can_act() || legs) && !a.ghost && !died;
         let feet = ctx.position_of(who);
         let mut to_floor: Vec<HeldItem> = Vec::new();
+        let clock = self.clock;
         {
             let a = self.actor(who);
             a.mob_state = now;
+            if died {
+                // Смерть: тело остаётся лежать, игрок становится призраком.
+                a.ghost = true;
+                a.respawn_at = clock + RESPAWN_DELAY_S;
+                a.death_pos = feet;
+                ctx.set_ghost(who, true);
+            }
             if freeze != a.frozen {
                 a.frozen = freeze;
                 ctx.freeze(who, freeze);
@@ -622,6 +654,23 @@ impl State {
         if let Some(feet) = feet {
             for i in &to_floor {
                 Self::place(ctx, i, feet);
+            }
+            if died {
+                self.corpses += 1;
+                let id = ObjectId::from_u128(0xC0F5_0000_0000 + u128::from(self.corpses));
+                if let Some(floor) = floor_at(ctx, feet.y) {
+                    let obj = AuthoredObject::new(
+                        id,
+                        AuthoredKind::Placement {
+                            prototype: PrototypeId::new(CORPSE_PROTOTYPE)
+                                .expect("встроенный идентификатор валиден"),
+                        },
+                        floor,
+                        Vec3::new(feet.x - 0.4, feet.y, feet.z - 0.4),
+                        Vec3::new(feet.x + 0.4, feet.y + 0.3, feet.z + 0.4),
+                    );
+                    ctx.request(WorldCommand::PlaceAuthored(obj));
+                }
             }
         }
         self.publish(ctx, who);
@@ -746,6 +795,38 @@ impl State {
                 delay_s: d.delay,
             });
         ctx.set_component(actor, DOAFTER_COMPONENT, encode_doafter(view.as_ref()));
+    }
+
+    /// Возродиться: призрак по истечении ожидания получает новое тело в точке возрождения. Одежда
+    /// старого тела остаётся лежать у места смерти.
+    pub(crate) fn respawn(&mut self, ctx: &mut HookContext<'_>, actor: NetworkEntityId) {
+        let (Some(spawn), Some(a)) = (self.spawn, self.actors.get(&actor)) else {
+            return;
+        };
+        if !a.ghost || self.clock < a.respawn_at {
+            return;
+        }
+        let at = a.death_pos.unwrap_or(spawn);
+        let a = self.actor(actor);
+        let worn = a.inventory.take_all();
+        a.health = Health::default();
+        a.mob_state = MobState::Alive;
+        a.ghost = false;
+        a.frozen = false;
+        a.doafter = None;
+        a.next_attack = 0.0;
+        a.death_pos = None;
+        for h in 0..a.hands.len() {
+            a.hands.set_disabled(h, false);
+        }
+        for i in &worn {
+            Self::place(ctx, i, at);
+        }
+        ctx.set_ghost(actor, false);
+        ctx.freeze(actor, false);
+        ctx.teleport(actor, spawn);
+        self.publish_doafter(ctx, actor);
+        self.publish(ctx, actor);
     }
 
     /// Кровотечение и удушье идут сами; разошлём здоровье не чаще двух раз в секунду.
@@ -965,6 +1046,13 @@ impl GameplayModule {
         self
     }
 
+    /// Точка возрождения (ступни); без неё призраки не возрождаются.
+    #[must_use]
+    pub fn with_spawn(mut self, spawn: Vec3) -> Self {
+        self.state.spawn = Some(spawn);
+        self
+    }
+
     /// Добавить обработчик в конец цепочки (после базовых).
     #[must_use]
     pub fn with_handler(mut self, handler: Box<dyn InteractionHandler>) -> Self {
@@ -1075,6 +1163,9 @@ impl GameModule for GameplayModule {
     fn handle(&mut self, ctx: &mut HookContext<'_>, event: &HookEvent) {
         let st = &mut self.state;
         match event {
+            HookEvent::Command { actor, kind, .. } if kind == CMD_RESPAWN => {
+                st.respawn(ctx, *actor);
+            }
             HookEvent::Command { actor, .. }
                 if st
                     .actors

@@ -2,7 +2,7 @@ use astrocore_client::Net;
 use astrocore_core::ObjectId;
 use astrocore_math::glam::Vec3 as MVec3;
 use bevy::prelude::*;
-use bevy_egui::{EguiContexts, EguiPlugin, EguiPrimaryContextPass};
+use bevy_egui::{EguiContexts, EguiPlugin, EguiPrimaryContextPass, egui};
 mod body;
 mod combat;
 mod hud;
@@ -22,6 +22,8 @@ pub struct Loadout {
     /// Идущее действие с таймером и время (с игры), когда клиент о нём узнал.
     pub doafter: Option<(gameplay::DoAfterView, f32)>,
     pub health: Option<gameplay::HealthView>,
+    /// Когда (по часам клиента) пришло последнее состояние здоровья.
+    pub health_at: f32,
 }
 
 /// Клиент билда: вид от первого лица, клавиши рук и худ по образцу SS14.
@@ -66,7 +68,9 @@ impl Plugin for BuildClientPlugin {
             .add_systems(
                 Update,
                 (
+                    ghost_camera,
                     players::walk_bob,
+                    players::tint_ghosts,
                     sounds::door_sounds,
                     sounds::item_sounds,
                     combat::attack_and_heal,
@@ -161,10 +165,14 @@ fn refresh_loadout(net: Option<NonSend<Net>>, time: Res<Time>, mut loadout: ResM
         .core
         .component(me, INVENTORY_COMPONENT)
         .and_then(decode_inventory);
-    loadout.health = net
+    let health = net
         .core
         .component(me, gameplay::HEALTH_COMPONENT)
         .and_then(gameplay::decode_health);
+    if health != loadout.health {
+        loadout.health_at = time.elapsed_secs();
+        loadout.health = health;
+    }
     let view = net
         .core
         .component(me, gameplay::DOAFTER_COMPONENT)
@@ -257,6 +265,32 @@ fn autoplay(
 }
 
 /// Худ: руки и быстрые слоты внизу, окно одежды, сетки сумок.
+/// Вид призрака — сверху: камера высоко над персонажем и смотрит вниз. Включается один раз при
+/// смерти (приближение и поворот потом остаются за игроком), с возрождением возвращается вид от
+/// первого лица.
+fn ghost_camera(
+    loadout: Res<Loadout>,
+    look: Option<ResMut<astrocore_client::Look>>,
+    mut rigs: Query<&mut astrocore_render::CameraRig>,
+    mut was_ghost: Local<bool>,
+) {
+    let Some(mut look) = look else { return };
+    let ghost = loadout.health.as_ref().is_some_and(|h| h.ghost);
+    if ghost {
+        look.first_person = false;
+        if !*was_ghost {
+            look.pitch = 1.25;
+            for mut rig in &mut rigs {
+                rig.distance = 14.0;
+            }
+        }
+    } else if *was_ghost {
+        look.first_person = true;
+        look.pitch = 0.0;
+    }
+    *was_ghost = ghost;
+}
+
 fn loadout_window(
     mut contexts: EguiContexts,
     loadout: Res<Loadout>,
@@ -270,6 +304,28 @@ fn loadout_window(
     let Some(mut net) = net else {
         return Ok(());
     };
+    // Призрак летает сквозь стены: клиент предсказывает движение так же, как сервер.
+    let ghost = loadout.health.as_ref().is_some_and(|h| h.ghost);
+    net.core.set_noclip(ghost);
+    if let Some(h) = loadout.health.as_ref().filter(|h| h.ghost) {
+        let left = (h.respawn_in - (time.elapsed_secs() - loadout.health_at)).max(0.0);
+        egui::Area::new(egui::Id::new("ghost_panel"))
+            .anchor(egui::Align2::CENTER_TOP, egui::vec2(0.0, 24.0))
+            .show(&ctx, |ui| {
+                ui.vertical_centered(|ui| {
+                    ui.label(
+                        egui::RichText::new("Вы призрак")
+                            .size(32.0)
+                            .color(egui::Color32::from_rgb(170, 200, 255)),
+                    );
+                    if left > 0.0 {
+                        ui.label(format!("Возродиться можно через {left:.0} с"));
+                    } else if ui.button("Возродиться").clicked() {
+                        net.send_command(gameplay::CMD_RESPAWN, Vec::new());
+                    }
+                });
+            });
+    }
     let progress = loadout.doafter.as_ref().map(|(v, since)| {
         let label = match v.kind.as_str() {
             "equip" => "Надеваем…",
