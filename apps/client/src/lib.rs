@@ -3,6 +3,7 @@ use astrocore_core::ObjectId;
 use astrocore_math::glam::Vec3 as MVec3;
 use bevy::prelude::*;
 use bevy_egui::{EguiContexts, EguiPlugin, EguiPrimaryContextPass};
+mod body;
 mod hud;
 use gameplay::{
     CMD_DROP, CMD_EQUIP, CMD_SELECT_HAND, CMD_SWAP_HANDS, HANDS_COMPONENT, Hands,
@@ -29,6 +30,9 @@ pub struct BuildClientPlugin {
 
 impl Plugin for BuildClientPlugin {
     fn build(&self, app: &mut App) {
+        if let Some(root) = self.manifest.as_ref().and_then(|m| m.parent()) {
+            app.insert_resource(BodyRoot(root.to_path_buf()));
+        }
         app.add_plugins(EguiPlugin::default())
             .init_resource::<Loadout>()
             .insert_resource(Hud {
@@ -39,8 +43,22 @@ impl Plugin for BuildClientPlugin {
                 enabled: self.autoplay,
                 frame: 0,
             })
+            .add_systems(Startup, install_body)
             .add_systems(Update, (refresh_loadout, hand_keys, autoplay).chain())
             .add_systems(EguiPrimaryContextPass, loadout_window);
+    }
+}
+
+#[derive(Resource)]
+struct BodyRoot(std::path::PathBuf);
+
+fn install_body(
+    root: Option<Res<BodyRoot>>,
+    mut images: ResMut<Assets<Image>>,
+    mut commands: Commands,
+) {
+    if let Some(root) = root {
+        body::install(&root.0, &mut images, &mut commands);
     }
 }
 
