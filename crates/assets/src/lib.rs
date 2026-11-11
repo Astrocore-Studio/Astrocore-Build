@@ -332,7 +332,8 @@ mod tests {
             id: "ss14:airlock".into(),
             rsi: rsi.into(),
         };
-        let json = build_manifest(&root, "Textures", &[], &[], &[door.clone()]).unwrap();
+        let json =
+            build_manifest(&root, "Textures", &[], &[], std::slice::from_ref(&door)).unwrap();
         let v: serde_json::Value = serde_json::from_str(&json).unwrap();
         let d = &v["doors"]["ss14:airlock"];
         // Открытие: лист 288×128 из ячеек 32×32 — 9 кадров в 4 строки (по направлению на строку).
