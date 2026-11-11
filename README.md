@@ -59,7 +59,8 @@ cargo run -p server -- --listen 127.0.0.1:7779 --key <64 hex-символа>
 cargo run -p astrocore-client -- --connect-lightyear 127.0.0.1:7779 --ly-key <тот же ключ> --world-id polygon --render-manifest assets/ss14/render-manifest.json
 ```
 
-(клиент — из репозитория Astrocore-Engine). Манифест рендера (идентификатор → PNG) собирается из
+(клиент — из репозитория Astrocore-Engine). Чтобы клавиша **E** взаимодействовала с ближайшим
+предметом или дверью, добавьте `--interact-command interact`. Манифест рендера (идентификатор → PNG) собирается из
 прототипов и `content/materials.ron`: `cargo run -p server -- --write-manifest assets/ss14/render-manifest.json`;
 тест следит, чтобы закоммиченный файл не устарел.
 
