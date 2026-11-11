@@ -55,7 +55,24 @@ const POLYGON_MAP: &str = include_str!("../../../content/maps/polygon.ron");
 
 /// Карта полигона из `content/maps/polygon.ron`: две комнаты, дверь между ними, лестница на второй
 /// этаж и предметы на полу.
+static MAP_OVERRIDE: std::sync::OnceLock<std::path::PathBuf> = std::sync::OnceLock::new();
+
+/// Подменить встроенную карту файлом (сервер: `--map`), например импортом из SS14. Вызывается до
+/// первого обращения к карте.
+pub fn use_map_file(path: &Path) {
+    let _ = MAP_OVERRIDE.set(path.to_path_buf());
+}
+
 pub fn map() -> MapFile {
+    if let Some(path) = MAP_OVERRIDE
+        .get()
+        .cloned()
+        .or_else(|| std::env::var_os("ASTRO_MAP").map(Into::into))
+    {
+        let text = std::fs::read_to_string(&path)
+            .unwrap_or_else(|e| panic!("карта {}: {e}", path.display()));
+        return MapFile::parse(&text).expect("подменённая карта разбирается");
+    }
     MapFile::parse(POLYGON_MAP).expect("встроенная карта полигона разбирается")
 }
 

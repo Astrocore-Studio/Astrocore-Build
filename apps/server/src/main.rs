@@ -6,7 +6,7 @@ use round::{Round, RoundConfig};
 const USAGE: &str = "\
 server — сервер Astrocore Build (раунд на нейтральном полигоне)
 
-  server --listen 127.0.0.1:7779 --key <hex32> [--tick-hz 20] [--ticks N]
+  server --listen 127.0.0.1:7779 --key <hex32> [--tick-hz 20] [--ticks N] [--map карта.ron]
   server --write-manifest <файл.json>   записать манифест рендера для клиента и выйти
 ";
 
@@ -40,6 +40,9 @@ fn run(args: &[String]) -> Result<(), String> {
         std::fs::write(&path, json).map_err(|e| format!("{path}: {e}"))?;
         println!("манифест рендера записан: {path}");
         return Ok(());
+    }
+    if let Some(map) = arg(args, "--map") {
+        polygon::use_map_file(std::path::Path::new(&map));
     }
     let addr: std::net::SocketAddr = arg(args, "--listen")
         .ok_or("нужен --listen")?
