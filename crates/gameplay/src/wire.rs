@@ -28,6 +28,12 @@ pub const CMD_UNEQUIP: &str = "inv.unequip";
 pub const CMD_STORE: &str = "storage.insert";
 /// Достать предмет из сумки в свободную руку: `[id сумки 16 байт, id предмета 16 байт]`.
 pub const CMD_TAKE: &str = "storage.take";
+/// Снять предмет в указанную руку: `[рука, имя слота]`; рука занята — в первую свободную.
+pub const CMD_UNEQUIP_TO: &str = "inv.unequip_to";
+/// Достать предмет из сумки в указанную руку: `[рука, id сумки, id предмета]`.
+pub const CMD_TAKE_TO: &str = "storage.take_to";
+/// Переложить надетое из слота в слот: `[слот откуда, 0, слот куда]`.
+pub const CMD_MOVE_SLOT: &str = "inv.move";
 
 /// Взаимодействие с целью в мире (предмет на земле или дверь): `[id цели 16 байт]`.
 /// Что именно произойдёт, решает цепочка обработчиков: пустая рука — `InteractHand`, предмет в
@@ -199,6 +205,34 @@ pub fn take_data(bag: ObjectId, item: ObjectId) -> Vec<u8> {
     let mut v = id_bytes(bag).to_vec();
     v.extend_from_slice(&id_bytes(item));
     v
+}
+
+pub fn unequip_to_data(hand: u8, slot: &str) -> Vec<u8> {
+    equip_data(hand, slot)
+}
+
+pub fn take_to_data(hand: u8, bag: ObjectId, item: ObjectId) -> Vec<u8> {
+    let mut v = vec![hand];
+    v.extend(take_data(bag, item));
+    v
+}
+
+pub fn move_slot_data(from: &str, to: &str) -> Vec<u8> {
+    let mut v = from.as_bytes().to_vec();
+    v.push(0);
+    v.extend_from_slice(to.as_bytes());
+    v
+}
+
+pub fn parse_take_to(data: &[u8]) -> Option<(u8, ObjectId, ObjectId)> {
+    let (hand, rest) = data.split_first()?;
+    let (bag, item) = parse_take(rest)?;
+    Some((*hand, bag, item))
+}
+
+pub fn parse_move_slot(data: &[u8]) -> Option<(&str, &str)> {
+    let at = data.iter().position(|b| *b == 0)?;
+    Some((slot_name(&data[..at])?, slot_name(&data[at + 1..])?))
 }
 
 /// Имя слота из команды: короткая строка из букв и цифр.

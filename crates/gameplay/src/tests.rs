@@ -460,6 +460,94 @@ fn near() -> Vec3 {
 mod inventory_and_storage {
     use super::*;
 
+    fn hand_item(h: &Harness, who: ConnId, i: usize) -> Option<ObjectId> {
+        hands_of(h, who, who).unwrap().get(i).map(|x| x.id)
+    }
+
+    #[test]
+    fn unequipping_into_a_chosen_hand_and_taking_into_a_chosen_hand() {
+        let mut h = harness();
+        let a = h.join("a");
+        grab(&mut h, a, 10, near(), "ss14:backpack");
+        command(&mut h, a, CMD_EQUIP, equip_data(0, "back"));
+        grab(&mut h, a, 1, near(), "ss14:pen");
+        command(&mut h, a, CMD_STORE, store_data(0, oid(10)));
+        // Из сумки — в правую руку (индекс 1).
+        command(
+            &mut h,
+            a,
+            crate::CMD_TAKE_TO,
+            crate::take_to_data(1, oid(10), oid(1)),
+        );
+        assert_eq!(
+            (hand_item(&h, a, 0), hand_item(&h, a, 1)),
+            (None, Some(oid(1)))
+        );
+        // Рюкзак снимается в левую руку, хотя активна именно она; затем ручку из правой — в сумку не
+        // нужна, проверяем выбор руки на снятии: правая занята, значит предмет идёт в левую.
+        command(
+            &mut h,
+            a,
+            crate::CMD_UNEQUIP_TO,
+            crate::unequip_to_data(1, "back"),
+        );
+        assert_eq!(
+            hand_item(&h, a, 0),
+            Some(oid(10)),
+            "выбранная рука занята — первая свободная"
+        );
+        // Освобождаем руки и снимаем в правую.
+        command(&mut h, a, CMD_DROP, drop_data(0));
+        command(&mut h, a, CMD_DROP, drop_data(1));
+        grab(&mut h, a, 11, near(), "ss14:backpack");
+        command(&mut h, a, CMD_EQUIP, equip_data(0, "back"));
+        command(
+            &mut h,
+            a,
+            crate::CMD_UNEQUIP_TO,
+            crate::unequip_to_data(1, "back"),
+        );
+        assert_eq!(
+            (hand_item(&h, a, 0), hand_item(&h, a, 1)),
+            (None, Some(oid(11)))
+        );
+    }
+
+    #[test]
+    fn moving_between_slots_is_all_or_nothing() {
+        let mut h = harness();
+        let a = h.join("a");
+        grab(&mut h, a, 2, near(), "ss14:jumpsuit");
+        command(&mut h, a, CMD_EQUIP, equip_data(0, "jumpsuit"));
+        grab(&mut h, a, 1, near(), "ss14:pen");
+        command(&mut h, a, CMD_EQUIP, equip_data(0, "pocket1"));
+        let inv = |h: &Harness| inv_of(h, a, a).unwrap().inventory;
+        assert!(inv(&h).get("pocket1").is_some());
+        command(
+            &mut h,
+            a,
+            crate::CMD_MOVE_SLOT,
+            crate::move_slot_data("pocket1", "pocket2"),
+        );
+        assert!(inv(&h).get("pocket1").is_none() && inv(&h).get("pocket2").is_some());
+        // Ручка не подходит на спину: ничего не меняется.
+        command(
+            &mut h,
+            a,
+            crate::CMD_MOVE_SLOT,
+            crate::move_slot_data("pocket2", "back"),
+        );
+        assert!(inv(&h).get("pocket2").is_some() && inv(&h).get("back").is_none());
+        // Форму нельзя «переложить», потеряв карман с ручкой: зависимые слоты не выпадают молча.
+        command(
+            &mut h,
+            a,
+            crate::CMD_MOVE_SLOT,
+            crate::move_slot_data("jumpsuit", "outerClothing"),
+        );
+        assert!(inv(&h).get("jumpsuit").is_some() && inv(&h).get("pocket2").is_some());
+    }
+
     #[test]
     fn clothing_goes_on_pockets_need_it_and_removal_drops_the_pockets() {
         let mut h = harness();

@@ -6,10 +6,14 @@ use std::path::PathBuf;
 use astrocore_core::ObjectId;
 use bevy_egui::egui::{self, Color32, Pos2, Rect, Sense, Vec2};
 use gameplay::{
-    BagView, CMD_DROP, CMD_EQUIP, CMD_MOVE_HAND, CMD_SELECT_HAND, CMD_STORE, CMD_TAKE, CMD_UNEQUIP,
-    Hands, InventoryView, drop_data, equip_data, move_hand_data, store_data, take_data,
-    unequip_data,
+    BagView, CMD_DROP, CMD_EQUIP, CMD_MOVE_HAND, CMD_MOVE_SLOT, CMD_SELECT_HAND, CMD_STORE,
+    CMD_TAKE, CMD_TAKE_TO, CMD_UNEQUIP, CMD_UNEQUIP_TO, Hands, InventoryView, drop_at_data,
+    drop_data, equip_data, move_hand_data, move_slot_data, store_data, take_data, take_to_data,
+    unequip_data, unequip_to_data,
 };
+
+/// Насколько выше ступней лежит плоскость, куда падает предмет под курсором, м (верх пола).
+pub const GROUND_LIFT_M: f32 = 0.0;
 
 const SLOT: f32 = 64.0;
 const GAP: f32 = 4.0;
@@ -135,16 +139,19 @@ struct Drag {
 fn drop_on_hand(d: &Drag, to: u8, out: &mut Commands) {
     match &d.src {
         Src::Hand(from) if *from != to => out.push((CMD_MOVE_HAND, move_hand_data(*from, to))),
-        Src::Slot(slot) => out.push((CMD_UNEQUIP, unequip_data(slot))),
-        Src::Bag { bag, item } => out.push((CMD_TAKE, take_data(*bag, *item))),
+        Src::Slot(slot) => out.push((CMD_UNEQUIP_TO, unequip_to_data(to, slot))),
+        Src::Bag { bag, item } => out.push((CMD_TAKE_TO, take_to_data(to, *bag, *item))),
         Src::Hand(_) => {}
     }
 }
 
 /// Действие, когда предмет отпустили в пустое место экрана (на пол).
-fn drop_to_world(d: &Drag, out: &mut Commands) {
+fn drop_to_world(d: &Drag, ground: Option<[f32; 3]>, out: &mut Commands) {
     match &d.src {
-        Src::Hand(h) => out.push((CMD_DROP, drop_data(*h))),
+        Src::Hand(h) => match ground {
+            Some(point) => out.push((CMD_DROP, drop_at_data(*h, point))),
+            None => out.push((CMD_DROP, drop_data(*h))),
+        },
         Src::Slot(slot) => out.push((CMD_UNEQUIP, unequip_data(slot))),
         Src::Bag { bag, item } => out.push((CMD_TAKE, take_data(*bag, *item))),
     }
@@ -206,6 +213,7 @@ pub fn draw(
     hands: Option<&Hands>,
     view: Option<&InventoryView>,
     first_person: bool,
+    ground: Option<[f32; 3]>,
 ) -> Commands {
     let mut out: Commands = Vec::new();
     let Some(hands) = hands else {
@@ -256,12 +264,17 @@ pub fn draw(
             bag_window(ctx, icons, state, hands, bag, n, &mut out);
         }
     }
-    drag_ghost_and_world_drop(ctx, icons, &mut out);
+    drag_ghost_and_world_drop(ctx, icons, ground, &mut out);
     out
 }
 
 /// Значок перетаскиваемого предмета у курсора; отпущенный вне окон худа предмет падает на пол.
-fn drag_ghost_and_world_drop(ctx: &egui::Context, icons: &mut Icons, out: &mut Commands) {
+fn drag_ghost_and_world_drop(
+    ctx: &egui::Context,
+    icons: &mut Icons,
+    ground: Option<[f32; 3]>,
+    out: &mut Commands,
+) {
     let Some(payload) = egui::DragAndDrop::payload::<Drag>(ctx) else {
         return;
     };
@@ -281,7 +294,7 @@ fn drag_ghost_and_world_drop(ctx: &egui::Context, icons: &mut Icons, out: &mut C
         .and_then(|p| ctx.layer_id_at(p))
         .is_some_and(|l| l.order != egui::Order::Background);
     if ctx.input(|i| i.pointer.any_released()) && !over_window {
-        drop_to_world(&payload, out);
+        drop_to_world(&payload, ground, out);
         egui::DragAndDrop::clear_payload(ctx);
     }
 }
@@ -462,10 +475,14 @@ fn equip_slot_at(
             proto: it.prototype.to_string(),
         });
     }
-    if let Some(d) = resp.dnd_release_payload::<Drag>()
-        && let Src::Hand(h) = d.src
-    {
-        out.push((CMD_EQUIP, equip_data(h, slot)));
+    if let Some(d) = resp.dnd_release_payload::<Drag>() {
+        match &d.src {
+            Src::Hand(h) => out.push((CMD_EQUIP, equip_data(*h, slot))),
+            Src::Slot(from) if from != slot => {
+                out.push((CMD_MOVE_SLOT, move_slot_data(from, slot)));
+            }
+            _ => {}
+        }
     }
     if view.is_none() {
         return;
@@ -656,7 +673,15 @@ mod tests {
                 ..Default::default()
             };
             ctx.begin_pass(raw);
-            all.extend(draw(&ctx, &mut icons, &mut state, Some(hands), view, false));
+            all.extend(draw(
+                &ctx,
+                &mut icons,
+                &mut state,
+                Some(hands),
+                view,
+                false,
+                GROUND,
+            ));
             let mut out = ctx.end_pass();
             out.textures_delta.clear();
         };
@@ -684,6 +709,7 @@ mod tests {
 
     // Раскладка нижней полосы: кнопка одежды 0,7 слота, затем три слота, две руки и три слота;
     // слот 64 px, промежуток 4 px, полоса по центру экрана 1280 px и в 8 px от нижнего края.
+    const GROUND: Option<[f32; 3]> = Some([1.0, 0.2, 2.0]);
     const LEFT_HAND: (f32, f32) = (630.4, 680.0);
     const RIGHT_HAND: (f32, f32) = (698.4, 680.0);
 
@@ -703,7 +729,10 @@ mod tests {
         let mut hands = Hands::humanoid();
         hands.pickup_to(0, item(1)).unwrap();
         let cmds = run(&hands, None, &[LEFT_HAND, (600.0, 500.0), (600.0, 300.0)]);
-        assert!(cmds.contains(&(CMD_DROP, drop_data(0))), "{cmds:?}");
+        assert!(
+            cmds.contains(&(CMD_DROP, drop_at_data(0, [1.0, 0.2, 2.0]))),
+            "{cmds:?}"
+        );
     }
 
     #[test]
@@ -733,6 +762,41 @@ mod tests {
         assert!(
             cmds.contains(&(CMD_EQUIP, equip_data(0, "back"))),
             "{cmds:?}"
+        );
+    }
+
+    fn belt_view() -> InventoryView {
+        let mut inventory = gameplay::Inventory::human();
+        let info = gameplay::ItemInfo {
+            size: gameplay::ItemSize::Small,
+            slots: ["belt".to_string()].into(),
+            storage: None,
+            qualities: Default::default(),
+            tags: Default::default(),
+            components: Default::default(),
+        };
+        inventory.equip("belt", item(7), &info).unwrap();
+        InventoryView {
+            inventory,
+            bags: Vec::new(),
+        }
+    }
+
+    const BELT: (f32, f32) = (494.4, 680.0);
+
+    #[test]
+    fn dragging_worn_items_to_a_hand_or_another_slot() {
+        let hands = Hands::humanoid();
+        let view = belt_view();
+        let to_hand = run(&hands, Some(&view), &[BELT, (600.0, 680.0), RIGHT_HAND]);
+        assert!(
+            to_hand.contains(&(CMD_UNEQUIP_TO, unequip_to_data(1, "belt"))),
+            "{to_hand:?}"
+        );
+        let to_slot = run(&hands, Some(&view), &[BELT, (530.0, 680.0), (562.4, 680.0)]);
+        assert!(
+            to_slot.contains(&(CMD_MOVE_SLOT, move_slot_data("belt", "back"))),
+            "{to_slot:?}"
         );
     }
 }

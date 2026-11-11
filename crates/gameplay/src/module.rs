@@ -15,10 +15,11 @@ use crate::inventory::Inventory;
 use crate::items::{ItemInfo, item_info};
 use crate::storage::Storage;
 use crate::wire::{
-    BagView, CMD_DROP, CMD_EQUIP, CMD_INTERACT, CMD_MOVE_HAND, CMD_PICKUP, CMD_PICKUP_ANY,
-    CMD_SELECT_HAND, CMD_STORE, CMD_SWAP_HANDS, CMD_TAKE, CMD_UNEQUIP, CMD_USE, HANDS_COMPONENT,
-    INVENTORY_COMPONENT, InventoryView, encode_hands, encode_inventory, parse_drop, parse_equip,
-    parse_object_id, parse_store, parse_take, parse_unequip,
+    BagView, CMD_DROP, CMD_EQUIP, CMD_INTERACT, CMD_MOVE_HAND, CMD_MOVE_SLOT, CMD_PICKUP,
+    CMD_PICKUP_ANY, CMD_SELECT_HAND, CMD_STORE, CMD_SWAP_HANDS, CMD_TAKE, CMD_TAKE_TO, CMD_UNEQUIP,
+    CMD_UNEQUIP_TO, CMD_USE, HANDS_COMPONENT, INVENTORY_COMPONENT, InventoryView, encode_hands,
+    encode_inventory, parse_drop, parse_equip, parse_move_slot, parse_object_id, parse_store,
+    parse_take, parse_take_to, parse_unequip,
 };
 
 /// Дальность взаимодействия, м: `InteractionRange` в SS14 (1,5). Меряется от груди персонажа
@@ -316,6 +317,7 @@ impl State {
         ctx: &mut HookContext<'_>,
         actor: NetworkEntityId,
         slot: &str,
+        hand: Option<usize>,
     ) {
         let (Some(feet), Some(a)) = (ctx.position_of(actor), self.actors.get(&actor)) else {
             return;
@@ -336,13 +338,49 @@ impl State {
         let Ok((item, dropped)) = a.inventory.unequip(slot) else {
             return;
         };
-        let to_floor = match a.hands.pickup_any(item.clone()) {
+        let picked = match hand {
+            Some(h) => a
+                .hands
+                .pickup_to(h, item.clone())
+                .or_else(|_| a.hands.pickup_any(item.clone())),
+            None => a.hands.pickup_any(item.clone()),
+        };
+        let to_floor = match picked {
             Ok(_) => dropped,
             Err(_) => std::iter::once(item).chain(dropped).collect(),
         };
         for i in &to_floor {
             Self::place(ctx, i, feet);
         }
+        self.publish(ctx, actor);
+    }
+
+    /// Переложить надетое из слота в слот. Всё или ничего: если у снимаемого есть зависимые слоты с
+    /// предметами (они бы выпали) или предмет не подходит к новому слоту, ничего не меняется.
+    pub(crate) fn move_slot(
+        &mut self,
+        ctx: &mut HookContext<'_>,
+        actor: NetworkEntityId,
+        from: &str,
+        to: &str,
+    ) {
+        let Some(a) = self.actors.get(&actor) else {
+            return;
+        };
+        let Some(item) = a.inventory.get(from).cloned() else {
+            return;
+        };
+        let Some(info) = self.info(&item.prototype).cloned() else {
+            return;
+        };
+        let mut next = a.inventory.clone();
+        let Ok((item, dropped)) = next.unequip(from) else {
+            return;
+        };
+        if !dropped.is_empty() || next.equip(to, item, &info).is_err() {
+            return;
+        }
+        self.actor(actor).inventory = next;
         self.publish(ctx, actor);
     }
 
@@ -414,6 +452,7 @@ impl State {
         actor: NetworkEntityId,
         bag: ObjectId,
         id: ObjectId,
+        hand: Option<usize>,
     ) -> bool {
         if self.bag_proto(ctx, actor, bag).is_none() {
             return false;
@@ -426,7 +465,14 @@ impl State {
         };
         let item = stored.item.clone();
         // Сначала место в руках: если его нет, предмет остаётся в сумке.
-        if self.actor(actor).hands.pickup_any(item).is_err() {
+        let hands = &mut self.actor(actor).hands;
+        let taken = match hand {
+            Some(h) => hands
+                .pickup_to(h, item.clone())
+                .or_else(|_| hands.pickup_any(item)),
+            None => hands.pickup_any(item),
+        };
+        if taken.is_err() {
             return false;
         }
         if let Some(s) = self.storages.get_mut(&bag) {
@@ -623,7 +669,22 @@ impl GameModule for GameplayModule {
                 }
                 CMD_UNEQUIP => {
                     if let Some(slot) = parse_unequip(data) {
-                        st.unequip(ctx, *actor, slot);
+                        st.unequip(ctx, *actor, slot, None);
+                    }
+                }
+                CMD_UNEQUIP_TO => {
+                    if let Some((hand, slot)) = parse_equip(data) {
+                        st.unequip(ctx, *actor, slot, Some(usize::from(hand)));
+                    }
+                }
+                CMD_TAKE_TO => {
+                    if let Some((hand, bag, item)) = parse_take_to(data) {
+                        st.take(ctx, *actor, bag, item, Some(usize::from(hand)));
+                    }
+                }
+                CMD_MOVE_SLOT => {
+                    if let Some((from, to)) = parse_move_slot(data) {
+                        st.move_slot(ctx, *actor, from, to);
                     }
                 }
                 CMD_STORE => {
@@ -633,7 +694,7 @@ impl GameModule for GameplayModule {
                 }
                 CMD_TAKE => {
                     if let Some((bag, item)) = parse_take(data) {
-                        st.take(ctx, *actor, bag, item);
+                        st.take(ctx, *actor, bag, item, None);
                     }
                 }
                 CMD_INTERACT => {

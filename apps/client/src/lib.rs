@@ -36,6 +36,7 @@ impl Plugin for BuildClientPlugin {
         }
         app.add_plugins(EguiPlugin::default())
             .init_resource::<Loadout>()
+            .init_resource::<Ground>()
             .insert_resource(Hud {
                 icons: hud::Icons::from_manifest(self.manifest.as_deref().unwrap_or("".as_ref())),
                 state: hud::HudState::default(),
@@ -47,7 +48,14 @@ impl Plugin for BuildClientPlugin {
             .add_systems(Startup, install_body)
             .add_systems(
                 Update,
-                (refresh_loadout, hand_keys, autoplay, outfit::sync_outfits).chain(),
+                (
+                    refresh_loadout,
+                    cursor_ground,
+                    hand_keys,
+                    autoplay,
+                    outfit::sync_outfits,
+                )
+                    .chain(),
             )
             .add_systems(EguiPrimaryContextPass, loadout_window);
     }
@@ -64,6 +72,41 @@ fn install_body(
     if let Some(root) = root {
         body::install(&root.0, root.1.as_deref(), &mut images, &mut commands);
     }
+}
+
+/// Точка пола под курсором мыши (в метрах), если курсор над миром.
+#[derive(Resource, Default)]
+struct Ground(Option<[f32; 3]>);
+
+/// Пересечение луча с горизонтальной плоскостью на высоте `y`.
+fn ground_point(origin: Vec3, dir: Vec3, y: f32) -> Option<[f32; 3]> {
+    if dir.y.abs() < 1e-4 {
+        return None;
+    }
+    let t = (y - origin.y) / dir.y;
+    (t > 0.0).then(|| (origin + dir * t).to_array())
+}
+
+fn cursor_ground(
+    windows: Query<&Window, With<bevy::window::PrimaryWindow>>,
+    cameras: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
+    net: Option<NonSend<Net>>,
+    mut ground: ResMut<Ground>,
+) {
+    ground.0 = None;
+    let (Some(net), Ok(window), Ok((camera, transform))) =
+        (net, windows.single(), cameras.single())
+    else {
+        return;
+    };
+    let Some(cursor) = window.cursor_position() else {
+        return;
+    };
+    let Ok(ray) = camera.viewport_to_world(transform, cursor) else {
+        return;
+    };
+    let feet = net.core.position();
+    ground.0 = ground_point(ray.origin, *ray.direction, feet.y + hud::GROUND_LIFT_M);
 }
 
 #[derive(Resource)]
@@ -168,6 +211,7 @@ fn loadout_window(
     loadout: Res<Loadout>,
     mut hud: ResMut<Hud>,
     look: Option<Res<astrocore_client::Look>>,
+    ground: Res<Ground>,
     net: Option<NonSendMut<Net>>,
 ) -> Result {
     let ctx = contexts.ctx_mut()?.clone();
@@ -182,9 +226,23 @@ fn loadout_window(
         loadout.hands.as_ref(),
         loadout.inventory.as_ref(),
         look.is_some_and(|l| l.first_person),
+        ground.0,
     );
     for (kind, data) in commands {
         net.send_command(kind, data);
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_ray_hits_the_floor_plane_only_in_front_of_the_camera() {
+        let p = ground_point(Vec3::new(0.0, 2.0, 0.0), Vec3::new(0.0, -1.0, -1.0), 0.0).unwrap();
+        assert!((p[0]).abs() < 1e-5 && (p[1]).abs() < 1e-5 && (p[2] + 2.0).abs() < 1e-5);
+        assert!(ground_point(Vec3::new(0.0, 2.0, 0.0), Vec3::new(0.0, 1.0, -1.0), 0.0).is_none());
+        assert!(ground_point(Vec3::new(0.0, 2.0, 0.0), Vec3::X, 0.0).is_none());
+    }
 }
