@@ -59,6 +59,9 @@ const PROTOS: &str = r#"[
         "Item": (size: "Small"),
         "IgnitionSource": (temperature: 700.0),
     }),
+    (id: "PlasmaCan", components: {
+        "GasCanister": (volume: 1500.0, temperature: 293.15, moles: (Plasma: 400.0), releasePressure: 300.0),
+    }),
     (id: "Satchel", components: {
         "Item": (size: "Small"),
         "Storage": (grid: ["0,0,1,1"], maxItemSize: "Tiny"),
@@ -1715,5 +1718,32 @@ mod fire {
         assert!(vitals(&h, a).resisting);
         h.ticks(20 * 3);
         assert!(!vitals(&h, a).resisting, "перекат закончился");
+    }
+
+    #[test]
+    fn a_canister_released_in_the_room_feeds_a_fire() {
+        let mut h = harness();
+        let a = h.join("a");
+        h.ticks(10);
+        spawn(
+            &mut h,
+            item_at(130, "ss14:plasma_can", Vec3::new(2.6, 0.6, 2.6)),
+        );
+        h.ticks(3);
+        // Пустой рукой открываем выпуск: давление в комнате растёт, плазма расходится.
+        command(&mut h, a, CMD_INTERACT, interact_data(oid(130)));
+        h.ticks(20 * 120);
+        light_welder(&mut h, a);
+        h.ticks(20 * 90);
+        let net = h.client(a).net_id().unwrap();
+        let fires = h
+            .client(a)
+            .component(net, FIRES_COMPONENT)
+            .and_then(decode_fires)
+            .unwrap_or_default();
+        assert!(
+            !fires.is_empty() || heat(&h, a) > 0.0,
+            "плазма из баллона загорелась"
+        );
     }
 }

@@ -10,7 +10,7 @@
 //! * `GasPassiveVent: (node: 0)`, `GasVentPump: (node: 0)`, `GasVentScrubber: (node: 0)`;
 //! * `GasValve: (a: 0, b: 1, open: false)`;
 //! * `GasPort` — разъём для баллона (узел `nodes[0]`);
-//! * `GasCanister: (volume: 1500.0, temperature: 293.15, moles: (Oxygen: 2769.36))`;
+//! * `GasCanister: (volume: 1500.0, temperature: 293.15, moles: (Oxygen: 2769.36), releasePressure: 101.325)`;
 //! * `GasTank: (volume: 5.0, temperature: 293.15, releasePressure: 21.3, moles: (...))` — для
 //!   переносимых баллончиков.
 
@@ -65,7 +65,7 @@ pub enum DeviceSpec {
         b: usize,
         open: bool,
     },
-    Canister(GasMixture),
+    Canister(GasMixture, f32),
     Port,
 }
 
@@ -178,10 +178,10 @@ impl PipePart {
                 open: bool_of(c, "open", false),
             })
         } else if let Some(c) = r.component("GasCanister") {
-            Some(DeviceSpec::Canister(container_mixture(
-                c,
-                atmos::pipes::CANISTER_VOLUME,
-            )))
+            Some(DeviceSpec::Canister(
+                container_mixture(c, atmos::pipes::CANISTER_VOLUME),
+                float(c, "releasePressure", atmos::ONE_ATMOSPHERE),
+            ))
         } else if r.component("GasPort").is_some() {
             Some(DeviceSpec::Port)
         } else {
@@ -254,8 +254,9 @@ pub fn device_of(spec: &DeviceSpec, object_key: u64, port: Option<u64>) -> Optio
             b: n(*b),
             open: *open,
         },
-        DeviceSpec::Canister(air) => {
+        DeviceSpec::Canister(air, release) => {
             let mut c = Canister::new(air.clone());
+            c.release_pressure = *release;
             c.port = port;
             Device::Canister(Box::new(c))
         }

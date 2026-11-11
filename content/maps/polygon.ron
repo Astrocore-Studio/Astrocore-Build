@@ -1459,9 +1459,20 @@
             x: 4.5,
             z: 2.5,
         ),
+        (prototype: "GasPort", x: 7.5, z: 5.5),
+        (prototype: "OxygenCanister", x: 7.5, z: 5.5),
+        (prototype: "GasValve", x: 9.5, z: 5.5),
+        (prototype: "GasVentPump", x: 10.5, z: 5.5),
+        (prototype: "GasVentScrubber", x: 10.5, z: 3.5),
+        (prototype: "OxygenTank", x: 8.5, z: 1.5),
+        (prototype: "PlasmaTank", x: 9.5, z: 1.5),
     ],
     // Область без атмосферы добавляется так (клетки внутри станут космосом, комната вентилируется):
     //   zones: [(min: (10.0, 0.0, 0.0), max: (11.9, 3.0, 2.0), floor: 0, metadata: {"atmosphere": "space"})],
     //   зона с плазмой в воздухе (горит от сварки): metadata: {"atmosphere": "plasma"}; доступны plasma, tritium, frezon, n2o, ammonia, co2
-    zones: [],
+    zones: [
+        (min: (8.0, 0.0, 5.0), max: (8.99, 3.0, 5.99), floor: 0, metadata: {"gas_pipe": "WE"}),
+        (min: (9.0, 0.0, 3.0), max: (9.99, 3.0, 3.99), floor: 0, metadata: {"gas_pipe": "WE"}),
+        (min: (8.0, 0.0, 3.0), max: (8.99, 3.0, 3.99), floor: 0, metadata: {"gas_pipe": "WE"}),
+    ],
 )

@@ -56,6 +56,20 @@
     }
   },
   "sprites": {
+    "ss14:air_canister": {
+      "image": "Textures/Structures/Storage/canister.rsi/grey.png",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:ammonia_canister": {
+      "image": "Textures/Structures/Storage/canister.rsi/greenys.png",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
     "ss14:box": {
       "image": "Textures/Objects/Storage/boxes.rsi/box.png",
       "size": [
@@ -68,6 +82,13 @@
       "size": [
         0.36000001430511475,
         0.36000001430511475
+      ]
+    },
+    "ss14:carbon_dioxide_canister": {
+      "image": "Textures/Structures/Storage/canister.rsi/black.png",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
       ]
     },
     "ss14:clothing_backpack": {
@@ -105,11 +126,74 @@
         0.36000001430511475
       ]
     },
+    "ss14:frezon_canister": {
+      "image": "Textures/Structures/Storage/canister.rsi/frezon.png",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:gas_passive_vent": {
+      "image": "Textures/Structures/Piping/Atmospherics/vent.rsi/vent_passive.png",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:gas_port": {
+      "image": "Textures/Structures/Piping/Atmospherics/gascanisterport.rsi/gasCanisterPort.png",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:gas_pressure_pump": {
+      "image": "Textures/Structures/Piping/Atmospherics/pump.rsi/pumpPressure.png",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:gas_valve": {
+      "image": "Textures/Structures/Piping/Atmospherics/pump.rsi/pumpManualValve.png",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:gas_vent_pump": {
+      "image": "Textures/Structures/Piping/Atmospherics/vent.rsi/vent_out.png",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:gas_vent_scrubber": {
+      "image": "Textures/Structures/Piping/Atmospherics/scrubber.rsi/scrub_on.png",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
     "ss14:gauze": {
       "image": "Textures/Objects/Specific/Medical/medical.rsi/gauze.png",
       "size": [
         0.36000001430511475,
         0.36000001430511475
+      ]
+    },
+    "ss14:nitrogen_canister": {
+      "image": "Textures/Structures/Storage/canister.rsi/red.png",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:nitrous_oxide_canister": {
+      "image": "Textures/Structures/Storage/canister.rsi/redws.png",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
       ]
     },
     "ss14:ointment": {
@@ -119,6 +203,20 @@
         0.36000001430511475
       ]
     },
+    "ss14:oxygen_canister": {
+      "image": "Textures/Structures/Storage/canister.rsi/blue.png",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:oxygen_tank": {
+      "image": "Textures/Objects/Tanks/oxygen.rsi/icon.png",
+      "size": [
+        0.48000001907348633,
+        0.48000001907348633
+      ]
+    },
     "ss14:pen": {
       "image": "Textures/Objects/Misc/pens.rsi/pen.png",
       "size": [
@@ -126,11 +224,39 @@
         0.30000001192092896
       ]
     },
+    "ss14:plasma_canister": {
+      "image": "Textures/Structures/Storage/canister.rsi/orange.png",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:plasma_tank": {
+      "image": "Textures/Objects/Tanks/plasma.rsi/icon.png",
+      "size": [
+        0.48000001907348633,
+        0.48000001907348633
+      ]
+    },
     "ss14:screwdriver": {
       "image": "Textures/Objects/Tools/screwdriver.rsi/screwdriver.png",
       "size": [
         0.36000001430511475,
         0.36000001430511475
+      ]
+    },
+    "ss14:tritium_canister": {
+      "image": "Textures/Structures/Storage/canister.rsi/green.png",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:water_vapor_canister": {
+      "image": "Textures/Structures/Storage/canister.rsi/water_vapor.png",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
       ]
     },
     "ss14:welder": {

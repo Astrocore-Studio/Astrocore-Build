@@ -1,0 +1,91 @@
+// Трубы и газовые устройства (данные из Resources/Prototypes/Entities/Structures/Piping и
+// Storage/Canisters SS14). Трубы под полом задаются на карте зонами `gas_pipe` (см. piping.rs).
+// Питание не перенесено: насосы, вентиляция и скрубберы работают без электричества.
+[
+    (id: "GasDevice", abstract: true, components: {}),
+
+    (id: "GasPressurePump", parents: ["GasDevice"], name: Some("gas pump"), components: {
+        "Sprite": (sprite: "Structures/Piping/Atmospherics/pump.rsi", state: "pumpPressure"),
+        "GasPipe": (nodes: [(dirs: "W"), (dirs: "E")]),
+        "GasPressurePump": (inlet: 0, outlet: 1, targetPressure: 101.325, enabled: false),
+    }),
+    (id: "GasValve", parents: ["GasDevice"], name: Some("manual valve"), components: {
+        "Sprite": (sprite: "Structures/Piping/Atmospherics/pump.rsi", state: "pumpManualValve"),
+        "GasPipe": (nodes: [(dirs: "W", volume: 100.0), (dirs: "E", volume: 100.0)]),
+        "GasValve": (a: 0, b: 1, open: false),
+    }),
+    (id: "GasVentPump", parents: ["GasDevice"], name: Some("air vent"), components: {
+        "Sprite": (sprite: "Structures/Piping/Atmospherics/vent.rsi", state: "vent_out"),
+        "GasPipe": (nodes: [(dirs: "W")]),
+        "GasVentPump": (node: 0),
+    }),
+    (id: "GasPassiveVent", parents: ["GasDevice"], name: Some("passive vent"), components: {
+        "Sprite": (sprite: "Structures/Piping/Atmospherics/vent.rsi", state: "vent_passive"),
+        "GasPipe": (nodes: [(dirs: "W")]),
+        "GasPassiveVent": (node: 0),
+    }),
+    (id: "GasVentScrubber", parents: ["GasDevice"], name: Some("air scrubber"), components: {
+        "Sprite": (sprite: "Structures/Piping/Atmospherics/scrubber.rsi", state: "scrub_on"),
+        "GasPipe": (nodes: [(dirs: "W")]),
+        "GasVentScrubber": (node: 0),
+    }),
+    (id: "GasPort", parents: ["GasDevice"], name: Some("connector port"), components: {
+        "Sprite": (sprite: "Structures/Piping/Atmospherics/gascanisterport.rsi", state: "gasCanisterPort"),
+        "GasPipe": (nodes: [(dirs: "E")]),
+        "GasPort": (),
+    }),
+
+    // Баллоны: 1500 л, 2769,36 моля газа при 20 °C. Воздух — 581,56 O₂ и 2187,79 N₂.
+    (id: "AirCanister", parents: ["GasDevice"], name: Some("air canister"), components: {
+        "Sprite": (sprite: "Structures/Storage/canister.rsi", state: "grey"),
+        "GasCanister": (volume: 1500.0, temperature: 293.15, moles: (Oxygen: 581.56, Nitrogen: 2187.79)),
+    }),
+    (id: "OxygenCanister", parents: ["GasDevice"], name: Some("oxygen canister"), components: {
+        "Sprite": (sprite: "Structures/Storage/canister.rsi", state: "blue"),
+        "GasCanister": (volume: 1500.0, temperature: 293.15, moles: (Oxygen: 2769.36)),
+    }),
+    (id: "NitrogenCanister", parents: ["GasDevice"], name: Some("nitrogen canister"), components: {
+        "Sprite": (sprite: "Structures/Storage/canister.rsi", state: "red"),
+        "GasCanister": (volume: 1500.0, temperature: 293.15, moles: (Nitrogen: 2769.36)),
+    }),
+    (id: "CarbonDioxideCanister", parents: ["GasDevice"], name: Some("carbondioxide canister"), components: {
+        "Sprite": (sprite: "Structures/Storage/canister.rsi", state: "black"),
+        "GasCanister": (volume: 1500.0, temperature: 293.15, moles: (CarbonDioxide: 2769.36)),
+    }),
+    (id: "PlasmaCanister", parents: ["GasDevice"], name: Some("plasma canister"), components: {
+        "Sprite": (sprite: "Structures/Storage/canister.rsi", state: "orange"),
+        "GasCanister": (volume: 1500.0, temperature: 293.15, moles: (Plasma: 2769.36)),
+    }),
+    (id: "TritiumCanister", parents: ["GasDevice"], name: Some("tritium canister"), components: {
+        "Sprite": (sprite: "Structures/Storage/canister.rsi", state: "green"),
+        "GasCanister": (volume: 1500.0, temperature: 293.15, moles: (Tritium: 2769.36)),
+    }),
+    (id: "WaterVaporCanister", parents: ["GasDevice"], name: Some("watervapor canister"), components: {
+        "Sprite": (sprite: "Structures/Storage/canister.rsi", state: "water_vapor"),
+        "GasCanister": (volume: 1500.0, temperature: 293.15, moles: (WaterVapor: 2769.36)),
+    }),
+    (id: "AmmoniaCanister", parents: ["GasDevice"], name: Some("ammonia canister"), components: {
+        "Sprite": (sprite: "Structures/Storage/canister.rsi", state: "greenys"),
+        "GasCanister": (volume: 1500.0, temperature: 293.15, moles: (Ammonia: 2769.36)),
+    }),
+    (id: "NitrousOxideCanister", parents: ["GasDevice"], name: Some("nitrousoxide canister"), components: {
+        "Sprite": (sprite: "Structures/Storage/canister.rsi", state: "redws"),
+        "GasCanister": (volume: 1500.0, temperature: 293.15, moles: (NitrousOxide: 2769.36)),
+    }),
+    (id: "FrezonCanister", parents: ["GasDevice"], name: Some("frezon canister"), components: {
+        "Sprite": (sprite: "Structures/Storage/canister.rsi", state: "frezon"),
+        "GasCanister": (volume: 1500.0, temperature: 293.15, moles: (Frezon: 2769.36)),
+    }),
+
+    // Переносные баллончики на 5 л; F в руке открывает и закрывает выпуск.
+    (id: "OxygenTank", parents: ["BaseItem"], name: Some("oxygen tank"), components: {
+        "Sprite": (sprite: "Objects/Tanks/oxygen.rsi", state: "icon"),
+        "Item": (size: "Normal"),
+        "GasTank": (volume: 5.0, temperature: 293.15, releasePressure: 21.3, moles: (Oxygen: 1.74)),
+    }),
+    (id: "PlasmaTank", parents: ["BaseItem"], name: Some("plasma tank"), components: {
+        "Sprite": (sprite: "Objects/Tanks/plasma.rsi", state: "icon"),
+        "Item": (size: "Normal"),
+        "GasTank": (volume: 5.0, temperature: 293.15, releasePressure: 101.3, moles: (Plasma: 4.15)),
+    }),
+]
