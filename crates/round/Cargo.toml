@@ -1,0 +1,23 @@
+[package]
+name = "round"
+description = "Раунд Astrocore Build: мир полигона, игровые модули, сервер"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+license.workspace = true
+
+[dependencies]
+astrocore-api.workspace = true
+astrocore-math.workspace = true
+astrocore-network.workspace = true
+astrocore-world.workspace = true
+gameplay.workspace = true
+polygon.workspace = true
+prototypes.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+astrocore-core.workspace = true
+
+[lints]
+workspace = true

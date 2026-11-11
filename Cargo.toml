@@ -1,0 +1,46 @@
+[workspace]
+resolver = "3"
+members = ["crates/prototypes", "crates/assets", "crates/gameplay", "crates/polygon", "crates/round", "apps/server", "apps/client"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+publish = false
+license = "MIT"
+
+[workspace.dependencies]
+astrocore-api = { git = "https://github.com/Astrocore-Studio/Astrocore-Engine", branch = "master" }
+astrocore-core = { git = "https://github.com/Astrocore-Studio/Astrocore-Engine", branch = "master" }
+astrocore-math = { git = "https://github.com/Astrocore-Studio/Astrocore-Engine", branch = "master" }
+astrocore-editor = { git = "https://github.com/Astrocore-Studio/Astrocore-Engine", branch = "master" }
+astrocore-lightyear = { git = "https://github.com/Astrocore-Studio/Astrocore-Engine", branch = "master" }
+astrocore-network = { git = "https://github.com/Astrocore-Studio/Astrocore-Engine", branch = "master" }
+astrocore-physics = { git = "https://github.com/Astrocore-Studio/Astrocore-Engine", branch = "master" }
+astrocore-spatial = { git = "https://github.com/Astrocore-Studio/Astrocore-Engine", branch = "master" }
+astrocore-runtime = { git = "https://github.com/Astrocore-Studio/Astrocore-Engine", branch = "master" }
+astrocore-sprites = { git = "https://github.com/Astrocore-Studio/Astrocore-Engine", branch = "master" }
+astrocore-world = { git = "https://github.com/Astrocore-Studio/Astrocore-Engine", branch = "master" }
+serde_json = "1"
+serde = { version = "1", features = ["derive"] }
+ron = "0.10"
+serde_yaml = "0.9"
+thiserror = "2"
+tempfile = "3"
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+
+[workspace.dependencies.prototypes]
+path = "crates/prototypes"
+
+[workspace.dependencies.assets]
+path = "crates/assets"
+
+[workspace.dependencies.gameplay]
+path = "crates/gameplay"
+
+[workspace.dependencies.polygon]
+path = "crates/polygon"
+
+[workspace.dependencies.round]
+path = "crates/round"

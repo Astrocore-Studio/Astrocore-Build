@@ -1,0 +1,102 @@
+{
+  "doors": {
+    "ss14:airlock": {
+      "closed": {
+        "cols": 2,
+        "delays": [],
+        "image": "Textures/Structures/Doors/Airlocks/Standard/airlock-base.rsi/closed.png",
+        "rows": 2
+      },
+      "closing": {
+        "cols": 9,
+        "delays": [
+          0.10000000149011612,
+          0.05000000074505806,
+          0.05000000074505806,
+          0.029999999329447746,
+          0.029999999329447746,
+          0.029999999329447746,
+          0.05000000074505806,
+          0.05000000074505806,
+          0.10000000149011612
+        ],
+        "image": "Textures/Structures/Doors/Airlocks/Standard/airlock-base.rsi/closing.png",
+        "rows": 4
+      },
+      "open": {
+        "cols": 2,
+        "delays": [],
+        "image": "Textures/Structures/Doors/Airlocks/Standard/airlock-base.rsi/open.png",
+        "rows": 2
+      },
+      "opening": {
+        "cols": 9,
+        "delays": [
+          0.10000000149011612,
+          0.05000000074505806,
+          0.05000000074505806,
+          0.029999999329447746,
+          0.029999999329447746,
+          0.029999999329447746,
+          0.05000000074505806,
+          0.05000000074505806,
+          0.10000000149011612
+        ],
+        "image": "Textures/Structures/Doors/Airlocks/Standard/airlock-base.rsi/opening.png",
+        "rows": 4
+      }
+    }
+  },
+  "materials": {
+    "ss14:floor_dark": {
+      "image": "Textures/Tiles/Basic/Dark/dark.png"
+    },
+    "ss14:wall_solid": {
+      "image": "Textures/Structures/Walls/solid.rsi/full.png"
+    }
+  },
+  "sprites": {
+    "ss14:box": {
+      "image": "Textures/Objects/Storage/boxes.rsi/box.png",
+      "size": [
+        0.48000001907348633,
+        0.48000001907348633
+      ]
+    },
+    "ss14:clothing_backpack": {
+      "image": "Textures/Clothing/Back/Backpacks/backpack.rsi/icon.png",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:crowbar": {
+      "image": "Textures/Objects/Tools/crowbar.rsi/icon.png",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:pen": {
+      "image": "Textures/Objects/Misc/pens.rsi/pen.png",
+      "size": [
+        0.30000001192092896,
+        0.30000001192092896
+      ]
+    },
+    "ss14:screwdriver": {
+      "image": "Textures/Objects/Tools/screwdriver.rsi/screwdriver.png",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:wrench": {
+      "image": "Textures/Objects/Tools/wrench.rsi/icon.png",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    }
+  }
+}

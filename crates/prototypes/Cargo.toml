@@ -1,0 +1,20 @@
+[package]
+name = "prototypes"
+description = "Прототипы Astrocore Build: RON, наследование, совместимость с YAML SS14"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+license.workspace = true
+
+[dependencies]
+astrocore-core.workspace = true
+ron.workspace = true
+serde_yaml.workspace = true
+serde.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
+
+[lints]
+workspace = true

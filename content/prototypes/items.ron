@@ -1,0 +1,36 @@
+[
+    (id: "BaseItem", abstract: true, components: {"Item": (size: "Small")}),
+
+    (id: "Crowbar", parents: ["BaseItem"], name: Some("crowbar"), components: {
+        "Sprite": (sprite: "Objects/Tools/crowbar.rsi", state: "icon"),
+        "Tool": (qualities: ["Prying"]),
+        "Clothing": (slots: ["belt"]),
+        "Tag": (tags: ["Crowbar"]),
+    }),
+    (id: "Wrench", parents: ["BaseItem"], name: Some("wrench"), components: {
+        "Sprite": (sprite: "Objects/Tools/wrench.rsi", state: "icon"),
+        "Tool": (qualities: ["Anchoring"]),
+        "Clothing": (slots: ["belt"]),
+    }),
+    (id: "Screwdriver", parents: ["BaseItem"], name: Some("screwdriver"), components: {
+        "Sprite": (sprite: "Objects/Tools/screwdriver.rsi", state: "screwdriver"),
+        "Tool": (qualities: ["Screwing"]),
+        "Clothing": (slots: ["belt"]),
+    }),
+    (id: "Pen", name: Some("pen"), components: {
+        "Item": (size: "Tiny"),
+        "Sprite": (sprite: "Objects/Misc/pens.rsi", state: "pen"),
+    }),
+    (id: "Box", name: Some("box"), components: {
+        "Item": (size: "Normal"),
+        "Sprite": (sprite: "Objects/Storage/boxes.rsi", state: "box"),
+        "Storage": (grid: ["0,0,3,1"], maxItemSize: "Small"),
+    }),
+    // Размеры и сетка рюкзака — как в Resources/Prototypes/Entities/Clothing/Back/backpacks.yml.
+    (id: "ClothingBackpack", name: Some("backpack"), components: {
+        "Item": (size: "Colossal"),
+        "Sprite": (sprite: "Clothing/Back/Backpacks/backpack.rsi", state: "icon"),
+        "Clothing": (slots: ["back"]),
+        "Storage": (grid: ["0,0,6,3"], maxItemSize: "Huge", blacklist: (tags: ["TrashBag"])),
+    }),
+]

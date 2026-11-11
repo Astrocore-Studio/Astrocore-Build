@@ -1,0 +1,4 @@
+// Двери: материал проёма в карте и набор RSI со состояниями closed/open/opening/closing.
+[
+    (id: "ss14:airlock", rsi: "Structures/Doors/Airlocks/Standard/airlock-base.rsi"),
+]
