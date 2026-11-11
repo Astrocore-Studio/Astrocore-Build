@@ -641,3 +641,60 @@ mod piping {
         assert!(g.pipes().device(1).is_none());
     }
 }
+
+/// Замер на карте размером со станцию (≈4000 клеток): `cargo test -p atmos --release -- --ignored --nocapture`.
+#[test]
+#[ignore]
+fn bench_station_sized_grid() {
+    use std::time::Instant;
+    let (w, h) = (64, 64);
+    let mut l = room(w, h);
+    // Коридорные перегородки: каждые 8 клеток стена с проёмом, как отсеки станции.
+    for x in (8..w).step_by(8) {
+        for z in 0..h {
+            if z % 8 != 3 {
+                l.blocked.insert(edge((x - 1, z), (x, z)));
+            }
+        }
+    }
+    let mut g = Grid::new();
+    let t = Instant::now();
+    g.set_layout(l.clone());
+    println!("set_layout {} клеток: {:?}", w * h, t.elapsed());
+    let t = Instant::now();
+    g.run_cycles(50);
+    println!(
+        "покой: {:.3} мс на цикл",
+        t.elapsed().as_secs_f64() * 1000.0 / 50.0
+    );
+    // Пробоина в космос: ребро наружу в углу.
+    l.blocked.remove(&edge((0, 0), (0, -1)));
+    g.set_layout(l);
+    let t = Instant::now();
+    let mut worst = 0.0f64;
+    for _ in 0..600 {
+        let s = Instant::now();
+        g.run_cycles(1);
+        worst = worst.max(s.elapsed().as_secs_f64() * 1000.0);
+    }
+    println!(
+        "разгерметизация: {:.3} мс на цикл в среднем, худший {:.2} мс, активных клеток {}",
+        t.elapsed().as_secs_f64() * 1000.0 / 600.0,
+        worst,
+        g.active_tiles()
+    );
+    // Пожар в плазменной комнате.
+    for x in 0..8 {
+        for z in 0..8 {
+            g.with_air((x, z), |a| a.adjust_moles(Gas::Plasma, 20.0));
+        }
+    }
+    g.ignite((4, 4), 1500.0, 50.0);
+    let t = Instant::now();
+    g.run_cycles(300);
+    println!(
+        "пожар: {:.3} мс на цикл, горит клеток {}",
+        t.elapsed().as_secs_f64() * 1000.0 / 300.0,
+        g.fires().len()
+    );
+}
