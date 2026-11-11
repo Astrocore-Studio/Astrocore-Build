@@ -74,7 +74,7 @@ impl Plugin for BuildClientPlugin {
             )
             .add_systems(
                 EguiPrimaryContextPass,
-                (loadout_window, players::other_bars, combat::health_overlay),
+                (loadout_window, players::other_bars),
             );
     }
 }
@@ -283,6 +283,7 @@ fn loadout_window(
         )
     });
     let Hud { icons, state } = &mut *hud;
+    state.health = loadout.health.clone();
     let commands = hud::draw(
         &ctx,
         icons,

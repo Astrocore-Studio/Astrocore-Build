@@ -19,13 +19,42 @@ pub const MELEE_RANGE_M: f32 = 1.5;
 
 /// Виды урона, с которыми работает билд, и группы для показа.
 pub const KINDS: &[&str] = &[
-    "Blunt", "Slash", "Piercing", "Heat", "Cold", "Shock", "Poison",
+    "Blunt",
+    "Slash",
+    "Piercing",
+    "Heat",
+    "Cold",
+    "Shock",
+    "Poison",
+    "Asphyxiation",
+    "Bloodloss",
 ];
 pub const GROUPS: &[(&str, &[&str])] = &[
     ("Brute", &["Blunt", "Slash", "Piercing"]),
     ("Burn", &["Heat", "Cold", "Shock"]),
     ("Toxin", &["Poison"]),
+    ("Airloss", &["Asphyxiation", "Bloodloss"]),
 ];
+
+/// Части тела: урон оружия приходится на одну из них. В SS14 урон по частям тела не делится —
+/// это решение билда.
+pub const PARTS: &[&str] = &[
+    "Head", "Torso", "LeftArm", "RightArm", "LeftLeg", "RightLeg",
+];
+/// Рука или нога перестают работать при таком уроне на части.
+pub const LIMB_DISABLED_AT: f32 = 50.0;
+/// Смертельный урон на голове и на торсе.
+pub const HEAD_FATAL_AT: f32 = 100.0;
+pub const TORSO_FATAL_AT: f32 = 150.0;
+/// Кровотечение от колющего и режущего урона: сила кровотечения на единицу урона.
+pub const BLEED_PER_DAMAGE: f32 = 0.15;
+/// На сколько в секунду кровотечение затухает само.
+pub const BLEED_DECAY_PER_S: f32 = 0.05;
+/// Потеря крови: урон `Bloodloss` в секунду на единицу кровотечения.
+pub const BLOODLOSS_PER_BLEED: f32 = 1.0;
+/// Удушье в безвоздушной области, урон в секунду, и восстановление на воздухе.
+pub const SUFFOCATION_PER_S: f32 = 1.0;
+pub const BREATHING_RECOVERY_PER_S: f32 = 1.0;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum MobState {
@@ -63,6 +92,15 @@ pub type DamageSpec = BTreeMap<String, f32>;
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct Health {
     damage: BTreeMap<String, f32>,
+    /// Урон по частям тела (только травмы и ожоги от ударов; потеря крови и удушье не локальны).
+    #[serde(default)]
+    parts: BTreeMap<String, f32>,
+    /// Сила кровотечения.
+    #[serde(default)]
+    bleed: f32,
+    /// Дышать нечем (персонаж в безвоздушной области).
+    #[serde(default)]
+    pub suffocating: bool,
 }
 
 impl Health {
@@ -83,8 +121,29 @@ impl Health {
             })
     }
 
+    pub fn part_damage(&self, part: &str) -> f32 {
+        self.parts.get(part).copied().unwrap_or(0.0)
+    }
+
+    pub fn part_disabled(&self, part: &str) -> bool {
+        self.part_damage(part) >= LIMB_DISABLED_AT
+    }
+
+    pub fn bleed(&self) -> f32 {
+        self.bleed
+    }
+
+    /// Остановить кровотечение (перевязка).
+    pub fn stop_bleed(&mut self, amount: f32) {
+        self.bleed = (self.bleed - amount.max(0.0)).max(0.0);
+    }
+
     pub fn state(&self) -> MobState {
         let t = self.total();
+        if self.part_damage("Head") >= HEAD_FATAL_AT || self.part_damage("Torso") >= TORSO_FATAL_AT
+        {
+            return MobState::Dead;
+        }
         if t >= DEAD_AT {
             MobState::Dead
         } else if t >= CRITICAL_AT {
@@ -94,9 +153,15 @@ impl Health {
         }
     }
 
-    /// Применить урон или лечение. Неизвестные виды игнорируются, результат по каждому виду не
-    /// уходит ниже нуля. Мёртвого вылечить нельзя (воскрешение — отдельная механика).
+    /// Применить урон или лечение к телу целиком (урон по частям не меняется, лечение снимает
+    /// урон с самых повреждённых частей).
     pub fn apply(&mut self, spec: &DamageSpec) {
+        self.apply_to(None, spec);
+    }
+
+    /// Применить урон к части тела. Неизвестные виды игнорируются, результат по каждому виду не
+    /// уходит ниже нуля. Мёртвого вылечить нельзя. Колющий и режущий урон вызывает кровотечение.
+    pub fn apply_to(&mut self, part: Option<&str>, spec: &DamageSpec) {
         let dead = self.state() == MobState::Dead;
         for (kind, amount) in spec {
             if !KINDS.contains(&kind.as_str()) || !amount.is_finite() {
@@ -111,7 +176,71 @@ impl Health {
             } else {
                 self.damage.insert(kind.clone(), v);
             }
+            let local = !matches!(kind.as_str(), "Asphyxiation" | "Bloodloss");
+            if *amount > 0.0 {
+                if local && let Some(p) = part.filter(|p| PARTS.contains(p)) {
+                    *self.parts.entry(p.to_string()).or_insert(0.0) += amount;
+                }
+                if matches!(kind.as_str(), "Slash" | "Piercing") {
+                    self.bleed += amount * BLEED_PER_DAMAGE;
+                }
+            } else if local {
+                self.heal_parts(-amount);
+            }
         }
+    }
+
+    /// Лечение снимает урон с самых повреждённых частей по очереди.
+    fn heal_parts(&mut self, mut amount: f32) {
+        while amount > 0.0 {
+            let Some((name, v)) = self
+                .parts
+                .iter()
+                .map(|(n, v)| (n.clone(), *v))
+                .filter(|(_, v)| *v > 0.0)
+                .max_by(|a, b| a.1.total_cmp(&b.1))
+            else {
+                return;
+            };
+            let take = amount.min(v);
+            amount -= take;
+            if v - take <= 0.0 {
+                self.parts.remove(&name);
+            } else {
+                self.parts.insert(name, v - take);
+            }
+        }
+    }
+
+    /// Шаг времени: кровотечение теряет кровь и затухает, удушье растёт или проходит. Возвращает
+    /// `true`, если что-то изменилось.
+    pub fn tick(&mut self, dt: f32) -> bool {
+        let mut changed = false;
+        if self.bleed > 0.0 {
+            let loss = self.bleed * BLOODLOSS_PER_BLEED * dt;
+            self.bleed = (self.bleed - BLEED_DECAY_PER_S * dt).max(0.0);
+            if self.state() != MobState::Dead {
+                let spec = DamageSpec::from([("Bloodloss".to_string(), loss)]);
+                self.apply_to(None, &spec);
+            }
+            changed = true;
+        }
+        let air = self.damage_of("Asphyxiation");
+        if self.state() != MobState::Dead {
+            if self.suffocating {
+                let spec = DamageSpec::from([("Asphyxiation".to_string(), SUFFOCATION_PER_S * dt)]);
+                self.apply_to(None, &spec);
+                changed = true;
+            } else if air > 0.0 {
+                let spec = DamageSpec::from([(
+                    "Asphyxiation".to_string(),
+                    -BREATHING_RECOVERY_PER_S * dt,
+                )]);
+                self.apply_to(None, &spec);
+                changed = true;
+            }
+        }
+        changed
     }
 }
 
@@ -120,10 +249,16 @@ impl Health {
 pub struct HealthView {
     pub damage: BTreeMap<String, f32>,
     pub state: MobState,
+    #[serde(default)]
+    pub parts: BTreeMap<String, f32>,
+    #[serde(default)]
+    pub bleed: f32,
+    #[serde(default)]
+    pub suffocating: bool,
 }
 
 pub const HEALTH_COMPONENT: &str = "build.health";
-pub const HEALTH_MAX_BYTES: usize = 512;
+pub const HEALTH_MAX_BYTES: usize = 1024;
 /// Состояние здоровья для всех: один байт (`MobState::to_byte`).
 pub const MOBSTATE_COMPONENT: &str = "build.mobstate";
 
@@ -132,6 +267,9 @@ impl Health {
         HealthView {
             damage: self.damage.clone(),
             state: self.state(),
+            parts: self.parts.clone(),
+            bleed: self.bleed,
+            suffocating: self.suffocating,
         }
     }
 }
@@ -159,6 +297,10 @@ pub struct Melee {
 pub struct Healing {
     pub damage: DamageSpec,
     pub delay: f32,
+    /// На сколько применение уменьшает кровотечение.
+    pub stop_bleed: f32,
+    /// Сколько раз можно применить (размер стопки).
+    pub uses: u32,
 }
 
 #[cfg(test)]
@@ -204,5 +346,63 @@ mod tests {
             MobState::Critical
         );
         assert!(decode_health(&[0u8; 2000]).is_none());
+    }
+
+    #[test]
+    fn parts_take_the_blow_limbs_fail_and_the_head_is_fatal() {
+        let mut h = Health::default();
+        h.apply_to(Some("LeftArm"), &spec(&[("Blunt", 55.0)]));
+        assert!(h.part_disabled("LeftArm") && !h.part_disabled("RightArm"));
+        assert_eq!(h.state(), MobState::Alive);
+        h.apply_to(Some("Head"), &spec(&[("Blunt", 100.0)]));
+        assert_eq!(
+            h.state(),
+            MobState::Dead,
+            "голова 100 — смерть при общем уроне 155"
+        );
+        // Лечение идёт с самой повреждённой части.
+        let mut h = Health::default();
+        h.apply_to(Some("Torso"), &spec(&[("Blunt", 30.0)]));
+        h.apply_to(Some("LeftLeg"), &spec(&[("Blunt", 10.0)]));
+        h.apply(&spec(&[("Blunt", -20.0)]));
+        assert_eq!(h.part_damage("Torso"), 10.0);
+        assert_eq!(h.part_damage("LeftLeg"), 10.0);
+    }
+
+    #[test]
+    fn cuts_bleed_the_bleeding_drains_and_fades_and_a_bandage_stops_it() {
+        let mut h = Health::default();
+        h.apply_to(Some("Torso"), &spec(&[("Slash", 20.0)]));
+        assert!((h.bleed() - 3.0).abs() < 1e-5);
+        for _ in 0..20 {
+            h.tick(0.05);
+        }
+        assert!(h.damage_of("Bloodloss") > 2.5, "за секунду теряется кровь");
+        assert!(h.bleed() < 3.0, "кровотечение затухает");
+        h.stop_bleed(10.0);
+        let before = h.damage_of("Bloodloss");
+        h.tick(1.0);
+        assert_eq!(h.damage_of("Bloodloss"), before);
+        // Тупой урон не кровоточит.
+        let mut b = Health::default();
+        b.apply_to(Some("Torso"), &spec(&[("Blunt", 50.0)]));
+        assert_eq!(b.bleed(), 0.0);
+    }
+
+    #[test]
+    fn suffocation_grows_without_air_and_passes_with_it() {
+        let mut h = Health {
+            suffocating: true,
+            ..Health::default()
+        };
+        for _ in 0..20 {
+            h.tick(0.1);
+        }
+        assert!((h.damage_of("Asphyxiation") - 2.0).abs() < 1e-4);
+        h.suffocating = false;
+        for _ in 0..30 {
+            h.tick(0.1);
+        }
+        assert_eq!(h.damage_of("Asphyxiation"), 0.0);
     }
 }

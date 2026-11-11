@@ -11,7 +11,15 @@ use std::path::{Path, PathBuf};
 use prototypes::Data;
 
 /// Наборы, которые нужны клиенту независимо от прототипов.
-pub const FIXED_RSI: &[&str] = &["Mobs/Species/Human/parts.rsi"];
+pub const FIXED_RSI: &[&str] = &[
+    "Mobs/Species/Human/parts.rsi",
+    // Значки состояния справа вверху (панель алертов SS14).
+    "Interface/Alerts/human_alive.rsi",
+    "Interface/Alerts/human_critical.rsi",
+    "Interface/Alerts/human_dead.rsi",
+    "Interface/Alerts/bleed.rsi",
+    "Interface/Alerts/breathing.rsi",
+];
 /// Каталоги интерфейса (худ): копируются только картинки верхнего уровня с нужным началом имени
 /// (слоты; плитки и части рамки хранилища).
 pub const FIXED_DIRS: &[(&str, &[&str])] = &[

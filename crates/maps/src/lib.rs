@@ -3,7 +3,12 @@
 
 use std::path::{Path, PathBuf};
 
-use astrocore_world::{FloorDef, StructureElement, World, WorldCommand, WorldConfig, WorldError};
+use astrocore_core::ObjectId;
+use astrocore_math::glam::Vec3;
+use astrocore_world::{
+    AuthoredKind, AuthoredObject, FloorDef, FloorId, StructureElement, World, WorldCommand,
+    WorldConfig, WorldError,
+};
 use serde::{Deserialize, Serialize};
 
 /// Предмет на земле: имя прототипа Build (`Crowbar`) и точка на полу, м.
@@ -12,6 +17,15 @@ pub struct MapItem {
     pub prototype: String,
     pub x: f32,
     pub z: f32,
+}
+
+/// Область карты с метаданными (например, `atmosphere = vacuum`): границы в метрах.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct MapZone {
+    pub min: [f32; 3],
+    pub max: [f32; 3],
+    pub floor: i32,
+    pub metadata: std::collections::BTreeMap<String, String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -24,6 +38,8 @@ pub struct MapFile {
     pub elements: Vec<StructureElement>,
     #[serde(default)]
     pub items: Vec<MapItem>,
+    #[serde(default)]
+    pub zones: Vec<MapZone>,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -65,6 +81,17 @@ impl MapFile {
         for e in &self.elements {
             world.apply(WorldCommand::PlaceElement(e.clone()))?;
         }
+        for (i, z) in self.zones.iter().enumerate() {
+            let mut obj = AuthoredObject::new(
+                ObjectId::from_u128(0x2000_0000 + i as u128),
+                AuthoredKind::Zone,
+                FloorId(z.floor),
+                Vec3::from_array(z.min),
+                Vec3::from_array(z.max),
+            );
+            obj.metadata = z.metadata.clone();
+            world.apply(WorldCommand::PlaceAuthored(obj))?;
+        }
         Ok(world)
     }
 
@@ -80,6 +107,7 @@ impl MapFile {
             floors,
             elements,
             items,
+            zones: Vec::new(),
         }
     }
 }

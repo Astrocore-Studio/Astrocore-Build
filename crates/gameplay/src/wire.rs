@@ -181,6 +181,9 @@ pub struct BagView {
 pub struct InventoryView {
     pub inventory: Inventory,
     pub bags: Vec<BagView>,
+    /// Остаток применений у начатых стопок лечения (предмет, сколько осталось).
+    #[serde(default)]
+    pub charges: Vec<(ObjectId, u32)>,
 }
 
 pub fn encode_inventory(v: &InventoryView) -> Vec<u8> {
@@ -255,6 +258,27 @@ pub fn heal_data(hand: u8, target: astrocore_core::NetworkEntityId) -> Vec<u8> {
 pub fn parse_attack(data: &[u8]) -> Option<astrocore_core::NetworkEntityId> {
     let b: [u8; 4] = data.try_into().ok()?;
     Some(astrocore_core::NetworkEntityId(u32::from_le_bytes(b)))
+}
+
+/// Удар по части тела: `attack_data` плюс байт — индекс в `health::PARTS`.
+pub fn attack_part_data(target: astrocore_core::NetworkEntityId, part: u8) -> Vec<u8> {
+    let mut v = attack_data(target);
+    v.push(part);
+    v
+}
+
+/// Цель и необязательная часть тела; неизвестный индекс части отвергает команду.
+pub fn parse_attack_part(
+    data: &[u8],
+) -> Option<(astrocore_core::NetworkEntityId, Option<&'static str>)> {
+    match data.len() {
+        4 => Some((parse_attack(data)?, None)),
+        5 => {
+            let part = crate::health::PARTS.get(usize::from(data[4]))?;
+            Some((parse_attack(&data[..4])?, Some(*part)))
+        }
+        _ => None,
+    }
 }
 
 pub fn parse_heal(data: &[u8]) -> Option<(u8, astrocore_core::NetworkEntityId)> {

@@ -20,14 +20,17 @@
         "MeleeWeapon": (damage: (Piercing: 6.0), attackRate: 1.0),
         "Clothing": (slots: ["belt"]),
     }),
-    // Лечение: значения `Healing` из healing.yml SS14 (одна единица за применение); задержка по
-    // умолчанию 3 с — выбор билда.
+    // Лечение: значения `Healing` из healing.yml SS14 (одна единица за применение); стопка по 10 применений, как в SS14;
+    // задержка по умолчанию 3 с — выбор билда.
     (id: "Brutepack", parents: ["BaseItem"], name: Some("brutepack"), components: {
         "Sprite": (sprite: "Objects/Specific/Medical/medical.rsi", state: "brutepack"),
-        "Healing": (damage: (Blunt: -5.0, Piercing: -5.0, Slash: -5.0), delay: 3.0),
+        "Stack": (stackType: "Brutepack", count: 10),
+        // `bleedStop` — выбор билда: перевязка снижает кровотечение на единицу за применение.
+        "Healing": (damage: (Blunt: -5.0, Piercing: -5.0, Slash: -5.0), delay: 3.0, bleedStop: 1.0),
     }),
     (id: "Ointment", parents: ["BaseItem"], name: Some("ointment"), components: {
         "Sprite": (sprite: "Objects/Specific/Medical/medical.rsi", state: "ointment"),
+        "Stack": (stackType: "Ointment", count: 10),
         "Healing": (damage: (Heat: -5.0, Cold: -5.0, Shock: -5.0), delay: 3.0),
     }),
     (id: "Pen", name: Some("pen"), components: {

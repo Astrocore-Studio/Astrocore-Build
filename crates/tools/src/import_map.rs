@@ -361,6 +361,7 @@ pub fn import(
         }],
         elements,
         items,
+        zones: Vec::new(),
     };
     Ok((map, report))
 }

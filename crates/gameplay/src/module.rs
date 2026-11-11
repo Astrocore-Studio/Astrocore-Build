@@ -26,8 +26,8 @@ use crate::wire::{
     BagView, CMD_ATTACK, CMD_CANCEL, CMD_DROP, CMD_EQUIP, CMD_HEAL, CMD_INTERACT, CMD_MOVE_HAND,
     CMD_MOVE_SLOT, CMD_PICKUP, CMD_PICKUP_ANY, CMD_SELECT_HAND, CMD_STORE, CMD_SWAP_HANDS,
     CMD_TAKE, CMD_TAKE_TO, CMD_UNEQUIP, CMD_UNEQUIP_TO, CMD_USE, HANDS_COMPONENT,
-    INVENTORY_COMPONENT, InventoryView, encode_hands, encode_inventory, parse_attack, parse_drop,
-    parse_equip, parse_heal, parse_move_slot, parse_object_id, parse_store, parse_take,
+    INVENTORY_COMPONENT, InventoryView, encode_hands, encode_inventory, parse_attack_part,
+    parse_drop, parse_equip, parse_heal, parse_move_slot, parse_object_id, parse_store, parse_take,
     parse_take_to, parse_unequip,
 };
 
@@ -54,6 +54,12 @@ pub(crate) struct Actor {
     pub(crate) mob_state: MobState,
     /// Когда персонаж снова может ударить, с (по часам модуля).
     pub(crate) next_attack: f32,
+    /// Заморожен ли персонаж (чтобы замечать перемены).
+    pub(crate) frozen: bool,
+    /// Когда в следующий раз разослать здоровье из-за кровотечения или удушья, с.
+    pub(crate) next_health_publish: f32,
+    /// Здоровье изменилось сидящими внутри процессами, а разослать ещё не успели.
+    pub(crate) health_dirty: bool,
 }
 
 impl Actor {
@@ -65,6 +71,9 @@ impl Actor {
             health: Health::default(),
             mob_state: MobState::Alive,
             next_attack: 0.0,
+            frozen: false,
+            next_health_publish: 0.0,
+            health_dirty: false,
         }
     }
 }
@@ -87,6 +96,8 @@ pub struct State {
     pub(crate) healing: BTreeMap<PrototypeId, Healing>,
     /// Часы модуля, с: копятся по `Tick`.
     pub(crate) clock: f32,
+    /// Сколько применений осталось у начатых стопок лечения (ключ — предмет).
+    pub(crate) charges: BTreeMap<ObjectId, u32>,
 }
 
 impl State {
@@ -131,6 +142,17 @@ impl State {
                             .get("delay")
                             .and_then(prototypes::Data::as_f64)
                             .map_or(3.0, |v| v.max(0.0) as f32),
+                        stop_bleed: c
+                            .get("bleedStop")
+                            .and_then(prototypes::Data::as_f64)
+                            .map_or(0.0, |v| v.max(0.0) as f32),
+                        // Размер стопки — `Stack.count`, как у лечащих предметов SS14.
+                        uses: resolved
+                            .as_ref()
+                            .and_then(|r| r.component("Stack"))
+                            .and_then(|s| s.get("count"))
+                            .and_then(prototypes::Data::as_int)
+                            .map_or(1, |n| n.clamp(1, 1000) as u32),
                     },
                 );
             }
@@ -148,6 +170,7 @@ impl State {
             melee,
             healing,
             clock: 0.0,
+            charges: BTreeMap::new(),
         })
     }
 
@@ -234,6 +257,7 @@ impl State {
         let view = InventoryView {
             inventory: a.inventory.clone(),
             bags,
+            charges: self.charges.iter().map(|(id, n)| (*id, *n)).collect(),
         };
         ctx.set_component(actor, INVENTORY_COMPONENT, encode_inventory(&view));
     }
@@ -478,6 +502,7 @@ impl State {
         ctx: &mut HookContext<'_>,
         actor: NetworkEntityId,
         target: NetworkEntityId,
+        part: Option<&str>,
     ) {
         if actor == target || ctx.position_of(target).is_none() {
             return;
@@ -509,7 +534,9 @@ impl State {
             });
         let clock = self.clock;
         self.actor(actor).next_attack = clock + 1.0 / weapon.rate;
-        self.actor(target).health.apply(&weapon.damage);
+        self.actor(target)
+            .health
+            .apply_to(Some(part.unwrap_or("Torso")), &weapon.damage);
         self.after_health_change(ctx, target);
     }
 
@@ -530,35 +557,71 @@ impl State {
         else {
             return;
         };
-        let _ = self.actor(actor).hands.drop_hand(hand);
-        self.actor(target).health.apply(&h.damage);
+        // Один пакет стопки расходуется за применение; последний уходит из руки.
+        let id = self
+            .actors
+            .get(&actor)
+            .and_then(|a| a.hands.get(hand))
+            .map(|i| i.id);
+        if let Some(id) = id {
+            let left = self.charges.entry(id).or_insert(h.uses);
+            *left = left.saturating_sub(1);
+            if *left == 0 {
+                self.charges.remove(&id);
+                let _ = self.actor(actor).hands.drop_hand(hand);
+            }
+        }
+        let t = self.actor(target);
+        t.health.apply(&h.damage);
+        t.health.stop_bleed(h.stop_bleed);
         self.after_health_change(ctx, target);
         self.publish(ctx, actor);
     }
 
-    /// После любого изменения здоровья: рассылка и переходы состояния. Тот, кто не может действовать,
-    /// замораживается, бросает действие и роняет всё из рук; пришедший в себя — свободен.
+    /// После любого изменения здоровья: рассылка и последствия. Тот, кто не может действовать,
+    /// замораживается, бросает действие и роняет всё из рук; с двумя негодными ногами не ходят;
+    /// негодная рука выпускает предмет и больше ничего не берёт.
     fn after_health_change(&mut self, ctx: &mut HookContext<'_>, who: NetworkEntityId) {
         let Some(a) = self.actors.get(&who) else {
             return;
         };
         let (now, before) = (a.health.state(), a.mob_state);
-        if now != before {
-            self.actor(who).mob_state = now;
-            if now.can_act() {
-                ctx.freeze(who, false);
-            } else {
-                ctx.freeze(who, true);
-                self.cancel(ctx, who);
-                if before.can_act() {
-                    let feet = ctx.position_of(who);
-                    let dropped = self.actor(who).hands.take_all();
-                    if let Some(feet) = feet {
-                        for i in &dropped {
-                            Self::place(ctx, i, feet);
-                        }
+        let legs = a.health.part_disabled("LeftLeg") && a.health.part_disabled("RightLeg");
+        let freeze = !now.can_act() || legs;
+        let feet = ctx.position_of(who);
+        let mut to_floor: Vec<HeldItem> = Vec::new();
+        {
+            let a = self.actor(who);
+            a.mob_state = now;
+            if freeze != a.frozen {
+                a.frozen = freeze;
+                ctx.freeze(who, freeze);
+            }
+            if !now.can_act() && before.can_act() {
+                to_floor.extend(a.hands.take_all());
+            }
+            let names: Vec<String> = a.hands.iter().map(|(_, n, _)| n.to_string()).collect();
+            for (i, name) in names.iter().enumerate() {
+                let part = if name.starts_with('l') {
+                    "LeftArm"
+                } else {
+                    "RightArm"
+                };
+                let off = a.health.part_disabled(part);
+                if off != a.hands.is_disabled(i) {
+                    a.hands.set_disabled(i, off);
+                    if off && let Ok(item) = a.hands.drop_hand(i) {
+                        to_floor.push(item);
                     }
                 }
+            }
+        }
+        if !now.can_act() {
+            self.cancel(ctx, who);
+        }
+        if let Some(feet) = feet {
+            for i in &to_floor {
+                Self::place(ctx, i, feet);
             }
         }
         self.publish(ctx, who);
@@ -685,9 +748,45 @@ impl State {
         ctx.set_component(actor, DOAFTER_COMPONENT, encode_doafter(view.as_ref()));
     }
 
+    /// Кровотечение и удушье идут сами; разошлём здоровье не чаще двух раз в секунду.
+    fn tick_health(&mut self, ctx: &mut HookContext<'_>, dt: f32) {
+        let ids: Vec<NetworkEntityId> = ctx.players().collect();
+        for id in ids {
+            let Some(pos) = ctx.position_of(id) else {
+                continue;
+            };
+            let vacuum = ctx
+                .world
+                .authored_at(pos + Vec3::Y * CHEST_M)
+                .iter()
+                .any(|o| {
+                    matches!(o.kind, AuthoredKind::Zone)
+                        && o.metadata.get("atmosphere").is_some_and(|v| v == "vacuum")
+                });
+            let clock = self.clock;
+            let a = self.actor(id);
+            let breath_changed = a.health.suffocating != vacuum;
+            a.health.suffocating = vacuum;
+            let changed = a.health.tick(dt);
+            a.health_dirty |= changed;
+            // Не чаще двух раз в секунду, но конец процесса (кровь перестала течь, воздух
+            // вернулся) рассылается сразу, чтобы клиент не застрял на старом числе.
+            let due = clock >= a.next_health_publish;
+            if (a.health_dirty && (due || !changed))
+                || breath_changed
+                || a.health.state() != a.mob_state
+            {
+                a.health_dirty = false;
+                a.next_health_publish = clock + 0.5;
+                self.after_health_change(ctx, id);
+            }
+        }
+    }
+
     /// Шаг времени: отсчёт, прерывание движением и потерей условий, завершение.
     pub(crate) fn tick(&mut self, ctx: &mut HookContext<'_>, dt: f32) {
         self.clock += dt;
+        self.tick_health(ctx, dt);
         let waiting: Vec<NetworkEntityId> = self
             .actors
             .iter()
@@ -983,8 +1082,8 @@ impl GameModule for GameplayModule {
                     .is_some_and(|a| !a.health.state().can_act()) => {}
             HookEvent::Command { actor, kind, data } => match kind.as_str() {
                 CMD_ATTACK => {
-                    if let Some(target) = parse_attack(data) {
-                        st.attack(ctx, *actor, target);
+                    if let Some((target, part)) = parse_attack_part(data) {
+                        st.attack(ctx, *actor, target, part);
                     }
                 }
                 CMD_HEAL => {

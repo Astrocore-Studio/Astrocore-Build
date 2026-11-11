@@ -50,7 +50,7 @@ fn items_are_spread_deterministically_and_every_spawn_is_inside_the_map() {
     let (a, registry) = world_with_items();
     let (b, _) = world_with_items();
     assert_eq!(a.content_hash(), b.content_hash(), "одна карта — один хеш");
-    assert_eq!(a.authored_count(), map().items.len());
+    assert_eq!(a.authored_count(), map().items.len() + map().zones.len());
     let ids: Vec<_> = a.authored().map(|o| o.id).collect();
     assert_eq!(
         ids.len(),

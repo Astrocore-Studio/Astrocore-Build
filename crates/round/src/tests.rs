@@ -19,7 +19,7 @@ fn a_round_starts_with_the_polygon_and_its_items() {
     assert_eq!(r.server.world().id(), "polygon");
     assert_eq!(
         r.server.world().authored_count(),
-        polygon::map().items.len()
+        polygon::map().items.len() + polygon::map().zones.len()
     );
 }
 

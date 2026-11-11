@@ -22,6 +22,15 @@ const PROTOS: &str = r#"[
         "Item": (size: "Normal"),
         "MeleeWeapon": (damage: (Blunt: 60.0), attackRate: 1.0),
     }),
+    (id: "Dagger", components: {
+        "Item": (size: "Small"),
+        "MeleeWeapon": (damage: (Slash: 20.0), attackRate: 1.0),
+    }),
+    (id: "Bandage", components: {
+        "Item": (size: "Small"),
+        "Stack": (stackType: "Bandage", count: 3),
+        "Healing": (damage: (Blunt: -1.0), delay: 0.2, bleedStop: 10.0),
+    }),
     (id: "Brutepack", components: {
         "Item": (size: "Small"),
         "Healing": (damage: (Blunt: -30.0, Slash: -30.0), delay: 1.0),
@@ -1063,13 +1072,15 @@ mod combat {
         );
         h.ticks(25);
         hit(&mut h, a, b);
-        h.ticks(25);
-        hit(&mut h, a, b);
-        assert_eq!(state(&h, a, b), MobState::Dead);
+        assert_eq!(
+            state(&h, a, b),
+            MobState::Dead,
+            "180 на торсе ≥ 150: смертельно раньше общего порога"
+        );
         // Мёртвого не бьют дальше.
         h.ticks(25);
         hit(&mut h, a, b);
-        assert_eq!(blunt(&h, b, b), 240.0);
+        assert_eq!(blunt(&h, b, b), 180.0);
     }
 
     #[test]
@@ -1126,5 +1137,126 @@ mod combat {
             h.input(b, 0, 1, 0.0);
         }
         assert_ne!(flat(&h), start, "снова ходит");
+    }
+
+    fn hit_part(h: &mut Harness, who: ConnId, target: ConnId, part: &str) {
+        let net = h.client(target).net_id().unwrap();
+        let i = crate::PARTS.iter().position(|p| *p == part).unwrap() as u8;
+        command(h, who, CMD_ATTACK, crate::attack_part_data(net, i));
+    }
+
+    fn view(h: &Harness, who: ConnId) -> crate::HealthView {
+        health(h, who, who).expect("своё здоровье")
+    }
+
+    #[test]
+    fn a_wrecked_arm_drops_what_it_held_and_refuses_new_things() {
+        let mut h = harness();
+        let (a, b) = (h.join("a"), h.join("b"));
+        grab(&mut h, a, 10, near(), "ss14:cudgel");
+        grab(&mut h, b, 11, near(), "ss14:pen");
+        assert!(hands_of(&h, b, b).unwrap().get(0).is_some());
+        hit_part(&mut h, a, b, "LeftArm");
+        assert_eq!(view(&h, b).parts.get("LeftArm"), Some(&60.0));
+        let hands = hands_of(&h, b, b).unwrap();
+        assert!(hands.is_disabled(0) && !hands.is_disabled(1));
+        assert!(hands.get(0).is_none(), "ручка выпала из больной руки");
+        // Берёт только здоровой рукой.
+        grab(&mut h, b, 12, near(), "ss14:pen");
+        let hands = hands_of(&h, b, b).unwrap();
+        assert!(hands.get(0).is_none() && hands.get(1).is_some());
+    }
+
+    #[test]
+    fn two_wrecked_legs_stop_walking_and_a_head_blow_is_fatal() {
+        let mut h = harness();
+        let (a, b) = (h.join("a"), h.join("b"));
+        grab(&mut h, a, 10, near(), "ss14:cudgel");
+        hit_part(&mut h, a, b, "LeftLeg");
+        h.ticks(25);
+        let flat = |h: &Harness| {
+            let p = h.client(b).position();
+            (p.x, p.z)
+        };
+        let start = flat(&h);
+        for _ in 0..6 {
+            h.input(b, 0, 1, 0.0);
+        }
+        assert_ne!(flat(&h), start, "с одной больной ногой ещё ходит");
+        h.ticks(25);
+        hit_part(&mut h, a, b, "RightLeg");
+        h.ticks(5);
+        let start = flat(&h);
+        for _ in 0..6 {
+            h.input(b, 0, 1, 0.0);
+        }
+        assert_eq!(flat(&h), start, "обе ноги — не ходит");
+        assert_eq!(state(&h, a, b), MobState::Critical);
+        // Голова: 60 + 60 ≥ 100 — смерть.
+        let (c, d) = (h.join("c"), h.join("d"));
+        let _ = c;
+        grab(&mut h, c, 20, near(), "ss14:cudgel");
+        hit_part(&mut h, c, d, "Head");
+        h.ticks(25);
+        hit_part(&mut h, c, d, "Head");
+        assert_eq!(state(&h, c, d), MobState::Dead);
+    }
+
+    #[test]
+    fn a_cut_bleeds_until_bandaged_and_the_stack_lasts_three_uses() {
+        let mut h = harness();
+        let (a, b) = (h.join("a"), h.join("b"));
+        grab(&mut h, a, 10, near(), "ss14:dagger");
+        hit_part(&mut h, a, b, "Torso");
+        assert!(view(&h, b).bleed > 2.9, "20 × 0,15");
+        h.ticks(30);
+        assert!(view(&h, b).damage.get("Bloodloss").copied().unwrap_or(0.0) > 1.0);
+        // Перевязка: стопка из трёх; рука a держит кинжал, поэтому кладём его.
+        command(&mut h, a, CMD_DROP, drop_data(0));
+        grab(&mut h, a, 20, near(), "ss14:bandage");
+        let net_b = h.client(b).net_id().unwrap();
+        for used in 1..=3u32 {
+            command(&mut h, a, CMD_HEAL, crate::heal_data(0, net_b));
+            h.ticks(8);
+            let held = hands_of(&h, a, a).unwrap().get(0).is_some();
+            assert_eq!(held, used < 3, "после {used}-го применения");
+            let left = inv_of(&h, a, a)
+                .unwrap()
+                .charges
+                .iter()
+                .find(|(id, _)| *id == oid(20))
+                .map(|(_, n)| *n);
+            assert_eq!(left, (used < 3).then_some(3 - used));
+        }
+        assert_eq!(view(&h, b).bleed, 0.0, "кровотечение остановлено");
+    }
+
+    #[test]
+    fn standing_in_a_vacuum_zone_suffocates_and_air_brings_relief() {
+        let mut h = harness();
+        let a = h.join("a");
+        let mut zone = AuthoredObject::new(
+            oid(90),
+            AuthoredKind::Zone,
+            FloorId(0),
+            Vec3::new(0.0, 0.0, 0.0),
+            Vec3::new(6.0, 3.0, 6.0),
+        );
+        zone.metadata.insert("atmosphere".into(), "vacuum".into());
+        spawn(&mut h, zone);
+        h.ticks(40);
+        let v = view(&h, a);
+        assert!(v.suffocating);
+        assert!(v.damage.get("Asphyxiation").copied().unwrap_or(0.0) > 1.0);
+        // Выходим из зоны: убираем её.
+        let outs = h
+            .server
+            .apply_world_command(astrocore_world::WorldCommand::RemoveAuthored { id: oid(90) })
+            .unwrap();
+        h.deliver(outs);
+        h.ticks(80);
+        let v = view(&h, a);
+        assert!(!v.suffocating);
+        assert!(!v.damage.contains_key("Asphyxiation"), "{:?}", v.damage);
     }
 }

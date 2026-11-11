@@ -8,6 +8,7 @@ license.workspace = true
 
 [dependencies]
 astrocore-core.workspace = true
+astrocore-math.workspace = true
 astrocore-world.workspace = true
 ron.workspace = true
 serde.workspace = true

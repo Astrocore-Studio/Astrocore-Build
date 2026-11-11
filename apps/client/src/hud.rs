@@ -60,6 +60,10 @@ pub struct Icons {
     root: PathBuf,
     items: HashMap<String, String>,
     cache: HashMap<String, Option<egui::TextureHandle>>,
+    /// Задержки кадров анимированных состояний (из `meta.json` набора RSI), с.
+    delays: HashMap<String, Vec<f32>>,
+    /// Размер текстуры в пикселях, нужен для раскладки кадров.
+    sizes: HashMap<String, (u32, u32)>,
 }
 
 impl Icons {
@@ -70,6 +74,8 @@ impl Icons {
             root,
             items,
             cache: HashMap::new(),
+            delays: HashMap::new(),
+            sizes: HashMap::new(),
         }
     }
 
@@ -108,6 +114,72 @@ impl Icons {
             self.cache.insert(rel.to_string(), tex);
         }
         self.cache.get(rel)?.as_ref().map(|t| t.id())
+    }
+
+    /// Кадр анимированного состояния RSI в момент `time`: текстура и область в долях (кадры лежат
+    /// рядами слева направо, сверху вниз; размер кадра — 32 px, как в алертах SS14).
+    fn animated(
+        &mut self,
+        ctx: &egui::Context,
+        rsi_state: &str,
+        time: f64,
+    ) -> Option<(egui::TextureId, Rect)> {
+        let tex = self.ui(ctx, rsi_state)?;
+        let rel = format!("Textures/Interface/{rsi_state}.png");
+        if !self.sizes.contains_key(&rel) {
+            let size = image::image_dimensions(self.root.join(&rel)).ok()?;
+            self.sizes.insert(rel.clone(), size);
+            let (dir, stem) = rsi_state.rsplit_once('/')?;
+            let meta = std::fs::read(
+                self.root
+                    .join(format!("Textures/Interface/{dir}/meta.json")),
+            )
+            .ok()
+            .and_then(|b| serde_json::from_slice::<serde_json::Value>(&b).ok());
+            let delays = meta
+                .and_then(|m| {
+                    m.get("states")?
+                        .as_array()?
+                        .iter()
+                        .find(|s| s.get("name").and_then(|n| n.as_str()) == Some(stem))?
+                        .get("delays")?
+                        .as_array()?
+                        .first()?
+                        .as_array()
+                        .map(|a| {
+                            a.iter()
+                                .filter_map(|v| v.as_f64().map(|f| f as f32))
+                                .collect()
+                        })
+                })
+                .unwrap_or_default();
+            self.delays.insert(rel.clone(), delays);
+        }
+        let (w, h) = *self.sizes.get(&rel)?;
+        let delays = self.delays.get(&rel)?;
+        let (cols, rows) = ((w / 32).max(1), (h / 32).max(1));
+        let frame = if delays.is_empty() {
+            0
+        } else {
+            let total: f32 = delays.iter().sum();
+            let mut t = (time as f32) % total.max(0.001);
+            let mut f = 0;
+            for (i, d) in delays.iter().enumerate() {
+                if t < *d {
+                    f = i;
+                    break;
+                }
+                t -= d;
+                f = i;
+            }
+            f as u32
+        };
+        let (cx, cy) = (frame % cols, frame / cols);
+        let uv = Rect::from_min_max(
+            Pos2::new(cx as f32 / cols as f32, cy as f32 / rows as f32),
+            Pos2::new((cx + 1) as f32 / cols as f32, (cy + 1) as f32 / rows as f32),
+        );
+        Some((tex, uv))
     }
 
     fn ui(&mut self, ctx: &egui::Context, name: &str) -> Option<egui::TextureId> {
@@ -169,6 +241,8 @@ pub type Commands = Vec<(&'static str, Vec<u8>)>;
 /// Состояние окон худа.
 #[derive(Default)]
 pub struct HudState {
+    /// Здоровье игрока для значка состояния в панели алертов.
+    pub health: Option<gameplay::HealthView>,
     pub clothes_open: bool,
     /// Сумки, окна которых закрыты вручную.
     pub bags_closed: std::collections::HashSet<u128>,
@@ -242,16 +316,23 @@ pub fn draw(
             });
     }
     let toggle = icons.ui(ctx, "Default/Slots/toggle");
+    // Рюкзак-переключатель в левом нижнем углу экрана (`InventoryGui` SS14): показывает и прячет
+    // окно одежды над собой.
+    egui::Area::new(egui::Id::new("hud_toggle"))
+        .anchor(egui::Align2::LEFT_BOTTOM, Vec2::new(8.0, -8.0))
+        .show(ctx, |ui| {
+            let (r, resp) = ui.allocate_exact_size(Vec2::splat(SLOT), Sense::click());
+            paint_image(ui, toggle, r, Color32::WHITE);
+            if resp.on_hover_text("Одежда").clicked() {
+                state.clothes_open = !state.clothes_open;
+            }
+        });
+    alerts(ctx, icons, state.health.as_ref());
     egui::Area::new(egui::Id::new("hud_bar"))
         .anchor(egui::Align2::CENTER_BOTTOM, Vec2::new(0.0, -8.0))
         .show(ctx, |ui| {
             ui.horizontal(|ui| {
                 ui.spacing_mut().item_spacing = Vec2::splat(GAP);
-                let (r, resp) = ui.allocate_exact_size(Vec2::splat(SLOT * 0.7), Sense::click());
-                paint_image(ui, toggle, r, Color32::WHITE);
-                if resp.on_hover_text("Одежда").clicked() {
-                    state.clothes_open = !state.clothes_open;
-                }
                 for s in LEFT_BAR {
                     equip_slot(ctx, ui, icons, hands, view, s, &mut out);
                 }
@@ -263,7 +344,10 @@ pub fn draw(
         });
     if state.clothes_open {
         egui::Area::new(egui::Id::new("hud_clothes"))
-            .anchor(egui::Align2::LEFT_BOTTOM, Vec2::new(8.0, -8.0))
+            .anchor(
+                egui::Align2::LEFT_BOTTOM,
+                Vec2::new(8.0, -(8.0 + SLOT + GAP)),
+            )
             .show(ctx, |ui| {
                 let (w, h) = (3.0 * (SLOT + GAP), 4.0 * (SLOT + GAP));
                 let (area, _) = ui.allocate_exact_size(Vec2::new(w, h), Sense::hover());
@@ -285,6 +369,80 @@ pub fn draw(
     }
     drag_ghost_and_world_drop(ctx, icons, ground, &mut out);
     out
+}
+
+/// Панель алертов справа вверху (`AlertsUI` SS14), столбцом: здоровье (`health0…4` по доле урона до
+/// критического порога, критическое состояние и смерть — свои значки), кровотечение (`bleed0…10`) и
+/// «нечем дышать» (`not_enough_oxy`).
+fn alerts(ctx: &egui::Context, icons: &mut Icons, health: Option<&gameplay::HealthView>) {
+    let Some(h) = health else { return };
+    let total: f32 = h.damage.values().sum();
+    let mut shown: Vec<(String, String)> = Vec::new();
+    let mut parts: Vec<String> = h
+        .parts
+        .iter()
+        .filter(|(_, v)| **v > 0.0)
+        .map(|(p, v)| format!("{}: {v:.0}", part_ru(p)))
+        .collect();
+    parts.sort();
+    let tip = if parts.is_empty() {
+        format!("Урон: {total:.0}")
+    } else {
+        format!("Урон: {total:.0}\n{}", parts.join("\n"))
+    };
+    let health_icon = match h.state {
+        gameplay::MobState::Dead => "Alerts/human_dead.rsi/dead".to_string(),
+        gameplay::MobState::Critical => "Alerts/human_critical.rsi/critical".to_string(),
+        gameplay::MobState::Alive => {
+            let sev = ((total / gameplay::CRITICAL_AT) * 5.0)
+                .floor()
+                .clamp(0.0, 4.0) as u8;
+            format!("Alerts/human_alive.rsi/health{sev}")
+        }
+    };
+    shown.push((health_icon, tip));
+    if h.bleed > 0.02 {
+        let sev = (h.bleed * 3.0).ceil().clamp(1.0, 10.0) as u8;
+        shown.push((
+            format!("Alerts/bleed.rsi/bleed{sev}"),
+            format!("Кровотечение: {:.1}", h.bleed),
+        ));
+    }
+    if h.suffocating {
+        shown.push((
+            "Alerts/breathing.rsi/not_enough_oxy".to_string(),
+            "Нечем дышать".to_string(),
+        ));
+    }
+    let time = ctx.input(|i| i.time);
+    let frames: Vec<_> = shown
+        .iter()
+        .map(|(n, _)| icons.animated(ctx, n, time))
+        .collect();
+    egui::Area::new(egui::Id::new("hud_alerts"))
+        .anchor(egui::Align2::RIGHT_TOP, Vec2::new(-8.0, 8.0))
+        .show(ctx, |ui| {
+            ui.spacing_mut().item_spacing = Vec2::splat(GAP);
+            for ((_, tip), frame) in shown.iter().zip(frames) {
+                let (r, resp) = ui.allocate_exact_size(Vec2::splat(SLOT), Sense::hover());
+                if let Some((tex, uv)) = frame {
+                    ui.painter().image(tex, r, uv, Color32::WHITE);
+                }
+                resp.on_hover_text(tip);
+            }
+        });
+}
+
+fn part_ru(p: &str) -> &str {
+    match p {
+        "Head" => "Голова",
+        "Torso" => "Торс",
+        "LeftArm" => "Левая рука",
+        "RightArm" => "Правая рука",
+        "LeftLeg" => "Левая нога",
+        "RightLeg" => "Правая нога",
+        other => other,
+    }
 }
 
 /// Значок перетаскиваемого предмета у курсора; отпущенный вне окон худа предмет падает на пол.
@@ -389,6 +547,21 @@ fn hand_slots(
                 let t = icons.item(ctx, it.prototype.as_str());
                 paint_image(ui, t, rect.shrink(8.0), Color32::WHITE);
             }
+        }
+        if hands.is_disabled(i) {
+            let b = icons.ui(ctx, "Default/blocked");
+            paint_image(ui, b, rect, Color32::WHITE);
+        }
+        if let Some(it) = item
+            && let Some(n) = view.and_then(|v| v.charges.iter().find(|(id, _)| *id == it.id))
+        {
+            ui.painter().text(
+                rect.right_bottom() - Vec2::new(4.0, 2.0),
+                egui::Align2::RIGHT_BOTTOM,
+                n.1.to_string(),
+                egui::FontId::proportional(16.0),
+                Color32::WHITE,
+            );
         }
         slot_overlays(ctx, ui, icons, rect, active, resp.hovered());
         if let Some(it) = item
@@ -772,6 +945,7 @@ mod tests {
         let view = InventoryView {
             inventory: gameplay::Inventory::human(),
             bags: Vec::new(),
+            charges: Vec::new(),
         };
         // Слоты левой полосы: id, belt, back; «back» — третий.
         let cmds = run(
@@ -799,6 +973,7 @@ mod tests {
         InventoryView {
             inventory,
             bags: Vec::new(),
+            charges: Vec::new(),
         }
     }
 

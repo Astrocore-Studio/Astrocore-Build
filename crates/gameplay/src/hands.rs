@@ -16,6 +16,8 @@ pub enum HandsError {
     NoSuchHand,
     #[error("рука пуста")]
     Empty,
+    #[error("рука не работает")]
+    Disabled,
 }
 
 /// Руки сущности: именованные слоты и активная рука (как в SS14: словарь рук и `ActiveHandId`).
@@ -24,6 +26,9 @@ pub struct Hands {
     names: Vec<String>,
     slots: Vec<Option<HeldItem>>,
     active: usize,
+    /// Руки, которые не работают (повреждённая рука): в них нельзя ничего взять.
+    #[serde(default)]
+    disabled: Vec<bool>,
 }
 
 impl Hands {
@@ -38,6 +43,7 @@ impl Hands {
             names,
             slots,
             active: 0,
+            disabled: Vec::new(),
         }
     }
 
@@ -74,6 +80,18 @@ impl Hands {
             .map(|(i, (n, s))| (i, n.as_str(), s.as_ref()))
     }
 
+    pub fn is_disabled(&self, hand: usize) -> bool {
+        self.disabled.get(hand).copied().unwrap_or(false)
+    }
+
+    pub fn set_disabled(&mut self, hand: usize, value: bool) {
+        if hand >= self.slots.len() {
+            return;
+        }
+        self.disabled.resize(self.slots.len(), false);
+        self.disabled[hand] = value;
+    }
+
     pub fn held(&self) -> impl Iterator<Item = &HeldItem> {
         self.slots.iter().flatten()
     }
@@ -101,13 +119,16 @@ impl Hands {
     pub fn pickup_any(&mut self, item: HeldItem) -> Result<usize, HandsError> {
         let hand = self
             .order()
-            .find(|&i| self.slots[i].is_none())
+            .find(|&i| self.slots[i].is_none() && !self.is_disabled(i))
             .ok_or(HandsError::Full)?;
         self.pickup_to(hand, item)
     }
 
     /// Взять предмет в конкретную руку; занятая рука — отказ.
     pub fn pickup_to(&mut self, hand: usize, item: HeldItem) -> Result<usize, HandsError> {
+        if self.is_disabled(hand) {
+            return Err(HandsError::Disabled);
+        }
         let slot = self.slots.get_mut(hand).ok_or(HandsError::NoSuchHand)?;
         if slot.is_some() {
             return Err(HandsError::Full);
@@ -150,6 +171,11 @@ impl Hands {
         }
         if self.slots[a].is_none() && self.slots[b].is_none() {
             return Err(HandsError::Empty);
+        }
+        if (self.slots[a].is_some() && self.is_disabled(b))
+            || (self.slots[b].is_some() && self.is_disabled(a))
+        {
+            return Err(HandsError::Disabled);
         }
         self.slots.swap(a, b);
         Ok(())
