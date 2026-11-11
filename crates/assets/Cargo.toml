@@ -1,5 +1,5 @@
 [package]
-name = "build-assets"
+name = "assets"
 description = "Ассеты Astrocore Build: поиск и проверка наборов RSI из SS14"
 version.workspace = true
 edition.workspace = true

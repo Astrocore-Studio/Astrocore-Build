@@ -1,5 +1,5 @@
 [package]
-name = "build-prototypes"
+name = "prototypes"
 description = "Прототипы Astrocore Build: RON, наследование, совместимость с YAML SS14"
 version.workspace = true
 edition.workspace = true

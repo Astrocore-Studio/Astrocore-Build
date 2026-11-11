@@ -1,4 +1,4 @@
-use build_prototypes::PrototypeRegistry;
+use prototypes::PrototypeRegistry;
 
 fn main() {
     let dir = std::env::args().nth(1).expect("каталог с прототипами SS14");

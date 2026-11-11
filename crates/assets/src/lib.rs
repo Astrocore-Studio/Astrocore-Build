@@ -92,7 +92,7 @@ mod tests {
 
     #[test]
     fn a_set_without_license_or_images_is_refused() {
-        let dir = std::env::temp_dir().join(format!("build-assets-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("assets-{}", std::process::id()));
         let rsi = dir.join("bad.rsi");
         std::fs::create_dir_all(&rsi).unwrap();
         std::fs::write(

@@ -3,6 +3,14 @@
 version = 4
 
 [[package]]
+name = "assets"
+version = "0.1.0"
+dependencies = [
+ "astrocore-sprites",
+ "thiserror",
+]
+
+[[package]]
 name = "astrocore-core"
 version = "0.1.0"
 source = "git+https://github.com/Astrocore-Studio/Astrocore-Engine?branch=master#e05e6499a8e39e5e5c11d6b62aa4e5e2db08c73e"
@@ -45,26 +53,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3ded4057c258ba199e2d26386d3af3780957ecaee6c4ef4041c6b4b8b97c0b06"
 dependencies = [
  "serde_core",
-]
-
-[[package]]
-name = "build-assets"
-version = "0.1.0"
-dependencies = [
- "astrocore-sprites",
- "thiserror",
-]
-
-[[package]]
-name = "build-prototypes"
-version = "0.1.0"
-dependencies = [
- "astrocore-core",
- "ron",
- "serde",
- "serde_yaml",
- "tempfile",
- "thiserror",
 ]
 
 [[package]]
@@ -215,6 +203,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "985e7ec9bb745e6ce6535b544d84d6cd6f7ad8bd711c398938ae983b91a766d9"
 dependencies = [
  "unicode-ident",
+]
+
+[[package]]
+name = "prototypes"
+version = "0.1.0"
+dependencies = [
+ "astrocore-core",
+ "ron",
+ "serde",
+ "serde_yaml",
+ "tempfile",
+ "thiserror",
 ]
 
 [[package]]
