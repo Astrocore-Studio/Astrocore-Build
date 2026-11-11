@@ -258,7 +258,11 @@ fn autoplay(
             }
             60 => {
                 let hand = loadout.hands.as_ref().map_or(0, |h| h.active() as u8);
-                net.send_command(gameplay::CMD_USE, gameplay::use_data(hand));
+                if std::env::var_os("ASTRO_AUTOPLAY_SPILL").is_some() {
+                    net.send_command(gameplay::CMD_SPILL, vec![hand]);
+                } else {
+                    net.send_command(gameplay::CMD_USE, gameplay::use_data(hand));
+                }
             }
             _ => {}
         }
