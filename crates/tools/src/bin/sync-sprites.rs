@@ -29,6 +29,9 @@ fn main() {
             for m in &r.missing {
                 println!("нет в источнике: {m}");
             }
+            for (n, why) in &r.unlicensed {
+                println!("без лицензии (скопировано): {n}: {why}");
+            }
             for (n, why) in &r.rejected {
                 println!("отклонено: {n}: {why}");
             }

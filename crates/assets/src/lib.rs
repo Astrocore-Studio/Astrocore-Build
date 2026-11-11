@@ -8,8 +8,6 @@ pub enum AssetError {
     Io(PathBuf, std::io::Error),
     #[error("{0}: {1}")]
     Rsi(PathBuf, RsiError),
-    #[error("{0}: у набора нет лицензии или авторства в meta.json")]
-    NoLicense(PathBuf),
     #[error("{0}: нет файла состояния {1}")]
     MissingImage(PathBuf, String),
     #[error("{0}: {1}")]
@@ -25,6 +23,13 @@ pub enum AssetError {
 pub struct RsiSet {
     pub dir: PathBuf,
     pub meta: RsiMeta,
+}
+
+impl RsiSet {
+    /// Указана ли в `meta.json` лицензия (для отчётов; на загрузку не влияет).
+    pub fn has_license(&self) -> bool {
+        self.meta.has_license()
+    }
 }
 
 /// Корень SS14-ассетов внутри репозитория билда.
@@ -53,15 +58,12 @@ pub fn find_rsi(root: &Path) -> Result<Vec<PathBuf>, AssetError> {
     Ok(out)
 }
 
-/// Загрузить набор: движковый разбор `meta.json` с лимитами, лицензия и авторство обязательны,
-/// у каждого состояния должен быть файл `<имя>.png`.
+/// Загрузить набор: движковый разбор `meta.json` с лимитами, у каждого состояния должен быть файл
+/// `<имя>.png`. Отсутствие лицензии не мешает загрузке: это видно по `RsiSet::has_license`.
 pub fn load_rsi(dir: &Path) -> Result<RsiSet, AssetError> {
     let meta_path = dir.join("meta.json");
     let bytes = std::fs::read(&meta_path).map_err(|e| AssetError::Io(meta_path.clone(), e))?;
     let meta = RsiMeta::parse(&bytes).map_err(|e| AssetError::Rsi(dir.to_path_buf(), e))?;
-    if !meta.has_license() {
-        return Err(AssetError::NoLicense(dir.to_path_buf()));
-    }
     for state in &meta.states {
         let file = format!("{}.png", state.name);
         if !dir.join(&file).is_file() {
@@ -78,12 +80,15 @@ pub fn load_rsi(dir: &Path) -> Result<RsiSet, AssetError> {
 #[derive(Debug, serde::Deserialize)]
 struct TileAttribution {
     files: Vec<String>,
+    #[serde(default)]
+    #[allow(dead_code)]
     license: String,
+    #[serde(default)]
+    #[allow(dead_code)]
     copyright: String,
 }
 
-/// Проверить каталог плиток: у каждой записи есть лицензия и авторство, перечисленные файлы
-/// существуют. Возвращает число проверенных файлов.
+/// Проверить каталог плиток: перечисленные в `attributions.yml` файлы существуют. Возвращает число проверенных файлов.
 pub fn check_tile_dir(dir: &Path) -> Result<usize, AssetError> {
     let path = dir.join("attributions.yml");
     let text = std::fs::read_to_string(&path).map_err(|e| AssetError::Io(path.clone(), e))?;
@@ -91,9 +96,6 @@ pub fn check_tile_dir(dir: &Path) -> Result<usize, AssetError> {
         .map_err(|e| AssetError::Attribution(path.clone(), e.to_string()))?;
     let mut count = 0;
     for e in &entries {
-        if e.license.trim().is_empty() || e.copyright.trim().is_empty() {
-            return Err(AssetError::NoLicense(path));
-        }
         // Каталог содержит подмножество файлов SS14: проверяем только те, что скопированы.
         for f in &e.files {
             if dir.join(f).is_file() {
@@ -364,7 +366,7 @@ mod tests {
     }
 
     #[test]
-    fn a_set_without_license_or_images_is_refused() {
+    fn a_set_without_license_loads_but_one_without_images_is_refused() {
         let dir = std::env::temp_dir().join(format!("assets-{}", std::process::id()));
         let rsi = dir.join("bad.rsi");
         std::fs::create_dir_all(&rsi).unwrap();
@@ -373,10 +375,10 @@ mod tests {
             br#"{"version":1,"size":{"x":32,"y":32},"states":[{"name":"icon"}]}"#,
         )
         .unwrap();
-        assert!(matches!(
-            load_rsi(&rsi),
-            Err(AssetError::NoLicense(_) | AssetError::Rsi(..))
-        ));
+        assert!(matches!(load_rsi(&rsi), Err(AssetError::MissingImage(..))));
+        std::fs::write(rsi.join("icon.png"), b"png").unwrap();
+        assert!(matches!(load_rsi(&rsi), Ok(set) if !set.has_license()));
+        std::fs::remove_file(rsi.join("icon.png")).unwrap();
         std::fs::write(
             rsi.join("meta.json"),
             br#"{"version":1,"license":"CC-BY-SA-3.0","copyright":"x","size":{"x":32,"y":32},"states":[{"name":"icon"}]}"#,

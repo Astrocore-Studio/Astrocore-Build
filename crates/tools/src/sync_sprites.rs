@@ -2,7 +2,8 @@
 //!
 //! Нужные наборы собираются из содержимого Build (прототипы предметов, двери, материалы) и
 //! фиксированного списка (тело персонажа, интерфейс). Набор RSI копируется целиком, только если
-//! в его `meta.json` указаны лицензия и авторство; иначе он отклоняется и в отчёт идёт причина.
+//! есть читаемый `meta.json`. Набор без лицензии или авторства копируется, но попадает в отчёт
+//! (`unlicensed`), чтобы его можно было проверить позже.
 
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
@@ -35,8 +36,10 @@ pub enum SyncError {
 pub struct SyncReport {
     pub copied: Vec<String>,
     pub missing: Vec<String>,
-    /// (набор, причина отказа): нет лицензии или авторства.
+    /// (набор, причина отказа): нет читаемого `meta.json`.
     pub rejected: Vec<(String, String)>,
+    /// (набор, чего не хватает): скопированы, но без лицензии или авторства.
+    pub unlicensed: Vec<(String, String)>,
     pub bytes: u64,
 }
 
@@ -68,13 +71,20 @@ pub fn referenced(content: &Path) -> Result<(BTreeSet<String>, BTreeSet<String>)
     Ok((rsi, files))
 }
 
+/// Ошибка `meta.json`, из-за которой набор нельзя считать RSI.
 fn meta_problem(dir: &Path) -> Option<String> {
     let Ok(text) = std::fs::read_to_string(dir.join("meta.json")) else {
         return Some("нет meta.json".into());
     };
-    let Ok(v) = serde_json::from_str::<serde_json::Value>(&text) else {
-        return Some("meta.json не разбирается".into());
-    };
+    serde_json::from_str::<serde_json::Value>(&text)
+        .err()
+        .map(|_| "meta.json не разбирается".into())
+}
+
+/// Чего не хватает по лицензии: `None`, если лицензия и авторство указаны.
+fn license_gap(dir: &Path) -> Option<String> {
+    let text = std::fs::read_to_string(dir.join("meta.json")).ok()?;
+    let v: serde_json::Value = serde_json::from_str(&text).ok()?;
     let has = |k: &str| {
         v.get(k)
             .and_then(|x| x.as_str())
@@ -82,8 +92,9 @@ fn meta_problem(dir: &Path) -> Option<String> {
     };
     match (has("license"), has("copyright")) {
         (true, true) => None,
-        (false, _) => Some("в meta.json нет license".into()),
-        (_, false) => Some("в meta.json нет copyright".into()),
+        (false, false) => Some("нет license и copyright".into()),
+        (false, true) => Some("нет license".into()),
+        (true, false) => Some("нет copyright".into()),
     }
 }
 
@@ -120,6 +131,9 @@ pub fn sync(
         if let Some(why) = meta_problem(&src) {
             report.rejected.push((name.clone(), why));
             continue;
+        }
+        if let Some(gap) = license_gap(&src) {
+            report.unlicensed.push((name.clone(), gap));
         }
         copy_dir(&src, &dest.join(name), &mut report.bytes)?;
         report.copied.push(name.clone());
@@ -164,7 +178,7 @@ mod tests {
     }
 
     #[test]
-    fn a_set_without_license_is_rejected_and_one_with_license_is_copied() {
+    fn a_set_without_license_is_copied_with_a_warning_and_a_broken_one_is_rejected() {
         let src = tempfile::tempdir().unwrap();
         let dst = tempfile::tempdir().unwrap();
         rsi(
@@ -172,13 +186,26 @@ mod tests {
             r#"{"license":"CC-BY-SA-3.0","copyright":"x"}"#,
         );
         rsi(&src.path().join("A/nolicense.rsi"), r#"{"copyright":"x"}"#);
-        let names: BTreeSet<String> = ["A/good.rsi", "A/nolicense.rsi", "A/absent.rsi"]
-            .map(String::from)
-            .into();
+        rsi(&src.path().join("A/broken.rsi"), "не json");
+        let names: BTreeSet<String> = [
+            "A/good.rsi",
+            "A/nolicense.rsi",
+            "A/broken.rsi",
+            "A/absent.rsi",
+        ]
+        .map(String::from)
+        .into();
         let r = sync(src.path(), dst.path(), &names, &BTreeSet::new()).unwrap();
-        assert_eq!(r.copied, vec!["A/good.rsi".to_string()]);
-        assert!(dst.path().join("A/good.rsi/icon.png").is_file());
-        assert!(!dst.path().join("A/nolicense.rsi").exists());
+        assert_eq!(
+            r.copied,
+            vec!["A/good.rsi".to_string(), "A/nolicense.rsi".to_string()]
+        );
+        assert!(dst.path().join("A/nolicense.rsi/icon.png").is_file());
+        assert_eq!(
+            r.unlicensed,
+            vec![("A/nolicense.rsi".to_string(), "нет license".to_string())]
+        );
+        assert!(!dst.path().join("A/broken.rsi").exists());
         assert_eq!(r.rejected.len(), 1);
         assert!(r.missing.contains(&"A/absent.rsi".to_string()));
     }
