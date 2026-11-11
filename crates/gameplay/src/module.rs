@@ -137,6 +137,11 @@ impl State {
             .filter(|i| self.info(&i.prototype).is_some_and(|x| x.storage.is_some()))
             .map(|i| BagView {
                 id: i.id,
+                grid: self
+                    .info(&i.prototype)
+                    .and_then(|x| x.storage.as_ref())
+                    .map(|s| s.cells.iter().copied().collect())
+                    .unwrap_or_default(),
                 items: self
                     .storages
                     .get(&i.id)

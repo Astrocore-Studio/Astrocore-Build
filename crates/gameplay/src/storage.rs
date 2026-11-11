@@ -138,6 +138,13 @@ pub struct Storage {
     items: Vec<Stored>,
 }
 
+impl Stored {
+    /// Клетки сетки, которые занимает предмет.
+    pub fn cells(&self) -> &[(i32, i32)] {
+        &self.cells
+    }
+}
+
 fn cells_of(size: ItemSize, loc: Location) -> Vec<(i32, i32)> {
     let (w, h) = size.shape();
     let (w, h) = if loc.rotated { (h, w) } else { (w, h) };

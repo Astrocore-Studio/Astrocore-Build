@@ -114,6 +114,8 @@ pub fn register_replication(reg: &mut ReplicationRegistry) -> Result<(), Replica
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct BagView {
     pub id: ObjectId,
+    /// Клетки сетки сумки (может быть не прямоугольником).
+    pub grid: Vec<(i32, i32)>,
     pub items: Vec<Stored>,
 }
 

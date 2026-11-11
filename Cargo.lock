@@ -2884,6 +2884,8 @@ dependencies = [
  "bevy",
  "bevy_egui",
  "gameplay",
+ "image",
+ "serde_json",
 ]
 
 [[package]]

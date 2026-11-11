@@ -17,7 +17,8 @@ fn main() {
     // Клавиша E в клиенте движка отправляет команду взаимодействия билда.
     args.interact_command
         .get_or_insert_with(|| "interact".into());
+    let manifest = args.render_manifest.clone();
     let mut app = build_app(args);
-    app.add_plugins(BuildClientPlugin { autoplay });
+    app.add_plugins(BuildClientPlugin { manifest, autoplay });
     app.run();
 }

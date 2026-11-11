@@ -33,3 +33,10 @@
 | `Tiles/Basic/Dark/dark.png` | CC0-1.0 (см. `attributions.yml` рядом) |
 
 `render-manifest.json` — служебный файл (соответствие идентификаторов и картинок), собирается из прототипов.
+
+## Интерфейс (`Textures/Interface`)
+
+Слоты, рамки хранилища и значки руки скопированы из `Resources/Textures/Interface/` того же коммита
+без изменений. Лицензия указана в `Interface/Default/meta.json`: **CC-BY-NC-SA-3.0** (Goonstation,
+слегка изменено PixelTK, слоты ID — YoungThugSS14). Это **некоммерческая** лицензия: для
+коммерческого распространения эти файлы нужно заменить собственными.
