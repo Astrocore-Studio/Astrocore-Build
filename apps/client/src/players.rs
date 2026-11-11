@@ -6,7 +6,7 @@ use astrocore_client::{LocalBody, Net, RemoteSprites};
 use astrocore_core::NetworkEntityId;
 use bevy::prelude::*;
 use bevy_egui::{EguiContexts, egui};
-use gameplay::{DOAFTER_COMPONENT, DoAfterView, decode_doafter};
+use gameplay::{DOAFTER_COMPONENT, DoAfterView, MobState, decode_doafter};
 
 /// Высота головы над ступнями, м: сюда крепится полоска.
 const HEAD_M: f32 = 1.15;
@@ -82,6 +82,7 @@ pub fn other_bars(
 /// работает для своего тела и для чужих.
 #[allow(clippy::too_many_arguments)]
 pub fn walk_bob(
+    net: Option<NonSend<Net>>,
     time: Res<Time>,
     remote: Res<RemoteSprites>,
     local: Res<LocalBody>,
@@ -96,9 +97,16 @@ pub fn walk_bob(
     let mut sounds = sounds;
     let listener = cameras.single().map(GlobalTransform::translation).ok();
     let dt = time.delta_secs().max(1e-4);
-    let entities: Vec<Entity> = remote.0.values().copied().chain(local.0).collect();
+    let me = net.as_ref().and_then(|n| n.core.net_id());
+    let tagged: Vec<(Entity, Option<NetworkEntityId>)> = remote
+        .0
+        .iter()
+        .map(|(id, e)| (*e, Some(*id)))
+        .chain(local.0.map(|e| (e, me)))
+        .collect();
+    let entities: Vec<Entity> = tagged.iter().map(|(e, _)| *e).collect();
     state.retain(|e, _| entities.contains(e));
-    for e in entities {
+    for (e, id) in tagged {
         let Ok(root) = roots.get(e) else { continue };
         let entry = state.entry(e).or_insert((root.translation, 0.0, 0));
         let speed = Vec3::new(
@@ -127,10 +135,25 @@ pub fn walk_bob(
         } else {
             0.0
         };
+        let lying = match (net.as_ref(), id) {
+            (Some(n), Some(id)) => n
+                .core
+                .component(id, gameplay::MOBSTATE_COMPONENT)
+                .and_then(|b| b.first().copied())
+                .is_some_and(|b| MobState::from_byte(b) != MobState::Alive),
+            _ => false,
+        };
         if let Ok(kids) = children.get(e) {
             for &k in kids {
                 if let Ok(mut q) = quads.get_mut(k) {
-                    q.translation.y = bob;
+                    if lying {
+                        // Лежит на боку: спрайт повёрнут на 90° вокруг основания и чуть сдвинут.
+                        q.rotation = Quat::from_rotation_z(-std::f32::consts::FRAC_PI_2);
+                        q.translation = Vec3::new(0.45, 0.05, 0.0);
+                    } else {
+                        q.rotation = Quat::IDENTITY;
+                        q.translation = Vec3::new(0.0, bob, 0.0);
+                    }
                 }
             }
         }

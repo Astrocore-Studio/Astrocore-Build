@@ -4,6 +4,7 @@ use astrocore_math::glam::Vec3 as MVec3;
 use bevy::prelude::*;
 use bevy_egui::{EguiContexts, EguiPlugin, EguiPrimaryContextPass};
 mod body;
+mod combat;
 mod hud;
 mod outfit;
 mod players;
@@ -20,6 +21,7 @@ pub struct Loadout {
     pub inventory: Option<InventoryView>,
     /// Идущее действие с таймером и время (с игры), когда клиент о нём узнал.
     pub doafter: Option<(gameplay::DoAfterView, f32)>,
+    pub health: Option<gameplay::HealthView>,
 }
 
 /// Клиент билда: вид от первого лица, клавиши рук и худ по образцу SS14.
@@ -63,11 +65,16 @@ impl Plugin for BuildClientPlugin {
             )
             .add_systems(
                 Update,
-                (players::walk_bob, sounds::door_sounds, sounds::item_sounds),
+                (
+                    players::walk_bob,
+                    sounds::door_sounds,
+                    sounds::item_sounds,
+                    combat::attack_and_heal,
+                ),
             )
             .add_systems(
                 EguiPrimaryContextPass,
-                (loadout_window, players::other_bars),
+                (loadout_window, players::other_bars, combat::health_overlay),
             );
     }
 }
@@ -154,6 +161,10 @@ fn refresh_loadout(net: Option<NonSend<Net>>, time: Res<Time>, mut loadout: ResM
         .core
         .component(me, INVENTORY_COMPONENT)
         .and_then(decode_inventory);
+    loadout.health = net
+        .core
+        .component(me, gameplay::HEALTH_COMPONENT)
+        .and_then(gameplay::decode_health);
     let view = net
         .core
         .component(me, gameplay::DOAFTER_COMPONENT)
@@ -203,6 +214,7 @@ fn autoplay(
     mut state: ResMut<Autoplay>,
     mut hud: ResMut<Hud>,
     loadout: Res<Loadout>,
+    remote: Res<astrocore_client::RemoteSprites>,
     net: Option<NonSendMut<Net>>,
 ) {
     if !state.enabled {
@@ -226,6 +238,12 @@ fn autoplay(
         140 | 180 => {
             if let Some(id) = nearest_item(&net, 1.5) {
                 net.send_command(gameplay::CMD_INTERACT, gameplay::interact_data(id));
+            }
+        }
+        f if f > 220 && f % 40 == 0 => {
+            // Драка для проверки боя: бьём первого увиденного игрока.
+            if let Some(id) = remote.0.keys().next() {
+                net.send_command(gameplay::CMD_ATTACK, gameplay::attack_data(*id));
             }
         }
         160 | 200 => {
