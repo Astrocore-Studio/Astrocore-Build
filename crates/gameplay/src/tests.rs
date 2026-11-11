@@ -1865,4 +1865,18 @@ mod puddles {
         let slippery = puddles(&h, a).iter().filter(|p| p.slippery).count();
         assert_eq!(slippery, 0, "швабра убрала смазку: {:?}", puddles(&h, a));
     }
+
+    #[test]
+    fn a_player_who_joins_later_sees_existing_puddles() {
+        let mut h = harness();
+        let a = h.join("a");
+        h.ticks(5);
+        take_lube(&mut h, a);
+        let hand = hands_of(&h, a, a).unwrap().active() as u8;
+        command(&mut h, a, CMD_SPILL, vec![hand]);
+        h.ticks(30);
+        let b = h.join("b");
+        h.ticks(30);
+        assert!(!puddles(&h, b).is_empty(), "новичок видит лужи");
+    }
 }

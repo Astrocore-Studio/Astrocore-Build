@@ -143,6 +143,7 @@ pub struct State {
     pub(crate) lit: BTreeSet<ObjectId>,
     /// Какие клетки с огнём уже разосланы.
     pub(crate) fires_sent: Vec<crate::fire::FireView>,
+    pub(crate) fires_to: BTreeSet<NetworkEntityId>,
     /// Трубы и газовые устройства: разбор прототипов, ключи объектов, подпись мира.
     pub(crate) pipe_parts: BTreeMap<PrototypeId, crate::piping::PipePart>,
     pub(crate) pipe_keys: crate::piping::PipeKeys,
@@ -154,6 +155,7 @@ pub struct State {
     pub(crate) pipe_ports: BTreeMap<atmos::Cell, u64>,
     pub(crate) puddles: crate::puddles::Puddles,
     pub(crate) puddles_sent: Vec<crate::puddles::PuddleView>,
+    pub(crate) puddles_to: BTreeSet<NetworkEntityId>,
     pub(crate) puddle_timer: f32,
     /// Швабры (`Absorbent`): сколько забирают за раз; ёмкости (`Refillable`); задержка применения.
     pub(crate) absorbents: BTreeMap<PrototypeId, f32>,
@@ -177,6 +179,7 @@ pub struct State {
     pub(crate) power_kinds: Vec<[f32; 5]>,
     pub(crate) lights_sent: crate::electric::LightsView,
     pub(crate) lights_timer: f32,
+    pub(crate) lights_to: BTreeSet<NetworkEntityId>,
 }
 
 impl State {
@@ -308,6 +311,7 @@ impl State {
             igniters,
             lit: BTreeSet::new(),
             fires_sent: Vec::new(),
+            fires_to: BTreeSet::new(),
             pipe_parts,
             pipe_keys: crate::piping::PipeKeys::default(),
             pipe_sig: Vec::new(),
@@ -317,6 +321,7 @@ impl State {
             pipe_ports: BTreeMap::new(),
             puddles: crate::puddles::Puddles::new(),
             puddles_sent: Vec::new(),
+            puddles_to: BTreeSet::new(),
             puddle_timer: 0.0,
             absorbents,
             refillables,
@@ -334,6 +339,7 @@ impl State {
             power_kinds: Vec::new(),
             lights_sent: crate::electric::LightsView::default(),
             lights_timer: 0.0,
+            lights_to: BTreeSet::new(),
         })
     }
 
@@ -1442,12 +1448,14 @@ impl State {
             })
             .collect();
         views.truncate(crate::puddles::MAX_PUDDLES);
-        if views == self.puddles_sent {
+        let ids: Vec<NetworkEntityId> = ctx.players().collect();
+        let fresh = ids.iter().any(|i| !self.puddles_to.contains(i));
+        if views == self.puddles_sent && !fresh {
             return;
         }
         let bytes = crate::puddles::encode_puddles(&views);
         self.puddles_sent = views;
-        let ids: Vec<NetworkEntityId> = ctx.players().collect();
+        self.puddles_to = ids.iter().copied().collect();
         for id in ids {
             ctx.set_component(id, crate::puddles::PUDDLES_COMPONENT, bytes.clone());
         }
@@ -1683,12 +1691,18 @@ impl State {
                 on,
             ));
         }
-        if view == self.lights_sent {
+        let ids: Vec<NetworkEntityId> = ctx.players().collect();
+        let fresh: Vec<NetworkEntityId> = ids
+            .iter()
+            .copied()
+            .filter(|i| !self.lights_to.contains(i))
+            .collect();
+        if view == self.lights_sent && fresh.is_empty() {
             return;
         }
         let bytes = crate::electric::encode_lights(&view);
         self.lights_sent = view;
-        let ids: Vec<NetworkEntityId> = ctx.players().collect();
+        self.lights_to = ids.iter().copied().collect();
         for id in ids {
             ctx.set_component(id, crate::electric::LIGHTS_COMPONENT, bytes.clone());
         }
@@ -1840,12 +1854,14 @@ impl State {
             })
             .collect();
         views.truncate(crate::fire::MAX_FIRES);
-        if views == self.fires_sent {
+        let ids: Vec<NetworkEntityId> = ctx.players().collect();
+        let fresh = ids.iter().any(|i| !self.fires_to.contains(i));
+        if views == self.fires_sent && !fresh {
             return;
         }
         let bytes = crate::fire::encode_fires(&views);
         self.fires_sent = views;
-        let ids: Vec<NetworkEntityId> = ctx.players().collect();
+        self.fires_to = ids.iter().copied().collect();
         for id in ids {
             ctx.set_component(id, crate::fire::FIRES_COMPONENT, bytes.clone());
         }
