@@ -54,6 +54,52 @@ pub struct PowerPart {
     pub battery: Option<BatterySpec>,
     pub terminal: bool,
     pub receiver_load: Option<f32>,
+    /// Светильник: цвет, сила и радиус (`PointLight` светильника SS14).
+    pub light: Option<LightSpec>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct LightSpec {
+    pub color: [u8; 3],
+    pub energy: f32,
+    pub radius: f32,
+}
+
+/// Светильники для клиентов: палитра видов и список (x, y, z, вид, включён).
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, Default)]
+pub struct LightsView {
+    /// Виды: `[r, g, b, энергия, радиус]`.
+    pub kinds: Vec<[f32; 5]>,
+    pub lights: Vec<(f32, f32, f32, u8, bool)>,
+}
+
+pub const LIGHTS_COMPONENT: &str = "build.lights";
+pub const LIGHTS_MAX_BYTES: usize = 15 * 1024;
+/// Не больше стольких светильников уходит клиентам.
+pub const MAX_LIGHTS: usize = 500;
+
+pub fn encode_lights(v: &LightsView) -> Vec<u8> {
+    serde_json::to_vec(v).unwrap_or_default()
+}
+
+pub fn decode_lights(b: &[u8]) -> Option<LightsView> {
+    if b.len() > LIGHTS_MAX_BYTES {
+        return None;
+    }
+    serde_json::from_slice(b).ok()
+}
+
+/// Цвет `#RRGGBB` из прототипа.
+fn parse_color(s: &str) -> Option<[u8; 3]> {
+    let h = s.trim().trim_start_matches('#');
+    if h.len() < 6 {
+        return None;
+    }
+    Some([
+        u8::from_str_radix(&h[0..2], 16).ok()?,
+        u8::from_str_radix(&h[2..4], 16).ok()?,
+        u8::from_str_radix(&h[4..6], 16).ok()?,
+    ])
 }
 
 fn f(c: &Data, key: &str, d: f32) -> f32 {
@@ -94,14 +140,27 @@ impl PowerPart {
         let receiver_load = r
             .component("ApcPowerReceiver")
             .map(|c| f(c, "load", DEFAULT_LOAD_W));
-        (supplier.is_some() || battery.is_some() || terminal || receiver_load.is_some()).then_some(
-            Self {
-                supplier,
-                battery,
-                terminal,
-                receiver_load,
-            },
-        )
+        let light = r.component("Light").map(|c| LightSpec {
+            color: c
+                .get("color")
+                .and_then(Data::as_str)
+                .and_then(parse_color)
+                .unwrap_or([255, 228, 206]),
+            energy: f(c, "energy", 0.8),
+            radius: f(c, "radius", 10.0),
+        });
+        (supplier.is_some()
+            || battery.is_some()
+            || terminal
+            || receiver_load.is_some()
+            || light.is_some())
+        .then_some(Self {
+            supplier,
+            battery,
+            terminal,
+            receiver_load,
+            light,
+        })
     }
 }
 

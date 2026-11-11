@@ -29,4 +29,16 @@
         "Sprite": (sprite: "Structures/Wallmounts/apc.rsi", state: "base"),
         "PowerBattery": (from: "mv", to: "apc", capacity: 50000.0, startingCharge: 50000.0, maxChargeRate: 5000.0, maxSupply: 10000.0, rampRate: 500.0, rampTolerance: 1000.0),
     }),
+
+    // Светильники (base_lighting.yml, lights.yml): лампа-трубка `LightTube` (#FFE4CE, 0,8, радиус 10) и
+    // лампа накаливания `LightBulb` (#FFD1A3, 1,0, радиус 6); потребление 40 Вт. Светильник стоит на
+    // потолке; спрайт настенного плафона на полу не рисуется.
+    (id: "Poweredlight", name: Some("light"), components: {
+        "Light": (color: "#FFE4CE", energy: 0.8, radius: 10.0),
+        "ApcPowerReceiver": (load: 40.0),
+    }),
+    (id: "PoweredSmallLight", name: Some("small light"), components: {
+        "Light": (color: "#FFD1A3", energy: 1.0, radius: 6.0),
+        "ApcPowerReceiver": (load: 40.0),
+    }),
 ]

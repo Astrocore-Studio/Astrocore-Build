@@ -7,6 +7,7 @@ mod body;
 mod combat;
 mod fire;
 mod hud;
+mod lights;
 mod outfit;
 mod players;
 mod sounds;
@@ -79,6 +80,7 @@ impl Plugin for BuildClientPlugin {
                     combat::attack_and_heal,
                     fire::sync_fx,
                     fire::animate_flames,
+                    lights::sync_lights,
                 ),
             )
             .add_systems(

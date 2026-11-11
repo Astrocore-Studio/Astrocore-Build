@@ -172,6 +172,11 @@ pub struct State {
     pub(crate) power_required: bool,
     /// Объекты с `ApcPowerReceiver`: при проводке на карте без питания не работают.
     pub(crate) power_gated: std::collections::BTreeSet<ObjectId>,
+    /// Светильники мира: объект, точка, вид (по палитре `power_kinds`).
+    pub(crate) power_lights: Vec<(ObjectId, Vec3, u8)>,
+    pub(crate) power_kinds: Vec<[f32; 5]>,
+    pub(crate) lights_sent: crate::electric::LightsView,
+    pub(crate) lights_timer: f32,
 }
 
 impl State {
@@ -325,6 +330,10 @@ impl State {
             power_charge: BTreeMap::new(),
             power_required: false,
             power_gated: std::collections::BTreeSet::new(),
+            power_lights: Vec::new(),
+            power_kinds: Vec::new(),
+            lights_sent: crate::electric::LightsView::default(),
+            lights_timer: 0.0,
         })
     }
 
@@ -1212,6 +1221,7 @@ impl State {
         self.sync_pipes(ctx);
         self.sync_power(ctx);
         self.tick_power(dt);
+        self.publish_lights(ctx, dt);
         self.atmos.advance(dt);
         self.tick_devices(ctx, dt);
         self.publish_fires(ctx);
@@ -1586,6 +1596,43 @@ impl State {
                 self.power_charge.insert(*id, b.current_storage);
             }
         }
+        self.power_lights.clear();
+        self.power_kinds.clear();
+        for o in ctx.world.authored() {
+            let AuthoredKind::Placement { prototype } = &o.kind else {
+                continue;
+            };
+            let Some(spec) = self
+                .power_parts
+                .get(prototype)
+                .and_then(|p| p.light.clone())
+            else {
+                continue;
+            };
+            let kind = [
+                f32::from(spec.color[0]),
+                f32::from(spec.color[1]),
+                f32::from(spec.color[2]),
+                spec.energy,
+                spec.radius,
+            ];
+            let k = self
+                .power_kinds
+                .iter()
+                .position(|x| *x == kind)
+                .unwrap_or_else(|| {
+                    self.power_kinds.push(kind);
+                    self.power_kinds.len() - 1
+                });
+            let c = (o.min() + o.max()) * 0.5;
+            let base = ctx
+                .world
+                .floors()
+                .find(|f| f.id.0 == o.floor.0)
+                .map_or(0.0, |f| f.base_y);
+            self.power_lights
+                .push((o.id, Vec3::new(c.x, base + 2.4, c.z), k as u8));
+        }
         self.power_sig = sig;
         self.power_required = !cables.is_empty()
             || parts
@@ -1600,6 +1647,51 @@ impl State {
         self.power_batteries = built.batteries;
         self.power_receivers = built.receivers;
         self.power = built.state;
+    }
+
+    /// Светильники клиентам: включён, когда получает всю мощность (или питание не требуется).
+    fn publish_lights(&mut self, ctx: &mut HookContext<'_>, dt: f32) {
+        self.lights_timer += dt;
+        if self.lights_timer < 0.5 {
+            return;
+        }
+        self.lights_timer = 0.0;
+        let received: BTreeMap<ObjectId, bool> = self
+            .power_receivers
+            .iter()
+            .map(|(id, idx, want)| {
+                (
+                    *id,
+                    self.power
+                        .loads
+                        .get(*idx)
+                        .is_some_and(|l| l.receiving_power >= want * 0.999),
+                )
+            })
+            .collect();
+        let mut view = crate::electric::LightsView {
+            kinds: self.power_kinds.clone(),
+            lights: Vec::new(),
+        };
+        for (id, p, k) in self.power_lights.iter().take(crate::electric::MAX_LIGHTS) {
+            let on = !self.power_required || received.get(id).copied().unwrap_or(false);
+            view.lights.push((
+                (p.x * 10.0).round() / 10.0,
+                (p.y * 10.0).round() / 10.0,
+                (p.z * 10.0).round() / 10.0,
+                *k,
+                on,
+            ));
+        }
+        if view == self.lights_sent {
+            return;
+        }
+        let bytes = crate::electric::encode_lights(&view);
+        self.lights_sent = view;
+        let ids: Vec<NetworkEntityId> = ctx.players().collect();
+        for id in ids {
+            ctx.set_component(id, crate::electric::LIGHTS_COMPONENT, bytes.clone());
+        }
     }
 
     /// Шаг решателя и питание устройств труб (`ApcPowerReceiver.Powered`): устройство с потребителем

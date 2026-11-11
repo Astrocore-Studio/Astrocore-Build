@@ -167,6 +167,12 @@ pub fn register_replication(reg: &mut ReplicationRegistry) -> Result<(), Replica
         max_bytes: crate::health::HEALTH_MAX_BYTES,
     })?;
     reg.register(ReplicatedKind {
+        name: crate::electric::LIGHTS_COMPONENT.into(),
+        channel: ReplicationChannel::ReliableOrdered,
+        interest: Interest::Everyone,
+        max_bytes: crate::electric::LIGHTS_MAX_BYTES,
+    })?;
+    reg.register(ReplicatedKind {
         name: crate::puddles::PUDDLES_COMPONENT.into(),
         channel: ReplicationChannel::ReliableOrdered,
         interest: Interest::Everyone,
