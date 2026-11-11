@@ -77,6 +77,7 @@ pub fn attack_and_heal(
     remote: Res<RemoteSprites>,
     transforms: Query<&Transform>,
     loadout: Res<crate::Loadout>,
+    ground: Res<crate::Ground>,
     net: Option<NonSendMut<Net>>,
 ) {
     let Some(mut net) = net else { return };
@@ -107,6 +108,13 @@ pub fn attack_and_heal(
         .filter_map(|(id, e)| Some((*id, transforms.get(*e).ok()?.translation)))
         .collect();
     let Some((target, part)) = pick_target(ray.origin, *ray.direction, &candidates) else {
+        // Клик по полу: предмет в руке применяется к точке (швабра по луже и ведру).
+        if attack && let Some(point) = ground.0 {
+            net.send_command(
+                gameplay::CMD_USE_GROUND,
+                gameplay::drop_at_data(active, point),
+            );
+        }
         return;
     };
     if attack {

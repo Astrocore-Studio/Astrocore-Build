@@ -65,6 +65,33 @@ impl Solution {
         }
     }
 
+    /// Сколько в растворе реагентов, подходящих под `pick`.
+    pub fn quantity_where(&self, pick: impl Fn(&str) -> bool) -> f32 {
+        self.contents
+            .iter()
+            .filter(|(r, _)| pick(r))
+            .map(|(_, q)| q)
+            .sum()
+    }
+
+    /// Отделить до `amount` единиц только из реагентов под `pick` (`SplitSolutionWithOnly`; с
+    /// отрицанием — `SplitSolutionWithout`), пропорционально их количеству.
+    pub fn split_where(&mut self, amount: f32, pick: impl Fn(&str) -> bool) -> Solution {
+        let total = self.quantity_where(&pick);
+        let mut out = Solution::new(amount.max(0.0));
+        if total <= 0.0 || amount <= 0.0 {
+            return out;
+        }
+        let ratio = (amount / total).min(1.0);
+        let names: Vec<String> = self.contents.keys().filter(|r| pick(r)).cloned().collect();
+        for name in names {
+            let part = self.amount(&name) * ratio;
+            out.contents.insert(name.clone(), part);
+            self.remove(&name, part);
+        }
+        out
+    }
+
     /// Отделить `amount` единиц пропорционально составу (`SplitSolution`).
     pub fn split(&mut self, amount: f32) -> Solution {
         let total = self.volume();

@@ -88,6 +88,22 @@
         0.36000001430511475
       ]
     },
+    "ss14:bucket": {
+      "image": "Textures/Objects/Tools/bucket.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:bucket_water": {
+      "image": "Textures/Objects/Tools/bucket.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
     "ss14:carbon_dioxide_canister": {
       "image": "Textures/Structures/Storage/canister.rsi/black.png",
       "layout": "billboard",
@@ -198,6 +214,14 @@
       "size": [
         0.36000001430511475,
         0.36000001430511475
+      ]
+    },
+    "ss14:mop_item": {
+      "image": "Textures/Objects/Specific/Janitorial/mop.rsi/mop.png",
+      "layout": "flat",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
       ]
     },
     "ss14:nitrogen_canister": {

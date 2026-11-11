@@ -113,7 +113,7 @@ fn install_body(
 
 /// Точка пола под курсором мыши (в метрах), если курсор над миром.
 #[derive(Resource, Default)]
-struct Ground(Option<[f32; 3]>);
+pub(crate) struct Ground(pub(crate) Option<[f32; 3]>);
 
 /// Пересечение луча с горизонтальной плоскостью на высоте `y`.
 fn ground_point(origin: Vec3, dir: Vec3, y: f32) -> Option<[f32; 3]> {

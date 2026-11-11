@@ -49,6 +49,9 @@ pub const CMD_FEED: &str = "feed.other";
 /// Вылить содержимое предмета из руки на пол под собой: `[рука]`.
 pub const CMD_SPILL: &str = "item.spill";
 
+/// Применить предмет из руки к точке на полу (швабра по луже, по ведру): `[рука, x, y, z]`.
+pub const CMD_USE_GROUND: &str = "use.ground";
+
 /// Сбить огонь на себе (перекат): без данных. Тот же эффект у щелчка по значку огня.
 pub const CMD_RESIST: &str = "fire.resist";
 

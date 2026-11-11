@@ -17,6 +17,11 @@ use atmos::{Cell, CellKind, Layout, edge, pipes};
 
 use crate::reagents::Solution;
 
+/// Реагенты, которыми моют (`Absorbent: true`).
+pub fn is_absorbent(reagent: &str) -> bool {
+    physical(reagent).absorbent
+}
+
 pub const OVERFLOW_VOLUME: f32 = 50.0;
 pub const LOW_THRESHOLD: f32 = 0.3;
 pub const DEFAULT_SLIPPERY: f32 = 5.5;
@@ -37,6 +42,8 @@ pub struct Physical {
     pub super_slippery: bool,
     pub color: [u8; 3],
     pub standsout: bool,
+    /// `Absorbent`: реагент, которым мокрая швабра убирает грязь (вода).
+    pub absorbent: bool,
 }
 
 const DEFAULT: Physical = Physical {
@@ -46,6 +53,7 @@ const DEFAULT: Physical = Physical {
     super_slippery: false,
     color: [128, 128, 128],
     standsout: false,
+    absorbent: false,
 };
 
 /// Свойства реагентов из `Resources/Prototypes/Reagents`.
@@ -54,6 +62,7 @@ pub fn physical(reagent: &str) -> Physical {
         "Water" => Physical {
             evaporation: 0.3,
             friction: 0.4,
+            absorbent: true,
             color: [0x75, 0xb1, 0xf0],
             ..DEFAULT
         },
@@ -152,6 +161,10 @@ impl Puddles {
 
     pub fn volume(&self, cell: Cell) -> f32 {
         self.cells.get(&cell).map_or(0.0, Solution::volume)
+    }
+
+    pub fn solution_mut(&mut self, cell: Cell) -> Option<&mut Solution> {
+        self.cells.get_mut(&cell)
     }
 
     pub fn solution(&self, cell: Cell) -> Option<&Solution> {

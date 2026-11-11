@@ -69,6 +69,25 @@
         "Sprite": (sprite: "Objects/Consumable/Drinks/waterbottle.rsi", state: "icon"),
         "Solution": (maxVol: 60.0, reagents: (SpaceLube: 60.0)),
     }),
+    // Уборка (janitor.yml, bucket.yml): швабра хранит до 120 ед. и меняет воду на грязь в луже;
+    // клик по луже или по ведру на полу. Ведро на 360 ед.; `BucketWater` — ведро с водой для карты
+    // (в SS14 воду берут из раковин и баков, их здесь нет).
+    (id: "MopItem", parents: ["BaseItem"], name: Some("mop"), components: {
+        "Sprite": (sprite: "Objects/Specific/Janitorial/mop.rsi", state: "mop"),
+        "Item": (size: "Large"),
+        "Absorbent": (),
+        "Solution": (maxVol: 120.0),
+        "MeleeWeapon": (damage: (Blunt: 10.0), attackRate: 1.0),
+    }),
+    (id: "Bucket", parents: ["BaseItem"], name: Some("bucket"), components: {
+        "Sprite": (sprite: "Objects/Tools/bucket.rsi", state: "icon"),
+        "Item": (size: "Large"),
+        "Refillable": (),
+        "Solution": (maxVol: 360.0),
+    }),
+    (id: "BucketWater", parents: ["Bucket"], name: Some("bucket of water"), components: {
+        "Solution": (maxVol: 360.0, reagents: (Water: 360.0)),
+    }),
     (id: "Pen", name: Some("pen"), components: {
         "Item": (size: "Tiny"),
         "Sprite": (sprite: "Objects/Misc/pens.rsi", state: "pen"),

@@ -66,6 +66,16 @@ const PROTOS: &str = r#"[
         "Item": (size: "Small"),
         "Solution": (maxVol: 100.0, reagents: (SpaceLube: 60.0)),
     }),
+    (id: "Mop", components: {
+        "Item": (size: "Large"),
+        "Absorbent": (),
+        "Solution": (maxVol: 120.0),
+    }),
+    (id: "WaterBucket", components: {
+        "Item": (size: "Large"),
+        "Refillable": (),
+        "Solution": (maxVol: 360.0, reagents: (Water: 360.0)),
+    }),
     (id: "Satchel", components: {
         "Item": (size: "Small"),
         "Storage": (grid: ["0,0,1,1"], maxItemSize: "Tiny"),
@@ -1754,8 +1764,8 @@ mod fire {
 
 mod puddles {
     use super::*;
-    use crate::CMD_SPILL;
     use crate::puddles::{PUDDLES_COMPONENT, decode_puddles};
+    use crate::{CMD_SPILL, CMD_USE_GROUND};
 
     fn puddles(h: &Harness, who: ConnId) -> Vec<crate::puddles::PuddleView> {
         let net = h.client(who).net_id().unwrap();
@@ -1822,5 +1832,37 @@ mod puddles {
             0,
             "поскользнулся и выронил всё"
         );
+    }
+
+    #[test]
+    fn a_mop_dipped_in_a_bucket_cleans_a_slippery_puddle() {
+        let mut h = harness();
+        let a = h.join("a");
+        h.ticks(5);
+        take_lube(&mut h, a);
+        let hand = hands_of(&h, a, a).unwrap().active() as u8;
+        command(&mut h, a, CMD_SPILL, vec![hand]);
+        h.ticks(30);
+        assert!(puddles(&h, a).iter().any(|p| p.slippery), "лужа скользкая");
+        // Пустую бутылку на пол, в руку швабру; ведро с водой рядом.
+        command(&mut h, a, CMD_DROP, drop_data(hand));
+        h.ticks(5);
+        spawn(
+            &mut h,
+            item_at(150, "ss14:water_bucket", Vec3::new(3.0, 0.1, 2.4)),
+        );
+        spawn(&mut h, item_at(151, "ss14:mop", Vec3::new(2.6, 0.6, 2.6)));
+        h.ticks(3);
+        command(&mut h, a, CMD_PICKUP, pickup_data(oid(151)));
+        h.ticks(5);
+        // Макаем в ведро, затем моем лужу под ногами (дальше 1 с, чтобы прошла задержка).
+        let bucket = crate::drop_at_data(hand, [3.1, 0.0, 2.5]);
+        command(&mut h, a, CMD_USE_GROUND, bucket);
+        h.ticks(40);
+        let floor = crate::drop_at_data(hand, [2.5, 0.0, 2.5]);
+        command(&mut h, a, CMD_USE_GROUND, floor);
+        h.ticks(40);
+        let slippery = puddles(&h, a).iter().filter(|p| p.slippery).count();
+        assert_eq!(slippery, 0, "швабра убрала смазку: {:?}", puddles(&h, a));
     }
 }

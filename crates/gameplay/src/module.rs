@@ -30,9 +30,9 @@ use crate::wire::{
     BagView, CMD_ATTACK, CMD_CANCEL, CMD_DROP, CMD_EQUIP, CMD_FEED, CMD_HEAL, CMD_INTERACT,
     CMD_MOVE_HAND, CMD_MOVE_SLOT, CMD_PICKUP, CMD_PICKUP_ANY, CMD_RESIST, CMD_RESPAWN,
     CMD_SELECT_HAND, CMD_SPILL, CMD_STORE, CMD_SWAP_HANDS, CMD_TAKE, CMD_TAKE_TO, CMD_UNEQUIP,
-    CMD_UNEQUIP_TO, CMD_USE, HANDS_COMPONENT, INVENTORY_COMPONENT, InventoryView, encode_hands,
-    encode_inventory, parse_attack_part, parse_drop, parse_equip, parse_heal, parse_move_slot,
-    parse_object_id, parse_store, parse_take, parse_take_to, parse_unequip,
+    CMD_UNEQUIP_TO, CMD_USE, CMD_USE_GROUND, HANDS_COMPONENT, INVENTORY_COMPONENT, InventoryView,
+    encode_hands, encode_inventory, parse_attack_part, parse_drop, parse_equip, parse_heal,
+    parse_move_slot, parse_object_id, parse_store, parse_take, parse_take_to, parse_unequip,
 };
 
 /// Дальность взаимодействия, м: `InteractionRange` в SS14 (1,5). Меряется от груди персонажа
@@ -155,6 +155,10 @@ pub struct State {
     pub(crate) puddles: crate::puddles::Puddles,
     pub(crate) puddles_sent: Vec<crate::puddles::PuddleView>,
     pub(crate) puddle_timer: f32,
+    /// Швабры (`Absorbent`): сколько забирают за раз; ёмкости (`Refillable`); задержка применения.
+    pub(crate) absorbents: BTreeMap<PrototypeId, f32>,
+    pub(crate) refillables: BTreeSet<PrototypeId>,
+    pub(crate) mop_ready: BTreeMap<ObjectId, f32>,
 }
 
 impl State {
@@ -170,6 +174,8 @@ impl State {
         let mut openable = BTreeMap::new();
         let mut igniters = BTreeMap::new();
         let mut pipe_parts = BTreeMap::new();
+        let mut absorbents = BTreeMap::new();
+        let mut refillables = BTreeSet::new();
         let mut tank_templates = BTreeMap::new();
         for (id, name) in names {
             let resolved = registry.spawnable(&name).ok();
@@ -188,6 +194,12 @@ impl State {
                 }
                 if let Some(t) = crate::fire::ignition_temperature(r) {
                     igniters.insert(id.clone(), t);
+                }
+                if let Some(p) = crate::mopping::pickup_amount(r) {
+                    absorbents.insert(id.clone(), p);
+                }
+                if crate::mopping::is_refillable(r) {
+                    refillables.insert(id.clone());
                 }
                 if let Some(p) = crate::piping::PipePart::from_resolved(r) {
                     pipe_parts.insert(id.clone(), p);
@@ -276,6 +288,9 @@ impl State {
             puddles: crate::puddles::Puddles::new(),
             puddles_sent: Vec::new(),
             puddle_timer: 0.0,
+            absorbents,
+            refillables,
+            mop_ready: BTreeMap::new(),
         })
     }
 
@@ -1377,6 +1392,84 @@ impl State {
         }
     }
 
+    /// Предмет из руки по точке на полу: швабра по луже или по ведру (`SharedAbsorbentSystem.Mop`).
+    pub(crate) fn use_on_ground(
+        &mut self,
+        ctx: &HookContext<'_>,
+        actor: NetworkEntityId,
+        hand: usize,
+        point: Vec3,
+    ) -> bool {
+        use crate::mopping::{MOP_DELAY_S, MopResult, mop_container, mop_puddle};
+        let Some(item) = self
+            .actors
+            .get(&actor)
+            .and_then(|a| a.hands.get(hand))
+            .cloned()
+        else {
+            return false;
+        };
+        let Some(&pickup) = self.absorbents.get(&item.prototype) else {
+            return false;
+        };
+        let Some(feet) = ctx.position_of(actor) else {
+            return false;
+        };
+        // Дальность до точки на полу меряется от ступней (цель лежит на полу).
+        if (point - feet).length() > self.range_m {
+            return false;
+        }
+        if self
+            .mop_ready
+            .get(&item.id)
+            .is_some_and(|t| *t > self.clock)
+        {
+            return true;
+        }
+        let Some(floor) = floor_at(ctx, point.y.max(feet.y)) else {
+            return false;
+        };
+        let cell = crate::piping::cell_at(floor.0, point);
+        // Сначала лужа под курсором (`TryPuddleInteract`), иначе ёмкость на полу.
+        let Some(mut absorber) = self.solution_mut(&item).cloned() else {
+            return false;
+        };
+        let mut result = MopResult::Nothing;
+        let mut handled = false;
+        // Ёмкость на полу под курсором важнее лужи: по ней целятся осознанно.
+        let target = ctx.world.authored().find_map(|o| {
+            let AuthoredKind::Placement { prototype } = &o.kind else {
+                return None;
+            };
+            let c = (o.min() + o.max()) * 0.5;
+            let near = (c.x - point.x).hypot(c.z - point.z) < 0.6 && (c.y - point.y).abs() < 1.0;
+            (near && self.refillables.contains(prototype)).then(|| HeldItem {
+                id: o.id,
+                prototype: prototype.clone(),
+            })
+        });
+        if let Some(t) = target
+            && let Some(mut container) = self.solution_mut(&t).cloned()
+        {
+            result = mop_container(&mut absorber, &mut container, pickup);
+            self.solutions.insert(t.id, container);
+            handled = true;
+        } else if let Some(puddle) = self.puddles.solution_mut(cell)
+            && puddle.volume() > 0.0
+        {
+            result = mop_puddle(&mut absorber, puddle, pickup);
+            handled = true;
+        }
+        if !handled {
+            return false;
+        }
+        self.solutions.insert(item.id, absorber);
+        if result == MopResult::Done {
+            self.mop_ready.insert(item.id, self.clock + MOP_DELAY_S);
+        }
+        true
+    }
+
     /// Вылить содержимое предмета из руки под ноги (`SpillableComponent`, действие «Вылить»).
     pub(crate) fn spill_item(
         &mut self,
@@ -1902,6 +1995,11 @@ impl GameModule for GameplayModule {
                     .get(actor)
                     .is_some_and(|a| !a.health.state().can_act()) => {}
             HookEvent::Command { actor, kind, data } => match kind.as_str() {
+                CMD_USE_GROUND => {
+                    if let Some((hand, Some([x, y, z]))) = crate::wire::parse_drop(data) {
+                        st.use_on_ground(ctx, *actor, usize::from(hand), Vec3::new(x, y, z));
+                    }
+                }
                 CMD_SPILL => {
                     if let [hand] = data[..] {
                         st.spill_item(ctx, *actor, usize::from(hand));
