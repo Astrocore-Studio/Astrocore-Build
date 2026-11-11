@@ -4,7 +4,7 @@ description = "Игровые механики Astrocore Build: руки, пре
 version.workspace = true
 edition.workspace = true
 publish.workspace = true
-license-file.workspace = true
+license.workspace = true
 
 [dependencies]
 astrocore-api.workspace = true

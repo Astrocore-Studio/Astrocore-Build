@@ -6,7 +6,7 @@ members = ["crates/prototypes", "crates/assets", "crates/gameplay", "crates/poly
 version = "0.1.0"
 edition = "2024"
 publish = false
-license-file = "LICENSE"
+license = "MIT"
 
 [workspace.dependencies]
 astrocore-api = { git = "https://github.com/Astrocore-Studio/Astrocore-Engine", branch = "master" }
