@@ -116,6 +116,7 @@ pub fn place_items_from(
             prototype: name,
             x,
             z,
+            rot,
         },
     ) in items.iter().enumerate()
     {
@@ -131,13 +132,16 @@ pub fn place_items_from(
             .and_then(Data::as_str)
             .map_or(0.3, dropped_extent);
         let h = size * 0.5;
-        let obj = AuthoredObject::new(
+        let mut obj = AuthoredObject::new(
             ObjectId::from_u128(0x1000_0000 + i as u128),
             AuthoredKind::Placement { prototype: id },
             FloorId(0),
             Vec3::new(x - h, FLOOR_TOP_M, z - h),
             Vec3::new(x + h, FLOOR_TOP_M + size, z + h),
         );
+        if *rot != 0 {
+            obj.metadata.insert("rot".into(), rot.to_string());
+        }
         world.apply(WorldCommand::PlaceAuthored(obj))?;
         placed += 1;
     }

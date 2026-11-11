@@ -1252,8 +1252,17 @@ impl State {
                 }
                 AuthoredKind::Placement { prototype } => {
                     if let Some(p) = self.pipe_parts.get(prototype) {
-                        parts.push((o.id, cell, p.clone()));
-                        sig.push((o.id, cell, 0));
+                        let rot = o
+                            .metadata
+                            .get("rot")
+                            .and_then(|v| v.parse::<u8>().ok())
+                            .unwrap_or(0);
+                        let mut part = p.clone();
+                        for n in &mut part.nodes {
+                            n.0 = crate::piping::rotate_dirs(n.0, rot);
+                        }
+                        parts.push((o.id, cell, part));
+                        sig.push((o.id, cell, rot));
                     }
                 }
                 _ => {}

@@ -19,7 +19,7 @@ use astrocore_core::{ObjectId, PrototypeId};
 use astrocore_math::{GridCell, GridEdge};
 use astrocore_world::{FloorDef, FloorId, OpeningKind, Placement, StructureElement, StructureKind};
 use base64::Engine as _;
-use maps::{MapFile, MapItem};
+use maps::{MapFile, MapItem, MapZone};
 use serde_yaml::Value;
 
 /// Высота верхней поверхности плиты пола, м (как у полигона).
@@ -62,6 +62,8 @@ pub struct Report {
     pub doors_unplaced: usize,
     pub spawns: usize,
     pub items: usize,
+    /// Трубы газовой сети (зоны `gas_pipe`).
+    pub pipes: usize,
     pub skipped_entities: usize,
 }
 
@@ -86,6 +88,67 @@ fn classify(proto: &str) -> Kind {
     } else {
         Kind::Other
     }
+}
+
+/// Поворот сущности в четвертях оборота против часовой стрелки (`rot: 1.57… rad`).
+fn entity_rot(entity: &Value) -> u8 {
+    let Some(rad) = entity
+        .get("components")
+        .and_then(Value::as_sequence)
+        .and_then(|c| {
+            c.iter()
+                .find(|c| c.get("type").and_then(Value::as_str) == Some("Transform"))
+        })
+        .and_then(|c| c.get("rot"))
+        .and_then(Value::as_str)
+        .and_then(|t| t.trim().trim_end_matches("rad").trim().parse::<f64>().ok())
+    else {
+        return 0;
+    };
+    ((rad / std::f64::consts::FRAC_PI_2).round() as i64).rem_euclid(4) as u8
+}
+
+/// Стороны трубы SS14 без поворота (`pipeDirection` прототипа): N, S, E, W битами 1, 2, 4, 8.
+fn pipe_base_dirs(proto: &str) -> Option<u8> {
+    const N: u8 = 1;
+    const S: u8 = 2;
+    const E: u8 = 4;
+    const W: u8 = 8;
+    // Дополнительные слои труб (`Alt1`, `Alt2`) — отдельные сети, их пока не переносим.
+    if proto.ends_with("Alt1") || proto.ends_with("Alt2") {
+        return None;
+    }
+    Some(match proto {
+        "GasPipeStraight" => N | S,
+        "GasPipeBend" => S | W,
+        "GasPipeTJunction" => S | E | W,
+        "GasPipeFourway" => N | S | E | W,
+        "GasPipeHalf" => S,
+        _ => return None,
+    })
+}
+
+/// Повернуть стороны против часовой стрелки: юг → восток → север → запад (`RotatePipeDirection`).
+fn rotate_pipe_dirs(dirs: u8, quarters: u8) -> u8 {
+    let mut d = dirs;
+    for _ in 0..quarters % 4 {
+        let mut n = 0;
+        for (from, to) in [(2u8, 4u8), (4, 1), (1, 8), (8, 2)] {
+            if d & from != 0 {
+                n |= to;
+            }
+        }
+        d = n;
+    }
+    d
+}
+
+fn dirs_text(d: u8) -> String {
+    [(1u8, 'N'), (2, 'S'), (4, 'E'), (8, 'W')]
+        .iter()
+        .filter(|(b, _)| d & b != 0)
+        .map(|(_, c)| *c)
+        .collect()
 }
 
 fn parse_pair(text: &str) -> Option<(f32, f32)> {
@@ -213,6 +276,7 @@ pub fn import(
     let mut doors: BTreeSet<(i32, i32)> = BTreeSet::new();
     let mut spawn: Option<(f32, f32)> = None;
     let mut items: Vec<MapItem> = Vec::new();
+    let mut zones: Vec<MapZone> = Vec::new();
     for group in &groups {
         let proto = group
             .get("proto")
@@ -242,11 +306,24 @@ pub fn import(
                     report.spawns += 1;
                     spawn.get_or_insert((x, -y));
                 }
+                Kind::Other if pipe_base_dirs(proto).is_some() => {
+                    let dirs =
+                        rotate_pipe_dirs(pipe_base_dirs(proto).unwrap_or(0), entity_rot(entity));
+                    let (cx, cz) = (cell.0 as f32, cell.1 as f32);
+                    zones.push(MapZone {
+                        min: [cx + 0.01, 0.0, cz + 0.01],
+                        max: [cx + 0.99, 3.0, cz + 0.99],
+                        floor: 0,
+                        metadata: [("gas_pipe".to_string(), dirs_text(dirs))].into(),
+                    });
+                    report.pipes += 1;
+                }
                 Kind::Other if known_items.contains(proto) => {
                     items.push(MapItem {
                         prototype: proto.to_string(),
                         x,
                         z: -y,
+                        rot: entity_rot(entity),
                     });
                 }
                 Kind::Other => report.skipped_entities += 1,
@@ -361,7 +438,7 @@ pub fn import(
         }],
         elements,
         items,
-        zones: Vec::new(),
+        zones,
     };
     Ok((map, report))
 }

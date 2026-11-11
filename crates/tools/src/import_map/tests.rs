@@ -90,3 +90,20 @@ fn a_map_without_floor_is_an_error() {
         Err(ImportError::NoFloor)
     ));
 }
+
+#[test]
+fn pipe_directions_rotate_counter_clockwise() {
+    // Юг → восток → север → запад (RotatePipeDirection), труба «прямая» (N+S) на 90° становится W+E.
+    assert_eq!(rotate_pipe_dirs(2, 1), 4);
+    assert_eq!(rotate_pipe_dirs(2, 2), 1);
+    assert_eq!(rotate_pipe_dirs(2, 3), 8);
+    assert_eq!(dirs_text(rotate_pipe_dirs(1 | 2, 1)), "EW");
+    assert_eq!(
+        dirs_text(rotate_pipe_dirs(2 | 8, 1)),
+        "SE",
+        "изгиб юг+запад на 90° — юг+восток"
+    );
+    assert_eq!(dirs_text(rotate_pipe_dirs(2 | 8, 2)), "NE");
+    assert_eq!(pipe_base_dirs("GasPipeStraightAlt1"), None);
+    assert_eq!(pipe_base_dirs("GasPipeTJunction"), Some(2 | 4 | 8));
+}

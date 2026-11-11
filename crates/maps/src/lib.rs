@@ -17,6 +17,13 @@ pub struct MapItem {
     pub prototype: String,
     pub x: f32,
     pub z: f32,
+    /// Поворот в четвертях оборота против часовой стрелки (как у сущностей SS14), 0…3.
+    #[serde(default, skip_serializing_if = "is_zero")]
+    pub rot: u8,
+}
+
+fn is_zero(v: &u8) -> bool {
+    *v == 0
 }
 
 /// Область карты с метаданными (например, `atmosphere = vacuum`): границы в метрах.

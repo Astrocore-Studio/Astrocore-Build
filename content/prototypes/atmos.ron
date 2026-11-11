@@ -1,37 +1,39 @@
 // Трубы и газовые устройства (данные из Resources/Prototypes/Entities/Structures/Piping и
 // Storage/Canisters SS14). Трубы под полом задаются на карте зонами `gas_pipe` (см. piping.rs).
+// Стороны подключения заданы для поворота 0, как в SS14 (вентили и разъёмы смотрят на юг, насос и
+// клапан идут с севера на юг); на карте поворот задаётся полем `rot` (четверти оборота против часовой).
 // Питание не перенесено: насосы, вентиляция и скрубберы работают без электричества.
 [
     (id: "GasDevice", abstract: true, components: {}),
 
     (id: "GasPressurePump", parents: ["GasDevice"], name: Some("gas pump"), components: {
         "Sprite": (sprite: "Structures/Piping/Atmospherics/pump.rsi", state: "pumpPressure"),
-        "GasPipe": (nodes: [(dirs: "W"), (dirs: "E")]),
+        "GasPipe": (nodes: [(dirs: "N"), (dirs: "S")]),
         "GasPressurePump": (inlet: 0, outlet: 1, targetPressure: 101.325, enabled: false),
     }),
     (id: "GasValve", parents: ["GasDevice"], name: Some("manual valve"), components: {
         "Sprite": (sprite: "Structures/Piping/Atmospherics/pump.rsi", state: "pumpManualValve"),
-        "GasPipe": (nodes: [(dirs: "W", volume: 100.0), (dirs: "E", volume: 100.0)]),
+        "GasPipe": (nodes: [(dirs: "N", volume: 100.0), (dirs: "S", volume: 100.0)]),
         "GasValve": (a: 0, b: 1, open: false),
     }),
     (id: "GasVentPump", parents: ["GasDevice"], name: Some("air vent"), components: {
         "Sprite": (sprite: "Structures/Piping/Atmospherics/vent.rsi", state: "vent_out"),
-        "GasPipe": (nodes: [(dirs: "W")]),
+        "GasPipe": (nodes: [(dirs: "S")]),
         "GasVentPump": (node: 0),
     }),
     (id: "GasPassiveVent", parents: ["GasDevice"], name: Some("passive vent"), components: {
         "Sprite": (sprite: "Structures/Piping/Atmospherics/vent.rsi", state: "vent_passive"),
-        "GasPipe": (nodes: [(dirs: "W")]),
+        "GasPipe": (nodes: [(dirs: "S")]),
         "GasPassiveVent": (node: 0),
     }),
     (id: "GasVentScrubber", parents: ["GasDevice"], name: Some("air scrubber"), components: {
         "Sprite": (sprite: "Structures/Piping/Atmospherics/scrubber.rsi", state: "scrub_on"),
-        "GasPipe": (nodes: [(dirs: "W")]),
+        "GasPipe": (nodes: [(dirs: "S")]),
         "GasVentScrubber": (node: 0),
     }),
     (id: "GasPort", parents: ["GasDevice"], name: Some("connector port"), components: {
         "Sprite": (sprite: "Structures/Piping/Atmospherics/gascanisterport.rsi", state: "gasCanisterPort"),
-        "GasPipe": (nodes: [(dirs: "E")]),
+        "GasPipe": (nodes: [(dirs: "S")]),
         "GasPort": (),
     }),
 

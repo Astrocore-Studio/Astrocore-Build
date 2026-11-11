@@ -42,6 +42,29 @@ pub fn parse_dirs(s: &str) -> u8 {
     })
 }
 
+/// Повернуть стороны на `quarters` четвертей против часовой стрелки (`RotatePipeDirection`):
+/// юг → восток → север → запад → юг.
+pub fn rotate_dirs(dirs: u8, quarters: u8) -> u8 {
+    let mut d = dirs;
+    for _ in 0..quarters % 4 {
+        let mut n = 0;
+        if d & SOUTH != 0 {
+            n |= EAST;
+        }
+        if d & EAST != 0 {
+            n |= NORTH;
+        }
+        if d & NORTH != 0 {
+            n |= WEST;
+        }
+        if d & WEST != 0 {
+            n |= SOUTH;
+        }
+        d = n;
+    }
+    d
+}
+
 /// Устройство прототипа до того, как оно получит ключи.
 #[derive(Debug, Clone, PartialEq)]
 pub enum DeviceSpec {
