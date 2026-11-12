@@ -66,7 +66,7 @@ const MIN_IGNITION_TEMPERATURE: f32 = 373.15;
 /// Температура `IgnitionSource` по умолчанию.
 pub const IGNITION_SOURCE_TEMPERATURE: f32 = 700.0;
 
-use crate::chem::{Cond, Eff, Kind, ReagentTable, TableRef};
+use crate::chem::{Cond, Eff, Kind, ReagentTable, StatusOp, TableRef};
 use crate::health::GROUPS;
 use crate::health::{DamageSpec, MobState};
 use crate::reagents::{SatiationKind, Solution, Stage, gas_to_reagents};
@@ -227,6 +227,9 @@ pub struct Vitals {
     pub temperature: f32,
     #[serde(default)]
     pub temperature_alert: i8,
+    /// Действующие статусы: имя и сколько осталось, с (`-1` — бессрочно).
+    #[serde(default)]
+    pub statuses: Vec<(String, f32)>,
     /// Горит ли персонаж и сколько стопок огня на нём.
     #[serde(default)]
     pub on_fire: bool,
@@ -303,6 +306,12 @@ pub struct Outcome {
     pub changed: bool,
     /// Пролитая кровь: набралась больше `BleedPuddleThreshold` — надо оставить лужу.
     pub blood_spilled: f32,
+    /// Фразы владельцу (`PopupMessage`): текст и «большая ли».
+    pub popups: Vec<(String, bool)>,
+    /// Звуки на теле (пути внутри `Audio`).
+    pub sounds: Vec<String>,
+    /// Рвота: что вылилось на пол.
+    pub vomit: Vec<Solution>,
 }
 
 impl Outcome {
@@ -312,7 +321,22 @@ impl Outcome {
     }
 }
 
+/// Статус на теле (`StatusEffectComponent`): сколько ещё длится (`None` — бессрочно), с.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct StatusEntry {
+    pub remaining: Option<f32>,
+    /// Через сколько секунд статус начнёт действовать (`Delay`).
+    pub delay: f32,
+    /// Множитель скорости ходьбы (`MovementModStatusEffect`), у прочих 1.
+    pub walk: f32,
+}
+
 /// Тело: лёгкие, желудок, сытость и таймеры.
+/// Время эффекта с масштабом; отрицательное — бессрочно.
+fn time_scaled(time: f32, scale: f32) -> Option<f32> {
+    (time >= 0.0).then_some(time * scale)
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct Body {
     pub saturation: f32,
@@ -327,6 +351,9 @@ pub struct Body {
     /// Химия в крови: сюда попадает то, что вводят шприцем, и то, что всосалось из желудка.
     pub chemicals: Solution,
     chemicals_timer: f32,
+    /// Метаболиты крови (`metabolites`): сюда уходит то, что сердце не перерабатывает; печень их разбирает.
+    pub metabolites: Solution,
+    metabolites_timer: f32,
     table: TableRef,
     /// Текущий урон (по видам): нужен лечению, которое делится только по тем видам, где урон есть.
     damage_now: BTreeMap<String, f32>,
@@ -351,6 +378,8 @@ pub struct Body {
     resist_left: f32,
     fire_timer: f32,
     rng: u32,
+    /// Статусы по имени без префикса `StatusEffect`.
+    statuses: BTreeMap<String, StatusEntry>,
 }
 
 impl Body {
@@ -373,6 +402,8 @@ impl Body {
             stomach_timer: METABOLISM_INTERVAL_S,
             chemicals: Solution::new(CHEMICALS_SOLUTION_MAX),
             chemicals_timer: METABOLISM_INTERVAL_S,
+            metabolites: Solution::new(CHEMICALS_SOLUTION_MAX),
+            metabolites_timer: METABOLISM_INTERVAL_S,
             table: TableRef(table),
             damage_now: BTreeMap::new(),
             hunger: HUNGER.start_value(seed),
@@ -394,6 +425,7 @@ impl Body {
             resist_left: 0.0,
             fire_timer: FIRE_UPDATE_S,
             rng: seed | 1,
+            statuses: BTreeMap::new(),
         }
     }
 
@@ -412,6 +444,12 @@ impl Body {
             bleed: self.bleed,
             temperature: self.temperature,
             temperature_alert: self.temperature_alert(),
+            statuses: self
+                .statuses
+                .iter()
+                .filter(|(_, e)| e.delay <= 0.0)
+                .map(|(k, e)| (k.clone(), e.remaining.map_or(-1.0, |r| r.ceil())))
+                .collect(),
             on_fire: self.on_fire,
             fire_stacks: self.fire_stacks,
             resisting: self.resisting(),
@@ -437,10 +475,31 @@ impl Body {
         };
     }
 
+    /// Множители гемофилии от статусов (`HemophiliaStatusEffect`): уменьшение кровотечения или его величина.
+    fn bleed_factor(&self, reduction: bool) -> f32 {
+        let table = &self.table.0;
+        self.statuses
+            .iter()
+            .filter(|(_, e)| e.delay <= 0.0 && e.remaining.is_none_or(|r| r > 0.0))
+            .filter_map(|(n, _)| table.statuses.get(n))
+            .map(|d| {
+                if reduction {
+                    d.bleed_reduction
+                } else {
+                    d.bleed_amount
+                }
+            })
+            .product()
+    }
+
     /// `BloodstreamSystem.OnDamageChanged`: полученный урон открывает кровотечение; сильный удар
     /// сразу выбивает часть крови (вероятность — доля урона к 25, потеря — пятая часть).
     pub fn on_damage(&mut self, dealt: &DamageSpec) {
-        let total: f32 = dealt.iter().map(|(k, v)| bleed_coefficient(k) * v).sum();
+        let total: f32 = dealt
+            .iter()
+            .map(|(k, v)| bleed_coefficient(k) * v)
+            .sum::<f32>()
+            * self.bleed_factor(false);
         if total == 0.0 {
             return;
         }
@@ -462,7 +521,7 @@ impl Body {
             out.blood_spilled += self.bleed_buffer;
             self.bleed_buffer = 0.0;
         }
-        self.modify_bleed(-BLEED_REDUCTION);
+        self.modify_bleed(-BLEED_REDUCTION * self.bleed_factor(true));
     }
 
     /// Раз в 3 секунды: кровь тянется к норме, кровотечение уносит её, малокровие ранит.
@@ -495,7 +554,16 @@ impl Body {
                 1.0
             }
         };
-        slow(self.hunger, &HUNGER) * slow(self.thirst, &THIRST) * self.temperature_speed()
+        let statuses: f32 = self
+            .statuses
+            .values()
+            .filter(|e| e.delay <= 0.0)
+            .map(|e| e.walk)
+            .product();
+        slow(self.hunger, &HUNGER)
+            * slow(self.thirst, &THIRST)
+            * self.temperature_speed()
+            * statuses
     }
 
     /// `TemperatureSpeed`: холод замедляет (293 К — 0,9, 280 К — 0,8, 260 К — 0,7).
@@ -630,6 +698,11 @@ impl Body {
     ) -> Outcome {
         let mut out = Outcome::default();
         self.tick_satiation(dt, mob);
+        let before = self.statuses.keys().cloned().collect::<Vec<_>>();
+        self.tick_statuses(dt);
+        if before.len() != self.statuses.len() {
+            out.changed = true;
+        }
         self.tick_fire(dt, env, &mut out);
         self.temperature_timer -= dt;
         while self.temperature_timer <= 0.0 {
@@ -656,6 +729,11 @@ impl Body {
         while self.chemicals_timer <= 0.0 {
             self.chemicals_timer += METABOLISM_INTERVAL_S;
             self.metabolize(Stage::Bloodstream, mob, &mut out);
+        }
+        self.metabolites_timer -= dt;
+        while self.metabolites_timer <= 0.0 {
+            self.metabolites_timer += METABOLISM_INTERVAL_S;
+            self.metabolize(Stage::Metabolites, mob, &mut out);
         }
         self.blood_timer -= dt;
         while self.blood_timer <= 0.0 {
@@ -823,6 +901,7 @@ impl Body {
             Stage::Respiration => &self.lung,
             Stage::Digestion => &self.stomach,
             Stage::Bloodstream => &self.chemicals,
+            Stage::Metabolites => &self.metabolites,
         }
     }
 
@@ -831,6 +910,7 @@ impl Body {
             Stage::Respiration => &mut self.lung,
             Stage::Digestion => &mut self.stomach,
             Stage::Bloodstream => &mut self.chemicals,
+            Stage::Metabolites => &mut self.metabolites,
         }
     }
 
@@ -943,6 +1023,19 @@ impl Body {
             Cond::Temperature { min, max } => {
                 self.temperature >= *min && (*max < 0.0 || self.temperature <= *max)
             }
+            Cond::BloodLevel { min, max } => {
+                let level = self.blood / BLOOD_REFERENCE;
+                level >= *min && level <= *max
+            }
+            Cond::Satiation { kind, min, max } => {
+                let v = match kind {
+                    SatiationKind::Hunger => self.hunger,
+                    SatiationKind::Thirst => self.thirst,
+                };
+                v >= *min && v <= *max
+            }
+            // У тел в билде тегов нет: условие «не имеет тега» всегда выполняется.
+            Cond::Tag { inverted } => *inverted,
         })
     }
 
@@ -950,6 +1043,17 @@ impl Body {
     /// желудок и кровь — по скорости реагента, до `maxReagents` за шаг.
     fn metabolize(&mut self, stage: Stage, mob: MobState, out: &mut Outcome) {
         let table = self.table.0.clone();
+        // Куда переходит непереработанное и сколько реагентов за шаг (`Metabolizer`: желудок 3, сердце 2, печень 1).
+        let target = match stage {
+            Stage::Digestion => Some((Stage::Bloodstream, STOMACH_TRANSFER_EFFICACY)),
+            Stage::Bloodstream => Some((Stage::Metabolites, 1.0)),
+            _ => None,
+        };
+        let max_reagents = match stage {
+            Stage::Bloodstream => 2,
+            Stage::Metabolites => 1,
+            _ => MAX_REAGENTS_PER_STEP,
+        };
         let mut names: Vec<String> = self.solution_of(stage).contents.keys().cloned().collect();
         // Случайный порядок, чтобы не зависеть от алфавита (как в SS14).
         for i in (1..names.len()).rev() {
@@ -963,16 +1067,16 @@ impl Body {
                 continue;
             }
             let Some(entry) = table.metabolism(&name, stage) else {
-                // Нет метаболизма на этой стадии: лёгкие очищаются при выдохе; из желудка вещество
-                // переходит в кровь (`TransferRate`, `TransferEfficacy`), из крови — уходит в метаболиты.
+                // Нет метаболизма на этой стадии: лёгкие очищаются при выдохе; желудок отдаёт в кровь
+                // (половину), кровь — в метаболиты, а в метаболитах лишнее просто убывает по 1 ед.
                 let moved = TRANSFER_RATE.clamp(0.0, quantity);
-                match stage {
-                    Stage::Digestion => {
-                        self.stomach.remove(&name, moved);
-                        self.chemicals.add(&name, moved * STOMACH_TRANSFER_EFFICACY);
+                match (stage, target) {
+                    (Stage::Respiration, _) => {}
+                    (_, Some((to, efficacy))) => {
+                        self.solution_mut(stage).remove(&name, moved);
+                        self.solution_mut(to).add(&name, moved * efficacy);
                     }
-                    Stage::Bloodstream => self.chemicals.remove(&name, moved),
-                    Stage::Respiration => {}
+                    (_, None) => self.solution_mut(stage).remove(&name, quantity.min(1.0)),
                 }
                 continue;
             };
@@ -982,7 +1086,7 @@ impl Body {
                 entry.rate
             };
             let to_remove = rate.clamp(0.0, quantity);
-            if processed >= MAX_REAGENTS_PER_STEP {
+            if processed >= max_reagents {
                 break;
             }
             let scale = if stage == Stage::Respiration {
@@ -1007,6 +1111,11 @@ impl Body {
             if to_remove > 0.0 {
                 self.solution_mut(stage).remove(&name, to_remove);
                 processed += 1;
+                if let Some((to, _)) = target {
+                    for (metabolite, ratio) in &entry.metabolites {
+                        self.solution_mut(to).add(metabolite, to_remove * ratio);
+                    }
+                }
             }
         }
     }
@@ -1058,7 +1167,256 @@ impl Body {
                     sol.add(reagent, amount * scale);
                 }
             }
+            Kind::Popup { messages, large } => {
+                if !messages.is_empty() {
+                    let i = (self.random() * messages.len() as f32) as usize;
+                    out.popups
+                        .push((messages[i.min(messages.len() - 1)].clone(), *large));
+                }
+            }
+            Kind::Emote { sounds, .. } => {
+                if !sounds.is_empty() {
+                    let i = (self.random() * sounds.len() as f32) as usize;
+                    out.sounds.push(sounds[i.min(sounds.len() - 1)].clone());
+                }
+            }
+            Kind::Vomit {
+                thirst,
+                hunger,
+                sounds,
+            } => {
+                if !sounds.is_empty() {
+                    let i = (self.random() * sounds.len() as f32) as usize;
+                    out.sounds.push(sounds[i.min(sounds.len() - 1)].clone());
+                }
+                self.vomit(thirst * scale, hunger * scale, out);
+            }
+            Kind::Temp(amount) => self.change_heat(amount * scale, true),
+            Kind::Status {
+                name,
+                op,
+                time,
+                delay,
+            } => self.modify_status(name, *op, time_scaled(*time, scale), *delay, 1.0),
+            Kind::Speed {
+                name,
+                walk,
+                op,
+                time,
+            } => self.modify_status(
+                &format!("Speed:{name}"),
+                *op,
+                time_scaled(*time, scale),
+                0.0,
+                *walk,
+            ),
+            Kind::Flammable { mult, existing } => {
+                let m = if self.on_fire && *existing >= 0.0 {
+                    *existing
+                } else {
+                    *mult
+                };
+                self.fire_stacks = (self.fire_stacks + m * scale).clamp(-20.0, 20.0);
+            }
+            Kind::Ignite => self.ignite(),
+            Kind::Electrocute { time, damage } => {
+                self.deal(out, "Shock", damage * scale);
+                self.modify_status("Stunned", StatusOp::Update, Some(*time), 0.0, 1.0);
+            }
+            Kind::Knockdown { op, time } => {
+                self.modify_status("Knockdown", *op, time_scaled(*time, scale), 0.0, 1.0);
+            }
+            Kind::Clean { rate, excluded } => {
+                let amount = rate * scale;
+                let _ = self
+                    .chemicals
+                    .split_where(amount, |r| r != excluded.as_str());
+            }
         }
+    }
+
+    /// `VomitSystem.Vomit`: желудок опустошается, сытость и жажда меняются, немного химии из крови
+    /// уходит вместе с рвотой, пациента ненадолго замедляет.
+    fn vomit(&mut self, thirst: f32, hunger: f32, out: &mut Outcome) {
+        let mut sol = std::mem::replace(&mut self.stomach, Solution::new(STOMACH_SOLUTION_MAX));
+        sol.max_volume = 1.0e9;
+        self.hunger = (self.hunger + hunger).clamp(0.0, HUNGER.maximum);
+        self.thirst = (self.thirst + thirst).clamp(0.0, THIRST.maximum);
+        let size = (thirst.abs() + hunger.abs()) / 6.0;
+        self.modify_status(
+            "Speed:VomitingSlowdown",
+            StatusOp::Update,
+            Some(size),
+            0.0,
+            0.5,
+        );
+        let flushed = self.chemicals.split_where(size, |_| true);
+        let mut amount = size;
+        for (r, q) in &flushed.contents {
+            let part = q * 0.1;
+            sol.add(r, part);
+            amount -= part;
+        }
+        sol.add("Vomit", amount.max(0.0));
+        out.vomit.push(sol);
+    }
+
+    /// Изменить время статуса как в `StatusEffectsSystem`: `Update` продлевает до `time`, `Add` прибавляет,
+    /// `Remove` вычитает (без времени — снимает совсем), `Set` задаёт. `time` `None` — бессрочно.
+    pub fn modify_status(
+        &mut self,
+        name: &str,
+        op: StatusOp,
+        time: Option<f32>,
+        delay: f32,
+        walk: f32,
+    ) {
+        let key = name.to_string();
+        match op {
+            StatusOp::Update => {
+                if time.is_some_and(|t| t <= 0.0) {
+                    return;
+                }
+                match self.statuses.get_mut(&key) {
+                    None => {
+                        self.statuses.insert(
+                            key,
+                            StatusEntry {
+                                remaining: time,
+                                delay,
+                                walk,
+                            },
+                        );
+                    }
+                    Some(e) => {
+                        // Бессрочный не трогаем; иначе не уменьшаем (`UpdateStatusEffectTime`).
+                        if let (Some(cur), Some(t)) = (e.remaining, time)
+                            && t > cur
+                        {
+                            e.remaining = Some(t);
+                        } else if e.remaining.is_some() && time.is_none() {
+                            e.remaining = None;
+                        }
+                        if e.delay > 0.0 {
+                            e.delay = e.delay.min(delay);
+                        }
+                    }
+                }
+            }
+            StatusOp::Add => {
+                let Some(t) = time else {
+                    return self.modify_status(name, StatusOp::Update, None, delay, walk);
+                };
+                if t == 0.0 {
+                    return;
+                }
+                match self.statuses.get_mut(&key) {
+                    None if t > 0.0 => {
+                        self.statuses.insert(
+                            key,
+                            StatusEntry {
+                                remaining: Some(t),
+                                delay,
+                                walk,
+                            },
+                        );
+                    }
+                    None => {}
+                    Some(e) => {
+                        if let Some(r) = e.remaining.as_mut() {
+                            *r += t;
+                        }
+                    }
+                }
+            }
+            StatusOp::Remove => match time {
+                None => {
+                    self.statuses.remove(&key);
+                }
+                Some(t) => {
+                    if let Some(e) = self.statuses.get_mut(&key)
+                        && let Some(r) = e.remaining.as_mut()
+                    {
+                        *r -= t;
+                    }
+                }
+            },
+            StatusOp::Set => {
+                if time.is_some_and(|t| t <= 0.0) {
+                    return;
+                }
+                match self.statuses.get_mut(&key) {
+                    None => {
+                        self.statuses.insert(
+                            key,
+                            StatusEntry {
+                                remaining: time,
+                                delay,
+                                walk,
+                            },
+                        );
+                    }
+                    Some(e) => e.remaining = time,
+                }
+            }
+        }
+    }
+
+    /// Идёт ли статус сейчас (после задержки).
+    pub fn has_status(&self, name: &str) -> bool {
+        self.statuses
+            .get(name)
+            .is_some_and(|e| e.delay <= 0.0 && e.remaining.is_none_or(|r| r > 0.0))
+    }
+
+    /// Есть ли действующий статус с таким флагом (`StunnedStatusEffect`, `PressureImmunityStatusEffect`…).
+    pub fn status_flag(&self, flag: &str) -> bool {
+        let table = &self.table.0;
+        self.statuses.iter().any(|(name, e)| {
+            e.delay <= 0.0
+                && e.remaining.is_none_or(|r| r > 0.0)
+                && table.statuses.get(name).is_some_and(|d| d.has(flag))
+        })
+    }
+
+    /// Не может ли тело двигаться и действовать из-за статуса (оглушён, сбит с ног, спит).
+    pub fn disabled_by_status(&self) -> bool {
+        self.status_flag("Stunned")
+            || self.status_flag("Knockdown")
+            || self.status_flag("ForcedSleeping")
+    }
+
+    /// Множители урона от статусов (`DamageModifierStatusEffect`): по виду.
+    pub fn damage_modifiers(&self) -> Vec<(String, f32)> {
+        let mut out: Vec<(String, f32)> = Vec::new();
+        let table = &self.table.0;
+        for (name, e) in &self.statuses {
+            if e.delay > 0.0 || e.remaining.is_some_and(|r| r <= 0.0) {
+                continue;
+            }
+            if let Some(d) = table.statuses.get(name) {
+                for (k, v) in &d.damage {
+                    match out.iter_mut().find(|(n, _)| n == k) {
+                        Some(x) => x.1 *= v,
+                        None => out.push((k.clone(), *v)),
+                    }
+                }
+            }
+        }
+        out
+    }
+
+    /// Шаг времени статусов: задержка, затем таймер; истёкшие снимаются.
+    fn tick_statuses(&mut self, dt: f32) {
+        for e in self.statuses.values_mut() {
+            if e.delay > 0.0 {
+                e.delay = (e.delay - dt).max(0.0);
+            } else if let Some(r) = e.remaining.as_mut() {
+                *r -= dt;
+            }
+        }
+        self.statuses
+            .retain(|_, e| e.delay > 0.0 || e.remaining.is_none_or(|r| r > 0.0));
     }
 
     /// `BarotraumaSystem.Update` для одного срабатывания.
@@ -1076,6 +1434,11 @@ impl Body {
         }
         // Защитной экипировки у билда нет: ощущаемое давление равно давлению среды, но «низкое»
         // не выше атмосферы, «высокое» не ниже (`GetFeltLowPressure`/`GetFeltHighPressure`).
+        let pressure = if self.status_flag("PressureImmunity") {
+            ONE_ATMOSPHERE
+        } else {
+            pressure
+        };
         let felt = if pressure <= WARNING_LOW_PRESSURE {
             pressure.min(ONE_ATMOSPHERE)
         } else if pressure >= WARNING_HIGH_PRESSURE {
@@ -1582,5 +1945,82 @@ mod tests {
         let rest = b.swallow(&big);
         assert!((b.stomach.volume() - STOMACH_SOLUTION_MAX).abs() < 1e-3);
         assert!((rest.volume() - 250.0).abs() < 1e-2);
+    }
+
+    #[test]
+    fn alcohol_goes_stomach_to_blood_to_metabolites_and_makes_the_drinker_drunk() {
+        let mut g = sealed(1, 1);
+        let mut b = Body::new(7);
+        b.stomach.add("Gin", 40.0);
+        run(&mut b, &mut g, 12.0);
+        // Из желудка пошёл этанол (метаболит джина), из крови — в метаболиты.
+        assert!(
+            b.chemicals.amount("Ethanol") + b.metabolites.amount("Ethanol") > 1.0,
+            "{:?} {:?}",
+            b.chemicals.contents,
+            b.metabolites.contents
+        );
+        run(&mut b, &mut g, 200.0);
+        assert!(b.has_status("Drunk"), "{:?}", b.vitals().statuses);
+        assert!(b.vitals().statuses.iter().any(|s| s.0 == "Drunk"));
+    }
+
+    #[test]
+    fn ephedrine_speeds_up_and_the_status_expires_after_the_dose() {
+        let mut g = sealed(1, 1);
+        let mut b = Body::new(7);
+        b.chemicals.add("Ephedrine", 2.0);
+        run(&mut b, &mut g, 1.5);
+        assert!(b.speed() > 1.1, "{}", b.speed());
+        assert!(b.has_status("Speed:ReagentSpeed"));
+        run(&mut b, &mut g, 20.0);
+        assert!((b.speed() - 1.0).abs() < 1e-3, "{}", b.speed());
+    }
+
+    #[test]
+    fn status_durations_follow_the_update_add_remove_set_rules() {
+        let mut b = Body::new(1);
+        b.modify_status("Jitter", StatusOp::Update, Some(5.0), 0.0, 1.0);
+        b.modify_status("Jitter", StatusOp::Update, Some(3.0), 0.0, 1.0);
+        assert_eq!(b.vitals().statuses, vec![("Jitter".to_string(), 5.0)]);
+        b.modify_status("Jitter", StatusOp::Add, Some(2.0), 0.0, 1.0);
+        assert_eq!(b.vitals().statuses[0].1, 7.0);
+        b.modify_status("Jitter", StatusOp::Remove, Some(3.0), 0.0, 1.0);
+        assert_eq!(b.vitals().statuses[0].1, 4.0);
+        b.modify_status("Jitter", StatusOp::Set, Some(9.0), 0.0, 1.0);
+        assert_eq!(b.vitals().statuses[0].1, 9.0);
+        b.modify_status("Jitter", StatusOp::Remove, None, 0.0, 1.0);
+        assert!(b.vitals().statuses.is_empty());
+        // Бессрочный статус время не меняет.
+        b.modify_status("Muted", StatusOp::Update, None, 0.0, 1.0);
+        b.modify_status("Muted", StatusOp::Add, Some(5.0), 0.0, 1.0);
+        assert_eq!(b.vitals().statuses[0].1, -1.0);
+    }
+
+    #[test]
+    fn a_stun_freezes_frail_raises_damage_and_vomiting_empties_the_stomach() {
+        let mut g = sealed(1, 1);
+        let mut b = Body::new(3);
+        b.modify_status("Stunned", StatusOp::Update, Some(2.0), 0.0, 1.0);
+        assert!(b.disabled_by_status());
+        run(&mut b, &mut g, 2.5);
+        assert!(!b.disabled_by_status(), "оглушение прошло");
+        b.chemicals.add("Tricordrazine", 5.0);
+        run(&mut b, &mut g, 1.0);
+        assert!(
+            b.damage_modifiers()
+                .iter()
+                .any(|m| m.0 == "Blunt" && m.1 > 1.1)
+        );
+        let mut b = Body::new(3);
+        b.stomach.add("Water", 30.0);
+        let hunger = b.hunger;
+        let mut out = Outcome::default();
+        b.vomit(-8.0, -8.0, &mut out);
+        assert!(b.stomach.volume() < 1e-3);
+        assert_eq!(out.vomit.len(), 1);
+        assert!(out.vomit[0].amount("Vomit") > 0.0 && out.vomit[0].amount("Water") > 29.0);
+        assert!(b.hunger < hunger);
+        assert!(b.speed() < 1.0, "рвота замедляет");
     }
 }

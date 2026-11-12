@@ -40,6 +40,21 @@ pub enum Cond {
         min: f32,
         max: f32,
     },
+    /// `BloodLevelCondition`: доля крови от нормы.
+    BloodLevel {
+        min: f32,
+        max: f32,
+    },
+    /// `SatiationCondition`.
+    Satiation {
+        kind: SatiationKind,
+        min: f32,
+        max: f32,
+    },
+    /// `TagCondition`: у тел в билде тегов нет, так что `inverted` выполняется всегда.
+    Tag {
+        inverted: bool,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -63,6 +78,96 @@ pub enum Kind {
         reagent: String,
         amount: f32,
     },
+    /// `PopupMessage`: случайная фраза владельцу тела.
+    Popup {
+        messages: Vec<String>,
+        large: bool,
+    },
+    /// `Emote`: звук из набора эмоции (чата в билде нет).
+    Emote {
+        emote: String,
+        sounds: Vec<String>,
+    },
+    /// `Vomit`: рвота, меняет сытость и жажду.
+    Vomit {
+        thirst: f32,
+        hunger: f32,
+        sounds: Vec<String>,
+    },
+    /// `AdjustTemperature`: тепло телу, Дж.
+    Temp(f32),
+    /// `ModifyStatusEffect` и `GenericStatusEffect`: время статуса (отрицательное — бессрочно).
+    Status {
+        name: String,
+        op: StatusOp,
+        time: f32,
+        delay: f32,
+    },
+    /// `MovementSpeedModifier`: статус со множителем скорости.
+    Speed {
+        name: String,
+        walk: f32,
+        op: StatusOp,
+        time: f32,
+    },
+    /// `Flammable`: горючесть тела растёт (`Multiplier`, у горящего — `MultiplierOnExisting`).
+    Flammable {
+        mult: f32,
+        existing: f32,
+    },
+    Ignite,
+    /// `Electrocute`: удар током с оглушением.
+    Electrocute {
+        time: f32,
+        damage: f32,
+    },
+    /// `ModifyKnockdown`.
+    Knockdown {
+        op: StatusOp,
+        time: f32,
+    },
+    /// `CleanBloodstream`: вымыть из крови лишнее, кроме `excluded`.
+    Clean {
+        rate: f32,
+        excluded: String,
+    },
+}
+
+/// `StatusEffectMetabolismType`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum StatusOp {
+    Update,
+    Add,
+    Remove,
+    Set,
+}
+
+impl StatusOp {
+    fn parse(s: &str) -> Self {
+        match s {
+            "Add" => Self::Add,
+            "Remove" => Self::Remove,
+            "Set" => Self::Set,
+            _ => Self::Update,
+        }
+    }
+}
+
+/// Прототип статуса (`StatusEffect…`): что он делает с телом.
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct StatusDef {
+    pub flags: Vec<String>,
+    /// Множители получаемого урона по видам (`DamageModifierStatusEffect`).
+    pub damage: Vec<(String, f32)>,
+    /// `HemophiliaStatusEffect.bleedReductionMultiplier` и `bleedAmountMultiplier`.
+    pub bleed_reduction: f32,
+    pub bleed_amount: f32,
+}
+
+impl StatusDef {
+    pub fn has(&self, flag: &str) -> bool {
+        self.flags.iter().any(|f| f == flag)
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -76,6 +181,8 @@ pub struct Eff {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Entry {
     pub rate: f32,
+    /// `metabolites`: сколько какого реагента уходит в следующий раствор за единицу переработанного.
+    pub metabolites: Vec<(String, f32)>,
     pub effects: Vec<Eff>,
 }
 
@@ -111,6 +218,8 @@ pub struct ReagentTable {
     pub reagents: BTreeMap<String, Reagent>,
     /// Реакции в порядке `ReactionPrototype.CompareTo`: приоритет по убыванию, меньше продуктов первыми.
     pub reactions: Vec<Reaction>,
+    /// Статусы по имени без префикса `StatusEffect`.
+    pub statuses: BTreeMap<String, StatusDef>,
 }
 
 /// Ссылка на таблицу в теле: сравнивается по указателю.
@@ -127,6 +236,16 @@ fn f(d: &Data, key: &str, default: f32) -> f32 {
     d.get(key)
         .and_then(Data::as_f64)
         .map_or(default, |v| v as f32)
+}
+
+fn strings(d: Option<&Data>) -> Vec<String> {
+    d.and_then(Data::as_list)
+        .map(|l| {
+            l.iter()
+                .filter_map(|x| x.as_str().map(String::from))
+                .collect()
+        })
+        .unwrap_or_default()
 }
 
 fn pairs(d: Option<&Data>) -> Vec<(String, f32)> {
@@ -178,6 +297,22 @@ fn parse_cond(d: &Data) -> Option<Cond> {
             min: f(d, "min", 0.0),
             max: f(d, "max", -1.0),
         },
+        "bloodlevel" => Cond::BloodLevel {
+            min: f(d, "min", 0.5),
+            max: f(d, "max", f32::MAX),
+        },
+        "satiation" => Cond::Satiation {
+            kind: if d.get("type")?.as_str()? == "Thirst" {
+                SatiationKind::Thirst
+            } else {
+                SatiationKind::Hunger
+            },
+            min: f(d, "min", 0.0),
+            max: f(d, "max", f32::MAX),
+        },
+        "tag" => Cond::Tag {
+            inverted: d.get("inverted").and_then(Data::as_bool).unwrap_or(false),
+        },
         _ => return None,
     })
 }
@@ -207,6 +342,53 @@ fn parse_eff(d: &Data) -> Option<Eff> {
         "adjust" => Kind::Adjust {
             reagent: d.get("reagent")?.as_str()?.to_string(),
             amount: f(d, "amount", 0.0),
+        },
+        "popup" => Kind::Popup {
+            messages: strings(d.get("messages")),
+            large: d.get("large").and_then(Data::as_bool).unwrap_or(false),
+        },
+        "emote" => Kind::Emote {
+            emote: d.get("emote")?.as_str()?.to_string(),
+            sounds: strings(d.get("sounds")),
+        },
+        "vomit" => Kind::Vomit {
+            thirst: f(d, "thirst", -8.0),
+            hunger: f(d, "hunger", -8.0),
+            sounds: strings(d.get("sounds")),
+        },
+        "temp" => Kind::Temp(f(d, "amount", 0.0)),
+        "status" => Kind::Status {
+            name: d.get("name")?.as_str()?.to_string(),
+            op: StatusOp::parse(d.get("op")?.as_str()?),
+            time: f(d, "time", 2.0),
+            delay: f(d, "delay", 0.0),
+        },
+        "speed" => Kind::Speed {
+            name: d.get("name")?.as_str()?.to_string(),
+            walk: f(d, "walk", 1.0),
+            op: StatusOp::parse(d.get("op")?.as_str()?),
+            time: f(d, "time", 2.0),
+        },
+        "flammable" => Kind::Flammable {
+            mult: f(d, "mult", 0.05),
+            existing: f(d, "existing", -1.0),
+        },
+        "ignite" => Kind::Ignite,
+        "electrocute" => Kind::Electrocute {
+            time: f(d, "time", 2.0),
+            damage: f(d, "damage", 5.0),
+        },
+        "knockdown" => Kind::Knockdown {
+            op: StatusOp::parse(d.get("op")?.as_str()?),
+            time: f(d, "time", 2.0),
+        },
+        "clean" => Kind::Clean {
+            rate: f(d, "rate", 3.0),
+            excluded: d
+                .get("excluded")
+                .and_then(Data::as_str)
+                .unwrap_or_default()
+                .to_string(),
         },
         _ => return None,
     };
@@ -241,12 +423,14 @@ impl ReagentTable {
                             "Bloodstream" => Stage::Bloodstream,
                             "Digestion" => Stage::Digestion,
                             "Respiration" => Stage::Respiration,
+                            "Metabolites" => Stage::Metabolites,
                             _ => continue,
                         };
                         metabolisms.insert(
                             stage,
                             Entry {
                                 rate: f(entry, "rate", 0.5),
+                                metabolites: pairs(entry.get("metabolites")),
                                 effects: entry
                                     .get("effects")
                                     .and_then(Data::as_list)
@@ -271,6 +455,19 @@ impl ReagentTable {
                         group: s("group"),
                         works_on_dead: c.get("deadWorks").and_then(Data::as_bool).unwrap_or(false),
                         metabolisms,
+                    },
+                );
+            }
+            if let Some(c) = r.component("Status")
+                && let Some(name) = id.strip_prefix("StatusEffect")
+            {
+                table.statuses.insert(
+                    name.to_string(),
+                    StatusDef {
+                        flags: strings(c.get("flags")),
+                        damage: pairs(c.get("damage")),
+                        bleed_reduction: f(c, "bleedReduction", 1.0),
+                        bleed_amount: f(c, "bleedAmount", 1.0),
                     },
                 );
             }
@@ -337,6 +534,10 @@ impl ReagentTable {
                     (
                         include_str!("../../../content/prototypes/reactions.ron"),
                         "reactions",
+                    ),
+                    (
+                        include_str!("../../../content/prototypes/statuses.ron"),
+                        "statuses",
                     ),
                 ] {
                     let _ = reg.load_ron_str(text, name);

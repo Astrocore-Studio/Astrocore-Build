@@ -158,8 +158,10 @@ impl Solution {
 pub enum Stage {
     Respiration,
     Digestion,
-    /// Кровь: метаболизирует печень (`Bloodstream` в SS14).
+    /// Кровь: метаболизирует сердце (`Bloodstream` в SS14).
     Bloodstream,
+    /// Метаболиты: то, что ушло из крови; перерабатывает печень (`Metabolites`).
+    Metabolites,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

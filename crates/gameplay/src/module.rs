@@ -1467,6 +1467,11 @@ impl State {
         if self.clock < a.next_attack || !self.in_reach(ctx, actor, target) {
             return;
         }
+        // `Pacified`: миролюбивый не бьёт.
+        if a.body.as_ref().is_some_and(|b| b.has_status("Pacified")) {
+            self.popup(actor, "Вы не можете ударить");
+            return;
+        }
         if self
             .actors
             .get(&target)
@@ -1735,8 +1740,10 @@ impl State {
         let resisting = a.body.as_ref().is_some_and(Body::resisting);
         let slipped = a.slip_until > self.clock;
         let in_cryo = a.cryo.is_some();
-        let freeze =
-            (!now.can_act() || legs || resisting || slipped || in_cryo) && !a.ghost && !died;
+        let status_down = a.body.as_ref().is_some_and(Body::disabled_by_status);
+        let freeze = (!now.can_act() || legs || resisting || slipped || in_cryo || status_down)
+            && !a.ghost
+            && !died;
         let feet = ctx.position_of(who);
         let mut to_floor: Vec<HeldItem> = Vec::new();
         let clock = self.clock;
@@ -2160,7 +2167,19 @@ impl State {
                 blood.add("Blood", outcome.blood_spilled);
                 self.puddles.spill(self.atmos.layout(), cell, &blood);
             }
+            for (text, _large) in &outcome.popups {
+                self.popup(id, text.clone());
+            }
+            if let Some(at) = ctx.position_of(id) {
+                for path in &outcome.sounds {
+                    self.sound(path, at);
+                }
+            }
+            for sol in &outcome.vomit {
+                self.puddles.spill(self.atmos.layout(), cell, sol);
+            }
             let a = self.actor(id);
+            a.health.set_modifiers(body.damage_modifiers());
             let dealt = a.health.apply(&outcome.damage);
             body.on_damage(&dealt);
             let vitals = body.vitals();

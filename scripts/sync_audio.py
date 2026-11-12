@@ -20,6 +20,10 @@ SOUNDS = [
     'Items/Medical/paper_centrifuge.ogg', 'Machines/spinning.ogg', 'Items/Defib/defib_ready.ogg',
 ]
 
+# Звуки эмоций и рвоты из эффектов реагентов (`scripts/gen_chem.py`).
+if os.path.exists('content/prototypes/reagent_sounds.txt'):
+    SOUNDS += [l.strip() for l in open('content/prototypes/reagent_sounds.txt') if l.strip()]
+
 
 def attribution(rel):
     d, f = os.path.split(rel)

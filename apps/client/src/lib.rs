@@ -11,6 +11,7 @@ mod lights;
 mod outfit;
 mod players;
 mod sounds;
+mod statusfx;
 use gameplay::{
     CMD_DROP, CMD_EQUIP, CMD_SELECT_HAND, CMD_SWAP_HANDS, HANDS_COMPONENT, Hands,
     INVENTORY_COMPONENT, InventoryView, decode_hands, decode_inventory, drop_data, equip_data,
@@ -100,8 +101,12 @@ impl Plugin for BuildClientPlugin {
                 ),
             )
             .add_systems(
+                PostUpdate,
+                statusfx::camera_shake.before(bevy::transform::TransformSystems::Propagate),
+            )
+            .add_systems(
                 EguiPrimaryContextPass,
-                (loadout_window, players::other_bars),
+                (loadout_window, players::other_bars, statusfx::overlay),
             );
     }
 }

@@ -90,9 +90,17 @@ pub struct Health {
     /// Урон по частям тела (только травмы и ожоги от ударов; потеря крови и удушье не локальны).
     #[serde(default)]
     parts: BTreeMap<String, f32>,
+    /// Множители получаемого урона от статусов (`DamageModifierStatusEffect`).
+    #[serde(skip)]
+    modifiers: BTreeMap<String, f32>,
 }
 
 impl Health {
+    /// Заменить множители урона (раз в шаг тела по действующим статусам).
+    pub fn set_modifiers(&mut self, modifiers: impl IntoIterator<Item = (String, f32)>) {
+        self.modifiers = modifiers.into_iter().collect();
+    }
+
     pub fn damage_of(&self, kind: &str) -> f32 {
         self.damage.get(kind).copied().unwrap_or(0.0)
     }
@@ -158,6 +166,11 @@ impl Health {
             if !KINDS.contains(&kind.as_str()) || !amount.is_finite() {
                 continue;
             }
+            let amount = &(if *amount > 0.0 {
+                amount * self.modifiers.get(kind).copied().unwrap_or(1.0)
+            } else {
+                *amount
+            });
             if dead && *amount < 0.0 {
                 continue;
             }
