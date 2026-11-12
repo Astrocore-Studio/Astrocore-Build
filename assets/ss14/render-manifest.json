@@ -994,6 +994,62 @@
         0.36000001430511475
       ]
     },
+    "ss14:bible_communist_manifesto": {
+      "image": "Textures/Objects/Specific/Chapel/communistmanifesto.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:bible_druid": {
+      "image": "Textures/Objects/Specific/Chapel/mysteryofthedruids.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:bible_honk": {
+      "image": "Textures/Objects/Specific/Chapel/honk.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:bible_nano_trasen": {
+      "image": "Textures/Objects/Specific/Chapel/codexnanotrasimus.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:bible_narsie": {
+      "image": "Textures/Objects/Specific/Chapel/tomeofnarsie.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:bible_necronomicon": {
+      "image": "Textures/Objects/Specific/Chapel/necronomicon.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:bible_ratvar": {
+      "image": "Textures/Objects/Specific/Chapel/ratvartablet.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
     "ss14:bike_horn": {
       "image": "Textures/Objects/Fun/bikehorn.rsi/icon.png",
       "layout": "flat",
@@ -2066,6 +2122,14 @@
         0.6000000238418579
       ]
     },
+    "ss14:chem_master": {
+      "image": "Textures/Structures/Machines/mixer.rsi/mixer_empty.png",
+      "layout": "billboard",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
     "ss14:chemist_idcard": {
       "image": "Textures/Objects/Misc/id_cards.rsi/default.png",
       "layout": "flat",
@@ -2168,6 +2232,46 @@
       "size": [
         0.30000001192092896,
         0.30000001192092896
+      ]
+    },
+    "ss14:chemistry_empty_bottle01": {
+      "image": "Textures/Objects/Specific/Chemistry/bottle.rsi/bottle-1.png",
+      "layout": "flat",
+      "size": [
+        0.30000001192092896,
+        0.30000001192092896
+      ]
+    },
+    "ss14:chemistry_empty_bottle02": {
+      "image": "Textures/Objects/Specific/Chemistry/bottle.rsi/bottle-2.png",
+      "layout": "flat",
+      "size": [
+        0.30000001192092896,
+        0.30000001192092896
+      ]
+    },
+    "ss14:chemistry_empty_bottle03": {
+      "image": "Textures/Objects/Specific/Chemistry/bottle.rsi/bottle-3.png",
+      "layout": "flat",
+      "size": [
+        0.30000001192092896,
+        0.30000001192092896
+      ]
+    },
+    "ss14:chemistry_empty_bottle04": {
+      "image": "Textures/Objects/Specific/Chemistry/bottle.rsi/bottle-4.png",
+      "layout": "flat",
+      "size": [
+        0.30000001192092896,
+        0.30000001192092896
+      ]
+    },
+    "ss14:chemistry_hotplate": {
+      "image": "Textures/Structures/Machines/hotplate.rsi/icon.png",
+      "layout": "billboard",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
       ]
     },
     "ss14:chemistry_pda": {
@@ -8738,6 +8842,14 @@
         0.6000000238418579
       ]
     },
+    "ss14:defibrillator_compact": {
+      "image": "Textures/Objects/Specific/Medical/defibsmall.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.48000001907348633,
+        0.48000001907348633
+      ]
+    },
     "ss14:desk_bell": {
       "image": "Textures/Objects/Misc/desk_bell.rsi/icon-bell.png",
       "layout": "flat",
@@ -10324,6 +10436,14 @@
     },
     "ss14:drink_shaker": {
       "image": "Textures/Objects/Consumable/Drinks/shaker.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:drink_shaker_gold": {
+      "image": "Textures/Objects/Consumable/Drinks/shaker_gold.rsi/icon.png",
       "layout": "flat",
       "size": [
         0.36000001430511475,
@@ -13322,6 +13442,14 @@
         0.36000001430511475
       ]
     },
+    "ss14:handheld_mixer_paper_centrifuge": {
+      "image": "Textures/Objects/Specific/Chemistry/paper_centrifuge.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
     "ss14:handheld_station_map": {
       "image": "Textures/Objects/Devices/tablets.rsi/tablet.png",
       "layout": "flat",
@@ -14418,6 +14546,22 @@
         0.48000001907348633
       ]
     },
+    "ss14:machine_centrifuge": {
+      "image": "Textures/Structures/Machines/Medical/centrifuge.rsi/base.png",
+      "layout": "billboard",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:machine_electrolysis_unit": {
+      "image": "Textures/Structures/Machines/Medical/electrolysis.rsi/base.png",
+      "layout": "billboard",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
     "ss14:magazine_box_caseless_rifle": {
       "image": "Textures/Objects/Weapons/Guns/Ammunition/Boxes/caseless_rifle.rsi/base.png",
       "layout": "flat",
@@ -15208,6 +15352,14 @@
       "size": [
         0.48000001907348633,
         0.48000001907348633
+      ]
+    },
+    "ss14:pill": {
+      "image": "Textures/Objects/Specific/Chemistry/pills.rsi/pill.png",
+      "layout": "flat",
+      "size": [
+        0.30000001192092896,
+        0.30000001192092896
       ]
     },
     "ss14:pill_canister": {

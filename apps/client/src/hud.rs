@@ -1088,6 +1088,7 @@ pub fn dispenser_window(
                             out.push((gameplay::CMD_DISP_EJECT, Vec::new()));
                         }
                     });
+                    ui.label(format!("  температура {:.1} °C", b.temperature - 273.15));
                     for (r, q) in &b.reagents {
                         ui.label(format!("  {r}: {q:.1}"));
                     }
@@ -1119,6 +1120,162 @@ pub fn dispenser_window(
         });
     if !open {
         out.push((gameplay::CMD_DISP_CLOSE, Vec::new()));
+    }
+    out
+}
+
+/// Окно химической машины: центрифуга и электролизёр (слот и пуск) или ХимМастер (буфер, таблетки, бутылки).
+pub fn lab_window(
+    ctx: &egui::Context,
+    view: Option<&gameplay::LabView>,
+    active_hand: u8,
+) -> Commands {
+    use egui::{Id, Window};
+    let mut out: Commands = Vec::new();
+    let Some(v) = view else {
+        return out;
+    };
+    let mut open = true;
+    let temp = |t: f32| format!("{:.1} °C ({:.0} K)", t - 273.15, t);
+    let container = |ui: &mut egui::Ui,
+                     title: &str,
+                     c: &Option<gameplay::chemlab::ContainerInfo>,
+                     slot: u8,
+                     out: &mut Commands,
+                     insert: bool| {
+        ui.horizontal(|ui| match c {
+            Some(c) => {
+                ui.label(format!("{title}: {} {:.0}/{:.0}", c.name, c.volume, c.max));
+                if ui.button("Вынуть").clicked() {
+                    out.push((gameplay::CMD_LAB_EJECT, vec![slot]));
+                }
+            }
+            None => {
+                ui.label(format!("{title}: пусто"));
+                if insert && ui.button("Поставить из руки").clicked() {
+                    out.push((gameplay::CMD_LAB_INSERT, vec![active_hand]));
+                }
+            }
+        });
+        if let Some(c) = c {
+            if c.max > 0.0 {
+                ui.label(format!("   температура {}", temp(c.temperature)));
+            }
+            for (_, name, q) in &c.reagents {
+                ui.label(format!("   {name}: {q:.1}"));
+            }
+            for (name, dose) in &c.items {
+                ui.label(format!("   · {name} ({dose:.0} ед.)"));
+            }
+        }
+    };
+    Window::new(v.title.clone())
+        .id(Id::new("lab"))
+        .default_pos(Pos2::new(180.0, 100.0))
+        .resizable(false)
+        .open(&mut open)
+        .show(ctx, |ui| {
+            if v.kind == "mixer" {
+                container(ui, "Слот", &v.input, 0, &mut out, true);
+                ui.separator();
+                match v.mixing {
+                    Some(left) => {
+                        ui.add(
+                            egui::ProgressBar::new(
+                                (1.0 - left / v.duration.max(0.1)).clamp(0.0, 1.0),
+                            )
+                            .text(format!("Работает, осталось {left:.0} с")),
+                        );
+                    }
+                    None => {
+                        if ui
+                            .add_enabled(v.input.is_some(), egui::Button::new("Запустить"))
+                            .clicked()
+                        {
+                            out.push((gameplay::CMD_LAB_START, Vec::new()));
+                        }
+                    }
+                }
+                return;
+            }
+            ui.horizontal(|ui| {
+                if ui.selectable_label(!v.discard, "Перенос").clicked() {
+                    out.push((gameplay::CMD_LAB_MODE, vec![0]));
+                }
+                if ui.selectable_label(v.discard, "Удаление").clicked() {
+                    out.push((gameplay::CMD_LAB_MODE, vec![1]));
+                }
+            });
+            container(ui, "Мензурка", &v.input, 0, &mut out, true);
+            let amount_buttons =
+                |ui: &mut egui::Ui, out: &mut Commands, from_buffer: bool, id: &str| {
+                    ui.horizontal_wrapped(|ui| {
+                        for (i, a) in gameplay::chemlab::MASTER_AMOUNTS.iter().enumerate() {
+                            let text = if *a == f32::MAX {
+                                "всё".to_string()
+                            } else {
+                                format!("{a:.0}")
+                            };
+                            if ui.small_button(text).clicked() {
+                                let mut d = vec![u8::from(from_buffer), i as u8];
+                                d.extend_from_slice(id.as_bytes());
+                                out.push((gameplay::CMD_LAB_REAGENT, d));
+                            }
+                        }
+                    });
+                };
+            if let Some(c) = &v.input {
+                for (id, name, q) in &c.reagents {
+                    ui.label(format!("{name}: {q:.1}"));
+                    amount_buttons(ui, &mut out, false, id);
+                }
+            }
+            ui.separator();
+            ui.label(format!("Буфер: {:.0} ед.", v.buffer_volume));
+            for (id, name, q) in &v.buffer {
+                ui.label(format!("{name}: {q:.1}"));
+                amount_buttons(ui, &mut out, true, id);
+            }
+            ui.separator();
+            ui.horizontal(|ui| {
+                ui.label("Брать из:");
+                if ui.selectable_label(!v.external, "буфера").clicked() {
+                    out.push((gameplay::CMD_LAB_SOURCE, vec![0]));
+                }
+                if ui.selectable_label(v.external, "мензурки").clicked() {
+                    out.push((gameplay::CMD_LAB_SOURCE, vec![1]));
+                }
+            });
+            container(ui, "Выход", &v.output, 1, &mut out, true);
+            let state = ui.data_mut(|d| {
+                d.get_temp_mut_or_insert_with(Id::new("lab-form"), || (5u8, 1u8, String::new()))
+                    .clone()
+            });
+            let (mut dose, mut number, mut label) = state;
+            ui.horizontal(|ui| {
+                ui.label("Доза");
+                ui.add(egui::DragValue::new(&mut dose).range(1..=v.dosage_limit.min(255) as u8));
+                ui.label("Штук");
+                ui.add(egui::DragValue::new(&mut number).range(1..=20));
+                ui.label("Ярлык");
+                ui.text_edit_singleline(&mut label);
+            });
+            ui.data_mut(|d| d.insert_temp(Id::new("lab-form"), (dose, number, label.clone())));
+            ui.horizontal(|ui| {
+                if ui.button("Таблетки").clicked() {
+                    let mut d = vec![dose, number];
+                    d.extend_from_slice(label.as_bytes());
+                    out.push((gameplay::CMD_LAB_PILLS, d));
+                }
+                if ui.button("В бутылку").clicked() {
+                    let mut d = vec![dose, 1];
+                    d.extend_from_slice(label.as_bytes());
+                    out.push((gameplay::CMD_LAB_BOTTLE, d));
+                }
+            });
+        });
+    if !open {
+        out.push((gameplay::CMD_LAB_CLOSE, Vec::new()));
     }
     out
 }

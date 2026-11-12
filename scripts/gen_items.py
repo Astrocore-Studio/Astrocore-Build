@@ -44,6 +44,12 @@ def seeds():
             out |= set(re.findall(r'"(\w+)"', open('content/prototypes/' + fn).read()))
     t = open(MAP).read()
     out |= set(re.findall(r'^- proto: (\w+)$', t, re.M))
+    # Результаты ХимМастера и все предметы-смесители.
+    out |= {'Pill', 'ChemistryEmptyBottle01', 'ChemistryEmptyBottle02', 'ChemistryEmptyBottle03',
+            'ChemistryEmptyBottle04', 'Defibrillator', 'DefibrillatorCompact'}
+    for i in P.by_type['entity']:
+        if not P.is_abstract(i) and 'ReactionMixer' in P.entity_components(i):
+            out.add(i)
     return out
 
 
@@ -79,6 +85,17 @@ def sprite_of(comps):
     return None
 
 
+def _wl_components():
+    out = set()
+    for e in P.by_type['entity'].values():
+        for c in e.get('components') or []:
+            if c.get('type') == 'Storage':
+                for k in ('whitelist', 'blacklist'):
+                    out |= set((c.get(k) or {}).get('components') or [])
+    return out
+
+
+WL_COMPONENTS = _wl_components()
 NOT_ITEMS = {'MobState', 'Mind', 'Body', 'Humanoid', 'Hands', 'Physics'}
 
 
@@ -113,7 +130,15 @@ def convert(i):
     if st and st.get('grid'):
         grid = ', '.join(q(g) for g in st['grid'])
         ms = st.get('maxItemSize')
-        out.append('"Storage": (grid: [%s]%s)' % (grid, ', maxItemSize: %s' % q(ms) if isinstance(ms, str) else ''))
+        extra = ''
+        if isinstance(ms, str):
+            extra += ', maxItemSize: %s' % q(ms)
+        for key in ('whitelist', 'blacklist'):
+            flt = st.get(key)
+            if flt:
+                extra += ', %s: (tags: [%s], components: [%s])' % (
+                    key, ', '.join(q(t) for t in flt.get('tags') or []), ', '.join(q(t) for t in flt.get('components') or []))
+        out.append('"Storage": (grid: [%s]%s)' % (grid, extra))
     pda = comps.get('Pda', {}).get('id')
     if isinstance(pda, str):
         out.append('"Pda": (card: %s)' % q(pda))
@@ -131,7 +156,7 @@ def convert(i):
                 pairs[r['ReagentId']] = pairs.get(r['ReagentId'], 0) + float(r.get('Quantity', 0))
         vol = s.get('maxVol')
         total = sum(pairs.values())
-        out.append('"Solution": (maxVol: %s, reagents: (%s))' % (float(vol) if vol is not None else max(total, 30.0), ', '.join('%s: %s' % (k, v) for k, v in sorted(pairs.items()))))
+        out.append('"Solution": (maxVol: %s, canReact: %s, reagents: (%s))' % (float(vol) if vol is not None else max(total, 30.0), 'false' if s.get('canReact') is False else 'true', ', '.join('%s: %s' % (k, v) for k, v in sorted(pairs.items()))))
     ed = comps.get('Edible')
     if ed and sol:
         kind = ed.get('edible', 'Food')
@@ -152,6 +177,17 @@ def convert(i):
         out.append('"Refillable": ()')
     if 'DrainableSolution' in comps:
         out.append('"Drainable": ()')
+    if 'MixableSolution' in comps:
+        out.append('"MixableSolution": ()')
+    rm = comps.get('ReactionMixer')
+    if rm is not None:
+        out.append('"ReactionMixer": (types: [%s], mixerType: %s, time: %s)' % (
+            ', '.join(q(t) for t in rm.get('reactionTypes') or []), q(rm.get('mixerType', 'Machine')), float(_secs(rm.get('timeToMix'), 0.0))))
+    sk = comps.get('Shakeable')
+    if sk is not None:
+        out.append('"Shakeable": (duration: %s, requireInHand: %s)' % (float(_secs(sk.get('shakeDuration'), 1.0)), 'true' if sk.get('requireInHand') else 'false'))
+    if 'Pill' in comps:
+        out.append('"Pill": ()')
     df = comps.get('Defibrillator')
     if df is not None:
         heal = (df.get('zapHeal') or {}).get('types') or {}
@@ -182,6 +218,12 @@ def convert(i):
         idx = (inj.get('allowedModes') or []).index(active) if active in (inj.get('allowedModes') or []) else 0
         cur = inj.get('currentTransferAmount', 5)
         out.append('"Injector": (modes: [%s], active: %d, amount: %s)' % (', '.join(modes), idx, float(cur) if cur is not None else -1.0))
+    tg = (comps.get('Tag') or {}).get('tags')
+    if tg:
+        out.append('"Tag": (tags: [%s])' % ', '.join(q(t) for t in tg))
+    for cname in sorted(WL_COMPONENTS):
+        if cname in comps and not any(o.startswith('"%s":' % cname) for o in out):
+            out.append('"%s": ()' % cname)
     fill = comps.get('StorageFill', {}).get('contents') or []
     ents = []
     for c in fill:

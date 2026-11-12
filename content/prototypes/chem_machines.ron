@@ -1,0 +1,7 @@
+// Химические машины SS14. Создано scripts/gen_chem_machines.py.
+[
+    (id: "ChemMaster", name: Some("ChemMaster 4000"), components: {"Sprite": (sprite: "Structures/Machines/mixer.rsi", state: "mixer_empty"), "ApcPowerReceiver": (load: 250.0), "ChemMaster": (pillDosageLimit: 20)}),
+    (id: "ChemistryHotplate", name: Some("hotplate"), components: {"Sprite": (sprite: "Structures/Machines/hotplate.rsi", state: "icon"), "ApcPowerReceiver": (load: 300.0), "SolutionHeater": (heatPerSecond: 160.0)}),
+    (id: "MachineCentrifuge", name: Some("tabletop centrifuge"), components: {"Sprite": (sprite: "Structures/Machines/Medical/centrifuge.rsi", state: "base"), "ApcPowerReceiver": (load: 5.0), "SolutionContainerMixer": (mixDuration: 10.0), "ReactionMixer": (types: ["Centrifuge"], mixerType: "Machine", time: 0.0)}),
+    (id: "MachineElectrolysisUnit", name: Some("electrolysis unit"), components: {"Sprite": (sprite: "Structures/Machines/Medical/electrolysis.rsi", state: "base"), "ApcPowerReceiver": (load: 5.0), "SolutionContainerMixer": (mixDuration: 5.0), "ReactionMixer": (types: ["Electrolysis"], mixerType: "Machine", time: 0.0)}),
+]

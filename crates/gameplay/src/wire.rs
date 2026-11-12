@@ -67,6 +67,19 @@ pub const CMD_ID_CLOSE: &str = "idc.close";
 pub const CMD_ID_WRITE: &str = "idc.write";
 /// Количество у ёмкости или шприца в руке (данные: рука, номер; 255 — следующее по кругу).
 pub const CMD_CHEM_AMOUNT: &str = "chem.amount";
+/// Химлаборатория: мензурку из руки в слот (рука), вынуть (0 вход, 1 выход), пуск, закрыть.
+pub const CMD_LAB_INSERT: &str = "lab.insert";
+pub const CMD_LAB_EJECT: &str = "lab.eject";
+pub const CMD_LAB_START: &str = "lab.start";
+pub const CMD_LAB_CLOSE: &str = "lab.close";
+/// ХимМастер: режим (0 перенос, 1 удаление), источник (0 буфер, 1 мензурка), реагент, таблетки, бутылка.
+pub const CMD_LAB_MODE: &str = "lab.mode";
+pub const CMD_LAB_SOURCE: &str = "lab.source";
+pub const CMD_LAB_REAGENT: &str = "lab.reagent";
+pub const CMD_LAB_PILLS: &str = "lab.pills";
+pub const CMD_LAB_BOTTLE: &str = "lab.bottle";
+/// Встряхнуть предмет в активной руке (`ShakeableSystem`).
+pub const CMD_SHAKE: &str = "shake";
 /// Закрыть окно анализатора здоровья.
 pub const CMD_SCAN_CLOSE: &str = "scan.close";
 /// Раздатчик: налить из банки (данные: номер банки).
@@ -191,6 +204,12 @@ pub fn register_replication(reg: &mut ReplicationRegistry) -> Result<(), Replica
         channel: ReplicationChannel::ReliableOrdered,
         interest: Interest::Everyone,
         max_bytes: crate::doafter::DOAFTER_MAX_BYTES,
+    })?;
+    reg.register(ReplicatedKind {
+        name: crate::chemlab::LAB_COMPONENT.into(),
+        channel: ReplicationChannel::ReliableOrdered,
+        interest: Interest::Owner,
+        max_bytes: crate::chemlab::LAB_MAX_BYTES,
     })?;
     reg.register(ReplicatedKind {
         name: crate::chemhand::CHEMHAND_COMPONENT.into(),

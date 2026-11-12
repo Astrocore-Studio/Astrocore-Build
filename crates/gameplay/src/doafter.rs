@@ -52,6 +52,12 @@ pub(crate) enum Action {
         hand: usize,
         target: astrocore_core::NetworkEntityId,
     },
+    /// Смешивание предметом-смесителем: `target` — раствор в мире, `None` — раствор самого предмета.
+    Mix {
+        hand: usize,
+        target: Option<ObjectId>,
+        shake: bool,
+    },
     /// Съесть или выпить укус из предмета в руке.
     Eat {
         hand: usize,
@@ -78,6 +84,8 @@ impl Action {
             Self::Inject { .. } => "inject",
             Self::Scan { .. } => "scan",
             Self::Defib { .. } => "defib",
+            Self::Mix { shake: true, .. } => "shake",
+            Self::Mix { .. } => "mix",
             Self::Eat { .. } => "eat",
         }
     }

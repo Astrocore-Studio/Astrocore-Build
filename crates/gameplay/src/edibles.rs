@@ -47,6 +47,7 @@ pub fn solution_template(r: &Resolved) -> Option<Solution> {
         .and_then(Data::as_f64)
         .map_or(30.0, |v| v.max(0.0) as f32);
     let mut s = Solution::new(max);
+    s.can_react = c.get("canReact").and_then(Data::as_bool).unwrap_or(true);
     if let Some(m) = c.get("reagents").and_then(Data::as_map) {
         for (k, v) in m {
             if let Some(q) = v.as_f64() {

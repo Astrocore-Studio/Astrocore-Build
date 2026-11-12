@@ -6,11 +6,25 @@ use std::collections::BTreeMap;
 
 use atmos::{BREATH_MOLES_TO_REAGENT_MULTIPLIER, Gas};
 
-/// Раствор: количество каждого реагента и предельный объём.
-#[derive(Debug, Clone, PartialEq, Default)]
+/// Комнатная температура раствора по умолчанию, К (`Solution.Temperature`).
+pub const ROOM_TEMPERATURE_K: f32 = 293.15;
+
+/// Раствор: количество каждого реагента, предельный объём и температура. Теплоёмкость — сумма
+/// `количество × удельная теплоёмкость`, а у всех реагентов SS14 `specificHeat` равна 1, поэтому
+/// теплоёмкость раствора равна его объёму.
+#[derive(Debug, Clone, PartialEq)]
 pub struct Solution {
     pub contents: BTreeMap<String, f32>,
     pub max_volume: f32,
+    pub temperature: f32,
+    /// `canReact`: идут ли в растворе реакции (у таблеток выключено).
+    pub can_react: bool,
+}
+
+impl Default for Solution {
+    fn default() -> Self {
+        Self::new(0.0)
+    }
 }
 
 impl Solution {
@@ -18,6 +32,26 @@ impl Solution {
         Self {
             contents: BTreeMap::new(),
             max_volume,
+            temperature: ROOM_TEMPERATURE_K,
+            can_react: true,
+        }
+    }
+
+    /// `GetHeatCapacity`.
+    pub fn heat_capacity(&self) -> f32 {
+        self.volume()
+    }
+
+    /// `GetThermalEnergy`.
+    pub fn thermal_energy(&self) -> f32 {
+        self.heat_capacity() * self.temperature
+    }
+
+    /// `AddThermalEnergy`: температура меняется на `энергия / теплоёмкость`.
+    pub fn add_thermal_energy(&mut self, joules: f32) {
+        let cap = self.heat_capacity();
+        if cap > 0.0 && joules != 0.0 {
+            self.temperature += joules / cap;
         }
     }
 
@@ -69,6 +103,7 @@ impl Solution {
     pub fn split_where(&mut self, amount: f32, pick: impl Fn(&str) -> bool) -> Solution {
         let total = self.quantity_where(&pick);
         let mut out = Solution::new(amount.max(0.0));
+        out.temperature = self.temperature;
         if total <= 0.0 || amount <= 0.0 {
             return out;
         }
@@ -86,6 +121,7 @@ impl Solution {
     pub fn split(&mut self, amount: f32) -> Solution {
         let total = self.volume();
         let mut out = Solution::new(amount.max(0.0));
+        out.temperature = self.temperature;
         if total <= 0.0 || amount <= 0.0 {
             return out;
         }
@@ -104,8 +140,14 @@ impl Solution {
         let room = self.available();
         let mut rest = other.clone();
         let part = rest.split(room.min(other.volume()));
+        // Температура смеси сохраняет тепловую энергию (`AddSolution`).
+        let energy = self.thermal_energy() + part.thermal_energy();
         for (k, v) in &part.contents {
             self.add(k, *v);
+        }
+        let cap = self.heat_capacity();
+        if cap > 0.0 {
+            self.temperature = energy / cap;
         }
         rest
     }

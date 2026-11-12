@@ -96,6 +96,13 @@ pub struct Reaction {
     pub quantized: bool,
     pub reactants: Vec<(String, f32, bool)>,
     pub products: Vec<(String, f32)>,
+    /// `minTemp` и `maxTemp`, К.
+    pub min_temp: f32,
+    pub max_temp: f32,
+    /// `conserveEnergy`: после реакции тепловая энергия раствора сохраняется.
+    pub conserve_energy: bool,
+    /// `requiredMixerCategories`: реакция идёт только при смесителе, умеющем всё перечисленное.
+    pub mixers: Vec<String>,
 }
 
 /// Реагенты и реакции мира.
@@ -289,6 +296,21 @@ impl ReagentTable {
                     quantized: c.get("quantized").and_then(Data::as_bool).unwrap_or(false),
                     reactants,
                     products: pairs(c.get("products")),
+                    min_temp: f(c, "minTemp", 0.0),
+                    max_temp: f(c, "maxTemp", f32::MAX),
+                    conserve_energy: c
+                        .get("conserveEnergy")
+                        .and_then(Data::as_bool)
+                        .unwrap_or(true),
+                    mixers: c
+                        .get("mixers")
+                        .and_then(Data::as_list)
+                        .map(|l| {
+                            l.iter()
+                                .filter_map(|x| x.as_str().map(String::from))
+                                .collect()
+                        })
+                        .unwrap_or_default(),
                 });
             }
         }
@@ -330,13 +352,31 @@ impl ReagentTable {
 
     /// `FullyReactSolution`: пока что-то реагирует, до 20 проходов. Возвращает, была ли хоть одна реакция.
     pub fn react(&self, solution: &mut Solution) -> bool {
+        self.react_with(solution, None)
+    }
+
+    /// То же со смесителем: `mixer` — виды смешивания, которые он умеет (`ReactionMixerComponent.ReactionTypes`);
+    /// реакции с `requiredMixerCategories` идут, только если смеситель умеет все их.
+    pub fn react_with(&self, solution: &mut Solution, mixer: Option<&[String]>) -> bool {
+        if !solution.can_react {
+            return false;
+        }
         let mut any = false;
         for _ in 0..20 {
             let mut reacted = false;
             for r in &self.reactions {
+                if solution.temperature < r.min_temp || solution.temperature > r.max_temp {
+                    continue;
+                }
+                if !r.mixers.is_empty()
+                    && !mixer.is_some_and(|m| r.mixers.iter().all(|c| m.contains(c)))
+                {
+                    continue;
+                }
                 let Some(units) = Self::units(r, solution) else {
                     continue;
                 };
+                let energy = solution.thermal_energy();
                 for (id, amount, catalyst) in &r.reactants {
                     if !catalyst {
                         solution.remove(id, units * amount);
@@ -345,6 +385,12 @@ impl ReagentTable {
                 for (id, amount) in &r.products {
                     // Продукты занимают место, освобождённое реагентами; лишнее не помещается.
                     solution.add(id, units * amount);
+                }
+                if r.conserve_energy {
+                    let cap = solution.heat_capacity();
+                    if cap > 0.0 {
+                        solution.temperature = energy / cap;
+                    }
                 }
                 reacted = true;
                 break;

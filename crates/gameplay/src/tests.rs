@@ -149,6 +149,60 @@ const PROTOS: &str = r#"[
             (id: "Draw", behavior: "Draw", amounts: [5.0, 10.0], mobTime: 5.0, selfModifier: 0.5, downedModifier: 0.5, delayPerVolume: 0.1, ignoreDelayForVolume: 5.0, drawTime: 0.0),
         ], active: 1, amount: 5.0),
     }),
+    (id: "HotplateT", components: {
+        "SolutionHeater": (heatPerSecond: 160.0),
+    }),
+    (id: "CentrifugeT", components: {
+        "SolutionContainerMixer": (mixDuration: 10.0),
+        "ReactionMixer": (types: ["Centrifuge"], mixerType: "Machine", time: 0.0),
+    }),
+    (id: "MasterT", components: {
+        "ChemMaster": (pillDosageLimit: 20),
+    }),
+    (id: "SpoonT", components: {
+        "Item": (size: "Tiny"),
+        "ReactionMixer": (types: ["Stir"], mixerType: "Machine", time: 0.5),
+    }),
+    (id: "BeakerHotT", components: {
+        "FitsInDispenser": (),
+        "MixableSolution": (),
+        "Item": (size: "Small"),
+        "Solution": (maxVol: 50.0, reagents: (Hydrogen: 3.0, Nitrogen: 1.0)),
+    }),
+    (id: "BeakerCocktailT", components: {
+        "FitsInDispenser": (),
+        "MixableSolution": (),
+        "Item": (size: "Small"),
+        "Solution": (maxVol: 50.0, reagents: (Martini: 2.0, Vodka: 1.0)),
+    }),
+    (id: "BeakerAllicinT", components: {
+        "FitsInDispenser": (),
+        "MixableSolution": (),
+        "Item": (size: "Small"),
+        "Solution": (maxVol: 50.0, reagents: (Allicin: 8.0)),
+    }),
+    (id: "BeakerWaterT", components: {
+        "FitsInDispenser": (),
+        "MixableSolution": (),
+        "Item": (size: "Small"),
+        "Solution": (maxVol: 50.0, reagents: (Water: 30.0)),
+    }),
+    (id: "CanisterT", components: {
+        "Item": (size: "Tiny"),
+        "Tag": (tags: ["PillCanister"]),
+        "Storage": (grid: ["0,0,4,1"], whitelist: (tags: ["Pill"], components: [])),
+    }),
+    (id: "BottleT", components: {
+        "Item": (size: "Tiny"),
+        "Tag": (tags: ["Bottle"]),
+        "Solution": (maxVol: 30.0, reagents: ()),
+    }),
+    (id: "Pill", components: {
+        "Item": (size: "Tiny"),
+        "Tag": (tags: ["Pill"]),
+        "Pill": (),
+        "Solution": (maxVol: 20.0, canReact: false, reagents: ()),
+    }),
     (id: "DefibT", components: {
         "Item": (size: "Large"),
         "Defibrillator": (zapHeal: {"Asphyxiation": -40.0}, zapDamage: 5.0, writhe: 3.0, zapDelay: 5.0, doAfter: 3.0, useCharge: 100.0, drawRate: 1.0, charge: 720.0, powered: true, toggled: true),
@@ -2594,5 +2648,260 @@ mod disposal_tests {
         );
         hp.apply_forced(&heal);
         assert_eq!(hp.state(), MobState::Critical);
+    }
+
+    fn lab_view(h: &Harness, who: ConnId) -> Option<crate::LabView> {
+        let net = h.client(who).net_id()?;
+        h.client(who)
+            .component(net, crate::LAB_COMPONENT)
+            .and_then(crate::decode_lab)
+    }
+
+    /// Мензурка из руки в слот машины и обратно: так видно её содержимое и температуру.
+    fn peek(
+        h: &mut Harness,
+        who: ConnId,
+        machine: u128,
+        beaker: u128,
+    ) -> crate::chemlab::ContainerInfo {
+        command(h, who, CMD_PICKUP_ANY, pickup_data(oid(beaker)));
+        h.ticks(3);
+        // Мензурка в руке встаёт в слот, пустая рука открывает окно.
+        command(h, who, CMD_INTERACT, interact_data(oid(machine)));
+        h.ticks(3);
+        command(h, who, CMD_INTERACT, interact_data(oid(machine)));
+        h.ticks(5);
+        let info = lab_view(h, who)
+            .and_then(|v| v.input)
+            .expect("мензурка в слоте");
+        command(h, who, crate::CMD_LAB_EJECT, vec![0]);
+        h.ticks(3);
+        command(h, who, crate::CMD_LAB_CLOSE, vec![]);
+        // Мензурка снова на полу, рука свободна.
+        let hand = hands_of(h, who, who).unwrap().active() as u8;
+        command(
+            h,
+            who,
+            crate::CMD_DROP,
+            crate::drop_at_data(hand, [2.4, 0.9, 2.4]),
+        );
+        h.ticks(3);
+        info
+    }
+
+    fn amount(info: &crate::chemlab::ContainerInfo, reagent: &str) -> f32 {
+        info.reagents
+            .iter()
+            .find(|r| r.0 == reagent)
+            .map_or(0.0, |r| r.2)
+    }
+
+    fn place_machine(h: &mut Harness, id: u128, proto: &str, at: Vec3) {
+        spawn(h, item_at(id, proto, at));
+    }
+
+    #[test]
+    fn a_hotplate_heats_a_beaker_on_it_until_a_hot_reaction_starts() {
+        let mut h = harness();
+        let a = h.join("a");
+        h.ticks(5);
+        place_machine(&mut h, 960, "ss14:hotplate_t", Vec3::new(3.0, 0.9, 3.2));
+        place_machine(&mut h, 961, "ss14:centrifuge_t", Vec3::new(3.2, 0.9, 2.6));
+        spawn(
+            &mut h,
+            item_at(962, "ss14:beaker_hot_t", Vec3::new(3.0, 0.9, 3.2)),
+        );
+        spawn(
+            &mut h,
+            item_at(963, "ss14:beaker_hot_t", Vec3::new(2.6, 0.9, 2.6)),
+        );
+        h.ticks(10);
+        // Холодная мензурка не реагирует: водород и азот на комнатной температуре.
+        let cold = peek(&mut h, a, 961, 963);
+        assert!(
+            amount(&cold, "Ammonia") < 0.01 && (cold.temperature - 293.15).abs() < 0.1,
+            "{cold:?}"
+        );
+        // Мензурка на плитке нагревается: 160 Дж/с на 4 ед., реакция аммиака идёт от 370 К.
+        h.ticks(300);
+        let hot = peek(&mut h, a, 961, 962);
+        assert!(hot.temperature > 370.0, "{hot:?}");
+        assert!(amount(&hot, "Ammonia") > 3.9, "{hot:?}");
+    }
+
+    #[test]
+    fn a_spoon_stirs_a_cocktail_and_a_centrifuge_splits_allicin() {
+        let mut h = harness();
+        let a = h.join("a");
+        h.ticks(5);
+        place_machine(&mut h, 960, "ss14:centrifuge_t", Vec3::new(3.2, 0.9, 2.6));
+        spawn(
+            &mut h,
+            item_at(962, "ss14:beaker_cocktail_t", Vec3::new(2.6, 0.9, 2.6)),
+        );
+        spawn(
+            &mut h,
+            item_at(963, "ss14:beaker_allicin_t", Vec3::new(2.8, 0.9, 2.5)),
+        );
+        spawn(
+            &mut h,
+            item_at(964, "ss14:spoon_t", Vec3::new(3.0, 0.9, 2.4)),
+        );
+        h.ticks(10);
+        // Без смесителя коктейль не готовится.
+        let raw = peek(&mut h, a, 960, 962);
+        assert!(amount(&raw, "AlliesCocktail") < 0.01, "{raw:?}");
+        // Ложка в руке, мензурка на полу: размешали — коктейль готов.
+        command(&mut h, a, CMD_PICKUP_ANY, pickup_data(oid(964)));
+        h.ticks(3);
+        command(&mut h, a, CMD_INTERACT, interact_data(oid(962)));
+        h.ticks(5);
+        assert_eq!(
+            super::inventory_and_storage::doafter(&h, a).map(|d| d.kind),
+            Some("mix".to_string())
+        );
+        h.ticks(60);
+        let hand = hands_of(&h, a, a).unwrap().active() as u8;
+        command(&mut h, a, CMD_DROP, drop_at_data(hand, [2.9, 0.9, 2.2]));
+        h.ticks(3);
+        let stirred = peek(&mut h, a, 960, 962);
+        assert!(amount(&stirred, "AlliesCocktail") > 2.9, "{stirred:?}");
+        // Центрифуга: чеснок распадается только после пуска и 10 секунд работы.
+        command(&mut h, a, CMD_PICKUP_ANY, pickup_data(oid(963)));
+        h.ticks(3);
+        command(&mut h, a, CMD_INTERACT, interact_data(oid(960)));
+        h.ticks(3);
+        command(&mut h, a, CMD_INTERACT, interact_data(oid(960)));
+        h.ticks(5);
+        command(&mut h, a, crate::CMD_LAB_START, vec![]);
+        h.ticks(5);
+        let running = lab_view(&h, a).unwrap();
+        assert!(running.mixing.is_some());
+        // Пока работает, мензурку не вынуть.
+        command(&mut h, a, crate::CMD_LAB_EJECT, vec![0]);
+        h.ticks(3);
+        assert!(lab_view(&h, a).unwrap().input.is_some());
+        h.ticks(650);
+        let done = lab_view(&h, a).unwrap().input.unwrap();
+        assert!(
+            amount(&done, "Allicin") < 0.01 && amount(&done, "Sulfur") > 3.9,
+            "{done:?}"
+        );
+    }
+
+    #[test]
+    fn a_chemmaster_moves_reagents_to_its_buffer_and_makes_pills_and_bottles() {
+        let mut h = harness();
+        let a = h.join("a");
+        h.ticks(5);
+        place_machine(&mut h, 960, "ss14:master_t", Vec3::new(3.2, 0.9, 2.6));
+        spawn(
+            &mut h,
+            item_at(962, "ss14:beaker_water_t", Vec3::new(2.6, 0.9, 2.6)),
+        );
+        spawn(
+            &mut h,
+            item_at(963, "ss14:canister_t", Vec3::new(2.8, 0.9, 2.5)),
+        );
+        spawn(
+            &mut h,
+            item_at(964, "ss14:bottle_t", Vec3::new(3.0, 0.9, 2.4)),
+        );
+        h.ticks(10);
+        // Мензурка уходит во вход, банка — на выход; пустая рука открывает окно.
+        for id in [962, 963] {
+            command(&mut h, a, CMD_PICKUP_ANY, pickup_data(oid(id)));
+            h.ticks(3);
+            command(&mut h, a, CMD_INTERACT, interact_data(oid(960)));
+            h.ticks(3);
+        }
+        command(&mut h, a, CMD_INTERACT, interact_data(oid(960)));
+        h.ticks(5);
+        let v = lab_view(&h, a).expect("окно ХимМастера");
+        assert_eq!(v.kind, "master");
+        assert!(v.input.is_some() && v.output.is_some());
+        // Вся вода из мензурки (кнопка «всё», 9) в буфер.
+        let mut data = vec![0u8, 9];
+        data.extend_from_slice(b"Water");
+        command(&mut h, a, crate::CMD_LAB_REAGENT, data);
+        h.ticks(3);
+        let v = lab_view(&h, a).unwrap();
+        assert!((v.buffer_volume - 30.0).abs() < 1e-3, "{v:?}");
+        assert!(v.input.as_ref().unwrap().volume < 1e-3);
+        // Три таблетки по 5 ед. с ярлыком: 15 ед. из буфера, три таблетки в банке.
+        let mut pills = vec![5u8, 3];
+        pills.extend_from_slice(b"aspirin");
+        command(&mut h, a, crate::CMD_LAB_PILLS, pills);
+        h.ticks(3);
+        let v = lab_view(&h, a).unwrap();
+        assert!((v.buffer_volume - 15.0).abs() < 1e-3, "{v:?}");
+        let canister = v.output.unwrap();
+        assert_eq!(canister.items.len(), 3, "{canister:?}");
+        assert!(canister.items.iter().all(|i| (i.1 - 5.0).abs() < 1e-3));
+        // Доза выше предела не делается.
+        let mut big = vec![21u8, 1];
+        big.extend_from_slice(b"x");
+        command(&mut h, a, crate::CMD_LAB_PILLS, big);
+        h.ticks(3);
+        assert!((lab_view(&h, a).unwrap().buffer_volume - 15.0).abs() < 1e-3);
+        // Банку вынули, бутылку поставили: 10 ед. в неё.
+        command(&mut h, a, crate::CMD_LAB_EJECT, vec![1]);
+        h.ticks(3);
+        let hand = hands_of(&h, a, a).unwrap().active() as u8;
+        command(&mut h, a, CMD_DROP, drop_at_data(hand, [2.2, 0.9, 2.2]));
+        h.ticks(3);
+        command(&mut h, a, CMD_PICKUP_ANY, pickup_data(oid(964)));
+        h.ticks(3);
+        let hand = hands_of(&h, a, a).unwrap().active() as u8;
+        command(&mut h, a, crate::CMD_LAB_INSERT, vec![hand]);
+        h.ticks(3);
+        let mut bottle = vec![10u8, 0];
+        bottle.extend_from_slice(b"water");
+        command(&mut h, a, crate::CMD_LAB_BOTTLE, bottle);
+        h.ticks(3);
+        let v = lab_view(&h, a).unwrap();
+        assert!((v.output.unwrap().volume - 10.0).abs() < 1e-3);
+        assert!((v.buffer_volume - 5.0).abs() < 1e-3);
+    }
+
+    #[test]
+    fn every_job_gear_still_fits_into_its_bags_with_real_storage_filters() {
+        let mut r = PrototypeRegistry::new();
+        r.load_dir(
+            &std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../content/prototypes"),
+        )
+        .unwrap();
+        r.validate().unwrap();
+        let mut st = crate::module::State::new(Arc::new(r)).unwrap();
+        let mut lost = Vec::new();
+        for job in st.jobs.clone() {
+            for (slot, names) in &job.storage {
+                let Some(bag_name) = job.equipment.get(slot) else {
+                    continue;
+                };
+                let Some(bag) = st.create_item(bag_name) else {
+                    continue;
+                };
+                let Some(spec) = st.info(&bag.prototype).and_then(|i| i.storage.clone()) else {
+                    continue;
+                };
+                for name in names {
+                    let Some(item) = st.create_item(name) else {
+                        continue;
+                    };
+                    let info = st.info(&item.prototype).cloned().unwrap();
+                    if st
+                        .storages
+                        .entry(bag.id)
+                        .or_default()
+                        .insert(&spec, item, &info)
+                        .is_err()
+                    {
+                        lost.push(format!("{}: {name} в {bag_name}", job.id));
+                    }
+                }
+            }
+        }
+        assert!(lost.is_empty(), "не поместилось: {lost:?}");
     }
 }

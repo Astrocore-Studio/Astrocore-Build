@@ -28,6 +28,9 @@ pub struct BeakerInfo {
     pub volume: f32,
     pub max: f32,
     pub reagents: Vec<(String, f32)>,
+    /// Температура раствора, К.
+    #[serde(default)]
+    pub temperature: f32,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -63,6 +66,7 @@ mod tests {
                 volume: 10.0,
                 max: 50.0,
                 reagents: vec![("Aluminium".into(), 10.0)],
+                temperature: 293.15,
             }),
             jugs: vec![JugInfo {
                 index: 0,

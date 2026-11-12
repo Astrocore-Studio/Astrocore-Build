@@ -35,6 +35,7 @@ pub struct Loadout {
     pub dispenser: Option<gameplay::DispenserView>,
     pub scan: Option<gameplay::ScanView>,
     pub chemhand: Option<gameplay::ChemHandView>,
+    pub lab: Option<gameplay::LabView>,
     /// Подсказки на экране: текст и время появления; номер последней обработанной пачки.
     pub toasts: Vec<(String, f32)>,
     pub fx_seq: u32,
@@ -242,6 +243,10 @@ fn refresh_loadout(net: Option<NonSend<Net>>, time: Res<Time>, mut loadout: ResM
         .core
         .component(me, gameplay::DISPENSER_COMPONENT)
         .and_then(gameplay::decode_dispenser);
+    loadout.lab = net
+        .core
+        .component(me, gameplay::LAB_COMPONENT)
+        .and_then(gameplay::decode_lab);
     loadout.chemhand = net
         .core
         .component(me, gameplay::CHEMHAND_COMPONENT)
@@ -283,6 +288,9 @@ fn hand_keys(keys: Res<ButtonInput<KeyCode>>, loadout: Res<Loadout>, net: Option
     }
     if keys.just_pressed(KeyCode::KeyV) {
         net.send_command(gameplay::CMD_SPILL, vec![active]);
+    }
+    if keys.just_pressed(KeyCode::KeyH) {
+        net.send_command(gameplay::CMD_SHAKE, Vec::new());
     }
     if keys.just_pressed(KeyCode::KeyL) {
         net.send_command(gameplay::CMD_LOCK, Vec::new());
@@ -508,6 +516,7 @@ fn loadout_window(
     ));
     commands.extend(hud::scan_window(&ctx, loadout.scan.as_ref()));
     commands.extend(hud::chemhand_bar(&ctx, loadout.chemhand.as_ref()));
+    commands.extend(hud::lab_window(&ctx, loadout.lab.as_ref(), hand));
     commands.extend(hud::jobs_window(&ctx, state, loadout.jobs.as_ref()));
     for (kind, data) in commands {
         net.send_command(kind, data);

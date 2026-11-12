@@ -5,7 +5,7 @@
 `HealthChange`, `EvenHealthChange`, `DistributedHealthChange`, `Satiate`, `ModifyBleed`, `ModifyBloodLevel`,
 `Oxygenate`, `ModifyLungGas`, `AdjustReagent` и условиями `ReagentCondition`, `MetabolizerTypeCondition`,
 `MobStateCondition`, `TemperatureCondition`. Остальные эффекты (дрожь, рвота, эмоции…) отбрасываются, в отчёте
-перечислены. Реакции: без смесителя и с температурой комнаты в пределах `minTemp…maxTemp`.
+перечислены. Реакции: все, с `minTemp`/`maxTemp`, `conserveEnergy` и видами смесителя.
 Использование: gen_chem.py <корень SS14>."""
 import collections
 import glob
@@ -129,21 +129,14 @@ total = 0
 dropped = collections.Counter()
 for rid, r in sorted(P.by_type['reaction'].items()):
     total += 1
-    if r.get('requiredMixerCategories'):
-        dropped['нужен смеситель'] += 1
-        continue
-    if float(r.get('minTemp', 0)) > ROOM:
-        dropped['нужен нагрев'] += 1
-        continue
-    if float(r.get('maxTemp', 1e30)) < ROOM:
-        dropped['нужен холод'] += 1
-        continue
     if not r.get('reactants'):
         continue
     reac = ', '.join('%s: (amount: %s, catalyst: %s)' % (q(k), f(v.get('amount', 1)), 'true' if v.get('catalyst') else 'false') for k, v in r['reactants'].items())
     prod = ', '.join('%s: %s' % (q(k), f(v)) for k, v in (r.get('products') or {}).items())
-    rl.append('    (id: %s, components: {"Reaction": (priority: %d, quantized: %s, reactants: {%s}, products: {%s})}),' % (
-        q('Reaction' + rid), int(r.get('priority', 0)), 'true' if r.get('quantized') else 'false', reac, prod))
+    rl.append('    (id: %s, components: {"Reaction": (priority: %d, quantized: %s, reactants: {%s}, products: {%s}, minTemp: %s, maxTemp: %s, conserveEnergy: %s, mixers: [%s])}),' % (
+        q('Reaction' + rid), int(r.get('priority', 0)), 'true' if r.get('quantized') else 'false', reac, prod,
+        f(r.get('minTemp', 0)), f(r.get('maxTemp', 1e30)), 'false' if r.get('conserveEnergy') is False else 'true',
+        ', '.join(q(m) for m in r.get('requiredMixerCategories') or [])))
 rl.append(']')
 open('content/prototypes/reactions.ron', 'w').write('\n'.join(rl) + '\n')
 print(total - sum(dropped.values()), 'реакций из', total, dict(dropped))

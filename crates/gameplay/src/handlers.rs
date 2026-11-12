@@ -518,6 +518,103 @@ impl InteractionHandler for DefibUse {
     }
 }
 
+/// Химические машины: пустая рука открывает окно, мензурка в руке встаёт в слот.
+pub struct LabUse;
+
+impl InteractionHandler for LabUse {
+    fn interact_hand(
+        &mut self,
+        state: &mut State,
+        _ctx: &mut HookContext<'_>,
+        user: NetworkEntityId,
+        target: &Target,
+    ) -> bool {
+        let Target::Item { id, .. } = target else {
+            return false;
+        };
+        state.open_lab(user, *id)
+    }
+
+    fn interact_using(
+        &mut self,
+        state: &mut State,
+        ctx: &mut HookContext<'_>,
+        user: NetworkEntityId,
+        used: &Used,
+        target: &Target,
+    ) -> bool {
+        let Target::Item { id, .. } = target else {
+            return false;
+        };
+        (state.mixer_machines.contains_key(id) || state.masters.contains_key(id))
+            && state.lab_insert(ctx, user, *id, used.hand)
+    }
+}
+
+/// Предметы-смесители (ложка, шейкер, бумажная центрифуга, библия): применение на раствор
+/// в мире или «использовать в руке» запускает смешивание.
+pub struct MixUse;
+
+impl InteractionHandler for MixUse {
+    fn interact_using(
+        &mut self,
+        state: &mut State,
+        ctx: &mut HookContext<'_>,
+        user: NetworkEntityId,
+        used: &Used,
+        target: &Target,
+    ) -> bool {
+        let Target::Item { id, prototype, .. } = target else {
+            return false;
+        };
+        let machine = state
+            .lab
+            .mixers
+            .get(&used.item.prototype)
+            .is_some_and(|m| m.kind == crate::chemlab::MixerKind::Machine);
+        if !machine || !state.lab.mixable.contains(prototype) {
+            return false;
+        }
+        state.begin(
+            ctx,
+            user,
+            crate::doafter::Action::Mix {
+                hand: used.hand,
+                target: Some(*id),
+                shake: false,
+            },
+        );
+        true
+    }
+
+    fn use_in_hand(
+        &mut self,
+        state: &mut State,
+        ctx: &mut HookContext<'_>,
+        user: NetworkEntityId,
+        used: &Used,
+    ) -> bool {
+        let handheld = state
+            .lab
+            .mixers
+            .get(&used.item.prototype)
+            .is_some_and(|m| m.kind == crate::chemlab::MixerKind::Handheld);
+        if !handheld {
+            return false;
+        }
+        state.begin(
+            ctx,
+            user,
+            crate::doafter::Action::Mix {
+                hand: used.hand,
+                target: None,
+                shake: false,
+            },
+        );
+        true
+    }
+}
+
 /// Раздатчик реагентов: пустая рука открывает окно, мензурка (`FitsInDispenser`) в руке встаёт в слот.
 pub struct DispenserUse;
 
@@ -561,6 +658,8 @@ pub fn default_handlers() -> Vec<Box<dyn InteractionHandler>> {
         Box::new(LockerUse),
         Box::new(IdConsoleUse),
         Box::new(DispenserUse),
+        Box::new(LabUse),
+        Box::new(MixUse),
         Box::new(DefibUse),
         Box::new(ChemUse),
         Box::new(PryDoor),

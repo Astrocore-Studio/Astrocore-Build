@@ -16,7 +16,8 @@ SOUNDS = [
     'Effects/closetclose.ogg', 'Items/hypospray.ogg', 'Items/Medical/healthscanner.ogg',
     'Effects/Chemistry/bubbles.ogg', 'Items/Defib/defib_charge.ogg', 'Items/Defib/defib_zap.ogg',
     'Items/Defib/defib_success.ogg', 'Items/Defib/defib_failed.ogg', 'Items/Defib/defib_safety_on.ogg',
-    'Items/Defib/defib_safety_off.ogg', 'Items/Defib/defib_ready.ogg',
+    'Items/Defib/defib_safety_off.ogg', 'Machines/buzz_loop.ogg',
+    'Items/Medical/paper_centrifuge.ogg', 'Machines/spinning.ogg', 'Items/Defib/defib_ready.ogg',
 ]
 
 

@@ -347,6 +347,16 @@ pub struct State {
     pub(crate) fx_seq: BTreeMap<NetworkEntityId, u32>,
     /// Анализаторы здоровья: прототипы, кто кого сканирует, таймер обновления.
     pub(crate) analyzers: BTreeSet<PrototypeId>,
+    pub(crate) lab: crate::chemlab::LabSpecs,
+    pub(crate) mixer_machines: BTreeMap<ObjectId, crate::chemlab::MixerMachine>,
+    pub(crate) masters: BTreeMap<ObjectId, crate::chemlab::Master>,
+    pub(crate) lab_open: BTreeMap<NetworkEntityId, ObjectId>,
+    pub(crate) lab_sent: BTreeMap<NetworkEntityId, Vec<u8>>,
+    pub(crate) heat_timer: f32,
+    /// Названия прототипов для окон.
+    pub(crate) titles: BTreeMap<PrototypeId, String>,
+    /// Ярлыки ХимМастера у бутылок, банок и таблеток.
+    pub(crate) labels: BTreeMap<ObjectId, String>,
     pub(crate) defibs: BTreeMap<PrototypeId, crate::defib::DefibSpec>,
     pub(crate) defib_state: BTreeMap<ObjectId, crate::defib::DefibState>,
     pub(crate) scans: BTreeMap<NetworkEntityId, NetworkEntityId>,
@@ -445,6 +455,8 @@ impl State {
         let mut transfer_max = BTreeMap::new();
         let mut analyzers = BTreeSet::new();
         let mut defibs = BTreeMap::new();
+        let mut lab = crate::chemlab::LabSpecs::default();
+        let mut titles = BTreeMap::new();
         let mut dispenser_tables = BTreeMap::new();
         let mut fits_in_dispenser = BTreeSet::new();
         let mut injectors = BTreeMap::new();
@@ -531,6 +543,10 @@ impl State {
                     .and_then(crate::spawners::Node::parse)
                 {
                     dispenser_tables.insert(id.clone(), t);
+                }
+                lab.load(&id, r);
+                if let Some(n) = r.name.as_ref() {
+                    titles.insert(id.clone(), n.clone());
                 }
                 if let Some(c) = r.component("Defibrillator") {
                     defibs.insert(id.clone(), crate::defib::DefibSpec::parse(c));
@@ -819,6 +835,14 @@ impl State {
             analyzers,
             defibs,
             defib_state: BTreeMap::new(),
+            lab,
+            mixer_machines: BTreeMap::new(),
+            masters: BTreeMap::new(),
+            lab_open: BTreeMap::new(),
+            lab_sent: BTreeMap::new(),
+            heat_timer: 0.0,
+            titles,
+            labels: BTreeMap::new(),
             scans: BTreeMap::new(),
             scan_sent: BTreeMap::new(),
             scan_timer: 0.0,
@@ -1855,6 +1879,11 @@ impl State {
                 });
                 alive && ok && self.in_reach(ctx, actor, *target)
             }
+            Action::Mix {
+                hand,
+                target,
+                shake,
+            } => self.mix_can(ctx, actor, *hand, *target, *shake),
             Action::Defib { hand, target } => {
                 let Some(held) = a.hands.get(*hand) else {
                     return false;
@@ -1918,6 +1947,7 @@ impl State {
                 .get(*hand)
                 .and_then(|i| self.healing.get(&i.prototype))
                 .map_or(0.0, |h| h.delay),
+            Action::Mix { hand, shake, .. } => self.mix_delay(actor, *hand, *shake),
             Action::Defib { hand, .. } => a
                 .hands
                 .get(*hand)
@@ -1958,6 +1988,11 @@ impl State {
             Action::Heal { hand, target } => self.heal(ctx, actor, hand, target),
             Action::Inject { hand, target } => self.inject_body(ctx, actor, hand, target),
             Action::Defib { hand, target } => self.zap(ctx, actor, hand, target),
+            Action::Mix {
+                hand,
+                target,
+                shake,
+            } => self.mix_run(ctx, actor, hand, target, shake),
             Action::Scan { target, .. } => {
                 if let Some(at) = ctx.position_of(actor) {
                     self.sound("Items/Medical/healthscanner.ogg", at);
@@ -2130,6 +2165,7 @@ impl State {
         self.tick_scans(ctx);
         let dt = self.last_dt;
         self.tick_defibs(dt);
+        self.tick_lab(ctx, dt);
         self.publish_chemhand(ctx);
         self.publish_jobs(ctx);
         self.resolve_spawners(ctx);
@@ -3467,6 +3503,11 @@ impl State {
                                 .or_else(|| self.solution_templates.get(&b.prototype))
                                 .map_or(0.0, |s| s.max_volume),
                             reagents,
+                            temperature: self
+                                .solutions
+                                .get(&b.id)
+                                .or_else(|| self.solution_templates.get(&b.prototype))
+                                .map_or(0.0, |s| s.temperature),
                         }
                     }),
                     jugs: d
@@ -4384,7 +4425,7 @@ impl State {
     }
 
     /// Получает ли потребитель всю мощность.
-    fn powered_map(&self) -> BTreeMap<ObjectId, bool> {
+    pub(crate) fn powered_map(&self) -> BTreeMap<ObjectId, bool> {
         self.power_receivers
             .iter()
             .map(|(id, idx, want)| {
@@ -5174,6 +5215,80 @@ impl GameModule for GameplayModule {
                         && let Some(s) = st.solution_mut(&b)
                     {
                         s.contents.clear();
+                    }
+                }
+                crate::wire::CMD_SHAKE => {
+                    let hand = st.actors.get(actor).map(|a| a.hands.active());
+                    if let Some(hand) = hand {
+                        st.begin(
+                            ctx,
+                            *actor,
+                            Action::Mix {
+                                hand,
+                                target: None,
+                                shake: true,
+                            },
+                        );
+                    }
+                }
+                crate::wire::CMD_LAB_INSERT => {
+                    if let [hand] = data[..]
+                        && let Some(id) = st.lab_open.get(actor).copied()
+                    {
+                        st.lab_insert(ctx, *actor, id, usize::from(hand));
+                    }
+                }
+                crate::wire::CMD_LAB_EJECT => {
+                    if let [slot] = data[..]
+                        && let Some(id) = st.lab_open.get(actor).copied()
+                    {
+                        st.lab_eject(ctx, *actor, id, slot);
+                    }
+                }
+                crate::wire::CMD_LAB_START => {
+                    if let Some(id) = st.lab_open.get(actor).copied() {
+                        st.lab_start(ctx, *actor, id);
+                    }
+                }
+                crate::wire::CMD_LAB_CLOSE => {
+                    st.lab_open.remove(actor);
+                }
+                crate::wire::CMD_LAB_MODE => {
+                    if let [m] = data[..]
+                        && let Some(id) = st.lab_open.get(actor).copied()
+                        && let Some(master) = st.masters.get_mut(&id)
+                    {
+                        master.discard = m == 1;
+                    }
+                }
+                crate::wire::CMD_LAB_SOURCE => {
+                    if let [m] = data[..]
+                        && let Some(id) = st.lab_open.get(actor).copied()
+                        && let Some(master) = st.masters.get_mut(&id)
+                    {
+                        master.external = m == 1;
+                    }
+                }
+                crate::wire::CMD_LAB_REAGENT => {
+                    if let Some((from_buffer, amount, reagent)) =
+                        crate::chemlab::parse_reagent(data)
+                        && let Some(id) = st.lab_open.get(actor).copied()
+                    {
+                        st.master_reagent(id, from_buffer, amount, &reagent);
+                    }
+                }
+                crate::wire::CMD_LAB_PILLS => {
+                    if let Some((dose, number, label)) = crate::chemlab::parse_make(data)
+                        && let Some(id) = st.lab_open.get(actor).copied()
+                    {
+                        st.master_pills(*actor, id, dose, number, &label);
+                    }
+                }
+                crate::wire::CMD_LAB_BOTTLE => {
+                    if let Some((dose, _, label)) = crate::chemlab::parse_make(data)
+                        && let Some(id) = st.lab_open.get(actor).copied()
+                    {
+                        st.master_bottle(*actor, id, dose, &label);
                     }
                 }
                 crate::wire::CMD_CHEM_AMOUNT => {
