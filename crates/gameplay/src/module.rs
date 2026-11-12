@@ -209,6 +209,15 @@ pub struct State {
     pub(crate) alarm_sig: Vec<(ObjectId, atmos::Cell, u32)>,
     pub(crate) monitor_state: BTreeMap<ObjectId, crate::monitor::AlarmState>,
     pub(crate) alarm_timer: f32,
+    /// Спавнеры карты, их таблицы и имя прототипа SS14 → идентификатор движка.
+    pub(crate) spawner_specs: BTreeMap<PrototypeId, crate::spawners::Spawner>,
+    pub(crate) spawner_tables: BTreeMap<String, crate::spawners::Node>,
+    pub(crate) proto_by_name: BTreeMap<String, PrototypeId>,
+    pub(crate) spawners_done: bool,
+    pub(crate) spawn_timer: f32,
+    pub(crate) last_dt: f32,
+    pub(crate) spawn_serial: u128,
+    pub(crate) spawn_rng: crate::disposal::Rng,
     /// Торговые автоматы: описания по прототипам, автоматы в мире, кто какой смотрит.
     pub(crate) vending_specs: BTreeMap<PrototypeId, VendSpec>,
     pub(crate) vending: BTreeMap<ObjectId, crate::vending::Machine>,
@@ -255,6 +264,8 @@ impl State {
             .map(|(id, n)| (n.clone(), id.clone()))
             .collect();
         let mut vending_specs = BTreeMap::new();
+        let mut spawner_specs = BTreeMap::new();
+        let mut spawner_tables = BTreeMap::new();
         let mut infos = BTreeMap::new();
         let mut delays = BTreeMap::new();
         let mut melee = BTreeMap::new();
@@ -300,6 +311,20 @@ impl State {
                     .and_then(prototypes::Data::as_f64)
                 {
                     heat_protection.insert(id.clone(), c as f32);
+                }
+                if let Some(s) = r
+                    .component("Spawner")
+                    .and_then(crate::spawners::Spawner::parse)
+                {
+                    spawner_specs.insert(id.clone(), s);
+                }
+                if let Some(t) = r
+                    .component("EntityTable")
+                    .and_then(|c| c.get("table"))
+                    .and_then(crate::spawners::Node::parse)
+                    && let Some(table_id) = name.strip_prefix("Table")
+                {
+                    spawner_tables.insert(table_id.to_string(), t);
                 }
                 if let Some(c) = r.component("VendingMachine") {
                     let stock = c
@@ -463,6 +488,14 @@ impl State {
             alarm_sig: Vec::new(),
             monitor_state: BTreeMap::new(),
             alarm_timer: 0.0,
+            spawner_specs,
+            spawner_tables,
+            proto_by_name: by_name.clone(),
+            spawners_done: false,
+            spawn_timer: 0.0,
+            last_dt: 0.0,
+            spawn_serial: 0,
+            spawn_rng: crate::disposal::Rng(0x1234_5678_9abc_def1),
             vending_specs,
             vending: BTreeMap::new(),
             vending_open: BTreeMap::new(),
@@ -1383,6 +1416,7 @@ impl State {
         self.tick_disposal(ctx, dt);
         self.tick_conveyors(ctx, dt);
         self.tick_vending(ctx);
+        self.resolve_spawners(ctx);
         self.tick_alarms(ctx, dt);
         self.tick_firelocks(ctx, dt);
         self.tick_power(dt);
@@ -1992,6 +2026,54 @@ impl State {
         };
         for item in &holder.items {
             Self::place(ctx, item, landing);
+        }
+    }
+
+    /// Старт раунда: каждый спавнер карты заменяется предметами (`MapInit` спавнеров SS14).
+    fn resolve_spawners(&mut self, ctx: &mut HookContext<'_>) {
+        // Спавнер срабатывает, как только появился (`MapInit`): проверка раз в полсекунды.
+        if self.spawner_specs.is_empty() {
+            return;
+        }
+        self.spawn_timer += self.last_dt;
+        if self.spawners_done && self.spawn_timer < 0.5 {
+            return;
+        }
+        self.spawn_timer = 0.0;
+        self.spawners_done = true;
+        let found: Vec<(ObjectId, PrototypeId, Vec3, f32)> = ctx
+            .world
+            .authored()
+            .filter_map(|o| match &o.kind {
+                AuthoredKind::Placement { prototype }
+                    if self.spawner_specs.contains_key(prototype) =>
+                {
+                    let c = (o.min() + o.max()) * 0.5;
+                    Some((o.id, prototype.clone(), Vec3::new(c.x, o.min().y, c.z), 0.0))
+                }
+                _ => None,
+            })
+            .collect();
+        for (id, proto, at, _) in found {
+            ctx.request(WorldCommand::RemoveAuthored { id });
+            let Some(spec) = self.spawner_specs.get(&proto) else {
+                continue;
+            };
+            let offset = spec.offset();
+            for name in spec.roll(&self.spawner_tables, &mut self.spawn_rng) {
+                // Прототипа нет в Build (мобы и т. п.) — пропускаем.
+                let Some(item) = self.proto_by_name.get(&name) else {
+                    continue;
+                };
+                self.spawn_serial += 1;
+                let dx = (self.spawn_rng.next_f32() * 2.0 - 1.0) * offset;
+                let dz = (self.spawn_rng.next_f32() * 2.0 - 1.0) * offset;
+                let held = HeldItem {
+                    id: ObjectId::from_u128(0xE5E5_0000_0000 + self.spawn_serial),
+                    prototype: item.clone(),
+                };
+                Self::place(ctx, &held, at + Vec3::new(dx, 0.0, dz));
+            }
         }
     }
 
@@ -2774,6 +2856,7 @@ impl State {
     /// Шаг времени: отсчёт, прерывание движением и потерей условий, завершение.
     pub(crate) fn tick(&mut self, ctx: &mut HookContext<'_>, dt: f32) {
         self.clock += dt;
+        self.last_dt = dt;
         self.tick_health(ctx, dt);
         let waiting: Vec<NetworkEntityId> = self
             .actors

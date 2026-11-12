@@ -79,6 +79,12 @@ const PROTOS: &str = r#"[
     (id: "VendTool", components: {
         "VendingMachine": (pack: "ToolsInventory", initialStockQuality: 1.0, ejectDelay: 1.2, stock: (Crowbar: 2, Pen: 1, NoSuchThing: 5)),
     }),
+    (id: "TableTools", components: {
+        "EntityTable": (table: (k: "group", children: [(k: "ent", id: "Crowbar", weight: 1.0), (k: "ent", id: "NoSuchMob")])),
+    }),
+    (id: "ToolSpawner", components: {
+        "Spawner": (offset: 0.2, table: (k: "nested", table: "Tools")),
+    }),
     (id: "Belt", components: {
         "Conveyor": (speed: 2.0),
     }),
@@ -2040,5 +2046,34 @@ mod disposal_tests {
         command(&mut h, a, crate::CMD_VEND_CLOSE, vec![]);
         h.ticks(5);
         assert!(view(&h, a).is_none());
+    }
+
+    #[test]
+    fn a_spawner_is_replaced_by_what_its_table_rolls() {
+        let mut h = harness();
+        let _a = h.join("a");
+        h.ticks(5);
+        for i in 0..40 {
+            spawn(
+                &mut h,
+                item_at(
+                    1000 + i,
+                    "ss14:tool_spawner",
+                    Vec3::new(5.0 + (i % 5) as f32, 0.9, 5.0 + (i / 5) as f32),
+                ),
+            );
+        }
+        h.ticks(40);
+        let count = |name: &str| {
+            h.server
+                .world()
+                .authored()
+                .filter(|o| matches!(&o.kind, AuthoredKind::Placement { prototype } if prototype.as_str() == name))
+                .count()
+        };
+        // Спавнеров не осталось; ломики появились примерно в половине случаев, моба в Build нет.
+        assert_eq!(count("ss14:tool_spawner"), 0);
+        let crowbars = count("ss14:crowbar");
+        assert!(crowbars > 8 && crowbars < 32, "{crowbars}");
     }
 }

@@ -19,6 +19,7 @@ mod mopping;
 mod piping;
 pub mod puddles;
 mod reagents;
+mod spawners;
 pub mod storage;
 pub mod wire;
 mod world_atmos;

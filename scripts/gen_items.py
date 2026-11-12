@@ -34,7 +34,7 @@ def seeds():
         for m in re.finditer(r'\b([A-Z]\w+): \d+', t):
             out.add(m.group(1))
     if os.path.exists('content/prototypes/spawners.ron'):
-        out |= set(re.findall(r'item: "(\w+)"', open('content/prototypes/spawners.ron').read()))
+        out |= set(re.findall(r'"(\w+)"', open('content/prototypes/spawners.ron').read()))
     t = open(MAP).read()
     out |= set(re.findall(r'^- proto: (\w+)$', t, re.M))
     return out
@@ -79,7 +79,8 @@ def convert(i):
     if 'MobState' in comps or 'Humanoid' in comps:
         return None
     sp = sprite_of(comps)
-    if not sp:
+    # Спрайты мобов (призраки и т. п.) не предметы Build.
+    if not sp or sp[0].startswith('Mobs/'):
         return None
     out = ['"Sprite": (sprite: %s, state: %s)' % (q(sp[0]), q(sp[1]))]
     item = comps.get('Item')

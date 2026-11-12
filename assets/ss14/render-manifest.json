@@ -450,6 +450,14 @@
     }
   },
   "sprites": {
+    "ss14:accordion_instrument": {
+      "image": "Textures/Objects/Fun/Instruments/accordion.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.48000001907348633,
+        0.48000001907348633
+      ]
+    },
     "ss14:acoustic_guitar_instrument": {
       "image": "Textures/Objects/Fun/Instruments/guitar.rsi/icon.png",
       "layout": "flat",
@@ -464,6 +472,14 @@
       "size": [
         0.6000000238418579,
         0.6000000238418579
+      ]
+    },
+    "ss14:air_alarm_electronics": {
+      "image": "Textures/Objects/Misc/module.rsi/airalarm_electronics.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
       ]
     },
     "ss14:air_canister": {
@@ -546,6 +562,14 @@
         0.36000001430511475
       ]
     },
+    "ss14:apecircuitboard": {
+      "image": "Textures/Objects/Misc/module.rsi/science.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
     "ss14:apple_seeds": {
       "image": "Textures/Objects/Specific/Hydroponics/apple.rsi/seed.png",
       "layout": "flat",
@@ -570,8 +594,48 @@
         0.36000001430511475
       ]
     },
+    "ss14:autolathe_machine_circuitboard": {
+      "image": "Textures/Objects/Misc/module.rsi/generic.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
     "ss14:backgammon_board": {
       "image": "Textures/Objects/Fun/Tabletop/backgammon.rsi/board.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:bagpipe_instrument": {
+      "image": "Textures/Objects/Fun/Instruments/bagpipes.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:balloon_corgi": {
+      "image": "Textures/Objects/Fun/Balloons/corgi.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:balloon_nt": {
+      "image": "Textures/Objects/Fun/Balloons/nanotrasen.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:balloon_syn": {
+      "image": "Textures/Objects/Fun/Balloons/syndicate.rsi/icon.png",
       "layout": "flat",
       "size": [
         0.36000001430511475,
@@ -586,8 +650,32 @@
         0.30000001192092896
       ]
     },
+    "ss14:bananium_horn": {
+      "image": "Textures/Objects/Fun/bananiumhorn.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:banjo_instrument": {
+      "image": "Textures/Objects/Fun/Instruments/banjo.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.48000001907348633,
+        0.48000001907348633
+      ]
+    },
     "ss14:bar_spoon": {
       "image": "Textures/Objects/Misc/utensils.rsi/bar_spoon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:barber_scissors": {
+      "image": "Textures/Objects/Tools/scissors.rsi/icon.png",
       "layout": "flat",
       "size": [
         0.36000001430511475,
@@ -602,6 +690,38 @@
         0.36000001430511475
       ]
     },
+    "ss14:base_ball_bat": {
+      "image": "Textures/Objects/Weapons/Melee/baseball_bat.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.48000001907348633,
+        0.48000001907348633
+      ]
+    },
+    "ss14:basketball": {
+      "image": "Textures/Objects/Fun/Balls/basketball.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.48000001907348633,
+        0.48000001907348633
+      ]
+    },
+    "ss14:bass_guitar_instrument": {
+      "image": "Textures/Objects/Fun/Instruments/bassguitar.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.48000001907348633,
+        0.48000001907348633
+      ]
+    },
+    "ss14:beach_ball": {
+      "image": "Textures/Objects/Fun/Balls/beach_ball.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.48000001907348633,
+        0.48000001907348633
+      ]
+    },
     "ss14:beaker": {
       "image": "Textures/Objects/Specific/Chemistry/beaker.rsi/beaker.png",
       "layout": "flat",
@@ -612,6 +732,22 @@
     },
     "ss14:bedsheet_black": {
       "image": "Textures/Objects/Misc/bedsheets.rsi/sheetblack.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:bedsheet_blue": {
+      "image": "Textures/Objects/Misc/bedsheets.rsi/sheetblue.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:bedsheet_brown": {
+      "image": "Textures/Objects/Misc/bedsheets.rsi/sheetbrown.png",
       "layout": "flat",
       "size": [
         0.36000001430511475,
@@ -650,6 +786,22 @@
         0.36000001430511475
       ]
     },
+    "ss14:bedsheet_green": {
+      "image": "Textures/Objects/Misc/bedsheets.rsi/sheetgreen.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:bedsheet_grey": {
+      "image": "Textures/Objects/Misc/bedsheets.rsi/sheetgrey.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
     "ss14:bedsheet_hop": {
       "image": "Textures/Objects/Misc/bedsheets.rsi/sheethop.png",
       "layout": "flat",
@@ -666,6 +818,14 @@
         0.36000001430511475
       ]
     },
+    "ss14:bedsheet_ian": {
+      "image": "Textures/Objects/Misc/bedsheets.rsi/sheetian.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
     "ss14:bedsheet_medical": {
       "image": "Textures/Objects/Misc/bedsheets.rsi/sheetmedical.png",
       "layout": "flat",
@@ -674,8 +834,24 @@
         0.36000001430511475
       ]
     },
+    "ss14:bedsheet_nt": {
+      "image": "Textures/Objects/Misc/bedsheets.rsi/sheetNT.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
     "ss14:bedsheet_orange": {
       "image": "Textures/Objects/Misc/bedsheets.rsi/sheetorange.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:bedsheet_purple": {
+      "image": "Textures/Objects/Misc/bedsheets.rsi/sheetpurple.png",
       "layout": "flat",
       "size": [
         0.36000001430511475,
@@ -714,6 +890,22 @@
         0.36000001430511475
       ]
     },
+    "ss14:bedsheet_usa": {
+      "image": "Textures/Objects/Misc/bedsheets.rsi/sheetUSA.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:bedsheet_white": {
+      "image": "Textures/Objects/Misc/bedsheets.rsi/sheetwhite.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
     "ss14:bedsheet_yellow": {
       "image": "Textures/Objects/Misc/bedsheets.rsi/sheetyellow.png",
       "layout": "flat",
@@ -746,6 +938,14 @@
         0.30000001192092896
       ]
     },
+    "ss14:bike_horn_implanter": {
+      "image": "Textures/Objects/Specific/Medical/implanter.rsi/implanter1.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
     "ss14:bike_horn_instrument": {
       "image": "Textures/Objects/Fun/Instruments/bike_horn.rsi/icon.png",
       "layout": "flat",
@@ -754,12 +954,28 @@
         0.36000001430511475
       ]
     },
+    "ss14:binoculars": {
+      "image": "Textures/Objects/Tools/binoculars.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.48000001907348633,
+        0.48000001907348633
+      ]
+    },
     "ss14:bloodpack": {
       "image": "Textures/Objects/Specific/Medical/medical.rsi/bloodpack.png",
       "layout": "flat",
       "size": [
         0.36000001430511475,
         0.36000001430511475
+      ]
+    },
+    "ss14:bola": {
+      "image": "Textures/Objects/Weapons/Throwable/bola.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.48000001907348633,
+        0.48000001907348633
       ]
     },
     "ss14:book_engineers_handbook": {
@@ -803,6 +1019,14 @@
       ]
     },
     "ss14:book_random": {
+      "image": "Textures/Objects/Misc/books.rsi/paper.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:book_random_story": {
       "image": "Textures/Objects/Misc/books.rsi/paper.png",
       "layout": "flat",
       "size": [
@@ -876,6 +1100,14 @@
     },
     "ss14:box_cartridge_cap": {
       "image": "Textures/Objects/Weapons/Guns/Ammunition/Boxes/magnum.rsi/base.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:box_donk_soft_box": {
+      "image": "Textures/Objects/Storage/boxes.rsi/boxwidetoy.png",
       "layout": "flat",
       "size": [
         0.36000001430511475,
@@ -1018,6 +1250,14 @@
         0.36000001430511475
       ]
     },
+    "ss14:brutepack1": {
+      "image": "Textures/Objects/Specific/Medical/medical.rsi/brutepack.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
     "ss14:bucket": {
       "image": "Textures/Objects/Tools/bucket.rsi/icon.png",
       "layout": "flat",
@@ -1032,6 +1272,14 @@
       "size": [
         0.6000000238418579,
         0.6000000238418579
+      ]
+    },
+    "ss14:budget_insuls_drink_glass": {
+      "image": "Textures/Objects/Consumable/Drinks/glass_clear.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
       ]
     },
     "ss14:butch_cleaver": {
@@ -1082,7 +1330,23 @@
         0.36000001430511475
       ]
     },
+    "ss14:cable_hvstack10": {
+      "image": "Textures/Objects/Tools/cable-coils.rsi/coilhv-30.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
     "ss14:cable_mvstack": {
+      "image": "Textures/Objects/Tools/cable-coils.rsi/coilmv-30.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:cable_mvstack10": {
       "image": "Textures/Objects/Tools/cable-coils.rsi/coilmv-30.png",
       "layout": "flat",
       "size": [
@@ -1138,6 +1402,14 @@
         0.6000000238418579
       ]
     },
+    "ss14:card_sword": {
+      "image": "Textures/Objects/Fun/card_sword.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.48000001907348633,
+        0.48000001907348633
+      ]
+    },
     "ss14:cargo_pda": {
       "image": "Textures/Objects/Devices/pda.rsi/pda.png",
       "layout": "flat",
@@ -1160,6 +1432,14 @@
       "size": [
         0.36000001430511475,
         0.36000001430511475
+      ]
+    },
+    "ss14:cello_instrument": {
+      "image": "Textures/Objects/Fun/Instruments/cello.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
       ]
     },
     "ss14:cepda": {
@@ -1330,6 +1610,14 @@
         0.30000001192092896
       ]
     },
+    "ss14:cig_carton_blue": {
+      "image": "Textures/Objects/Consumable/Smokeables/Cigarettes/Cartons/blue.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.48000001907348633,
+        0.48000001907348633
+      ]
+    },
     "ss14:cig_pack_black": {
       "image": "Textures/Objects/Consumable/Smokeables/Cigarettes/Packs/black.rsi/closed.png",
       "layout": "flat",
@@ -1400,6 +1688,22 @@
       "size": [
         0.30000001192092896,
         0.30000001192092896
+      ]
+    },
+    "ss14:clarinet_instrument": {
+      "image": "Textures/Objects/Fun/Instruments/clarinet.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.48000001907348633,
+        0.48000001907348633
+      ]
+    },
+    "ss14:claymore": {
+      "image": "Textures/Objects/Weapons/Melee/claymore.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.48000001907348633,
+        0.48000001907348633
       ]
     },
     "ss14:clear_pda": {
@@ -1770,6 +2074,14 @@
         0.6000000238418579
       ]
     },
+    "ss14:clothing_belt_suspenders_black": {
+      "image": "Textures/Clothing/Belt/suspenders_black.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.48000001907348633,
+        0.48000001907348633
+      ]
+    },
     "ss14:clothing_belt_suspenders_red": {
       "image": "Textures/Clothing/Belt/suspenders_red.rsi/icon.png",
       "layout": "flat",
@@ -1866,8 +2178,40 @@
         0.36000001430511475
       ]
     },
+    "ss14:clothing_eyes_glasses_gar": {
+      "image": "Textures/Clothing/Eyes/Glasses/gar.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:clothing_eyes_glasses_gar_giga": {
+      "image": "Textures/Clothing/Eyes/Glasses/gar.rsi/icon-super.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:clothing_eyes_glasses_gar_orange": {
+      "image": "Textures/Clothing/Eyes/Glasses/gar.rsi/icon-alt.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
     "ss14:clothing_eyes_glasses_jamjar": {
       "image": "Textures/Clothing/Eyes/Glasses/jamjar.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:clothing_eyes_glasses_jensen": {
+      "image": "Textures/Clothing/Eyes/Glasses/jensen.rsi/icon.png",
       "layout": "flat",
       "size": [
         0.36000001430511475,
@@ -2058,8 +2402,24 @@
         0.36000001430511475
       ]
     },
+    "ss14:clothing_hands_gloves_conducting": {
+      "image": "Textures/Clothing/Hands/Gloves/Color/yellow.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
     "ss14:clothing_hands_gloves_fingerless": {
       "image": "Textures/Clothing/Hands/Gloves/fingerless.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:clothing_hands_gloves_fingerless_insulated": {
+      "image": "Textures/Clothing/Hands/Gloves/fingerlessinsuls.rsi/icon.png",
       "layout": "flat",
       "size": [
         0.36000001430511475,
@@ -2114,8 +2474,24 @@
         0.36000001430511475
       ]
     },
+    "ss14:clothing_hands_gloves_powerglove": {
+      "image": "Textures/Clothing/Hands/Gloves/powerglove.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
     "ss14:clothing_hands_gloves_robohands": {
       "image": "Textures/Clothing/Hands/Gloves/robohands.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:clothing_hands_knuckle_dusters": {
+      "image": "Textures/Clothing/Hands/Gloves/KnuckleDusters/knuckleduster.rsi/knuckleduster.png",
       "layout": "flat",
       "size": [
         0.36000001430511475,
@@ -2234,6 +2610,14 @@
         0.36000001430511475
       ]
     },
+    "ss14:clothing_head_hat_beret_merc": {
+      "image": "Textures/Clothing/Head/Hats/beret_merc.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
     "ss14:clothing_head_hat_beret_security": {
       "image": "Textures/Clothing/Head/Hats/beret_security.rsi/icon.png",
       "layout": "flat",
@@ -2268,6 +2652,22 @@
     },
     "ss14:clothing_head_hat_brown_flatcap": {
       "image": "Textures/Clothing/Head/Hats/brownflatcap.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:clothing_head_hat_bunny": {
+      "image": "Textures/Clothing/Head/Misc/bunny.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:clothing_head_hat_cake": {
+      "image": "Textures/Clothing/Head/Misc/cake.rsi/icon.png",
       "layout": "flat",
       "size": [
         0.36000001430511475,
@@ -2362,6 +2762,14 @@
         0.36000001430511475
       ]
     },
+    "ss14:clothing_head_hat_cowboy_bounty_hunter": {
+      "image": "Textures/Clothing/Head/Hats/cowboyhatbountyhunter.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
     "ss14:clothing_head_hat_cowboy_brown": {
       "image": "Textures/Clothing/Head/Hats/cowboyhatbrown.rsi/icon.png",
       "layout": "flat",
@@ -2372,6 +2780,14 @@
     },
     "ss14:clothing_head_hat_cowboy_grey": {
       "image": "Textures/Clothing/Head/Hats/cowboyhatgrey.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:clothing_head_hat_cowboy_red": {
+      "image": "Textures/Clothing/Head/Hats/cowboyhatred.rsi/icon.png",
       "layout": "flat",
       "size": [
         0.36000001430511475,
@@ -2546,6 +2962,14 @@
         0.36000001430511475
       ]
     },
+    "ss14:clothing_head_hat_pirate_tricord": {
+      "image": "Textures/Clothing/Head/Hats/piratetricord.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
     "ss14:clothing_head_hat_plaguedoctor": {
       "image": "Textures/Clothing/Head/Hats/plaguedoctor.rsi/icon.png",
       "layout": "flat",
@@ -2628,6 +3052,14 @@
     },
     "ss14:clothing_head_hat_sombrero": {
       "image": "Textures/Clothing/Head/Hats/sombrero.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:clothing_head_hat_squid": {
+      "image": "Textures/Clothing/Head/Misc/squiddy.rsi/icon.png",
       "layout": "flat",
       "size": [
         0.36000001430511475,
@@ -2778,6 +3210,22 @@
         0.36000001430511475
       ]
     },
+    "ss14:clothing_head_helmet_basic": {
+      "image": "Textures/Clothing/Head/Helmets/security.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:clothing_head_helmet_cosmonaut": {
+      "image": "Textures/Clothing/Head/Helmets/cosmonaut.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.48000001907348633,
+        0.48000001907348633
+      ]
+    },
     "ss14:clothing_head_helmet_fire": {
       "image": "Textures/Clothing/Head/Helmets/firehelmet.rsi/icon.png",
       "layout": "flat",
@@ -2788,6 +3236,14 @@
     },
     "ss14:clothing_head_helmet_justice": {
       "image": "Textures/Clothing/Head/Helmets/justice.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:clothing_head_helmet_templar": {
+      "image": "Textures/Clothing/Head/Helmets/templar.rsi/icon.png",
       "layout": "flat",
       "size": [
         0.36000001430511475,
@@ -2962,6 +3418,30 @@
         0.36000001430511475
       ]
     },
+    "ss14:clothing_mask_bat": {
+      "image": "Textures/Clothing/Mask/bat.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:clothing_mask_bear": {
+      "image": "Textures/Clothing/Mask/bear.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:clothing_mask_bee": {
+      "image": "Textures/Clothing/Mask/bee.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
     "ss14:clothing_mask_breath": {
       "image": "Textures/Clothing/Mask/breath.rsi/icon.png",
       "layout": "flat",
@@ -2986,6 +3466,14 @@
         0.36000001430511475
       ]
     },
+    "ss14:clothing_mask_fox": {
+      "image": "Textures/Clothing/Mask/fox.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
     "ss14:clothing_mask_gas": {
       "image": "Textures/Clothing/Mask/gas.rsi/icon.png",
       "layout": "flat",
@@ -2996,6 +3484,14 @@
     },
     "ss14:clothing_mask_gas_centcom": {
       "image": "Textures/Clothing/Mask/gascentcom.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:clothing_mask_gas_explorer": {
+      "image": "Textures/Clothing/Mask/gasexplorer.rsi/icon.png",
       "layout": "flat",
       "size": [
         0.36000001430511475,
@@ -3026,6 +3522,14 @@
         0.36000001430511475
       ]
     },
+    "ss14:clothing_mask_jackal": {
+      "image": "Textures/Clothing/Mask/jackal.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
     "ss14:clothing_mask_joy": {
       "image": "Textures/Clothing/Mask/joy.rsi/icon.png",
       "layout": "flat",
@@ -3040,6 +3544,14 @@
       "size": [
         0.36000001430511475,
         0.36000001430511475
+      ]
+    },
+    "ss14:clothing_mask_muzzle": {
+      "image": "Textures/Clothing/Mask/muzzle.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.30000001192092896,
+        0.30000001192092896
       ]
     },
     "ss14:clothing_mask_neck_gaiter": {
@@ -3060,6 +3572,22 @@
     },
     "ss14:clothing_mask_plague": {
       "image": "Textures/Clothing/Mask/plaguedoctormask.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:clothing_mask_rat": {
+      "image": "Textures/Clothing/Mask/rat.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:clothing_mask_raven": {
+      "image": "Textures/Clothing/Mask/raven.rsi/icon.png",
       "layout": "flat",
       "size": [
         0.36000001430511475,
@@ -3154,6 +3682,46 @@
         0.36000001430511475
       ]
     },
+    "ss14:clothing_neck_cloak_ace": {
+      "image": "Textures/Clothing/Neck/Cloaks/ace.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:clothing_neck_cloak_admin": {
+      "image": "Textures/Clothing/Neck/Cloaks/admin.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:clothing_neck_cloak_aro": {
+      "image": "Textures/Clothing/Neck/Cloaks/aro.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:clothing_neck_cloak_aroace": {
+      "image": "Textures/Clothing/Neck/Cloaks/aroace.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:clothing_neck_cloak_bi": {
+      "image": "Textures/Clothing/Neck/Cloaks/bi.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
     "ss14:clothing_neck_cloak_centcom": {
       "image": "Textures/Clothing/Neck/Cloaks/centcomcloakformal.rsi/icon.png",
       "layout": "flat",
@@ -3162,8 +3730,80 @@
         0.36000001430511475
       ]
     },
+    "ss14:clothing_neck_cloak_enby": {
+      "image": "Textures/Clothing/Neck/Cloaks/enby.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:clothing_neck_cloak_gay": {
+      "image": "Textures/Clothing/Neck/Cloaks/gay.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:clothing_neck_cloak_goliath_cloak": {
+      "image": "Textures/Clothing/Neck/Cloaks/goliathcloak.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:clothing_neck_cloak_herald": {
+      "image": "Textures/Clothing/Neck/Cloaks/herald.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:clothing_neck_cloak_intersex": {
+      "image": "Textures/Clothing/Neck/Cloaks/intersex.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:clothing_neck_cloak_lesbian": {
+      "image": "Textures/Clothing/Neck/Cloaks/les.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:clothing_neck_cloak_moth": {
+      "image": "Textures/Clothing/Neck/Cloaks/moth.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:clothing_neck_cloak_pan": {
+      "image": "Textures/Clothing/Neck/Cloaks/pan.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
     "ss14:clothing_neck_cloak_trans": {
       "image": "Textures/Clothing/Neck/Cloaks/trans.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:clothing_neck_cloak_void": {
+      "image": "Textures/Clothing/Neck/Cloaks/void.rsi/icon.png",
       "layout": "flat",
       "size": [
         0.36000001430511475,
@@ -3602,6 +4242,14 @@
         0.48000001907348633
       ]
     },
+    "ss14:clothing_outer_coat_gentle": {
+      "image": "Textures/Clothing/OuterClothing/Coats/gentlecoat.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.48000001907348633,
+        0.48000001907348633
+      ]
+    },
     "ss14:clothing_outer_coat_ho_strench": {
       "image": "Textures/Clothing/OuterClothing/Coats/hos_trenchcoat.rsi/icon.png",
       "layout": "flat",
@@ -3738,6 +4386,14 @@
         0.48000001907348633
       ]
     },
+    "ss14:clothing_outer_ghost_sheet": {
+      "image": "Textures/Clothing/OuterClothing/Misc/ghostsheet.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.48000001907348633,
+        0.48000001907348633
+      ]
+    },
     "ss14:clothing_outer_hoodie_black": {
       "image": "Textures/Clothing/OuterClothing/Misc/black_hoodie.rsi/icon.png",
       "layout": "flat",
@@ -3748,6 +4404,14 @@
     },
     "ss14:clothing_outer_hoodie_chaplain": {
       "image": "Textures/Clothing/OuterClothing/Misc/chaplain_hoodie.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.48000001907348633,
+        0.48000001907348633
+      ]
+    },
+    "ss14:clothing_outer_hoodie_grey": {
+      "image": "Textures/Clothing/OuterClothing/Misc/grey_hoodie.rsi/icon.png",
       "layout": "flat",
       "size": [
         0.48000001907348633,
@@ -3804,6 +4468,14 @@
     },
     "ss14:clothing_outer_red_racoon": {
       "image": "Textures/Clothing/OuterClothing/Misc/red_racoon.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.48000001907348633,
+        0.48000001907348633
+      ]
+    },
+    "ss14:clothing_outer_robes_cult": {
+      "image": "Textures/Clothing/OuterClothing/Misc/cultrobes.rsi/icon.png",
       "layout": "flat",
       "size": [
         0.48000001907348633,
@@ -4218,6 +4890,14 @@
         0.48000001907348633
       ]
     },
+    "ss14:clothing_shoes_boots_cowboy_fancy": {
+      "image": "Textures/Clothing/Shoes/Boots/cowboybootsfancy.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.48000001907348633,
+        0.48000001907348633
+      ]
+    },
     "ss14:clothing_shoes_boots_cowboy_white": {
       "image": "Textures/Clothing/Shoes/Boots/cowboybootswhite.rsi/icon.png",
       "layout": "flat",
@@ -4450,6 +5130,14 @@
         0.48000001907348633
       ]
     },
+    "ss14:clothing_shoes_highheel_boots": {
+      "image": "Textures/Clothing/Shoes/Boots/highheelboots.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.48000001907348633,
+        0.48000001907348633
+      ]
+    },
     "ss14:clothing_shoes_jester": {
       "image": "Textures/Clothing/Shoes/Specific/jester.rsi/icon.png",
       "layout": "flat",
@@ -4466,8 +5154,24 @@
         0.48000001907348633
       ]
     },
+    "ss14:clothing_shoes_sandals_black": {
+      "image": "Textures/Clothing/Shoes/Misc/sandals.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.48000001907348633,
+        0.48000001907348633
+      ]
+    },
     "ss14:clothing_shoes_sandals_brown": {
       "image": "Textures/Clothing/Shoes/Misc/sandals.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.48000001907348633,
+        0.48000001907348633
+      ]
+    },
+    "ss14:clothing_shoes_skates": {
+      "image": "Textures/Clothing/Shoes/Specific/skates.rsi/icon.png",
       "layout": "flat",
       "size": [
         0.48000001907348633,
@@ -5186,6 +5890,14 @@
         0.48000001907348633
       ]
     },
+    "ss14:clothing_uniform_jumpsuit_family_guy": {
+      "image": "Textures/Clothing/Uniforms/Jumpsuits/Civilian/familiar_garbs.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.48000001907348633,
+        0.48000001907348633
+      ]
+    },
     "ss14:clothing_uniform_jumpsuit_flannel": {
       "image": "Textures/Clothing/Uniforms/Jumpsuits/Civilian/flannel.rsi/icon.png",
       "layout": "flat",
@@ -5354,6 +6066,14 @@
         0.48000001907348633
       ]
     },
+    "ss14:clothing_uniform_jumpsuit_loungewear": {
+      "image": "Textures/Clothing/Uniforms/Jumpsuits/Civilian/loungewear.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.48000001907348633,
+        0.48000001907348633
+      ]
+    },
     "ss14:clothing_uniform_jumpsuit_medical_doctor": {
       "image": "Textures/Clothing/Uniforms/Jumpsuits/Medical/medical.rsi/icon.png",
       "layout": "flat",
@@ -5412,6 +6132,14 @@
     },
     "ss14:clothing_uniform_jumpsuit_paramedic": {
       "image": "Textures/Clothing/Uniforms/Jumpsuits/Medical/paramedic.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.48000001907348633,
+        0.48000001907348633
+      ]
+    },
+    "ss14:clothing_uniform_jumpsuit_pirate": {
+      "image": "Textures/Clothing/Uniforms/Jumpsuits/Special/pirate.rsi/icon.png",
       "layout": "flat",
       "size": [
         0.48000001907348633,
@@ -5554,6 +6282,14 @@
         0.36000001430511475
       ]
     },
+    "ss14:cluwne_horn": {
+      "image": "Textures/Objects/Fun/cluwnehorn.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.30000001192092896,
+        0.30000001192092896
+      ]
+    },
     "ss14:cmopda": {
       "image": "Textures/Objects/Devices/pda.rsi/pda.png",
       "layout": "flat",
@@ -5572,6 +6308,30 @@
     },
     "ss14:combat_knife": {
       "image": "Textures/Objects/Weapons/Melee/combat_knife.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:comms_computer_circuitboard": {
+      "image": "Textures/Objects/Misc/module.rsi/cpu_command.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:complex_xeno_artifact_item": {
+      "image": "Textures/Objects/Specific/Xenoarchaeology/item_artifacts.rsi/ano01.png",
+      "layout": "flat",
+      "size": [
+        0.48000001907348633,
+        0.48000001907348633
+      ]
+    },
+    "ss14:computer_mass_media_circuitboard": {
+      "image": "Textures/Objects/Misc/module.rsi/cpu_service.png",
       "layout": "flat",
       "size": [
         0.36000001430511475,
@@ -5610,6 +6370,22 @@
         0.30000001192092896
       ]
     },
+    "ss14:crayon_black": {
+      "image": "Textures/Objects/Fun/crayons.rsi/black.png",
+      "layout": "flat",
+      "size": [
+        0.30000001192092896,
+        0.30000001192092896
+      ]
+    },
+    "ss14:crayon_blue": {
+      "image": "Textures/Objects/Fun/crayons.rsi/blue.png",
+      "layout": "flat",
+      "size": [
+        0.30000001192092896,
+        0.30000001192092896
+      ]
+    },
     "ss14:crayon_box": {
       "image": "Textures/Objects/Fun/crayons.rsi/box.png",
       "layout": "flat",
@@ -5618,12 +6394,84 @@
         0.36000001430511475
       ]
     },
+    "ss14:crayon_green": {
+      "image": "Textures/Objects/Fun/crayons.rsi/green.png",
+      "layout": "flat",
+      "size": [
+        0.30000001192092896,
+        0.30000001192092896
+      ]
+    },
+    "ss14:crayon_mime": {
+      "image": "Textures/Objects/Fun/crayons.rsi/mime.png",
+      "layout": "flat",
+      "size": [
+        0.30000001192092896,
+        0.30000001192092896
+      ]
+    },
+    "ss14:crayon_orange": {
+      "image": "Textures/Objects/Fun/crayons.rsi/orange.png",
+      "layout": "flat",
+      "size": [
+        0.30000001192092896,
+        0.30000001192092896
+      ]
+    },
+    "ss14:crayon_purple": {
+      "image": "Textures/Objects/Fun/crayons.rsi/purple.png",
+      "layout": "flat",
+      "size": [
+        0.30000001192092896,
+        0.30000001192092896
+      ]
+    },
     "ss14:crayon_rainbow": {
       "image": "Textures/Objects/Fun/crayons.rsi/rainbow.png",
       "layout": "flat",
       "size": [
         0.30000001192092896,
         0.30000001192092896
+      ]
+    },
+    "ss14:crayon_red": {
+      "image": "Textures/Objects/Fun/crayons.rsi/red.png",
+      "layout": "flat",
+      "size": [
+        0.30000001192092896,
+        0.30000001192092896
+      ]
+    },
+    "ss14:crayon_white": {
+      "image": "Textures/Objects/Fun/crayons.rsi/white.png",
+      "layout": "flat",
+      "size": [
+        0.30000001192092896,
+        0.30000001192092896
+      ]
+    },
+    "ss14:crayon_yellow": {
+      "image": "Textures/Objects/Fun/crayons.rsi/yellow.png",
+      "layout": "flat",
+      "size": [
+        0.30000001192092896,
+        0.30000001192092896
+      ]
+    },
+    "ss14:crazy_glue": {
+      "image": "Textures/Objects/Fun/glue.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:crazy_lube": {
+      "image": "Textures/Objects/Fun/lube.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
       ]
     },
     "ss14:crowbar": {
@@ -6162,8 +7010,152 @@
         0.48000001907348633
       ]
     },
+    "ss14:drink_absinthe_glass": {
+      "image": "Textures/Objects/Consumable/Drinks/glass_clear.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:drink_acid_spit_glass": {
+      "image": "Textures/Objects/Consumable/Drinks/glass_clear.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
     "ss14:drink_ale_bottle_full": {
       "image": "Textures/Objects/Consumable/Drinks/alebottle.rsi/icon_empty.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:drink_ale_bottle_full_growler": {
+      "image": "Textures/Objects/Consumable/Drinks/alebottle.rsi/icon_empty.png",
+      "layout": "flat",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:drink_ale_glass": {
+      "image": "Textures/Objects/Consumable/Drinks/glass_clear.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:drink_alien_brain_hemorrhage": {
+      "image": "Textures/Objects/Consumable/Drinks/glass_clear.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:drink_allies_cocktail": {
+      "image": "Textures/Objects/Consumable/Drinks/glass_clear.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:drink_aloe": {
+      "image": "Textures/Objects/Consumable/Drinks/glass_clear.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:drink_amasec_glass": {
+      "image": "Textures/Objects/Consumable/Drinks/glass_clear.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:drink_andalusia": {
+      "image": "Textures/Objects/Consumable/Drinks/glass_clear.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:drink_antifreeze": {
+      "image": "Textures/Objects/Consumable/Drinks/glass_clear.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:drink_arnold_palmer": {
+      "image": "Textures/Objects/Consumable/Drinks/glass_clear.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:drink_atomic_bomb_glass": {
+      "image": "Textures/Objects/Consumable/Drinks/glass_clear.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:drink_b52_glass": {
+      "image": "Textures/Objects/Consumable/Drinks/glass_clear.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:drink_bacchus_blessing": {
+      "image": "Textures/Objects/Consumable/Drinks/glass_clear.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:drink_bahama_mama": {
+      "image": "Textures/Objects/Consumable/Drinks/glass_clear.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:drink_banana_honk_glass": {
+      "image": "Textures/Objects/Consumable/Drinks/glass_clear.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:drink_barefoot_glass": {
+      "image": "Textures/Objects/Consumable/Drinks/glass_clear.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:drink_beepsky_smash_glass": {
+      "image": "Textures/Objects/Consumable/Drinks/glass_clear.rsi/icon.png",
       "layout": "flat",
       "size": [
         0.36000001430511475,
@@ -6186,12 +7178,76 @@
         0.36000001430511475
       ]
     },
+    "ss14:drink_beer_growler": {
+      "image": "Textures/Objects/Consumable/Drinks/beer.rsi/icon_empty.png",
+      "layout": "flat",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:drink_beerglass": {
+      "image": "Textures/Objects/Consumable/Drinks/glass_clear.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:drink_berry_juice": {
+      "image": "Textures/Objects/Consumable/Drinks/glass_clear.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:drink_black_russian_glass": {
+      "image": "Textures/Objects/Consumable/Drinks/glass_clear.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:drink_bloody_mary_glass": {
+      "image": "Textures/Objects/Consumable/Drinks/glass_clear.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
     "ss14:drink_blue_curacao_bottle_full": {
       "image": "Textures/Objects/Consumable/Drinks/alco-bottle.rsi/icon_empty.png",
       "layout": "flat",
       "size": [
         0.48000001907348633,
         0.48000001907348633
+      ]
+    },
+    "ss14:drink_blue_curacao_glass": {
+      "image": "Textures/Objects/Consumable/Drinks/glass_clear.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:drink_blue_hawaiian_glass": {
+      "image": "Textures/Objects/Consumable/Drinks/glass_clear.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:drink_booger": {
+      "image": "Textures/Objects/Consumable/Drinks/glass_clear.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
       ]
     },
     "ss14:drink_bottle_rum": {
@@ -6210,6 +7266,22 @@
         0.48000001907348633
       ]
     },
+    "ss14:drink_brave_bull_glass": {
+      "image": "Textures/Objects/Consumable/Drinks/glass_clear.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:drink_bronx_glass": {
+      "image": "Textures/Objects/Consumable/Drinks/glass_clear.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
     "ss14:drink_cafe_latte": {
       "image": "Textures/Objects/Consumable/Drinks/cafe_latte.rsi/icon.png",
       "layout": "flat",
@@ -6218,12 +7290,36 @@
         0.30000001192092896
       ]
     },
+    "ss14:drink_carrot_juice": {
+      "image": "Textures/Objects/Consumable/Drinks/glass_clear.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
     "ss14:drink_champagne_bottle_full": {
       "image": "Textures/Objects/Consumable/Drinks/champagnebottle.rsi/icon.png",
       "layout": "flat",
       "size": [
         0.48000001907348633,
         0.48000001907348633
+      ]
+    },
+    "ss14:drink_chocolate_glass": {
+      "image": "Textures/Objects/Consumable/Drinks/glass_clear.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:drink_coconut_rum": {
+      "image": "Textures/Objects/Consumable/Drinks/glass_clear.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
       ]
     },
     "ss14:drink_coconut_water_carton": {
@@ -6250,6 +7346,14 @@
         0.48000001907348633
       ]
     },
+    "ss14:drink_cognac_glass": {
+      "image": "Textures/Objects/Consumable/Drinks/glass_clear.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
     "ss14:drink_cola_bottle_full": {
       "image": "Textures/Objects/Consumable/Drinks/colabottle.rsi/icon_empty.png",
       "layout": "flat",
@@ -6266,8 +7370,40 @@
         0.36000001430511475
       ]
     },
+    "ss14:drink_cosmopolitan": {
+      "image": "Textures/Objects/Consumable/Drinks/glass_clear.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
     "ss14:drink_cream_carton": {
       "image": "Textures/Objects/Consumable/Drinks/cream.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:drink_crush_depth_glass": {
+      "image": "Textures/Objects/Consumable/Drinks/glass_clear.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:drink_cuba_libre_glass": {
+      "image": "Textures/Objects/Consumable/Drinks/glass_clear.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:drink_darkand_stormy_glass": {
+      "image": "Textures/Objects/Consumable/Drinks/glass_clear.rsi/icon.png",
       "layout": "flat",
       "size": [
         0.36000001430511475,
@@ -6282,8 +7418,24 @@
         0.36000001430511475
       ]
     },
+    "ss14:drink_demons_blood": {
+      "image": "Textures/Objects/Consumable/Drinks/glass_clear.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
     "ss14:drink_det_flask": {
       "image": "Textures/Objects/Consumable/Drinks/detflask.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:drink_devils_kiss": {
+      "image": "Textures/Objects/Consumable/Drinks/glass_clear.rsi/icon.png",
       "layout": "flat",
       "size": [
         0.36000001430511475,
@@ -6306,8 +7458,40 @@
         0.36000001430511475
       ]
     },
+    "ss14:drink_dr_gibb_glass": {
+      "image": "Textures/Objects/Consumable/Drinks/glass_clear.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:drink_driest_martini_glass": {
+      "image": "Textures/Objects/Consumable/Drinks/glass_clear.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:drink_electric_shark_glass": {
+      "image": "Textures/Objects/Consumable/Drinks/glass_clear.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
     "ss14:drink_energy_drink_can": {
       "image": "Textures/Objects/Consumable/Drinks/energy_drink.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:drink_erika_surprise": {
+      "image": "Textures/Objects/Consumable/Drinks/glass_clear.rsi/icon.png",
       "layout": "flat",
       "size": [
         0.36000001430511475,
@@ -6330,6 +7514,22 @@
         0.36000001430511475
       ]
     },
+    "ss14:drink_fourteen_loko_glass": {
+      "image": "Textures/Objects/Consumable/Drinks/glass_clear.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:drink_gargle_blaster_glass": {
+      "image": "Textures/Objects/Consumable/Drinks/glass_clear.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
     "ss14:drink_gildlager_bottle_full": {
       "image": "Textures/Objects/Consumable/Drinks/gildlagerbottle.rsi/icon_empty.png",
       "layout": "flat",
@@ -6338,12 +7538,44 @@
         0.48000001907348633
       ]
     },
+    "ss14:drink_gildlager_glass": {
+      "image": "Textures/Objects/Consumable/Drinks/glass_clear.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
     "ss14:drink_gin_bottle_full": {
       "image": "Textures/Objects/Consumable/Drinks/ginbottle.rsi/icon_empty.png",
       "layout": "flat",
       "size": [
         0.48000001907348633,
         0.48000001907348633
+      ]
+    },
+    "ss14:drink_gin_fizz_glass": {
+      "image": "Textures/Objects/Consumable/Drinks/glass_clear.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:drink_gin_glass": {
+      "image": "Textures/Objects/Consumable/Drinks/glass_clear.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:drink_gin_tonicglass": {
+      "image": "Textures/Objects/Consumable/Drinks/glass_clear.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
       ]
     },
     "ss14:drink_glass": {
@@ -6378,6 +7610,14 @@
         0.36000001430511475
       ]
     },
+    "ss14:drink_grape_juice": {
+      "image": "Textures/Objects/Consumable/Drinks/glass_clear.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
     "ss14:drink_green_tea": {
       "image": "Textures/Objects/Consumable/Drinks/teacup.rsi/icon.png",
       "layout": "flat",
@@ -6402,12 +7642,36 @@
         0.48000001907348633
       ]
     },
+    "ss14:drink_grog_glass": {
+      "image": "Textures/Objects/Consumable/Drinks/glass_clear.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
     "ss14:drink_hell_ramen": {
       "image": "Textures/Objects/Consumable/Food/snacks.rsi/ramen.png",
       "layout": "flat",
       "size": [
         0.30000001192092896,
         0.30000001192092896
+      ]
+    },
+    "ss14:drink_hippies_delight_glass": {
+      "image": "Textures/Objects/Consumable/Drinks/glass_clear.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:drink_hooch_glass": {
+      "image": "Textures/Objects/Consumable/Drinks/glass_clear.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
       ]
     },
     "ss14:drink_hot_coco": {
@@ -6442,6 +7706,30 @@
         0.36000001430511475
       ]
     },
+    "ss14:drink_iced_beer_glass": {
+      "image": "Textures/Objects/Consumable/Drinks/glass_clear.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:drink_iced_coffee_glass": {
+      "image": "Textures/Objects/Consumable/Drinks/glass_clear.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:drink_iced_green_tea_glass": {
+      "image": "Textures/Objects/Consumable/Drinks/glass_clear.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
     "ss14:drink_iced_tea_can": {
       "image": "Textures/Objects/Consumable/Drinks/ice_tea_can.rsi/icon.png",
       "layout": "flat",
@@ -6451,6 +7739,30 @@
       ]
     },
     "ss14:drink_iced_tea_glass": {
+      "image": "Textures/Objects/Consumable/Drinks/glass_clear.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:drink_irish_coffee_glass": {
+      "image": "Textures/Objects/Consumable/Drinks/glass_clear.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:drink_irish_slammer": {
+      "image": "Textures/Objects/Consumable/Drinks/glass_clear.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:drink_jack_rose_glass": {
       "image": "Textures/Objects/Consumable/Drinks/glass_clear.rsi/icon.png",
       "layout": "flat",
       "size": [
@@ -6506,6 +7818,22 @@
         0.36000001430511475
       ]
     },
+    "ss14:drink_jungle_bird_glass": {
+      "image": "Textures/Objects/Consumable/Drinks/glass_clear.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:drink_kalimotxo_glass": {
+      "image": "Textures/Objects/Consumable/Drinks/glass_clear.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
     "ss14:drink_lemon_juice": {
       "image": "Textures/Objects/Consumable/Drinks/glass_clear.rsi/icon.png",
       "layout": "flat",
@@ -6524,6 +7852,54 @@
     },
     "ss14:drink_lemon_lime_cranberry_can": {
       "image": "Textures/Objects/Consumable/Drinks/lemon-lime-cranberry.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:drink_lemonade_glass": {
+      "image": "Textures/Objects/Consumable/Drinks/glass_clear.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:drink_long_island_iced_tea_glass": {
+      "image": "Textures/Objects/Consumable/Drinks/glass_clear.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:drink_manhattan_glass": {
+      "image": "Textures/Objects/Consumable/Drinks/glass_clear.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:drink_manly_dorf_glass": {
+      "image": "Textures/Objects/Consumable/Drinks/glass_clear.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:drink_margarita_glass": {
+      "image": "Textures/Objects/Consumable/Drinks/glass_clear.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:drink_martini_glass": {
+      "image": "Textures/Objects/Consumable/Drinks/glass_clear.rsi/icon.png",
       "layout": "flat",
       "size": [
         0.36000001430511475,
@@ -6562,6 +7938,38 @@
         0.36000001430511475
       ]
     },
+    "ss14:drink_mojito": {
+      "image": "Textures/Objects/Consumable/Drinks/glass_clear.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:drink_monkey_business_glass": {
+      "image": "Textures/Objects/Consumable/Drinks/glass_clear.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:drink_moonshine_glass": {
+      "image": "Textures/Objects/Consumable/Drinks/glass_clear.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:drink_mopwata_bottle_random": {
+      "image": "Textures/Objects/Consumable/Drinks/mopwata.rsi/icon_empty.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
     "ss14:drink_mreflask": {
       "image": "Textures/Objects/Consumable/Drinks/mreflask.rsi/icon.png",
       "layout": "flat",
@@ -6588,6 +7996,14 @@
     },
     "ss14:drink_mug_blue": {
       "image": "Textures/Objects/Consumable/Drinks/mug_blue.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.30000001192092896,
+        0.30000001192092896
+      ]
+    },
+    "ss14:drink_mug_dog": {
+      "image": "Textures/Objects/Consumable/Drinks/mug_dog.rsi/icon.png",
       "layout": "flat",
       "size": [
         0.30000001192092896,
@@ -6650,6 +8066,38 @@
         0.30000001192092896
       ]
     },
+    "ss14:drink_ntcahors": {
+      "image": "Textures/Objects/Consumable/Drinks/glass_clear.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:drink_nuclear_cola_glass": {
+      "image": "Textures/Objects/Consumable/Drinks/glass_clear.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:drink_orange_lime_soda_glass": {
+      "image": "Textures/Objects/Consumable/Drinks/glass_clear.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:drink_painkiller_glass": {
+      "image": "Textures/Objects/Consumable/Drinks/glass_clear.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
     "ss14:drink_patron_bottle_full": {
       "image": "Textures/Objects/Consumable/Drinks/patronbottle.rsi/icon_empty.png",
       "layout": "flat",
@@ -6658,8 +8106,48 @@
         0.48000001907348633
       ]
     },
+    "ss14:drink_patron_glass": {
+      "image": "Textures/Objects/Consumable/Drinks/glass_clear.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:drink_pina_colada_glass": {
+      "image": "Textures/Objects/Consumable/Drinks/glass_clear.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:drink_poison_winebottle_full": {
+      "image": "Textures/Objects/Consumable/Drinks/pwinebottle.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.48000001907348633,
+        0.48000001907348633
+      ]
+    },
+    "ss14:drink_posca_glass": {
+      "image": "Textures/Objects/Consumable/Drinks/glass_clear.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
     "ss14:drink_pwr_game_can": {
       "image": "Textures/Objects/Consumable/Drinks/pwrgame.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:drink_radler_glass": {
+      "image": "Textures/Objects/Consumable/Drinks/glass_clear.rsi/icon.png",
       "layout": "flat",
       "size": [
         0.36000001430511475,
@@ -6674,6 +8162,22 @@
         0.30000001192092896
       ]
     },
+    "ss14:drink_red_mead_glass": {
+      "image": "Textures/Objects/Consumable/Drinks/glass_clear.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:drink_rewriter": {
+      "image": "Textures/Objects/Consumable/Drinks/glass_clear.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
     "ss14:drink_root_beer_can": {
       "image": "Textures/Objects/Consumable/Drinks/rootbeer.rsi/icon.png",
       "layout": "flat",
@@ -6682,7 +8186,23 @@
         0.36000001430511475
       ]
     },
+    "ss14:drink_root_beer_float_glass": {
+      "image": "Textures/Objects/Consumable/Drinks/glass_clear.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
     "ss14:drink_root_beer_glass": {
+      "image": "Textures/Objects/Consumable/Drinks/glass_clear.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:drink_roy_rogers_glass": {
       "image": "Textures/Objects/Consumable/Drinks/glass_clear.rsi/icon.png",
       "layout": "flat",
       "size": [
@@ -6698,8 +8218,72 @@
         0.48000001907348633
       ]
     },
+    "ss14:drink_rum_glass": {
+      "image": "Textures/Objects/Consumable/Drinks/glass_clear.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
     "ss14:drink_sake_bottle_full": {
       "image": "Textures/Objects/Consumable/Drinks/sakebottle.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:drink_sake_glass": {
+      "image": "Textures/Objects/Consumable/Drinks/glass_clear.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:drink_sbiten_glass": {
+      "image": "Textures/Objects/Consumable/Drinks/glass_clear.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:drink_screwdriver_cocktail_glass": {
+      "image": "Textures/Objects/Consumable/Drinks/glass_clear.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:drink_shake_blue": {
+      "image": "Textures/Objects/Consumable/Drinks/shake-blue.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:drink_shake_meat": {
+      "image": "Textures/Objects/Consumable/Drinks/shake-meat.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:drink_shake_robo": {
+      "image": "Textures/Objects/Consumable/Drinks/shake-robo.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:drink_shake_white": {
+      "image": "Textures/Objects/Consumable/Drinks/shake-white.rsi/icon.png",
       "layout": "flat",
       "size": [
         0.36000001430511475,
@@ -6722,12 +8306,36 @@
         0.36000001430511475
       ]
     },
+    "ss14:drink_shirley_temple_glass": {
+      "image": "Textures/Objects/Consumable/Drinks/glass_clear.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
     "ss14:drink_shot_glass": {
       "image": "Textures/Objects/Consumable/Drinks/shotglass.rsi/icon.png",
       "layout": "flat",
       "size": [
         0.30000001192092896,
         0.30000001192092896
+      ]
+    },
+    "ss14:drink_silencer_glass": {
+      "image": "Textures/Objects/Consumable/Drinks/glass_clear.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:drink_singulo": {
+      "image": "Textures/Objects/Consumable/Drinks/glass_clear.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
       ]
     },
     "ss14:drink_soda_water_can": {
@@ -6746,12 +8354,36 @@
         0.36000001430511475
       ]
     },
+    "ss14:drink_soy_latte": {
+      "image": "Textures/Objects/Consumable/Drinks/glass_clear.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
     "ss14:drink_soy_milk_carton": {
       "image": "Textures/Objects/Consumable/Drinks/soymilk.rsi/icon.png",
       "layout": "flat",
       "size": [
         0.48000001907348633,
         0.48000001907348633
+      ]
+    },
+    "ss14:drink_space_glue": {
+      "image": "Textures/Objects/Consumable/Drinks/glue-tube.rsi/icon_empty.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:drink_space_lube": {
+      "image": "Textures/Objects/Consumable/Drinks/lube-tube.rsi/icon_empty.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
       ]
     },
     "ss14:drink_space_mountain_wind_bottle_full": {
@@ -6794,6 +8426,22 @@
         0.36000001430511475
       ]
     },
+    "ss14:drink_sui_dream_glass": {
+      "image": "Textures/Objects/Consumable/Drinks/glass_clear.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:drink_syndicatebomb": {
+      "image": "Textures/Objects/Consumable/Drinks/glass_clear.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
     "ss14:drink_teacup": {
       "image": "Textures/Objects/Consumable/Drinks/teacup.rsi/icon.png",
       "layout": "flat",
@@ -6818,6 +8466,22 @@
         0.36000001430511475
       ]
     },
+    "ss14:drink_the_martinez": {
+      "image": "Textures/Objects/Consumable/Drinks/glass_clear.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:drink_three_mile_island_glass": {
+      "image": "Textures/Objects/Consumable/Drinks/glass_clear.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
     "ss14:drink_tonic_water_can": {
       "image": "Textures/Objects/Consumable/Drinks/tonic.rsi/icon.png",
       "layout": "flat",
@@ -6826,8 +8490,32 @@
         0.36000001430511475
       ]
     },
+    "ss14:drink_tortuga_glass": {
+      "image": "Textures/Objects/Consumable/Drinks/glass_clear.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:drink_toxins_special_glass": {
+      "image": "Textures/Objects/Consumable/Drinks/glass_clear.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
     "ss14:drink_vacuum_flask": {
       "image": "Textures/Objects/Consumable/Drinks/vacuumflask.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:drink_vampiro_glass": {
+      "image": "Textures/Objects/Consumable/Drinks/glass_clear.rsi/icon.png",
       "layout": "flat",
       "size": [
         0.36000001430511475,
@@ -6858,6 +8546,30 @@
         0.36000001430511475
       ]
     },
+    "ss14:drink_vodka_martini_glass": {
+      "image": "Textures/Objects/Consumable/Drinks/glass_clear.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:drink_vodka_red_bool": {
+      "image": "Textures/Objects/Consumable/Drinks/glass_clear.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:drink_vodka_tonic_glass": {
+      "image": "Textures/Objects/Consumable/Drinks/glass_clear.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
     "ss14:drink_water_bottle_full": {
       "image": "Textures/Objects/Consumable/Drinks/waterbottle.rsi/icon.png",
       "layout": "flat",
@@ -6874,6 +8586,22 @@
         0.30000001192092896
       ]
     },
+    "ss14:drink_watermelon_juice": {
+      "image": "Textures/Objects/Consumable/Drinks/glass_clear.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:drink_watermelon_wakeup": {
+      "image": "Textures/Objects/Consumable/Drinks/glass_clear.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
     "ss14:drink_whiskey_bottle_full": {
       "image": "Textures/Objects/Consumable/Drinks/whiskeybottle.rsi/icon_empty.png",
       "layout": "flat",
@@ -6882,7 +8610,31 @@
         0.48000001907348633
       ]
     },
+    "ss14:drink_whiskey_cola_glass": {
+      "image": "Textures/Objects/Consumable/Drinks/glass_clear.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
     "ss14:drink_whiskey_glass": {
+      "image": "Textures/Objects/Consumable/Drinks/glass_clear.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:drink_whiskey_soda_glass": {
+      "image": "Textures/Objects/Consumable/Drinks/glass_clear.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:drink_white_russian_glass": {
       "image": "Textures/Objects/Consumable/Drinks/glass_clear.rsi/icon.png",
       "layout": "flat",
       "size": [
@@ -6900,6 +8652,14 @@
     },
     "ss14:drink_wine_can": {
       "image": "Textures/Objects/Consumable/Drinks/wine_can.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:drink_wine_glass": {
+      "image": "Textures/Objects/Consumable/Drinks/glass_clear.rsi/icon.png",
       "layout": "flat",
       "size": [
         0.36000001430511475,
@@ -7034,8 +8794,24 @@
         0.30000001192092896
       ]
     },
+    "ss14:euphonium_instrument": {
+      "image": "Textures/Objects/Fun/Instruments/euphonium.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.48000001907348633,
+        0.48000001907348633
+      ]
+    },
     "ss14:extended_emergency_oxygen_tank": {
       "image": "Textures/Objects/Tanks/emergency_extended.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:fire_alarm_electronics": {
+      "image": "Textures/Objects/Misc/module.rsi/airalarm_electronics.png",
       "layout": "flat",
       "size": [
         0.36000001430511475,
@@ -7106,6 +8882,14 @@
         0.48000001907348633
       ]
     },
+    "ss14:flute_instrument": {
+      "image": "Textures/Objects/Fun/Instruments/flute.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.48000001907348633,
+        0.48000001907348633
+      ]
+    },
     "ss14:foam_blade": {
       "image": "Textures/Objects/Fun/Foam/foam_blade.rsi/icon.png",
       "layout": "flat",
@@ -7114,12 +8898,68 @@
         0.36000001430511475
       ]
     },
+    "ss14:foam_crossbow": {
+      "image": "Textures/Objects/Fun/Foam/foam_crossbow.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.48000001907348633,
+        0.48000001907348633
+      ]
+    },
+    "ss14:foam_cutlass": {
+      "image": "Textures/Objects/Weapons/Melee/cutlass.rsi/foam_icon.png",
+      "layout": "flat",
+      "size": [
+        0.48000001907348633,
+        0.48000001907348633
+      ]
+    },
     "ss14:food_apple": {
       "image": "Textures/Objects/Specific/Hydroponics/apple.rsi/produce.png",
       "layout": "flat",
       "size": [
         0.36000001430511475,
         0.36000001430511475
+      ]
+    },
+    "ss14:food_bagel": {
+      "image": "Textures/Objects/Consumable/Food/Baked/bagel.rsi/bagel.png",
+      "layout": "flat",
+      "size": [
+        0.30000001192092896,
+        0.30000001192092896
+      ]
+    },
+    "ss14:food_bagel_poppy": {
+      "image": "Textures/Objects/Consumable/Food/Baked/bagel.rsi/bagel-poppy.png",
+      "layout": "flat",
+      "size": [
+        0.30000001192092896,
+        0.30000001192092896
+      ]
+    },
+    "ss14:food_baked_chevre_chaud": {
+      "image": "Textures/Objects/Consumable/Food/Baked/misc.rsi/chevrechaud.png",
+      "layout": "flat",
+      "size": [
+        0.30000001192092896,
+        0.30000001192092896
+      ]
+    },
+    "ss14:food_baked_dumplings": {
+      "image": "Textures/Objects/Consumable/Food/Baked/misc.rsi/dumplings.png",
+      "layout": "flat",
+      "size": [
+        0.30000001192092896,
+        0.30000001192092896
+      ]
+    },
+    "ss14:food_baked_nugget": {
+      "image": "Textures/Objects/Consumable/Food/Baked/nuggets.rsi/tendie.png",
+      "layout": "flat",
+      "size": [
+        0.30000001192092896,
+        0.30000001192092896
       ]
     },
     "ss14:food_banana": {
@@ -7138,6 +8978,86 @@
         0.36000001430511475
       ]
     },
+    "ss14:food_bowl_big_trash": {
+      "image": "Textures/Objects/Consumable/Food/bowl.rsi/bowl-trash.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:food_box_donkpocket": {
+      "image": "Textures/Objects/Consumable/Food/Baked/donkpocket.rsi/box.png",
+      "layout": "flat",
+      "size": [
+        0.48000001907348633,
+        0.48000001907348633
+      ]
+    },
+    "ss14:food_box_donkpocket_berry": {
+      "image": "Textures/Objects/Consumable/Food/Baked/donkpocket.rsi/berry-box.png",
+      "layout": "flat",
+      "size": [
+        0.48000001907348633,
+        0.48000001907348633
+      ]
+    },
+    "ss14:food_box_donkpocket_dink": {
+      "image": "Textures/Objects/Consumable/Food/Baked/donkpocket.rsi/dink-box.png",
+      "layout": "flat",
+      "size": [
+        0.48000001907348633,
+        0.48000001907348633
+      ]
+    },
+    "ss14:food_box_donkpocket_honk": {
+      "image": "Textures/Objects/Consumable/Food/Baked/donkpocket.rsi/banana-box.png",
+      "layout": "flat",
+      "size": [
+        0.48000001907348633,
+        0.48000001907348633
+      ]
+    },
+    "ss14:food_box_donkpocket_moth": {
+      "image": "Textures/Objects/Consumable/Food/Baked/donkpocket.rsi/moth-box.png",
+      "layout": "flat",
+      "size": [
+        0.48000001907348633,
+        0.48000001907348633
+      ]
+    },
+    "ss14:food_box_donkpocket_pizza": {
+      "image": "Textures/Objects/Consumable/Food/Baked/donkpocket.rsi/pizza-box.png",
+      "layout": "flat",
+      "size": [
+        0.48000001907348633,
+        0.48000001907348633
+      ]
+    },
+    "ss14:food_box_donkpocket_spicy": {
+      "image": "Textures/Objects/Consumable/Food/Baked/donkpocket.rsi/spicy-box.png",
+      "layout": "flat",
+      "size": [
+        0.48000001907348633,
+        0.48000001907348633
+      ]
+    },
+    "ss14:food_box_donkpocket_stonk": {
+      "image": "Textures/Objects/Consumable/Food/Baked/donkpocket.rsi/stonk-box.png",
+      "layout": "flat",
+      "size": [
+        0.48000001907348633,
+        0.48000001907348633
+      ]
+    },
+    "ss14:food_box_donkpocket_teriyaki": {
+      "image": "Textures/Objects/Consumable/Food/Baked/donkpocket.rsi/teriyaki-box.png",
+      "layout": "flat",
+      "size": [
+        0.48000001907348633,
+        0.48000001907348633
+      ]
+    },
     "ss14:food_box_donut": {
       "image": "Textures/Objects/Consumable/Food/Baked/donut.rsi/box.png",
       "layout": "flat",
@@ -7146,8 +9066,240 @@
         0.48000001907348633
       ]
     },
+    "ss14:food_burger_appendix": {
+      "image": "Textures/Objects/Consumable/Food/burger.rsi/appendix.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:food_burger_bacon": {
+      "image": "Textures/Objects/Consumable/Food/burger.rsi/bacon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:food_burger_baseball": {
+      "image": "Textures/Objects/Consumable/Food/burger.rsi/baseball.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:food_burger_bear": {
+      "image": "Textures/Objects/Consumable/Food/burger.rsi/bearger.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:food_burger_big": {
+      "image": "Textures/Objects/Consumable/Food/burger.rsi/bigbite.png",
+      "layout": "flat",
+      "size": [
+        0.48000001907348633,
+        0.48000001907348633
+      ]
+    },
+    "ss14:food_burger_brain": {
+      "image": "Textures/Objects/Consumable/Food/burger.rsi/brain.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:food_burger_carp": {
+      "image": "Textures/Objects/Consumable/Food/burger.rsi/fish.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:food_burger_cat": {
+      "image": "Textures/Objects/Consumable/Food/burger.rsi/cat.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:food_burger_cheese": {
+      "image": "Textures/Objects/Consumable/Food/burger.rsi/cheese.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:food_burger_chicken": {
+      "image": "Textures/Objects/Consumable/Food/burger.rsi/chicken.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:food_burger_clown": {
+      "image": "Textures/Objects/Consumable/Food/burger.rsi/clown.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:food_burger_crab": {
+      "image": "Textures/Objects/Consumable/Food/burger.rsi/crab.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:food_burger_crazy": {
+      "image": "Textures/Objects/Consumable/Food/burger.rsi/crazy.png",
+      "layout": "flat",
+      "size": [
+        0.48000001907348633,
+        0.48000001907348633
+      ]
+    },
+    "ss14:food_burger_duck": {
+      "image": "Textures/Objects/Consumable/Food/burger.rsi/chicken.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:food_burger_empowered": {
+      "image": "Textures/Objects/Consumable/Food/burger.rsi/empowered.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:food_burger_five": {
+      "image": "Textures/Objects/Consumable/Food/burger.rsi/fivealarm.png",
+      "layout": "flat",
+      "size": [
+        0.48000001907348633,
+        0.48000001907348633
+      ]
+    },
+    "ss14:food_burger_ghost": {
+      "image": "Textures/Objects/Consumable/Food/burger.rsi/ghost.png",
+      "layout": "flat",
+      "size": [
+        0.48000001907348633,
+        0.48000001907348633
+      ]
+    },
+    "ss14:food_burger_human": {
+      "image": "Textures/Objects/Consumable/Food/burger.rsi/human.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:food_burger_jelly": {
+      "image": "Textures/Objects/Consumable/Food/burger.rsi/custburg-bottom.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:food_burger_mcguffin": {
+      "image": "Textures/Objects/Consumable/Food/burger.rsi/mcguffin.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:food_burger_mcrib": {
+      "image": "Textures/Objects/Consumable/Food/burger.rsi/mcrib.png",
+      "layout": "flat",
+      "size": [
+        0.48000001907348633,
+        0.48000001907348633
+      ]
+    },
+    "ss14:food_burger_mime": {
+      "image": "Textures/Objects/Consumable/Food/burger.rsi/mime.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
     "ss14:food_burger_plain": {
       "image": "Textures/Objects/Consumable/Food/burger.rsi/plain.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:food_burger_rat": {
+      "image": "Textures/Objects/Consumable/Food/burger.rsi/rat.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:food_burger_robot": {
+      "image": "Textures/Objects/Consumable/Food/burger.rsi/ro.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:food_burger_soy": {
+      "image": "Textures/Objects/Consumable/Food/burger.rsi/soylent.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:food_burger_spell": {
+      "image": "Textures/Objects/Consumable/Food/burger.rsi/spell.png",
+      "layout": "flat",
+      "size": [
+        0.48000001907348633,
+        0.48000001907348633
+      ]
+    },
+    "ss14:food_burger_super": {
+      "image": "Textures/Objects/Consumable/Food/burger.rsi/superbite.png",
+      "layout": "flat",
+      "size": [
+        0.48000001907348633,
+        0.48000001907348633
+      ]
+    },
+    "ss14:food_burger_tofu": {
+      "image": "Textures/Objects/Consumable/Food/burger.rsi/tofu.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:food_burger_xeno": {
+      "image": "Textures/Objects/Consumable/Food/burger.rsi/x.png",
       "layout": "flat",
       "size": [
         0.36000001430511475,
@@ -7362,6 +9514,46 @@
         0.30000001192092896
       ]
     },
+    "ss14:food_frozen_cornuto": {
+      "image": "Textures/Objects/Consumable/Food/frozen.rsi/cornuto.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:food_frozen_freezy": {
+      "image": "Textures/Objects/Consumable/Food/frozen.rsi/spacefreezy.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:food_frozen_popsicle_berry": {
+      "image": "Textures/Objects/Consumable/Food/frozen.rsi/stick.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:food_frozen_popsicle_jumbo": {
+      "image": "Textures/Objects/Consumable/Food/frozen.rsi/stick.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:food_frozen_popsicle_orange": {
+      "image": "Textures/Objects/Consumable/Food/frozen.rsi/stick.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
     "ss14:food_frozen_sandwich": {
       "image": "Textures/Objects/Consumable/Food/frozen.rsi/sandwich.png",
       "layout": "flat",
@@ -7370,8 +9562,288 @@
         0.36000001430511475
       ]
     },
+    "ss14:food_frozen_sandwich_strawberry": {
+      "image": "Textures/Objects/Consumable/Food/frozen.rsi/sandwich-strawberry.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:food_frozen_snowcone": {
+      "image": "Textures/Objects/Consumable/Food/frozen.rsi/cone.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:food_frozen_snowcone_berry": {
+      "image": "Textures/Objects/Consumable/Food/frozen.rsi/cone.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:food_frozen_snowcone_clown": {
+      "image": "Textures/Objects/Consumable/Food/frozen.rsi/cone.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:food_frozen_snowcone_fruit": {
+      "image": "Textures/Objects/Consumable/Food/frozen.rsi/cone.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:food_frozen_snowcone_mime": {
+      "image": "Textures/Objects/Consumable/Food/frozen.rsi/cone.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:food_frozen_snowcone_rainbow": {
+      "image": "Textures/Objects/Consumable/Food/frozen.rsi/cone.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:food_frozen_sundae": {
+      "image": "Textures/Objects/Consumable/Food/frozen.rsi/spacefreezy.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:food_jelly_amanita": {
+      "image": "Textures/Objects/Consumable/Food/meals.rsi/amanita-jelly.png",
+      "layout": "flat",
+      "size": [
+        0.48000001907348633,
+        0.48000001907348633
+      ]
+    },
+    "ss14:food_jelly_duff": {
+      "image": "Textures/Objects/Consumable/Food/bowl.rsi/bowl.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
     "ss14:food_kebab_skewer": {
       "image": "Textures/Objects/Consumable/Food/skewer.rsi/skewer.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:food_meal_bearsteak": {
+      "image": "Textures/Objects/Consumable/Food/meals.rsi/bearsteak.png",
+      "layout": "flat",
+      "size": [
+        0.48000001907348633,
+        0.48000001907348633
+      ]
+    },
+    "ss14:food_meal_corn_in_butter": {
+      "image": "Textures/Objects/Consumable/Food/meals.rsi/corn-in-butter.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:food_meal_cornedbeef": {
+      "image": "Textures/Objects/Consumable/Food/meals.rsi/cornedbeef.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:food_meal_cubancarp": {
+      "image": "Textures/Objects/Consumable/Food/meals.rsi/cubancarp.png",
+      "layout": "flat",
+      "size": [
+        0.48000001907348633,
+        0.48000001907348633
+      ]
+    },
+    "ss14:food_meal_eggplant_parm": {
+      "image": "Textures/Objects/Consumable/Food/meals.rsi/eggplantparm.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:food_meal_eggsbenedict": {
+      "image": "Textures/Objects/Consumable/Food/meals.rsi/benedict.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:food_meal_enchiladas": {
+      "image": "Textures/Objects/Consumable/Food/meals.rsi/enchiladas.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:food_meal_friedegg": {
+      "image": "Textures/Objects/Consumable/Food/meals.rsi/friedegg.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:food_meal_fries": {
+      "image": "Textures/Objects/Consumable/Food/meals.rsi/fries.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:food_meal_fries_carrot": {
+      "image": "Textures/Objects/Consumable/Food/meals.rsi/fries-carrot.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:food_meal_fries_cheesy": {
+      "image": "Textures/Objects/Consumable/Food/meals.rsi/fries-cheesy.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:food_meal_happy_honk_clown": {
+      "image": "Textures/Objects/Storage/Happyhonk/clown.rsi/box.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:food_meal_memoryleek": {
+      "image": "Textures/Objects/Consumable/Food/meals.rsi/memoryLeek.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:food_meal_milkape": {
+      "image": "Textures/Objects/Consumable/Food/meals.rsi/milkape.png",
+      "layout": "flat",
+      "size": [
+        0.48000001907348633,
+        0.48000001907348633
+      ]
+    },
+    "ss14:food_meal_mint": {
+      "image": "Textures/Objects/Consumable/Food/meals.rsi/mint.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:food_meal_nachos": {
+      "image": "Textures/Objects/Consumable/Food/meals.rsi/nachos.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:food_meal_nachos_cheesy": {
+      "image": "Textures/Objects/Consumable/Food/meals.rsi/nachos-cheesy.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:food_meal_nachos_cuban": {
+      "image": "Textures/Objects/Consumable/Food/meals.rsi/nachos-cuban.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:food_meal_omelette": {
+      "image": "Textures/Objects/Consumable/Food/meals.rsi/omelette.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:food_meal_pigblanket": {
+      "image": "Textures/Objects/Consumable/Food/meals.rsi/pigblanket.png",
+      "layout": "flat",
+      "size": [
+        0.30000001192092896,
+        0.30000001192092896
+      ]
+    },
+    "ss14:food_meal_potato_loaded": {
+      "image": "Textures/Objects/Consumable/Food/meals.rsi/loadedbakedpotato.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:food_meal_potato_yaki": {
+      "image": "Textures/Objects/Consumable/Food/meals.rsi/yakiimo.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:food_meal_queso": {
+      "image": "Textures/Objects/Consumable/Food/meals.rsi/queso.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:food_meal_ribs": {
+      "image": "Textures/Objects/Consumable/Food/meals.rsi/ribs.png",
+      "layout": "flat",
+      "size": [
+        0.48000001907348633,
+        0.48000001907348633
+      ]
+    },
+    "ss14:food_meal_sashimi": {
+      "image": "Textures/Objects/Consumable/Food/meals.rsi/sashimi.png",
       "layout": "flat",
       "size": [
         0.36000001430511475,
@@ -7394,6 +9866,174 @@
         0.36000001430511475
       ]
     },
+    "ss14:food_noodles_boiled": {
+      "image": "Textures/Objects/Consumable/Food/noodles.rsi/boiled.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:food_noodles_butter": {
+      "image": "Textures/Objects/Consumable/Food/noodles.rsi/butter.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:food_noodles_chowmein": {
+      "image": "Textures/Objects/Consumable/Food/noodles.rsi/chowmein.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:food_noodles_copy": {
+      "image": "Textures/Objects/Consumable/Food/noodles.rsi/copypasta.png",
+      "layout": "flat",
+      "size": [
+        0.48000001907348633,
+        0.48000001907348633
+      ]
+    },
+    "ss14:food_noodles_meatball": {
+      "image": "Textures/Objects/Consumable/Food/noodles.rsi/meatball.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:food_noodles_spesslaw": {
+      "image": "Textures/Objects/Consumable/Food/noodles.rsi/spesslaw.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:food_oatmeal": {
+      "image": "Textures/Objects/Consumable/Food/bowl.rsi/bowl.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:food_packet_boritos_trash": {
+      "image": "Textures/Objects/Consumable/Food/snacks.rsi/boritos-trash.png",
+      "layout": "flat",
+      "size": [
+        0.30000001192092896,
+        0.30000001192092896
+      ]
+    },
+    "ss14:food_packet_cheesie_trash": {
+      "image": "Textures/Objects/Consumable/Food/snacks.rsi/cheesiehonkers-trash.png",
+      "layout": "flat",
+      "size": [
+        0.30000001192092896,
+        0.30000001192092896
+      ]
+    },
+    "ss14:food_packet_chips_trash": {
+      "image": "Textures/Objects/Consumable/Food/snacks.rsi/chips-trash.png",
+      "layout": "flat",
+      "size": [
+        0.30000001192092896,
+        0.30000001192092896
+      ]
+    },
+    "ss14:food_packet_chocolate_trash": {
+      "image": "Textures/Objects/Consumable/Food/snacks.rsi/chocolatebar-trash.png",
+      "layout": "flat",
+      "size": [
+        0.30000001192092896,
+        0.30000001192092896
+      ]
+    },
+    "ss14:food_packet_chow_mein_trash": {
+      "image": "Textures/Objects/Consumable/Food/snacks.rsi/chinese1.png",
+      "layout": "flat",
+      "size": [
+        0.30000001192092896,
+        0.30000001192092896
+      ]
+    },
+    "ss14:food_packet_cn_ds_trash": {
+      "image": "Textures/Objects/Consumable/Food/snacks.rsi/cnds-trash.png",
+      "layout": "flat",
+      "size": [
+        0.30000001192092896,
+        0.30000001192092896
+      ]
+    },
+    "ss14:food_packet_dan_dan_trash": {
+      "image": "Textures/Objects/Consumable/Food/snacks.rsi/chinese2.png",
+      "layout": "flat",
+      "size": [
+        0.30000001192092896,
+        0.30000001192092896
+      ]
+    },
+    "ss14:food_packet_energy_trash": {
+      "image": "Textures/Objects/Consumable/Food/snacks.rsi/energybar-trash.png",
+      "layout": "flat",
+      "size": [
+        0.30000001192092896,
+        0.30000001192092896
+      ]
+    },
+    "ss14:food_packet_pistachio_trash": {
+      "image": "Textures/Objects/Consumable/Food/snacks.rsi/pistachio-trash.png",
+      "layout": "flat",
+      "size": [
+        0.30000001192092896,
+        0.30000001192092896
+      ]
+    },
+    "ss14:food_packet_popcorn_trash": {
+      "image": "Textures/Objects/Consumable/Food/snacks.rsi/popcorn-trash.png",
+      "layout": "flat",
+      "size": [
+        0.30000001192092896,
+        0.30000001192092896
+      ]
+    },
+    "ss14:food_packet_raisins_trash": {
+      "image": "Textures/Objects/Consumable/Food/snacks.rsi/raisins-trash.png",
+      "layout": "flat",
+      "size": [
+        0.30000001192092896,
+        0.30000001192092896
+      ]
+    },
+    "ss14:food_packet_semki_trash": {
+      "image": "Textures/Objects/Consumable/Food/snacks.rsi/semki-trash.png",
+      "layout": "flat",
+      "size": [
+        0.30000001192092896,
+        0.30000001192092896
+      ]
+    },
+    "ss14:food_packet_sus_trash": {
+      "image": "Textures/Objects/Consumable/Food/snacks.rsi/susjerky-trash.png",
+      "layout": "flat",
+      "size": [
+        0.30000001192092896,
+        0.30000001192092896
+      ]
+    },
+    "ss14:food_packet_syndi_trash": {
+      "image": "Textures/Objects/Consumable/Food/snacks.rsi/syndicakes-trash.png",
+      "layout": "flat",
+      "size": [
+        0.30000001192092896,
+        0.30000001192092896
+      ]
+    },
     "ss14:food_pie_banana_cream": {
       "image": "Textures/Objects/Consumable/Food/Baked/pie.rsi/tin.png",
       "layout": "flat",
@@ -7410,12 +10050,100 @@
         0.30000001192092896
       ]
     },
+    "ss14:food_pizza_dank_slice": {
+      "image": "Textures/Objects/Consumable/Food/Baked/pizza.rsi/dank-slice.png",
+      "layout": "flat",
+      "size": [
+        0.30000001192092896,
+        0.30000001192092896
+      ]
+    },
+    "ss14:food_pizza_donkpocket_slice": {
+      "image": "Textures/Objects/Consumable/Food/Baked/pizza.rsi/donkpocket-slice.png",
+      "layout": "flat",
+      "size": [
+        0.30000001192092896,
+        0.30000001192092896
+      ]
+    },
+    "ss14:food_pizza_margherita_slice": {
+      "image": "Textures/Objects/Consumable/Food/Baked/pizza.rsi/margherita-slice.png",
+      "layout": "flat",
+      "size": [
+        0.30000001192092896,
+        0.30000001192092896
+      ]
+    },
+    "ss14:food_pizza_meat_slice": {
+      "image": "Textures/Objects/Consumable/Food/Baked/pizza.rsi/meat-slice.png",
+      "layout": "flat",
+      "size": [
+        0.30000001192092896,
+        0.30000001192092896
+      ]
+    },
+    "ss14:food_pizza_moldy_slice": {
+      "image": "Textures/Objects/Consumable/Food/Baked/pizza.rsi/moldy-slice.png",
+      "layout": "flat",
+      "size": [
+        0.30000001192092896,
+        0.30000001192092896
+      ]
+    },
+    "ss14:food_pizza_mushroom_slice": {
+      "image": "Textures/Objects/Consumable/Food/Baked/pizza.rsi/mushroom-slice.png",
+      "layout": "flat",
+      "size": [
+        0.30000001192092896,
+        0.30000001192092896
+      ]
+    },
     "ss14:food_pizza_pineapple": {
       "image": "Textures/Objects/Consumable/Food/Baked/pizza.rsi/pineapple.png",
       "layout": "flat",
       "size": [
         0.48000001907348633,
         0.48000001907348633
+      ]
+    },
+    "ss14:food_pizza_pineapple_slice": {
+      "image": "Textures/Objects/Consumable/Food/Baked/pizza.rsi/pineapple-slice.png",
+      "layout": "flat",
+      "size": [
+        0.30000001192092896,
+        0.30000001192092896
+      ]
+    },
+    "ss14:food_pizza_sassysage_slice": {
+      "image": "Textures/Objects/Consumable/Food/Baked/pizza.rsi/sassysage-slice.png",
+      "layout": "flat",
+      "size": [
+        0.30000001192092896,
+        0.30000001192092896
+      ]
+    },
+    "ss14:food_pizza_uranium_slice": {
+      "image": "Textures/Objects/Consumable/Food/Baked/pizza.rsi/uranium-slice.png",
+      "layout": "flat",
+      "size": [
+        0.30000001192092896,
+        0.30000001192092896
+      ]
+    },
+    "ss14:food_pizza_vegetable_slice": {
+      "image": "Textures/Objects/Consumable/Food/Baked/pizza.rsi/vegetable-slice.png",
+      "layout": "flat",
+      "size": [
+        0.30000001192092896,
+        0.30000001192092896
+      ]
+    },
+    "ss14:food_pizza_worldpeas_slice": {
+      "image": "Textures/Objects/Consumable/Food/Baked/pizza.rsi/worldpeas-slice.png",
+      "layout": "flat",
+      "size": [
+        0.30000001192092896,
+        0.30000001192092896
       ]
     },
     "ss14:food_plate": {
@@ -7458,6 +10186,14 @@
         0.36000001430511475
       ]
     },
+    "ss14:food_plate_small_trash": {
+      "image": "Textures/Objects/Consumable/Food/plates.rsi/plate-small-trash.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
     "ss14:food_plate_tin": {
       "image": "Textures/Objects/Consumable/Food/plates.rsi/tin.png",
       "layout": "flat",
@@ -7472,6 +10208,134 @@
       "size": [
         0.36000001430511475,
         0.36000001430511475
+      ]
+    },
+    "ss14:food_rice_boiled": {
+      "image": "Textures/Objects/Consumable/Food/bowl.rsi/bowl.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:food_rice_egg": {
+      "image": "Textures/Objects/Consumable/Food/bowl.rsi/bowl.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:food_rice_gumbo": {
+      "image": "Textures/Objects/Consumable/Food/bowl.rsi/bowl.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:food_rice_pork": {
+      "image": "Textures/Objects/Consumable/Food/bowl.rsi/bowl.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:food_rice_pudding": {
+      "image": "Textures/Objects/Consumable/Food/bowl.rsi/bowl.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:food_salad_aesir": {
+      "image": "Textures/Objects/Consumable/Food/bowl.rsi/bowl.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:food_salad_caesar": {
+      "image": "Textures/Objects/Consumable/Food/bowl.rsi/bowl.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:food_salad_citrus": {
+      "image": "Textures/Objects/Consumable/Food/bowl.rsi/bowl.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:food_salad_coleslaw": {
+      "image": "Textures/Objects/Consumable/Food/bowl.rsi/bowl.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:food_salad_eden": {
+      "image": "Textures/Objects/Consumable/Food/bowl.rsi/bowl.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:food_salad_fruit": {
+      "image": "Textures/Objects/Consumable/Food/bowl.rsi/bowl.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:food_salad_herb": {
+      "image": "Textures/Objects/Consumable/Food/bowl.rsi/bowl.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:food_salad_jungle": {
+      "image": "Textures/Objects/Consumable/Food/bowl.rsi/bowl.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:food_salad_kimchi": {
+      "image": "Textures/Objects/Consumable/Food/bowl.rsi/bowl.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:food_salad_valid": {
+      "image": "Textures/Objects/Consumable/Food/bowl.rsi/bowl.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:food_salad_watermelon_fruit_bowl": {
+      "image": "Textures/Objects/Consumable/Food/meals.rsi/melonfruitbowl.png",
+      "layout": "flat",
+      "size": [
+        0.48000001907348633,
+        0.48000001907348633
       ]
     },
     "ss14:food_shaker_salt": {
@@ -7508,6 +10372,14 @@
     },
     "ss14:food_snack_chocolate": {
       "image": "Textures/Objects/Consumable/Food/snacks.rsi/chocolatebar.png",
+      "layout": "flat",
+      "size": [
+        0.30000001192092896,
+        0.30000001192092896
+      ]
+    },
+    "ss14:food_snack_chocolate_bar": {
+      "image": "Textures/Objects/Consumable/Food/snacks.rsi/chocolatebar-open.png",
       "layout": "flat",
       "size": [
         0.30000001192092896,
@@ -7610,12 +10482,228 @@
         0.30000001192092896
       ]
     },
+    "ss14:food_snack_swirl_lollipop": {
+      "image": "Textures/Objects/Consumable/Food/candy.rsi/swirl_lollipop.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:food_snack_syndi": {
+      "image": "Textures/Objects/Consumable/Food/snacks.rsi/syndicakes.png",
+      "layout": "flat",
+      "size": [
+        0.30000001192092896,
+        0.30000001192092896
+      ]
+    },
+    "ss14:food_soup_beet": {
+      "image": "Textures/Objects/Consumable/Food/bowl.rsi/bowl.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:food_soup_beet_red": {
+      "image": "Textures/Objects/Consumable/Food/bowl.rsi/bowl.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:food_soup_bisque": {
+      "image": "Textures/Objects/Consumable/Food/bowl.rsi/bowl.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:food_soup_bungo": {
+      "image": "Textures/Objects/Consumable/Food/bowl.rsi/bowl.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:food_soup_chili_clown": {
+      "image": "Textures/Objects/Consumable/Food/bowl.rsi/bowl.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:food_soup_chili_cold": {
+      "image": "Textures/Objects/Consumable/Food/bowl.rsi/bowl.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:food_soup_chili_hot": {
+      "image": "Textures/Objects/Consumable/Food/bowl.rsi/bowl.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:food_soup_clown": {
+      "image": "Textures/Objects/Consumable/Food/bowl.rsi/bowl.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
     "ss14:food_soup_electron": {
       "image": "Textures/Objects/Consumable/Food/bowl.rsi/bowl.png",
       "layout": "flat",
       "size": [
         0.48000001907348633,
         0.48000001907348633
+      ]
+    },
+    "ss14:food_soup_eyeball": {
+      "image": "Textures/Objects/Consumable/Food/bowl.rsi/bowl.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:food_soup_meatball": {
+      "image": "Textures/Objects/Consumable/Food/bowl.rsi/bowl.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:food_soup_miso": {
+      "image": "Textures/Objects/Consumable/Food/bowl.rsi/bowl2.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:food_soup_monkey": {
+      "image": "Textures/Objects/Consumable/Food/bowl.rsi/bowl.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:food_soup_mushroom": {
+      "image": "Textures/Objects/Consumable/Food/bowl.rsi/bowl.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:food_soup_mystery": {
+      "image": "Textures/Objects/Consumable/Food/bowl.rsi/bowl.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:food_soup_nettle": {
+      "image": "Textures/Objects/Consumable/Food/bowl.rsi/bowl.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:food_soup_onion": {
+      "image": "Textures/Objects/Consumable/Food/bowl.rsi/bowl.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:food_soup_pea": {
+      "image": "Textures/Objects/Consumable/Food/bowl.rsi/bowl.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:food_soup_potato": {
+      "image": "Textures/Objects/Consumable/Food/bowl.rsi/bowl.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:food_soup_slime": {
+      "image": "Textures/Objects/Consumable/Food/bowl.rsi/bowl.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:food_soup_stew": {
+      "image": "Textures/Objects/Consumable/Food/bowl.rsi/bowl.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:food_soup_tomato": {
+      "image": "Textures/Objects/Consumable/Food/bowl.rsi/bowl.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:food_soup_tomato_blood": {
+      "image": "Textures/Objects/Consumable/Food/bowl.rsi/bowl.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:food_soup_vegetable": {
+      "image": "Textures/Objects/Consumable/Food/bowl.rsi/bowl.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:food_soup_wing_fang_chu": {
+      "image": "Textures/Objects/Consumable/Food/bowl.rsi/bowl.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:food_taco_shell": {
+      "image": "Textures/Objects/Consumable/Food/taco_sequence.rsi/tacoshell_back.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
       ]
     },
     "ss14:food_tin_beans": {
@@ -7640,6 +10728,14 @@
       "size": [
         0.30000001192092896,
         0.30000001192092896
+      ]
+    },
+    "ss14:football": {
+      "image": "Textures/Objects/Fun/Balls/football.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
       ]
     },
     "ss14:forensic_pad": {
@@ -7672,6 +10768,22 @@
       "size": [
         0.36000001430511475,
         0.36000001430511475
+      ]
+    },
+    "ss14:french_horn_instrument": {
+      "image": "Textures/Objects/Fun/Instruments/frenchhorn.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.48000001907348633,
+        0.48000001907348633
+      ]
+    },
+    "ss14:fretless_bass_guitar_instrument": {
+      "image": "Textures/Objects/Fun/Instruments/bassguitarfretless.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.48000001907348633,
+        0.48000001907348633
       ]
     },
     "ss14:frezon_canister": {
@@ -7770,12 +10882,36 @@
         0.36000001430511475
       ]
     },
+    "ss14:gauze1": {
+      "image": "Textures/Objects/Specific/Medical/medical.rsi/gauze.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:geiger_counter": {
+      "image": "Textures/Objects/Tools/geiger.rsi/geiger_base.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
     "ss14:generator_basic": {
       "image": "Textures/Structures/Power/power.rsi/generator.png",
       "layout": "billboard",
       "size": [
         0.6000000238418579,
         0.6000000238418579
+      ]
+    },
+    "ss14:glockenspiel_instrument": {
+      "image": "Textures/Objects/Fun/Instruments/glockenspiel.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.48000001907348633,
+        0.48000001907348633
       ]
     },
     "ss14:glowstick_blue": {
@@ -7810,6 +10946,14 @@
         0.48000001907348633
       ]
     },
+    "ss14:golden_bike_horn": {
+      "image": "Textures/Objects/Fun/goldbikehorn.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.30000001192092896,
+        0.30000001192092896
+      ]
+    },
     "ss14:grape_seeds": {
       "image": "Textures/Objects/Specific/Hydroponics/grape.rsi/seed.png",
       "layout": "flat",
@@ -7826,6 +10970,14 @@
         0.36000001430511475
       ]
     },
+    "ss14:grenade_dummy": {
+      "image": "Textures/Objects/Weapons/Grenades/grenade.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
     "ss14:grenade_flash_bang": {
       "image": "Textures/Objects/Weapons/Grenades/flashbang.rsi/icon.png",
       "layout": "flat",
@@ -7834,8 +10986,24 @@
         0.36000001430511475
       ]
     },
+    "ss14:grenade_foam_dart": {
+      "image": "Textures/Objects/Fun/Foam/foam_grenade.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
     "ss14:grenade_stinger": {
       "image": "Textures/Objects/Weapons/Grenades/stingergrenade.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:gunpet_instrument": {
+      "image": "Textures/Objects/Fun/Instruments/gunpet.rsi/icon.png",
       "layout": "flat",
       "size": [
         0.36000001430511475,
@@ -7856,6 +11024,14 @@
       "size": [
         0.36000001430511475,
         0.36000001430511475
+      ]
+    },
+    "ss14:handheld_artifact_container": {
+      "image": "Textures/Objects/Storage/artifact_container.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
       ]
     },
     "ss14:handheld_gpsbasic": {
@@ -8010,6 +11186,14 @@
         0.36000001430511475
       ]
     },
+    "ss14:inflatable_wall_stack5": {
+      "image": "Textures/Objects/Misc/inflatable_wall.rsi/item_wall.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
     "ss14:ingot_gold": {
       "image": "Textures/Objects/Materials/ingots.rsi/gold_3.png",
       "layout": "flat",
@@ -8024,6 +11208,22 @@
       "size": [
         0.48000001907348633,
         0.48000001907348633
+      ]
+    },
+    "ss14:intercom_electronics": {
+      "image": "Textures/Objects/Misc/module.rsi/id_mod.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:irish_bool_glass": {
+      "image": "Textures/Objects/Consumable/Drinks/glass_clear.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
       ]
     },
     "ss14:janitor_pda": {
@@ -8306,6 +11506,14 @@
         0.36000001430511475
       ]
     },
+    "ss14:lantern_flash": {
+      "image": "Textures/Objects/Tools/lantern.rsi/lantern.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
     "ss14:large_beaker": {
       "image": "Textures/Objects/Specific/Chemistry/beaker_large.rsi/beakerlarge.png",
       "layout": "flat",
@@ -8384,6 +11592,14 @@
       "size": [
         0.30000001192092896,
         0.30000001192092896
+      ]
+    },
+    "ss14:machete": {
+      "image": "Textures/Objects/Weapons/Melee/machete.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.48000001907348633,
+        0.48000001907348633
       ]
     },
     "ss14:magazine_box_caseless_rifle": {
@@ -8506,6 +11722,14 @@
         0.36000001430511475
       ]
     },
+    "ss14:material_cardboard10": {
+      "image": "Textures/Objects/Materials/materials.rsi/cardboard_3.png",
+      "layout": "flat",
+      "size": [
+        0.48000001907348633,
+        0.48000001907348633
+      ]
+    },
     "ss14:material_cloth": {
       "image": "Textures/Objects/Materials/materials.rsi/cloth_3.png",
       "layout": "flat",
@@ -8554,6 +11778,14 @@
         0.48000001907348633
       ]
     },
+    "ss14:material_wood_plank10": {
+      "image": "Textures/Objects/Materials/materials.rsi/wood.png",
+      "layout": "flat",
+      "size": [
+        0.48000001907348633,
+        0.48000001907348633
+      ]
+    },
     "ss14:medical_intern_pda": {
       "image": "Textures/Objects/Devices/pda.rsi/pda.png",
       "layout": "flat",
@@ -8578,8 +11810,32 @@
         0.30000001192092896
       ]
     },
+    "ss14:microphone_instrument": {
+      "image": "Textures/Objects/Fun/Instruments/microphone.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
     "ss14:mime_pda": {
       "image": "Textures/Objects/Devices/pda.rsi/pda.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:mining_drill": {
+      "image": "Textures/Objects/Tools/handdrill.rsi/handdrill.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:modular_receiver": {
+      "image": "Textures/Objects/Misc/modular_receiver.rsi/icon.png",
       "layout": "flat",
       "size": [
         0.36000001430511475,
@@ -8618,8 +11874,24 @@
         0.36000001430511475
       ]
     },
+    "ss14:mousetrap": {
+      "image": "Textures/Objects/Devices/mousetrap.rsi/mousetrap.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
     "ss14:multitool": {
       "image": "Textures/Objects/Tools/multitool.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:music_box_instrument": {
+      "image": "Textures/Objects/Fun/Instruments/musicbox.rsi/icon.png",
       "layout": "flat",
       "size": [
         0.36000001430511475,
@@ -8642,8 +11914,32 @@
         0.36000001430511475
       ]
     },
+    "ss14:mystery_lighter_box": {
+      "image": "Textures/Objects/Fun/figurines.rsi/fig_box.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:net_probe_cartridge": {
+      "image": "Textures/Objects/Devices/cartridge.rsi/cart-y.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
     "ss14:network_configurator": {
       "image": "Textures/Objects/Tools/network_configurator.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:newton_cradle": {
+      "image": "Textures/Objects/Fun/newton_cradle.rsi/icon-off.png",
       "layout": "flat",
       "size": [
         0.36000001430511475,
@@ -8666,6 +11962,14 @@
         0.6000000238418579
       ]
     },
+    "ss14:nuke_disk_fake": {
+      "image": "Textures/Objects/Misc/nukedisk.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
     "ss14:oat_seeds": {
       "image": "Textures/Objects/Specific/Hydroponics/oat.rsi/seed.png",
       "layout": "flat",
@@ -8674,7 +11978,23 @@
         0.30000001192092896
       ]
     },
+    "ss14:ocarina_instrument": {
+      "image": "Textures/Objects/Fun/Instruments/ocarina.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
     "ss14:ointment": {
+      "image": "Textures/Objects/Specific/Medical/medical.rsi/ointment.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:ointment1": {
       "image": "Textures/Objects/Specific/Medical/medical.rsi/ointment.png",
       "layout": "flat",
       "size": [
@@ -8744,6 +12064,14 @@
       "size": [
         0.36000001430511475,
         0.36000001430511475
+      ]
+    },
+    "ss14:pan_flute_instrument": {
+      "image": "Textures/Objects/Fun/Instruments/panflute.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.48000001907348633,
+        0.48000001907348633
       ]
     },
     "ss14:paper": {
@@ -8848,6 +12176,14 @@
       "size": [
         0.36000001430511475,
         0.36000001430511475
+      ]
+    },
+    "ss14:pet_carrier": {
+      "image": "Textures/Objects/Storage/petcarrier.rsi/pet_carrier_base.png",
+      "layout": "flat",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
       ]
     },
     "ss14:phone_instrument": {
@@ -8978,6 +12314,30 @@
         0.48000001907348633
       ]
     },
+    "ss14:plastic_banana": {
+      "image": "Textures/Objects/Specific/Hydroponics/banana.rsi/produce.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:plunger": {
+      "image": "Textures/Objects/Specific/Janitorial/plunger.rsi/plunger.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:plushie_arachnid": {
+      "image": "Textures/Objects/Fun/Plushies/arachnid.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
     "ss14:plushie_atmosian": {
       "image": "Textures/Objects/Fun/Plushies/atmosian.rsi/icon.png",
       "layout": "flat",
@@ -8986,8 +12346,64 @@
         0.36000001430511475
       ]
     },
+    "ss14:plushie_bee": {
+      "image": "Textures/Objects/Fun/Plushies/bee.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.48000001907348633,
+        0.48000001907348633
+      ]
+    },
     "ss14:plushie_carp": {
       "image": "Textures/Objects/Fun/Plushies/carp.rsi/carpplush.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:plushie_diona": {
+      "image": "Textures/Objects/Fun/Plushies/diona.rsi/plushie_diona.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:plushie_experiment": {
+      "image": "Textures/Objects/Fun/Plushies/expi.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:plushie_hampter": {
+      "image": "Textures/Objects/Fun/Plushies/hampter.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:plushie_holocarp": {
+      "image": "Textures/Objects/Fun/Plushies/carp.rsi/holoplush.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:plushie_human": {
+      "image": "Textures/Objects/Fun/Plushies/human.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:plushie_lamp": {
+      "image": "Textures/Objects/Fun/Plushies/lamp.rsi/icon.png",
       "layout": "flat",
       "size": [
         0.36000001430511475,
@@ -9002,8 +12418,376 @@
         0.36000001430511475
       ]
     },
+    "ss14:plushie_lizard_inversed": {
+      "image": "Textures/Objects/Fun/Plushies/lizard.rsi/plushie_lizard_inversed.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:plushie_lizard_job_atmospherictechnician": {
+      "image": "Textures/Objects/Fun/plushielizard_jobs/atmostech.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:plushie_lizard_job_bartender": {
+      "image": "Textures/Objects/Fun/plushielizard_jobs/bartender.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:plushie_lizard_job_botanist": {
+      "image": "Textures/Objects/Fun/plushielizard_jobs/botanist.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:plushie_lizard_job_boxer": {
+      "image": "Textures/Objects/Fun/plushielizard_jobs/boxer.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:plushie_lizard_job_captain": {
+      "image": "Textures/Objects/Fun/plushielizard_jobs/captain.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:plushie_lizard_job_cargotechnician": {
+      "image": "Textures/Objects/Fun/plushielizard_jobs/cargotech.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:plushie_lizard_job_chaplain": {
+      "image": "Textures/Objects/Fun/plushielizard_jobs/chaplain.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:plushie_lizard_job_chef": {
+      "image": "Textures/Objects/Fun/plushielizard_jobs/chef.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:plushie_lizard_job_chemist": {
+      "image": "Textures/Objects/Fun/plushielizard_jobs/chemist.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:plushie_lizard_job_chiefengineer": {
+      "image": "Textures/Objects/Fun/plushielizard_jobs/chiefengineer.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:plushie_lizard_job_chiefmedicalofficer": {
+      "image": "Textures/Objects/Fun/plushielizard_jobs/cmo.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:plushie_lizard_job_clown": {
+      "image": "Textures/Objects/Fun/plushielizard_jobs/clown.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:plushie_lizard_job_detective": {
+      "image": "Textures/Objects/Fun/plushielizard_jobs/detective.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:plushie_lizard_job_headofpersonnel": {
+      "image": "Textures/Objects/Fun/plushielizard_jobs/hop.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:plushie_lizard_job_headofsecurity": {
+      "image": "Textures/Objects/Fun/plushielizard_jobs/hos.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:plushie_lizard_job_janitor": {
+      "image": "Textures/Objects/Fun/plushielizard_jobs/janitor.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:plushie_lizard_job_lawyer": {
+      "image": "Textures/Objects/Fun/plushielizard_jobs/lawyer.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:plushie_lizard_job_librarian": {
+      "image": "Textures/Objects/Fun/plushielizard_jobs/librarian.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:plushie_lizard_job_medicaldoctor": {
+      "image": "Textures/Objects/Fun/plushielizard_jobs/meddoctor.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:plushie_lizard_job_medicalintern": {
+      "image": "Textures/Objects/Fun/plushielizard_jobs/medintern.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:plushie_lizard_job_mime": {
+      "image": "Textures/Objects/Fun/plushielizard_jobs/mime.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:plushie_lizard_job_multiweh": {
+      "image": "Textures/Objects/Fun/plushielizard_jobs/multiweh.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:plushie_lizard_job_musician": {
+      "image": "Textures/Objects/Fun/plushielizard_jobs/musician.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:plushie_lizard_job_paramedic": {
+      "image": "Textures/Objects/Fun/plushielizard_jobs/paramedic.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:plushie_lizard_job_passenger": {
+      "image": "Textures/Objects/Fun/plushielizard_jobs/passenger.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:plushie_lizard_job_psychologist": {
+      "image": "Textures/Objects/Fun/plushielizard_jobs/psychologist.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:plushie_lizard_job_quartermaster": {
+      "image": "Textures/Objects/Fun/plushielizard_jobs/qm.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:plushie_lizard_job_reporter": {
+      "image": "Textures/Objects/Fun/plushielizard_jobs/reporter.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:plushie_lizard_job_researchassistant": {
+      "image": "Textures/Objects/Fun/plushielizard_jobs/researchassistant.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:plushie_lizard_job_researchdirector": {
+      "image": "Textures/Objects/Fun/plushielizard_jobs/rd.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:plushie_lizard_job_salvagespecialist": {
+      "image": "Textures/Objects/Fun/plushielizard_jobs/salvager.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:plushie_lizard_job_scientist": {
+      "image": "Textures/Objects/Fun/plushielizard_jobs/scientist.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:plushie_lizard_job_securitycadet": {
+      "image": "Textures/Objects/Fun/plushielizard_jobs/seccadet.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:plushie_lizard_job_securityofficer": {
+      "image": "Textures/Objects/Fun/plushielizard_jobs/secofficer.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:plushie_lizard_job_serviceworker": {
+      "image": "Textures/Objects/Fun/plushielizard_jobs/serviceworker.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:plushie_lizard_job_stationengineer": {
+      "image": "Textures/Objects/Fun/plushielizard_jobs/stationengi.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:plushie_lizard_job_technicalassistant": {
+      "image": "Textures/Objects/Fun/plushielizard_jobs/technicalassistant.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:plushie_lizard_job_zookeeper": {
+      "image": "Textures/Objects/Fun/plushielizard_jobs/zookeeper.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:plushie_magicarp": {
+      "image": "Textures/Objects/Fun/Plushies/carp.rsi/magicplush.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:plushie_moth": {
+      "image": "Textures/Objects/Fun/Plushies/moth.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
     "ss14:plushie_nar": {
       "image": "Textures/Objects/Fun/Plushies/narsie.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.48000001907348633,
+        0.48000001907348633
+      ]
+    },
+    "ss14:plushie_nuke": {
+      "image": "Textures/Objects/Fun/Plushies/nukie.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:plushie_penguin": {
+      "image": "Textures/Objects/Fun/Plushies/penguin.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:plushie_rainbow_carp": {
+      "image": "Textures/Objects/Fun/Plushies/carp.rsi/rainbowcarpplush.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:plushie_ratvar": {
+      "image": "Textures/Objects/Fun/Plushies/ratvar.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.48000001907348633,
+        0.48000001907348633
+      ]
+    },
+    "ss14:plushie_rgbee": {
+      "image": "Textures/Objects/Fun/Plushies/bee.rsi/icon.png",
       "layout": "flat",
       "size": [
         0.48000001907348633,
@@ -9042,12 +12826,76 @@
         0.36000001430511475
       ]
     },
+    "ss14:plushie_sheep": {
+      "image": "Textures/Objects/Fun/Plushies/sheep.rsi/sheeptoy.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:plushie_slime": {
+      "image": "Textures/Objects/Fun/Plushies/slime.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:plushie_snake": {
+      "image": "Textures/Objects/Fun/Plushies/snake.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
     "ss14:plushie_space_lizard": {
       "image": "Textures/Objects/Fun/Plushies/lizard.rsi/plushie_spacelizard.png",
       "layout": "flat",
       "size": [
         0.36000001430511475,
         0.36000001430511475
+      ]
+    },
+    "ss14:plushie_space_sheep": {
+      "image": "Textures/Objects/Fun/Plushies/sheep.rsi/spacesheeptoy.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:plushie_throngler": {
+      "image": "Textures/Objects/Weapons/Melee/ThronglerPlushie.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:plushie_vox": {
+      "image": "Textures/Objects/Fun/Plushies/vox.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:plushie_vulp": {
+      "image": "Textures/Objects/Fun/Plushies/vulp.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:plushie_xeno": {
+      "image": "Textures/Objects/Fun/Plushies/xeno.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.48000001907348633,
+        0.48000001907348633
       ]
     },
     "ss14:pondering_orb": {
@@ -9082,8 +12930,232 @@
         0.30000001192092896
       ]
     },
+    "ss14:potted_plant0": {
+      "image": "Textures/Structures/Furniture/potted_plants.rsi/applebush.png",
+      "layout": "flat",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:potted_plant1": {
+      "image": "Textures/Structures/Furniture/potted_plants.rsi/plant-01.png",
+      "layout": "flat",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:potted_plant10": {
+      "image": "Textures/Structures/Furniture/potted_plants.rsi/plant-10.png",
+      "layout": "flat",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:potted_plant11": {
+      "image": "Textures/Structures/Furniture/potted_plants.rsi/plant-11.png",
+      "layout": "flat",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:potted_plant12": {
+      "image": "Textures/Structures/Furniture/potted_plants.rsi/plant-12.png",
+      "layout": "flat",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:potted_plant13": {
+      "image": "Textures/Structures/Furniture/potted_plants.rsi/plant-13.png",
+      "layout": "flat",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:potted_plant14": {
+      "image": "Textures/Structures/Furniture/potted_plants.rsi/plant-14.png",
+      "layout": "flat",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
     "ss14:potted_plant15": {
       "image": "Textures/Structures/Furniture/potted_plants.rsi/plant-15.png",
+      "layout": "flat",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:potted_plant16": {
+      "image": "Textures/Structures/Furniture/potted_plants.rsi/plant-16.png",
+      "layout": "flat",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:potted_plant17": {
+      "image": "Textures/Structures/Furniture/potted_plants.rsi/plant-17.png",
+      "layout": "flat",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:potted_plant18": {
+      "image": "Textures/Structures/Furniture/potted_plants.rsi/plant-18.png",
+      "layout": "flat",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:potted_plant19": {
+      "image": "Textures/Structures/Furniture/potted_plants.rsi/plant-19.png",
+      "layout": "flat",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:potted_plant2": {
+      "image": "Textures/Structures/Furniture/potted_plants.rsi/plant-02.png",
+      "layout": "flat",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:potted_plant20": {
+      "image": "Textures/Structures/Furniture/potted_plants.rsi/plant-20.png",
+      "layout": "flat",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:potted_plant21": {
+      "image": "Textures/Structures/Furniture/potted_plants.rsi/plant-21.png",
+      "layout": "flat",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:potted_plant22": {
+      "image": "Textures/Structures/Furniture/potted_plants.rsi/plant-22.png",
+      "layout": "flat",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:potted_plant23": {
+      "image": "Textures/Structures/Furniture/potted_plants.rsi/plant-23.png",
+      "layout": "flat",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:potted_plant24": {
+      "image": "Textures/Structures/Furniture/potted_plants.rsi/plant-24.png",
+      "layout": "flat",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:potted_plant26": {
+      "image": "Textures/Structures/Furniture/potted_plants.rsi/plant-26.png",
+      "layout": "flat",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:potted_plant27": {
+      "image": "Textures/Structures/Furniture/potted_plants.rsi/plant-27.png",
+      "layout": "flat",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:potted_plant28": {
+      "image": "Textures/Structures/Furniture/potted_plants.rsi/plant-28.png",
+      "layout": "flat",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:potted_plant29": {
+      "image": "Textures/Structures/Furniture/potted_plants.rsi/plant-29.png",
+      "layout": "flat",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:potted_plant3": {
+      "image": "Textures/Structures/Furniture/potted_plants.rsi/plant-03.png",
+      "layout": "flat",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:potted_plant30": {
+      "image": "Textures/Structures/Furniture/potted_plants.rsi/plant-30.png",
+      "layout": "flat",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:potted_plant4": {
+      "image": "Textures/Structures/Furniture/potted_plants.rsi/plant-04.png",
+      "layout": "flat",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:potted_plant5": {
+      "image": "Textures/Structures/Furniture/potted_plants.rsi/plant-05.png",
+      "layout": "flat",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:potted_plant6": {
+      "image": "Textures/Structures/Furniture/potted_plants.rsi/plant-06.png",
+      "layout": "flat",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:potted_plant7": {
+      "image": "Textures/Structures/Furniture/potted_plants.rsi/plant-07.png",
+      "layout": "flat",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:potted_plant8": {
+      "image": "Textures/Structures/Furniture/potted_plants.rsi/plant-08.png",
       "layout": "flat",
       "size": [
         0.6000000238418579,
@@ -9104,6 +13176,14 @@
       "size": [
         0.6000000238418579,
         0.6000000238418579
+      ]
+    },
+    "ss14:power_cell_high": {
+      "image": "Textures/Objects/Power/power_cells.rsi/high.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
       ]
     },
     "ss14:power_cell_high_printed": {
@@ -9146,6 +13226,14 @@
         0.36000001430511475
       ]
     },
+    "ss14:protolathe_machine_circuitboard": {
+      "image": "Textures/Objects/Misc/module.rsi/science.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
     "ss14:proximity_sensor": {
       "image": "Textures/Objects/Misc/proximity_sensor.rsi/icon.png",
       "layout": "flat",
@@ -9156,6 +13244,14 @@
     },
     "ss14:pumpkin_seeds": {
       "image": "Textures/Objects/Specific/Hydroponics/pumpkin.rsi/seed.png",
+      "layout": "flat",
+      "size": [
+        0.30000001192092896,
+        0.30000001192092896
+      ]
+    },
+    "ss14:push_horn": {
+      "image": "Textures/Objects/Fun/push_horn.rsi/icon.png",
       "layout": "flat",
       "size": [
         0.30000001192092896,
@@ -9282,6 +13378,14 @@
         0.48000001907348633
       ]
     },
+    "ss14:recorder_instrument": {
+      "image": "Textures/Objects/Fun/Instruments/recorder.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.48000001907348633,
+        0.48000001907348633
+      ]
+    },
     "ss14:remote_signaller": {
       "image": "Textures/Objects/Devices/signaller.rsi/signaller.png",
       "layout": "flat",
@@ -9298,7 +13402,23 @@
         0.36000001430511475
       ]
     },
+    "ss14:research_disk5000": {
+      "image": "Textures/Objects/Specific/Research/researchdisk.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
     "ss14:revolver_cap_gun": {
+      "image": "Textures/Objects/Fun/capgun.rsi/base.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:revolver_cap_gun_fake": {
       "image": "Textures/Objects/Fun/capgun.rsi/base.png",
       "layout": "flat",
       "size": [
@@ -9312,6 +13432,14 @@
       "size": [
         0.30000001192092896,
         0.30000001192092896
+      ]
+    },
+    "ss14:rifle_stock": {
+      "image": "Textures/Objects/Misc/rifle_stock.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
       ]
     },
     "ss14:riot_bullet_shield": {
@@ -9346,6 +13474,14 @@
         0.36000001430511475
       ]
     },
+    "ss14:rock_guitar_instrument": {
+      "image": "Textures/Objects/Fun/Instruments/rockguitar.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.48000001907348633,
+        0.48000001907348633
+      ]
+    },
     "ss14:roller_bed": {
       "image": "Textures/Structures/Furniture/rollerbeds.rsi/rollerbed.png",
       "layout": "flat",
@@ -9356,6 +13492,14 @@
     },
     "ss14:rolling_pin": {
       "image": "Textures/Objects/Tools/rolling_pin.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:rubber_chicken": {
+      "image": "Textures/Objects/Fun/rubber_chicken.rsi/icon.png",
       "layout": "flat",
       "size": [
         0.36000001430511475,
@@ -9394,12 +13538,44 @@
         0.30000001192092896
       ]
     },
+    "ss14:rubber_stamp_greytide": {
+      "image": "Textures/Objects/Misc/stamps.rsi/stamp-greytide.png",
+      "layout": "flat",
+      "size": [
+        0.30000001192092896,
+        0.30000001192092896
+      ]
+    },
     "ss14:rubber_stamp_mime": {
       "image": "Textures/Objects/Misc/stamps.rsi/stamp-mime.png",
       "layout": "flat",
       "size": [
         0.30000001192092896,
         0.30000001192092896
+      ]
+    },
+    "ss14:rubberneck_glass": {
+      "image": "Textures/Objects/Consumable/Drinks/glass_clear.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:sad_trombone_implanter": {
+      "image": "Textures/Objects/Specific/Medical/implanter.rsi/implanter1.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:salvage_magnet_machine_circuitboard": {
+      "image": "Textures/Objects/Misc/module.rsi/supply.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
       ]
     },
     "ss14:salvage_pda": {
@@ -9426,6 +13602,22 @@
         0.48000001907348633
       ]
     },
+    "ss14:saw_improv": {
+      "image": "Textures/Objects/Specific/Medical/Surgery/saw.rsi/improv.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:saxophone_instrument": {
+      "image": "Textures/Objects/Fun/Instruments/saxophone.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.48000001907348633,
+        0.48000001907348633
+      ]
+    },
     "ss14:scalpel": {
       "image": "Textures/Objects/Specific/Medical/Surgery/scalpel.rsi/scalpel.png",
       "layout": "flat",
@@ -9436,6 +13628,14 @@
     },
     "ss14:scalpel_laser": {
       "image": "Textures/Objects/Specific/Medical/Surgery/scalpel.rsi/laser.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:scalpel_shiv": {
+      "image": "Textures/Objects/Specific/Medical/Surgery/scalpel.rsi/shiv.png",
       "layout": "flat",
       "size": [
         0.36000001430511475,
@@ -9570,6 +13770,14 @@
         0.48000001907348633
       ]
     },
+    "ss14:sheet_plastic10": {
+      "image": "Textures/Objects/Materials/Sheets/other.rsi/plastic_3.png",
+      "layout": "flat",
+      "size": [
+        0.48000001907348633,
+        0.48000001907348633
+      ]
+    },
     "ss14:sheet_steel": {
       "image": "Textures/Objects/Materials/Sheets/metal.rsi/steel_3.png",
       "layout": "flat",
@@ -9594,6 +13802,30 @@
         0.36000001430511475
       ]
     },
+    "ss14:shiv": {
+      "image": "Textures/Objects/Weapons/Melee/shiv.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:shovel": {
+      "image": "Textures/Objects/Tools/shovel.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.48000001907348633,
+        0.48000001907348633
+      ]
+    },
+    "ss14:shuttle_console_circuitboard": {
+      "image": "Textures/Objects/Misc/module.rsi/cpu_supply.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
     "ss14:signal_switch": {
       "image": "Textures/Structures/Wallmounts/switch.rsi/off.png",
       "layout": "billboard",
@@ -9610,8 +13842,32 @@
         0.6000000238418579
       ]
     },
+    "ss14:signal_timer_electronics": {
+      "image": "Textures/Objects/Misc/module.rsi/charger_APC.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:singularity_toy": {
+      "image": "Textures/Objects/Fun/toy_singularity.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.48000001907348633,
+        0.48000001907348633
+      ]
+    },
     "ss14:skub": {
       "image": "Textures/Objects/Misc/skub.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:slipocalypse_cluster_soap": {
+      "image": "Textures/Objects/Specific/Janitorial/soap.rsi/syndie-4.png",
       "layout": "flat",
       "size": [
         0.36000001430511475,
@@ -9626,6 +13882,14 @@
         0.6000000238418579
       ]
     },
+    "ss14:smesmachine_circuitboard": {
+      "image": "Textures/Objects/Misc/module.rsi/power_mod.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
     "ss14:smoking_pipe_filled_tobacco": {
       "image": "Textures/Objects/Consumable/Smokeables/Pipes/pipe.rsi/unlit-icon.png",
       "layout": "flat",
@@ -9634,8 +13898,40 @@
         0.30000001192092896
       ]
     },
+    "ss14:snap_pop_box": {
+      "image": "Textures/Objects/Fun/snap_pops.rsi/box.png",
+      "layout": "flat",
+      "size": [
+        0.48000001907348633,
+        0.48000001907348633
+      ]
+    },
     "ss14:snow_battlemap": {
       "image": "Textures/Objects/Fun/Tabletop/Battlemaps/snowbm.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:soap": {
+      "image": "Textures/Objects/Specific/Janitorial/soap.rsi/soap-4.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:soap_deluxe": {
+      "image": "Textures/Objects/Specific/Janitorial/soap.rsi/deluxe-4.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:soap_homemade": {
+      "image": "Textures/Objects/Specific/Janitorial/soap.rsi/gibs-4.png",
       "layout": "flat",
       "size": [
         0.36000001430511475,
@@ -9652,6 +13948,14 @@
     },
     "ss14:soap_omega": {
       "image": "Textures/Objects/Specific/Janitorial/soap.rsi/omega-4.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:soap_syndie": {
+      "image": "Textures/Objects/Specific/Janitorial/soap.rsi/syndie-4.png",
       "layout": "flat",
       "size": [
         0.36000001430511475,
@@ -9698,6 +14002,30 @@
         0.36000001430511475
       ]
     },
+    "ss14:spear": {
+      "image": "Textures/Objects/Weapons/Melee/spear.rsi/spear.png",
+      "layout": "flat",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:spectral_locator": {
+      "image": "Textures/Objects/Fun/spectrallocator.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:speed_loader_cap": {
+      "image": "Textures/Objects/Fun/caps.rsi/base.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
     "ss14:spoon": {
       "image": "Textures/Objects/Misc/utensils.rsi/spoon.png",
       "layout": "flat",
@@ -9720,6 +14048,14 @@
       "size": [
         0.36000001430511475,
         0.36000001430511475
+      ]
+    },
+    "ss14:spray_flower_pin": {
+      "image": "Textures/Clothing/Neck/Misc/pins.rsi/flower.png",
+      "layout": "flat",
+      "size": [
+        0.30000001192092896,
+        0.30000001192092896
       ]
     },
     "ss14:spray_painter": {
@@ -9762,12 +14098,44 @@
         0.6000000238418579
       ]
     },
+    "ss14:substation_machine_circuitboard": {
+      "image": "Textures/Objects/Misc/module.rsi/generic.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
     "ss14:sugarcane_seeds": {
       "image": "Textures/Objects/Specific/Hydroponics/sugarcane.rsi/seed.png",
       "layout": "flat",
       "size": [
         0.30000001192092896,
         0.30000001192092896
+      ]
+    },
+    "ss14:survival_knife": {
+      "image": "Textures/Objects/Weapons/Melee/survival_knife.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:syndicate_whistle": {
+      "image": "Textures/Objects/Fun/whistles.rsi/trench.png",
+      "layout": "flat",
+      "size": [
+        0.30000001192092896,
+        0.30000001192092896
+      ]
+    },
+    "ss14:syndie_tricky_bomb": {
+      "image": "Textures/Objects/Weapons/Grenades/syndgrenade.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
       ]
     },
     "ss14:synthesizer_instrument": {
@@ -9810,8 +14178,32 @@
         0.36000001430511475
       ]
     },
+    "ss14:technology_disk": {
+      "image": "Textures/Objects/Misc/module.rsi/datadisk_base.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
     "ss14:telecom_server_circuitboard": {
       "image": "Textures/Objects/Misc/module.rsi/engineering.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:tennis_ball": {
+      "image": "Textures/Objects/Fun/Balls/tennisball.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:tesla_toy": {
+      "image": "Textures/Structures/Power/Generation/Tesla/energy_miniball.rsi/tesla_projectile.png",
       "layout": "flat",
       "size": [
         0.36000001430511475,
@@ -9874,8 +14266,448 @@
         0.36000001430511475
       ]
     },
+    "ss14:toy_durand": {
+      "image": "Textures/Objects/Fun/mech_figurines.rsi/durand.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:toy_figurine_atmos_tech": {
+      "image": "Textures/Objects/Fun/figurines.rsi/atmos.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:toy_figurine_bartender": {
+      "image": "Textures/Objects/Fun/figurines.rsi/bartender.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:toy_figurine_botanist": {
+      "image": "Textures/Objects/Fun/figurines.rsi/botanist.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:toy_figurine_boxer": {
+      "image": "Textures/Objects/Fun/figurines.rsi/boxer.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:toy_figurine_captain": {
+      "image": "Textures/Objects/Fun/figurines.rsi/captain.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:toy_figurine_cargo_tech": {
+      "image": "Textures/Objects/Fun/figurines.rsi/cargotech.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:toy_figurine_chaplain": {
+      "image": "Textures/Objects/Fun/figurines.rsi/chaplain.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:toy_figurine_chef": {
+      "image": "Textures/Objects/Fun/figurines.rsi/chef.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:toy_figurine_chemist": {
+      "image": "Textures/Objects/Fun/figurines.rsi/chemist.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:toy_figurine_chief_engineer": {
+      "image": "Textures/Objects/Fun/figurines.rsi/ce.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:toy_figurine_chief_medical_officer": {
+      "image": "Textures/Objects/Fun/figurines.rsi/cmo.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:toy_figurine_clown": {
+      "image": "Textures/Objects/Fun/figurines.rsi/clown.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:toy_figurine_detective": {
+      "image": "Textures/Objects/Fun/figurines.rsi/detective.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:toy_figurine_engineer": {
+      "image": "Textures/Objects/Fun/figurines.rsi/engineer.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:toy_figurine_footsoldier": {
+      "image": "Textures/Objects/Fun/figurines.rsi/footsoldier.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:toy_figurine_greytider": {
+      "image": "Textures/Objects/Fun/figurines.rsi/passenger_greytide.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:toy_figurine_griffin": {
+      "image": "Textures/Objects/Fun/figurines.rsi/griffin.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:toy_figurine_hamlet": {
+      "image": "Textures/Objects/Fun/figurines.rsi/hamlet.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:toy_figurine_head_of_personnel": {
+      "image": "Textures/Objects/Fun/figurines.rsi/hop.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:toy_figurine_head_of_security": {
+      "image": "Textures/Objects/Fun/figurines.rsi/hos.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:toy_figurine_holo_clown": {
+      "image": "Textures/Objects/Fun/figurines.rsi/holoclown.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:toy_figurine_janitor": {
+      "image": "Textures/Objects/Fun/figurines.rsi/janitor.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:toy_figurine_lawyer": {
+      "image": "Textures/Objects/Fun/figurines.rsi/lawyer.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:toy_figurine_librarian": {
+      "image": "Textures/Objects/Fun/figurines.rsi/librarian.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:toy_figurine_medical_doctor": {
+      "image": "Textures/Objects/Fun/figurines.rsi/medical.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:toy_figurine_mime": {
+      "image": "Textures/Objects/Fun/figurines.rsi/mime.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:toy_figurine_mouse": {
+      "image": "Textures/Objects/Fun/figurines.rsi/mouse.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:toy_figurine_musician": {
+      "image": "Textures/Objects/Fun/figurines.rsi/musician.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:toy_figurine_nukie": {
+      "image": "Textures/Objects/Fun/figurines.rsi/nukie.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:toy_figurine_nukie_commander": {
+      "image": "Textures/Objects/Fun/figurines.rsi/nukie_commander.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:toy_figurine_nukie_elite": {
+      "image": "Textures/Objects/Fun/figurines.rsi/nukie_elite.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:toy_figurine_owlman": {
+      "image": "Textures/Objects/Fun/figurines.rsi/owlman.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:toy_figurine_paramedic": {
+      "image": "Textures/Objects/Fun/figurines.rsi/paramedic.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:toy_figurine_passenger": {
+      "image": "Textures/Objects/Fun/figurines.rsi/passenger.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:toy_figurine_quartermaster": {
+      "image": "Textures/Objects/Fun/figurines.rsi/qm.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:toy_figurine_queen": {
+      "image": "Textures/Objects/Fun/figurines.rsi/queen.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:toy_figurine_rat_king": {
+      "image": "Textures/Objects/Fun/figurines.rsi/ratking.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:toy_figurine_rat_servant": {
+      "image": "Textures/Objects/Fun/figurines.rsi/ratservant.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:toy_figurine_research_director": {
+      "image": "Textures/Objects/Fun/figurines.rsi/rd.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:toy_figurine_salvage": {
+      "image": "Textures/Objects/Fun/figurines.rsi/salvage.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:toy_figurine_scientist": {
+      "image": "Textures/Objects/Fun/figurines.rsi/scientist.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:toy_figurine_security": {
+      "image": "Textures/Objects/Fun/figurines.rsi/security.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:toy_figurine_skeleton": {
+      "image": "Textures/Objects/Fun/figurines.rsi/skeleton.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:toy_figurine_slime": {
+      "image": "Textures/Objects/Fun/figurines.rsi/slime.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:toy_figurine_space_dragon": {
+      "image": "Textures/Objects/Fun/figurines.rsi/spacedragon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:toy_figurine_thief": {
+      "image": "Textures/Objects/Fun/figurines.rsi/thief.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:toy_figurine_warden": {
+      "image": "Textures/Objects/Fun/figurines.rsi/warden.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:toy_figurine_wizard": {
+      "image": "Textures/Objects/Fun/figurines.rsi/wizard.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:toy_figurine_wizard_fake": {
+      "image": "Textures/Objects/Fun/figurines.rsi/wizard_fake.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
     "ss14:toy_fire_ripley": {
       "image": "Textures/Objects/Fun/mech_figurines.rsi/fireripley.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:toy_gygax": {
+      "image": "Textures/Objects/Fun/mech_figurines.rsi/gygax.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:toy_hammer": {
+      "image": "Textures/Objects/Fun/rubber_hammer.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:toy_ian": {
+      "image": "Textures/Objects/Fun/toy_ian.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.30000001192092896,
+        0.30000001192092896
+      ]
+    },
+    "ss14:toy_marauder": {
+      "image": "Textures/Objects/Fun/mech_figurines.rsi/marauder.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:toy_mauler": {
+      "image": "Textures/Objects/Fun/mech_figurines.rsi/mauler.png",
       "layout": "flat",
       "size": [
         0.36000001430511475,
@@ -9890,12 +14722,68 @@
         0.36000001430511475
       ]
     },
+    "ss14:toy_nuke": {
+      "image": "Textures/Objects/Fun/toy_nuke.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:toy_odysseus": {
+      "image": "Textures/Objects/Fun/mech_figurines.rsi/odysseus.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:toy_phazon": {
+      "image": "Textures/Objects/Fun/mech_figurines.rsi/phazon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:toy_reticence": {
+      "image": "Textures/Objects/Fun/mech_figurines.rsi/reticence.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:toy_ripley": {
+      "image": "Textures/Objects/Fun/mech_figurines.rsi/ripley.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
     "ss14:toy_rubber_duck": {
       "image": "Textures/Objects/Fun/ducky.rsi/icon.png",
       "layout": "flat",
       "size": [
         0.30000001192092896,
         0.30000001192092896
+      ]
+    },
+    "ss14:toy_seraph": {
+      "image": "Textures/Objects/Fun/mech_figurines.rsi/seraph.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:toy_sword": {
+      "image": "Textures/Objects/Weapons/Melee/e_sword.rsi/e_sword.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
       ]
     },
     "ss14:trash_bag": {
@@ -9906,8 +14794,48 @@
         0.48000001907348633
       ]
     },
+    "ss14:trash_baked_banana_peel": {
+      "image": "Textures/Objects/Specific/Hydroponics/banana.rsi/baked-peel.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
     "ss14:trash_banana_peel": {
       "image": "Textures/Objects/Specific/Hydroponics/banana.rsi/peel.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:trash_banana_peel_explosive": {
+      "image": "Textures/Objects/Specific/Hydroponics/banana.rsi/peel.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:trash_bananium_peel": {
+      "image": "Textures/Objects/Materials/materials.rsi/peel.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:trash_mimana_peel": {
+      "image": "Textures/Objects/Specific/Hydroponics/mimana.rsi/peel.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:travel_camera": {
+      "image": "Textures/Objects/Devices/travel_camera.rsi/icon.png",
       "layout": "flat",
       "size": [
         0.36000001430511475,
@@ -9928,6 +14856,22 @@
       "size": [
         0.6000000238418579,
         0.6000000238418579
+      ]
+    },
+    "ss14:trombone_instrument": {
+      "image": "Textures/Objects/Fun/Instruments/trombone.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.48000001907348633,
+        0.48000001907348633
+      ]
+    },
+    "ss14:trumpet_instrument": {
+      "image": "Textures/Objects/Fun/Instruments/trumpet.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.48000001907348633,
+        0.48000001907348633
       ]
     },
     "ss14:uniform_scrubs_color_blue": {
@@ -10330,6 +15274,70 @@
         0.48000001907348633
       ]
     },
+    "ss14:vending_machine_restock_chang": {
+      "image": "Textures/Objects/Specific/Service/vending_machine_restock.rsi/base.png",
+      "layout": "flat",
+      "size": [
+        0.48000001907348633,
+        0.48000001907348633
+      ]
+    },
+    "ss14:vending_machine_restock_condiment_station": {
+      "image": "Textures/Objects/Specific/Service/vending_machine_restock.rsi/base.png",
+      "layout": "flat",
+      "size": [
+        0.48000001907348633,
+        0.48000001907348633
+      ]
+    },
+    "ss14:vending_machine_restock_discount_dans": {
+      "image": "Textures/Objects/Specific/Service/vending_machine_restock.rsi/base.png",
+      "layout": "flat",
+      "size": [
+        0.48000001907348633,
+        0.48000001907348633
+      ]
+    },
+    "ss14:vending_machine_restock_donut": {
+      "image": "Textures/Objects/Specific/Service/vending_machine_restock.rsi/base.png",
+      "layout": "flat",
+      "size": [
+        0.48000001907348633,
+        0.48000001907348633
+      ]
+    },
+    "ss14:vending_machine_restock_getmore_chocolate_corp": {
+      "image": "Textures/Objects/Specific/Service/vending_machine_restock.rsi/base.png",
+      "layout": "flat",
+      "size": [
+        0.48000001907348633,
+        0.48000001907348633
+      ]
+    },
+    "ss14:vending_machine_restock_happy_honk": {
+      "image": "Textures/Objects/Specific/Service/vending_machine_restock.rsi/base.png",
+      "layout": "flat",
+      "size": [
+        0.48000001907348633,
+        0.48000001907348633
+      ]
+    },
+    "ss14:vending_machine_restock_hot_drinks": {
+      "image": "Textures/Objects/Specific/Service/vending_machine_restock.rsi/base.png",
+      "layout": "flat",
+      "size": [
+        0.48000001907348633,
+        0.48000001907348633
+      ]
+    },
+    "ss14:vending_machine_restock_robust_softdrinks": {
+      "image": "Textures/Objects/Specific/Service/vending_machine_restock.rsi/base.png",
+      "layout": "flat",
+      "size": [
+        0.48000001907348633,
+        0.48000001907348633
+      ]
+    },
     "ss14:vending_machine_robo_drobe": {
       "image": "Textures/Structures/Machines/VendingMachines/robodrobe.rsi/off.png",
       "layout": "billboard",
@@ -10570,6 +15578,22 @@
         0.6000000238418579
       ]
     },
+    "ss14:viola_instrument": {
+      "image": "Textures/Objects/Fun/Instruments/viola.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.48000001907348633,
+        0.48000001907348633
+      ]
+    },
+    "ss14:violin_instrument": {
+      "image": "Textures/Objects/Fun/Instruments/violin.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.48000001907348633,
+        0.48000001907348633
+      ]
+    },
     "ss14:warden_pda": {
       "image": "Textures/Objects/Devices/pda.rsi/pda.png",
       "layout": "flat",
@@ -10602,8 +15626,40 @@
         0.6000000238418579
       ]
     },
+    "ss14:weapon_crusher": {
+      "image": "Textures/Objects/Weapons/Melee/crusher.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:weapon_crusher_dagger": {
+      "image": "Textures/Objects/Weapons/Melee/crusher_dagger.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:weapon_crusher_glaive": {
+      "image": "Textures/Objects/Weapons/Melee/crusher_glaive.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
     "ss14:weapon_disabler": {
       "image": "Textures/Objects/Weapons/Guns/Battery/disabler.rsi/base.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:weapon_flare_gun": {
+      "image": "Textures/Objects/Weapons/Guns/Shotguns/flaregun.rsi/base.png",
       "layout": "flat",
       "size": [
         0.36000001430511475,
@@ -10634,12 +15690,28 @@
         0.6000000238418579
       ]
     },
+    "ss14:weapon_rifle_foam": {
+      "image": "Textures/Objects/Fun/Foam/foam_rifle.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.48000001907348633,
+        0.48000001907348633
+      ]
+    },
     "ss14:weapon_shotgun_kammerer": {
       "image": "Textures/Objects/Weapons/Guns/Shotguns/pump.rsi/icon.png",
       "layout": "flat",
       "size": [
         0.6000000238418579,
         0.6000000238418579
+      ]
+    },
+    "ss14:weapon_sticky_hand": {
+      "image": "Textures/Objects/Weapons/Guns/Launchers/sticky_hand.rsi/base.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
       ]
     },
     "ss14:weapon_sub_machine_gun_wt550": {
@@ -10656,6 +15728,14 @@
       "size": [
         0.48000001907348633,
         0.48000001907348633
+      ]
+    },
+    "ss14:weapon_water_pistol": {
+      "image": "Textures/Objects/Weapons/Guns/Pistols/water_pistol.rsi/detail.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
       ]
     },
     "ss14:weed_spray": {
@@ -10706,6 +15786,22 @@
         0.30000001192092896
       ]
     },
+    "ss14:whistle": {
+      "image": "Textures/Objects/Fun/whistles.rsi/whistle.png",
+      "layout": "flat",
+      "size": [
+        0.30000001192092896,
+        0.30000001192092896
+      ]
+    },
+    "ss14:whoopie_cushion": {
+      "image": "Textures/Objects/Fun/whoopie.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
     "ss14:wirecutter": {
       "image": "Textures/Objects/Tools/wirecutters.rsi/cutters.png",
       "layout": "flat",
@@ -10720,6 +15816,38 @@
       "size": [
         0.36000001430511475,
         0.36000001430511475
+      ]
+    },
+    "ss14:wristwatch": {
+      "image": "Textures/Objects/Devices/wristwatch.rsi/wristwatch.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:wristwatch_gold": {
+      "image": "Textures/Objects/Devices/goldwatch.rsi/goldwatch.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:xeno_basher_glass": {
+      "image": "Textures/Objects/Consumable/Drinks/glass_clear.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:xylophone_instrument": {
+      "image": "Textures/Objects/Fun/Instruments/structureinstruments.rsi/xylophone.png",
+      "layout": "flat",
+      "size": [
+        0.48000001907348633,
+        0.48000001907348633
       ]
     },
     "ss14:zipties": {
