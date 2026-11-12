@@ -110,6 +110,17 @@ const PROTOS: &str = r#"[
         "ContainerFill": (table: (k: "ent", id: "Crowbar")),
     }),
     (id: "SecLockerOpen", components: {"EntityStorageOpen": (closedProto: "SecLocker")}),
+    (id: "IdConsole", components: {
+        "IdCardConsole": (access: ["Engineering", "Security"]),
+    }),
+    (id: "BossCard", components: {
+        "Item": (size: "Small"),
+        "IdCard": (access: ["Engineering"]),
+    }),
+    (id: "BlankCard", components: {
+        "Item": (size: "Small"),
+        "IdCard": (access: []),
+    }),
     (id: "Belt", components: {
         "Conveyor": (speed: 2.0),
     }),
@@ -2232,5 +2243,74 @@ mod disposal_tests {
         command(&mut h, a, CMD_INTERACT, interact_data(oid(972)));
         h.ticks(10);
         assert_eq!(count_of(&h, "ss14:sec_locker"), 1);
+    }
+
+    fn idc_view(h: &Harness, who: ConnId) -> Option<crate::IdConsoleView> {
+        let net = h.client(who).net_id()?;
+        h.client(who)
+            .component(net, crate::IDCONSOLE_COMPONENT)
+            .and_then(crate::decode_view)
+    }
+
+    #[test]
+    fn the_id_console_writes_only_the_access_the_privileged_card_holds() {
+        let mut h = harness();
+        let a = h.join("a");
+        h.ticks(5);
+        spawn(
+            &mut h,
+            item_at(980, "ss14:id_console", Vec3::new(3.0, 0.9, 3.0)),
+        );
+        spawn(
+            &mut h,
+            item_at(981, "ss14:boss_card", Vec3::new(2.6, 0.9, 2.6)),
+        );
+        spawn(
+            &mut h,
+            item_at(982, "ss14:blank_card", Vec3::new(2.8, 0.9, 2.6)),
+        );
+        h.ticks(10);
+        // Карта с правами вставляется в первый слот, пустая — во второй.
+        command(&mut h, a, CMD_PICKUP_ANY, pickup_data(oid(981)));
+        h.ticks(3);
+        command(&mut h, a, CMD_INTERACT, interact_data(oid(980)));
+        h.ticks(3);
+        command(&mut h, a, CMD_PICKUP_ANY, pickup_data(oid(982)));
+        h.ticks(3);
+        command(&mut h, a, CMD_INTERACT, interact_data(oid(980)));
+        h.ticks(3);
+        // Руки пусты: нажатие открывает окно.
+        command(&mut h, a, CMD_INTERACT, interact_data(oid(980)));
+        h.ticks(10);
+        let v = idc_view(&h, a).expect("окно открыто");
+        assert!(v.authorized && v.target.is_some(), "{v:?}");
+        assert_eq!(v.allowed, vec!["Engineering".to_string()]);
+        let write = |h: &mut Harness, access: &[&str]| {
+            let r = crate::WriteRequest {
+                name: "Иванов".into(),
+                title: "Инженер".into(),
+                access: access.iter().map(|s| s.to_string()).collect(),
+            };
+            command(h, a, crate::CMD_ID_WRITE, crate::write_data(&r));
+            h.ticks(5);
+        };
+        // Engineering у ID с правами есть — записывается вместе с именем.
+        write(&mut h, &["Engineering"]);
+        let t = idc_view(&h, a).unwrap().target.unwrap();
+        assert_eq!(t.access, vec!["Engineering".to_string()]);
+        assert_eq!(
+            (t.full_name.as_str(), t.job_title.as_str()),
+            ("Иванов", "Инженер")
+        );
+        // Security у него нет: запись отклонена, доступ прежний.
+        write(&mut h, &["Engineering", "Security"]);
+        assert_eq!(
+            idc_view(&h, a).unwrap().target.unwrap().access,
+            vec!["Engineering".to_string()]
+        );
+        // Карту можно вынуть: слот освободился.
+        command(&mut h, a, crate::CMD_ID_EJECT, vec![1]);
+        h.ticks(5);
+        assert!(idc_view(&h, a).unwrap().target.is_none());
     }
 }

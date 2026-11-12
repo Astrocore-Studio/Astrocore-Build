@@ -29,6 +29,8 @@ pub struct Loadout {
     pub vending: Option<gameplay::VendingView>,
     /// Список должностей и текущая.
     pub jobs: Option<gameplay::JobsView>,
+    /// Открытая консоль выдачи ID.
+    pub idconsole: Option<gameplay::IdConsoleView>,
     /// Когда (по часам клиента) пришло последнее состояние здоровья.
     pub health_at: f32,
 }
@@ -192,6 +194,10 @@ fn refresh_loadout(net: Option<NonSend<Net>>, time: Res<Time>, mut loadout: ResM
         .core
         .component(me, gameplay::DOAFTER_COMPONENT)
         .and_then(gameplay::decode_doafter);
+    loadout.idconsole = net
+        .core
+        .component(me, gameplay::IDCONSOLE_COMPONENT)
+        .and_then(gameplay::decode_view);
     loadout.jobs = net
         .core
         .component(me, gameplay::JOBS_COMPONENT)
@@ -431,6 +437,13 @@ fn loadout_window(
     );
     let mut commands = commands;
     commands.extend(hud::vending_window(&ctx, icons, loadout.vending.as_ref()));
+    let hand = loadout.hands.as_ref().map_or(0, |h| h.active() as u8);
+    commands.extend(hud::idconsole_window(
+        &ctx,
+        state,
+        loadout.idconsole.as_ref(),
+        hand,
+    ));
     commands.extend(hud::jobs_window(&ctx, state, loadout.jobs.as_ref()));
     for (kind, data) in commands {
         net.send_command(kind, data);

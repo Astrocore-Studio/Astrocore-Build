@@ -57,6 +57,14 @@ pub const CMD_USE_GROUND: &str = "use.ground";
 pub const CMD_VEND: &str = "vend.eject";
 /// Закрыть окно автомата.
 pub const CMD_VEND_CLOSE: &str = "vend.close";
+/// Консоль ID: вставить карту из руки в слот (данные: слот, рука).
+pub const CMD_ID_INSERT: &str = "idc.insert";
+/// Консоль ID: вынуть карту из слота (данные: слот).
+pub const CMD_ID_EJECT: &str = "idc.eject";
+/// Консоль ID: закрыть окно.
+pub const CMD_ID_CLOSE: &str = "idc.close";
+/// Консоль ID: записать имя, должность и доступ (JSON `WriteRequest`).
+pub const CMD_ID_WRITE: &str = "idc.write";
 /// Запереть или отпереть ближайший шкаф или ящик (нужен доступ).
 pub const CMD_LOCK: &str = "lock.toggle";
 /// Выбрать должность: данные — её идентификатор (UTF-8).
@@ -167,6 +175,12 @@ pub fn register_replication(reg: &mut ReplicationRegistry) -> Result<(), Replica
         channel: ReplicationChannel::ReliableOrdered,
         interest: Interest::Everyone,
         max_bytes: crate::doafter::DOAFTER_MAX_BYTES,
+    })?;
+    reg.register(ReplicatedKind {
+        name: crate::idconsole::IDCONSOLE_COMPONENT.into(),
+        channel: ReplicationChannel::ReliableOrdered,
+        interest: Interest::Owner,
+        max_bytes: crate::idconsole::IDCONSOLE_MAX_BYTES,
     })?;
     reg.register(ReplicatedKind {
         name: crate::jobs::JOBS_COMPONENT.into(),

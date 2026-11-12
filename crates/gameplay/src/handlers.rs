@@ -394,6 +394,39 @@ impl InteractionHandler for LockerUse {
     }
 }
 
+/// Консоль выдачи ID: пустая рука открывает окно, ID-карта в руке вставляется в первый свободный слот.
+pub struct IdConsoleUse;
+
+impl InteractionHandler for IdConsoleUse {
+    fn interact_hand(
+        &mut self,
+        state: &mut State,
+        _ctx: &mut HookContext<'_>,
+        user: NetworkEntityId,
+        target: &Target,
+    ) -> bool {
+        let Target::Item { id, prototype, .. } = target else {
+            return false;
+        };
+        state.id_console_levels.contains_key(prototype) && state.open_id_console(user, *id)
+    }
+
+    fn interact_using(
+        &mut self,
+        state: &mut State,
+        ctx: &mut HookContext<'_>,
+        user: NetworkEntityId,
+        used: &Used,
+        target: &Target,
+    ) -> bool {
+        let Target::Item { id, prototype, .. } = target else {
+            return false;
+        };
+        state.id_console_levels.contains_key(prototype)
+            && state.insert_id(ctx, user, *id, None, used.hand)
+    }
+}
+
 /// Базовая цепочка: порядок важен — первый обработавший прекращает обход.
 pub fn default_handlers() -> Vec<Box<dyn InteractionHandler>> {
     vec![
@@ -402,6 +435,7 @@ pub fn default_handlers() -> Vec<Box<dyn InteractionHandler>> {
         Box::new(SwitchUse),
         Box::new(VendingUse),
         Box::new(LockerUse),
+        Box::new(IdConsoleUse),
         Box::new(PryDoor),
         Box::new(StorageClickInsert),
         Box::new(PickupHandler),

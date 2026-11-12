@@ -1002,6 +1002,14 @@
         0.48000001907348633
       ]
     },
+    "ss14:block_game_arcade": {
+      "image": "Textures/Structures/Machines/computers_generated/BlockGameArcade.rsi/screen.png",
+      "layout": "billboard",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
     "ss14:bloodpack": {
       "image": "Textures/Objects/Specific/Medical/medical.rsi/bloodpack.png",
       "layout": "flat",
@@ -7610,12 +7618,156 @@
         0.48000001907348633
       ]
     },
+    "ss14:computer_alert": {
+      "image": "Textures/Structures/Machines/computers_generated/ComputerAlert.rsi/screen.png",
+      "layout": "billboard",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:computer_analysis_console": {
+      "image": "Textures/Structures/Machines/computers_generated/ComputerAnalysisConsole.rsi/screen.png",
+      "layout": "billboard",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:computer_cargo_bounty": {
+      "image": "Textures/Structures/Machines/computers_generated/ComputerCargoBounty.rsi/screen.png",
+      "layout": "billboard",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:computer_cargo_orders": {
+      "image": "Textures/Structures/Machines/computers_generated/ComputerCargoOrders.rsi/screen.png",
+      "layout": "billboard",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:computer_comms": {
+      "image": "Textures/Structures/Machines/computers_generated/ComputerComms.rsi/screen.png",
+      "layout": "billboard",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:computer_crew_monitoring": {
+      "image": "Textures/Structures/Machines/computers_generated/ComputerCrewMonitoring.rsi/screen.png",
+      "layout": "billboard",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:computer_criminal_records": {
+      "image": "Textures/Structures/Machines/computers_generated/ComputerCriminalRecords.rsi/screen.png",
+      "layout": "billboard",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:computer_id": {
+      "image": "Textures/Structures/Machines/computers_generated/ComputerId.rsi/screen.png",
+      "layout": "billboard",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
     "ss14:computer_mass_media_circuitboard": {
       "image": "Textures/Objects/Misc/module.rsi/cpu_service.png",
       "layout": "flat",
       "size": [
         0.36000001430511475,
         0.36000001430511475
+      ]
+    },
+    "ss14:computer_power_monitoring": {
+      "image": "Textures/Structures/Machines/computers_generated/ComputerPowerMonitoring.rsi/screen.png",
+      "layout": "billboard",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:computer_radar": {
+      "image": "Textures/Structures/Machines/computers_generated/ComputerRadar.rsi/screen.png",
+      "layout": "billboard",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:computer_research_and_development": {
+      "image": "Textures/Structures/Machines/computers_generated/ComputerResearchAndDevelopment.rsi/screen.png",
+      "layout": "billboard",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:computer_robotics_control": {
+      "image": "Textures/Structures/Machines/computers_generated/ComputerRoboticsControl.rsi/screen.png",
+      "layout": "billboard",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:computer_salvage_expedition": {
+      "image": "Textures/Structures/Machines/computers_generated/ComputerSalvageExpedition.rsi/screen.png",
+      "layout": "billboard",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:computer_shuttle_cargo": {
+      "image": "Textures/Structures/Machines/computers_generated/ComputerShuttleCargo.rsi/screen.png",
+      "layout": "billboard",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:computer_solar_control": {
+      "image": "Textures/Structures/Machines/computers_generated/ComputerSolarControl.rsi/screen.png",
+      "layout": "billboard",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:computer_station_records": {
+      "image": "Textures/Structures/Machines/computers_generated/ComputerStationRecords.rsi/screen.png",
+      "layout": "billboard",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:computer_surveillance_camera_monitor": {
+      "image": "Textures/Structures/Machines/computers_generated/ComputerSurveillanceCameraMonitor.rsi/screen.png",
+      "layout": "billboard",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:computer_technology_disk_terminal": {
+      "image": "Textures/Structures/Machines/computers_generated/ComputerTechnologyDiskTerminal.rsi/screen.png",
+      "layout": "billboard",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
       ]
     },
     "ss14:conveyor_belt": {

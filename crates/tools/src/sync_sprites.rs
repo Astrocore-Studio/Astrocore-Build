@@ -81,7 +81,7 @@ pub fn referenced(content: &Path) -> Result<(BTreeSet<String>, BTreeSet<String>)
             .and_then(Data::as_str)
         {
             // Склеенные скриптом спрайты шкафов лежат сразу в assets, в источнике их нет.
-            if !s.contains("/generated/") {
+            if !s.contains("generated/") {
                 rsi.insert(s.to_string());
             }
         }

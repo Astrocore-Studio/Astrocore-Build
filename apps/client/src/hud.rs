@@ -261,6 +261,12 @@ pub struct HudState {
     pub clothes_open: bool,
     /// Окно выбора должности закрыто вручную.
     pub jobs_hidden: bool,
+    /// Поля окна консоли ID: правятся локально, уходят по кнопке «Записать».
+    pub idc_name: String,
+    pub idc_title: String,
+    pub idc_access: std::collections::BTreeSet<String>,
+    /// Какая целевая карта сейчас показана (консоль и имя прототипа): при смене поля сбрасываются.
+    pub idc_for: Option<(ObjectId, String)>,
     /// Сумки, окна которых закрыты вручную.
     pub bags_closed: std::collections::HashSet<u128>,
 }
@@ -897,6 +903,118 @@ pub fn jobs_window(
         });
     if !open {
         state.jobs_hidden = true;
+    }
+    out
+}
+
+/// Окно консоли выдачи ID (`IdCardConsoleWindow`): слоты, имя, должность и уровни доступа.
+pub fn idconsole_window(
+    ctx: &egui::Context,
+    state: &mut HudState,
+    view: Option<&gameplay::IdConsoleView>,
+    active_hand: u8,
+) -> Commands {
+    let mut out: Commands = Vec::new();
+    let Some(v) = view else {
+        state.idc_for = None;
+        return out;
+    };
+    // Новая целевая карта — поля берутся с неё.
+    let key = v.target.as_ref().map(|t| (v.console, t.name.clone()));
+    if state.idc_for != key {
+        state.idc_for = key;
+        if let Some(t) = &v.target {
+            state.idc_name = t.full_name.clone();
+            state.idc_title = t.job_title.clone();
+            state.idc_access = t.access.iter().cloned().collect();
+        }
+    }
+    let mut open = true;
+    egui::Window::new("Консоль выдачи ID")
+        .id(egui::Id::new("idconsole"))
+        .default_pos(Pos2::new(140.0, 100.0))
+        .resizable(false)
+        .open(&mut open)
+        .show(ctx, |ui| {
+            ui.horizontal(|ui| {
+                ui.label("ID с правами:");
+                match &v.privileged {
+                    Some(n) => {
+                        ui.label(n);
+                        if ui.button("Вынуть").clicked() {
+                            out.push((gameplay::CMD_ID_EJECT, vec![0]));
+                        }
+                    }
+                    None => {
+                        if ui.button("Вставить из руки").clicked() {
+                            out.push((gameplay::CMD_ID_INSERT, vec![0, active_hand]));
+                        }
+                    }
+                }
+            });
+            ui.horizontal(|ui| {
+                ui.label("Целевая карта:");
+                match &v.target {
+                    Some(t) => {
+                        ui.label(&t.name);
+                        if ui.button("Вынуть").clicked() {
+                            out.push((gameplay::CMD_ID_EJECT, vec![1]));
+                        }
+                    }
+                    None => {
+                        if ui.button("Вставить из руки").clicked() {
+                            out.push((gameplay::CMD_ID_INSERT, vec![1, active_hand]));
+                        }
+                    }
+                }
+            });
+            let Some(_) = &v.target else {
+                return;
+            };
+            ui.separator();
+            ui.horizontal(|ui| {
+                ui.label("Имя:");
+                ui.text_edit_singleline(&mut state.idc_name);
+            });
+            ui.horizontal(|ui| {
+                ui.label("Должность:");
+                ui.text_edit_singleline(&mut state.idc_title);
+            });
+            ui.separator();
+            egui::ScrollArea::vertical()
+                .max_height(260.0)
+                .show(ui, |ui| {
+                    for level in &v.levels {
+                        // Менять можно только уровни ID с правами (остальные видны, но недоступны).
+                        let can = v.authorized && v.allowed.contains(level);
+                        let mut on = state.idc_access.contains(level);
+                        if ui
+                            .add_enabled(can, egui::Checkbox::new(&mut on, level))
+                            .changed()
+                        {
+                            if on {
+                                state.idc_access.insert(level.clone());
+                            } else {
+                                state.idc_access.remove(level);
+                            }
+                        }
+                    }
+                });
+            if ui
+                .add_enabled(v.authorized, egui::Button::new("Записать"))
+                .clicked()
+            {
+                let req = gameplay::WriteRequest {
+                    name: state.idc_name.clone(),
+                    title: state.idc_title.clone(),
+                    access: state.idc_access.iter().cloned().collect(),
+                };
+                out.push((gameplay::CMD_ID_WRITE, gameplay::write_data(&req)));
+            }
+        });
+    if !open {
+        state.idc_for = None;
+        out.push((gameplay::CMD_ID_CLOSE, Vec::new()));
     }
     out
 }

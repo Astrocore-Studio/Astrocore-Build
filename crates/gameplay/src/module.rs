@@ -109,6 +109,13 @@ pub(crate) struct IdSpec {
     pub(crate) job: Option<String>,
 }
 
+/// Слоты консоли выдачи ID: карта с правами и целевая карта.
+#[derive(Debug, Clone, Default)]
+pub(crate) struct ConsoleSlots {
+    pub(crate) privileged: Option<HeldItem>,
+    pub(crate) target: Option<HeldItem>,
+}
+
 /// Шкаф или ящик по прототипу закрытого вида.
 #[derive(Debug, Clone)]
 pub(crate) struct StorageSpec {
@@ -238,6 +245,13 @@ pub struct State {
     pub(crate) alarm_sig: Vec<(ObjectId, atmos::Cell, u32)>,
     pub(crate) monitor_state: BTreeMap<ObjectId, crate::monitor::AlarmState>,
     pub(crate) alarm_timer: f32,
+    /// Консоли выдачи ID: уровни по прототипу, слоты, у кого открыто окно, имена на картах.
+    pub(crate) id_console_levels: BTreeMap<PrototypeId, Vec<String>>,
+    pub(crate) consoles: BTreeMap<ObjectId, ConsoleSlots>,
+    pub(crate) console_open: BTreeMap<NetworkEntityId, ObjectId>,
+    pub(crate) console_sent: BTreeMap<NetworkEntityId, Vec<u8>>,
+    pub(crate) console_protos: BTreeMap<ObjectId, PrototypeId>,
+    pub(crate) card_names: BTreeMap<ObjectId, (String, String)>,
     /// Шкафы и ящики: описания закрытых прототипов, соответствие «открытый → закрытый», состояние.
     pub(crate) storage_specs: BTreeMap<PrototypeId, StorageSpec>,
     pub(crate) storage_open_of: BTreeMap<PrototypeId, PrototypeId>,
@@ -309,6 +323,7 @@ impl State {
             .map(|(id, n)| (n.clone(), id.clone()))
             .collect();
         let mut vending_specs = BTreeMap::new();
+        let mut id_console_levels = BTreeMap::new();
         let mut storage_specs = BTreeMap::new();
         let mut storage_open_of: BTreeMap<PrototypeId, PrototypeId> = BTreeMap::new();
         let mut id_specs = BTreeMap::new();
@@ -362,6 +377,19 @@ impl State {
                     .and_then(prototypes::Data::as_f64)
                 {
                     heat_protection.insert(id.clone(), c as f32);
+                }
+                if let Some(c) = r.component("IdCardConsole") {
+                    id_console_levels.insert(
+                        id.clone(),
+                        c.get("access")
+                            .and_then(prototypes::Data::as_list)
+                            .map(|l| {
+                                l.iter()
+                                    .filter_map(|x| x.as_str().map(String::from))
+                                    .collect()
+                            })
+                            .unwrap_or_default(),
+                    );
                 }
                 if let Some(c) = r.component("EntityStorage") {
                     storage_specs.insert(
@@ -619,6 +647,12 @@ impl State {
             alarm_sig: Vec::new(),
             monitor_state: BTreeMap::new(),
             alarm_timer: 0.0,
+            id_console_levels,
+            consoles: BTreeMap::new(),
+            console_open: BTreeMap::new(),
+            console_sent: BTreeMap::new(),
+            console_protos: BTreeMap::new(),
+            card_names: BTreeMap::new(),
             storage_specs,
             storage_open_of,
             lockers: BTreeMap::new(),
@@ -1572,6 +1606,7 @@ impl State {
         self.tick_conveyors(ctx, dt);
         self.tick_vending(ctx);
         self.tick_lockers(ctx);
+        self.tick_id_consoles(ctx);
         self.publish_jobs(ctx);
         self.resolve_spawners(ctx);
         self.tick_alarms(ctx, dt);
@@ -2327,6 +2362,8 @@ impl State {
         if let Some(card) = self.actors.get(&actor).and_then(|a| a.inventory.get("id")) {
             self.card_access
                 .insert(card.id, spec.access.iter().cloned().collect());
+            self.card_names
+                .insert(card.id, ("Новичок".to_string(), spec.title.clone()));
         }
         for name in &spec.inhand {
             if let Some(item) = self.create_item(name)
@@ -2458,6 +2495,185 @@ impl State {
         }
         self.locker_timer = 0.0;
         self.sync_lockers(ctx);
+    }
+
+    /// Это удостоверение или КПК (их слот принимает консоль)?
+    fn is_id_item(&self, item: &HeldItem) -> bool {
+        self.id_specs.contains_key(&item.prototype) || self.pda_cards.contains_key(&item.prototype)
+    }
+
+    fn card_title(&self, item: &HeldItem) -> String {
+        self.card_names
+            .get(&item.id)
+            .map(|n| n.0.clone())
+            .unwrap_or_else(|| item.prototype.to_string())
+    }
+
+    /// Окно консоли открывается пустой рукой при наличии тока.
+    pub(crate) fn open_id_console(&mut self, user: NetworkEntityId, id: ObjectId) -> bool {
+        if self.power_required && !self.powered_map().get(&id).copied().unwrap_or(false) {
+            return true;
+        }
+        self.consoles.entry(id).or_default();
+        self.console_open.insert(user, id);
+        true
+    }
+
+    /// Вставить карту из руки в слот (`0` — с правами, `1` — целевая); без номера — в первый свободный.
+    pub(crate) fn insert_id(
+        &mut self,
+        ctx: &mut HookContext<'_>,
+        user: NetworkEntityId,
+        console: ObjectId,
+        slot: Option<usize>,
+        hand: usize,
+    ) -> bool {
+        let Some(item) = self
+            .actors
+            .get(&user)
+            .and_then(|a| a.hands.get(hand))
+            .cloned()
+        else {
+            return false;
+        };
+        if !self.is_id_item(&item) {
+            return false;
+        }
+        let slots = self.consoles.entry(console).or_default();
+        let target_slot = match slot {
+            Some(s) => s,
+            None if slots.privileged.is_none() => 0,
+            None => 1,
+        };
+        let place = if target_slot == 0 {
+            &mut slots.privileged
+        } else {
+            &mut slots.target
+        };
+        if place.is_some() {
+            return false;
+        }
+        *place = Some(item);
+        let _ = self.actor(user).hands.drop_hand(hand);
+        self.publish(ctx, user);
+        true
+    }
+
+    /// Вынуть карту из слота в руку (или на пол у консоли).
+    pub(crate) fn eject_id(
+        &mut self,
+        ctx: &mut HookContext<'_>,
+        user: NetworkEntityId,
+        console: ObjectId,
+        slot: usize,
+    ) {
+        let Some(slots) = self.consoles.get_mut(&console) else {
+            return;
+        };
+        let Some(item) = (if slot == 0 {
+            slots.privileged.take()
+        } else {
+            slots.target.take()
+        }) else {
+            return;
+        };
+        if let Err(_) = self.actor(user).hands.pickup_any(item.clone())
+            && let Some(feet) = ctx.position_of(user)
+        {
+            Self::place(ctx, &item, feet);
+        }
+        self.publish(ctx, user);
+    }
+
+    /// `TryWriteToTargetId`: имя, должность и уровни доступа целевой карты.
+    pub(crate) fn write_id(&mut self, user: NetworkEntityId, req: &crate::idconsole::WriteRequest) {
+        let Some(console) = self.console_open.get(&user).copied() else {
+            return;
+        };
+        let Some(slots) = self.consoles.get(&console) else {
+            return;
+        };
+        let (Some(privileged), Some(target)) = (slots.privileged.clone(), slots.target.clone())
+        else {
+            return;
+        };
+        let levels = self
+            .id_console_proto(console)
+            .and_then(|p| self.id_console_levels.get(&p).cloned())
+            .unwrap_or_default();
+        let name = crate::idconsole::clip(&req.name, crate::idconsole::MAX_NAME_LEN);
+        let title = crate::idconsole::clip(&req.title, crate::idconsole::MAX_JOB_LEN);
+        self.card_names.insert(target.id, (name, title));
+        let old = self.item_access(&target);
+        let perms = self.item_access(&privileged);
+        if let Some(new) = crate::idconsole::rewrite_access(&old, &req.access, &levels, &perms) {
+            self.card_access.insert(target.id, new);
+        }
+    }
+
+    fn id_console_proto(&self, console: ObjectId) -> Option<PrototypeId> {
+        self.console_protos.get(&console).cloned()
+    }
+
+    /// Окна консолей у игроков (по изменению).
+    fn tick_id_consoles(&mut self, ctx: &mut HookContext<'_>) {
+        if self.id_console_levels.is_empty() {
+            return;
+        }
+        // Прототипы консолей на карте: нужны для списка уровней.
+        for o in ctx.world.authored() {
+            if let AuthoredKind::Placement { prototype } = &o.kind
+                && self.id_console_levels.contains_key(prototype)
+            {
+                self.console_protos.insert(o.id, prototype.clone());
+            }
+        }
+        let mut sends: Vec<(NetworkEntityId, Vec<u8>)> = Vec::new();
+        for p in ctx.players().collect::<Vec<_>>() {
+            let view = self.console_open.get(&p).copied().and_then(|id| {
+                let o = ctx.world.authored_object(id)?;
+                let feet = ctx.position_of(p)?;
+                if (((o.min() + o.max()) * 0.5) - feet).length() > self.range_m + 1.0 {
+                    return None;
+                }
+                let slots = self.consoles.get(&id)?;
+                let levels = self
+                    .id_console_levels
+                    .get(self.console_protos.get(&id)?)?
+                    .clone();
+                Some(crate::idconsole::IdConsoleView {
+                    console: id,
+                    privileged: slots.privileged.as_ref().map(|i| self.card_title(i)),
+                    authorized: slots.privileged.is_some(),
+                    target: slots.target.as_ref().map(|t| {
+                        let (full, job) = self.card_names.get(&t.id).cloned().unwrap_or_default();
+                        crate::idconsole::TargetView {
+                            name: t.prototype.to_string(),
+                            full_name: full,
+                            job_title: job,
+                            access: self.item_access(t).into_iter().collect(),
+                        }
+                    }),
+                    allowed: slots
+                        .privileged
+                        .as_ref()
+                        .map(|i| self.item_access(i).into_iter().collect())
+                        .unwrap_or_default(),
+                    levels,
+                })
+            });
+            if view.is_none() {
+                self.console_open.remove(&p);
+            }
+            let bytes = crate::idconsole::encode_view(view.as_ref());
+            if self.console_sent.get(&p) != Some(&bytes) {
+                sends.push((p, bytes));
+            }
+        }
+        for (p, bytes) in sends {
+            ctx.set_component(p, crate::idconsole::IDCONSOLE_COMPONENT, bytes.clone());
+            self.console_sent.insert(p, bytes);
+        }
     }
 
     /// Шкафы и ящики карты получают состояние и наполнение при первом появлении (`MapInit`).
@@ -3837,6 +4053,34 @@ impl GameModule for GameplayModule {
                 crate::wire::CMD_VEND => {
                     if let Ok(item) = std::str::from_utf8(data) {
                         st.vend(ctx, *actor, item);
+                    }
+                }
+                crate::wire::CMD_ID_INSERT => {
+                    if let [slot, hand] = data[..]
+                        && let Some(console) = st.console_open.get(actor).copied()
+                    {
+                        st.insert_id(
+                            ctx,
+                            *actor,
+                            console,
+                            Some(usize::from(slot)),
+                            usize::from(hand),
+                        );
+                    }
+                }
+                crate::wire::CMD_ID_EJECT => {
+                    if let [slot] = data[..]
+                        && let Some(console) = st.console_open.get(actor).copied()
+                    {
+                        st.eject_id(ctx, *actor, console, usize::from(slot));
+                    }
+                }
+                crate::wire::CMD_ID_CLOSE => {
+                    st.console_open.remove(actor);
+                }
+                crate::wire::CMD_ID_WRITE => {
+                    if let Some(req) = crate::idconsole::parse_write(data) {
+                        st.write_id(*actor, &req);
                     }
                 }
                 crate::wire::CMD_LOCK => {
