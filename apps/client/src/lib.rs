@@ -334,6 +334,7 @@ fn nearest_item(net: &Net, range: f32) -> Option<ObjectId> {
 
 /// Короткий сценарий для проверки интерфейса: поднять ближайшее и надеть на спину.
 fn autoplay(
+    mut commands: Commands,
     mut state: ResMut<Autoplay>,
     mut hud: ResMut<Hud>,
     loadout: Res<Loadout>,
@@ -349,6 +350,15 @@ fn autoplay(
         return;
     }
     state.frame += 1;
+    // Отладка: снимки окна в файлы (ASTRO_SHOT=каталог, кадры 130, 200, 450).
+    if let Some(dir) = std::env::var_os("ASTRO_SHOT")
+        && matches!(state.frame, 260 | 340)
+    {
+        let path = std::path::Path::new(&dir).join(format!("frame{}.png", state.frame));
+        commands
+            .spawn(bevy::render::view::screenshot::Screenshot::primary_window())
+            .observe(bevy::render::view::screenshot::save_to_disk(path));
+    }
     // Взгляд вниз для снимков пола (лужи, огонь).
     if std::env::var_os("ASTRO_LOOK_DOWN").is_some()
         && let Some(mut l) = look
@@ -360,6 +370,31 @@ fn autoplay(
         && state.frame == 60
     {
         net.send_command(gameplay::CMD_JOB, job.into_bytes());
+    }
+    // Отладка: открыть окно ближайшей машины (ASTRO_AUTOPLAY_OPEN=ChemMaster|CryoPod); для капсулы
+    // затем лечь в неё самому.
+    if let Ok(want) = std::env::var("ASTRO_AUTOPLAY_OPEN") {
+        if state.frame == 150
+            && let Some(world) = net.core.world()
+        {
+            let _ = world;
+            let me = net.core.position();
+            let id = std::env::var("ASTRO_OPEN_ID")
+                .ok()
+                .and_then(|h| u128::from_str_radix(&h, 16).ok())
+                .map(ObjectId::from_u128)
+                .or_else(|| nearest_item(&net, 2.5));
+            eprintln!("ASTRO_OPEN: {want} {id:?} me={me:?}");
+            if let Some(id) = id {
+                net.send_command(gameplay::CMD_INTERACT, gameplay::interact_data(id));
+            }
+        }
+        if state.frame == 200
+            && want == "CryoPod"
+            && let Some(me) = net.core.net_id()
+        {
+            net.send_command(gameplay::CMD_CRYO_PUT, me.0.to_le_bytes().to_vec());
+        }
     }
     // Сценарий огня для снимков: поднять сварку и зажечь.
     if std::env::var_os("ASTRO_AUTOPLAY_FIRE").is_some() {

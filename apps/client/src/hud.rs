@@ -1167,11 +1167,15 @@ pub fn cryo_window(
                 }
             }
             ui.separator();
-            ui.label(format!(
-                "Воздух: {:.1} °C, {:.1} кПа",
-                v.air_temperature_k - 273.15,
-                v.air_pressure_kpa
-            ));
+            if v.gases.is_empty() {
+                ui.label("Воздуха нет (трубы не подключены)");
+            } else {
+                ui.label(format!(
+                    "Воздух: {:.1} °C, {:.1} кПа",
+                    v.air_temperature_k - 273.15,
+                    v.air_pressure_kpa
+                ));
+            }
             for (g, pct) in &v.gases {
                 ui.label(format!("   {g}: {pct:.1}%"));
             }
@@ -1209,7 +1213,10 @@ pub fn cryo_window(
                 }
             }
             ui.horizontal(|ui| {
-                ui.label(format!("Буфер впрыска: {:.0} ед.", v.buffer_volume));
+                ui.label(format!(
+                    "Буфер впрыска: {:.0} ед.",
+                    v.buffer_volume.max(0.0) + 0.0
+                ));
                 if ui.button("Очистить").clicked() {
                     out.push((gameplay::CMD_CRYO_CLEAR, Vec::new()));
                 }
@@ -1331,7 +1338,7 @@ pub fn lab_window(
                 }
             }
             ui.separator();
-            ui.label(format!("Буфер: {:.0} ед.", v.buffer_volume));
+            ui.label(format!("Буфер: {:.0} ед.", v.buffer_volume.max(0.0) + 0.0));
             for (id, name, q) in &v.buffer {
                 ui.label(format!("{name}: {q:.1}"));
                 amount_buttons(ui, &mut out, true, id);
