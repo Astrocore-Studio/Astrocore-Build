@@ -272,6 +272,12 @@ fn autoplay(
     {
         l.pitch = 0.9;
     }
+    // Отладка: сразу взять должность (для снимков).
+    if let Ok(job) = std::env::var("ASTRO_AUTOPLAY_JOB")
+        && state.frame == 60
+    {
+        net.send_command(gameplay::CMD_JOB, job.into_bytes());
+    }
     // Сценарий огня для снимков: поднять сварку и зажечь.
     if std::env::var_os("ASTRO_AUTOPLAY_FIRE").is_some() {
         match state.frame {
