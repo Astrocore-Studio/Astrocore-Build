@@ -456,3 +456,24 @@ fn saltern_breach_closes_firelocks() {
         );
     }
 }
+
+/// Появление новичков на точках карты. Запуск как у `saltern_firelocks`.
+#[test]
+#[ignore]
+fn saltern_joiners_spawn_on_map_points() {
+    let Some(path) = std::env::var_os("ASTRO_MAP_FILE") else {
+        return;
+    };
+    polygon::use_map_file(std::path::Path::new(&path));
+    let round = Round::start(1, &content(), &RoundConfig::default()).unwrap();
+    let mut h = Harness::with_server(round.server);
+    let ids = [h.join("a"), h.join("b"), h.join("c")];
+    h.ticks(40);
+    let mut seen = std::collections::BTreeSet::new();
+    for id in ids {
+        let p = h.client(id).position();
+        println!("игрок на {p:?}");
+        seen.insert(format!("{:.1},{:.1}", p.x, p.z));
+    }
+    assert_eq!(seen.len(), 3, "разные точки появления");
+}

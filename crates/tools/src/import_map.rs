@@ -405,7 +405,17 @@ pub fn import(
                 }
                 Kind::Spawn => {
                     report.spawns += 1;
-                    spawn.get_or_insert((x, -y));
+                    let job = proto.trim_start_matches("SpawnPoint");
+                    // Появление новичков: пассажир и поздний вход (запасная должность SS14).
+                    if matches!(job, "Passenger" | "Latejoin") {
+                        spawn.get_or_insert((x, -y));
+                    }
+                    zones.push(MapZone {
+                        min: [x - 0.4, FLOOR_TOP_M, -y - 0.4],
+                        max: [x + 0.4, FLOOR_TOP_M + 2.0, -y + 0.4],
+                        floor: 0,
+                        metadata: [("spawn_job".to_string(), job.to_string())].into(),
+                    });
                 }
                 Kind::Other if pipe_base_dirs(proto).is_some() => {
                     let dirs =

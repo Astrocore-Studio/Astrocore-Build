@@ -192,6 +192,9 @@ pub struct State {
     pub(crate) alarm_sig: Vec<(ObjectId, atmos::Cell, u32)>,
     pub(crate) monitor_state: BTreeMap<ObjectId, crate::monitor::AlarmState>,
     pub(crate) alarm_timer: f32,
+    /// Игроки, уже получившие место появления.
+    pub(crate) placed: BTreeSet<NetworkEntityId>,
+    pub(crate) spawn_next: usize,
     /// Огнезапоры: клетки по обе стороны проёма и что они удерживают (давление, температура).
     pub(crate) firelock_cells: BTreeMap<ObjectId, (atmos::Cell, atmos::Cell)>,
     pub(crate) firelock_hold: BTreeMap<ObjectId, (bool, bool)>,
@@ -368,6 +371,8 @@ impl State {
             alarm_sig: Vec::new(),
             monitor_state: BTreeMap::new(),
             alarm_timer: 0.0,
+            placed: BTreeSet::new(),
+            spawn_next: 0,
             firelock_cells: BTreeMap::new(),
             firelock_hold: BTreeMap::new(),
             firelock_timer: 0.0,
@@ -1262,6 +1267,7 @@ impl State {
         self.tick_puddles(ctx, dt);
         self.sync_pipes(ctx);
         self.sync_power(ctx);
+        self.place_joiners(ctx);
         self.tick_alarms(ctx, dt);
         self.tick_firelocks(ctx, dt);
         self.tick_power(dt);
@@ -1693,6 +1699,49 @@ impl State {
         self.power_batteries = built.batteries;
         self.power_receivers = built.receivers;
         self.power = built.state;
+    }
+
+    /// Новички появляются на точках должностей `Passenger` и `Latejoin` карты по очереди; если на
+    /// карте таких нет, остаётся точка появления по умолчанию.
+    fn place_joiners(&mut self, ctx: &mut HookContext<'_>) {
+        let ids: Vec<NetworkEntityId> = ctx.players().collect();
+        self.placed.retain(|p| ids.contains(p));
+        let fresh: Vec<NetworkEntityId> = ids
+            .into_iter()
+            .filter(|p| !self.placed.contains(p))
+            .collect();
+        if fresh.is_empty() {
+            return;
+        }
+        let mut points: Vec<Vec3> = ctx
+            .world
+            .authored()
+            .filter(|o| {
+                matches!(o.kind, AuthoredKind::Zone)
+                    && matches!(
+                        o.metadata.get("spawn_job").map(String::as_str),
+                        Some("Passenger" | "Latejoin")
+                    )
+            })
+            .map(|o| {
+                let c = (o.min() + o.max()) * 0.5;
+                Vec3::new(c.x, o.min().y + 0.05, c.z)
+            })
+            .collect();
+        points.sort_by(|a, b| {
+            a.to_array()
+                .partial_cmp(&b.to_array())
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
+        for p in fresh {
+            self.placed.insert(p);
+            if points.is_empty() {
+                continue;
+            }
+            let at = points[self.spawn_next % points.len()];
+            self.spawn_next += 1;
+            ctx.teleport(p, at);
+        }
     }
 
     /// Группы сигнализаций из карты: монитор, его список связей (клетки) → датчики, устройства труб,
