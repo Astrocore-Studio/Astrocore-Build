@@ -259,3 +259,26 @@ cargo run -p tools --bin sync-sprites -- <space-station-14>/Resources/Textures
 снаряжения, ни кода станционного спавна, ни таблиц случайных спавнеров (`MaintenanceToolSpawner`,
 `RandomSpawner` и др.), поэтому выбор должности, одежда и доступ не воспроизводимы без выдумывания. Для них
 нужны `Resources/Prototypes/Roles`, `Entities/Markers/Spawners` и `Content.Server/Station/Systems`.
+
+## Диспозал и конвейеры
+
+Порт по исходникам SS14 `910154a7` (`Content.Shared/Disposal`, `Content.Server/Disposal`,
+`Content.Shared/Physics/Controllers/SharedConveyorController`, `SignalSwitchSystem`).
+
+**Диспозал** (`gameplay/src/disposal.rs`): трубы — зоны `disposal_tube` с выходами по порядку прототипа
+(`DisposalPipe` S,N; `DisposalBend` S,W; `DisposalJunction` S,W,N; `…Flipped` S,E,N; `DisposalYJunction` S,W,E;
+`DisposalXJunction` S,E,N,W; `DisposalTrunk` S + вход). Ёмкость (`DisposalUnit`) принимает предмет из руки
+(30 штук максимум), смыв — по пустой руке (кнопка `Engage`) или сам через 30 с; потом 20 с набирает давление
+(`PressurePerSecond` 0,05, `FlushDelay` 3 с), питание 5 Вт. Холдер идёт 10 клеток/с, на развилках выбирает
+выход как `SelectNextDirection` (обратный пропускается, при трёх выходах — случайный из остальных), зацикленный
+холдер срывает трубу и вылетает (`DirectionBias`, `SuspectPipes`, `EscapeChance` 0,2); из открытого конца
+предметы вылетают на 1,5 клетки (или в ёмкость на той же клетке). Saltern: 414 труб, 25 ёмкостей, все 26
+трасс заканчиваются (проверено).
+Не перенесено: звук и интерфейс ёмкости (выброс содержимого, питание), урон на поворотах (в прототипе 0),
+оглушение, срыв плитки на выходе, газ в холдере, метки/роутеры/сигнальщики/почта, мобы внутри.
+
+**Конвейеры** (`gameplay/src/conveyor.rs`): лента — `Conveyor: (speed: 2.0)` + питание, поворот `rot`;
+`SignalSwitch` (пустая рука) включает ленты из `links` вперёд (`On → Forward`), выключает (`Off → Off`) — так
+связаны все 33 ленты Saltern. Предмет над лентой получает скорость `Convey` (к оси, потом вдоль) и
+останавливается за краем или у стены. Игроки на ленте не движутся, утилизатор (`Recycler`), реверс и кнопки
+не перенесены; у спрайта ленты показан стоящий кадр.

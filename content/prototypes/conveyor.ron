@@ -1,0 +1,16 @@
+// Конвейеры и выключатели (Resources/Prototypes/Entities/Structures/conveyor.yml, Wallmounts/Switches/switch.yml,
+// Content.Shared/Conveyor, Content.Shared/DeviceLinking/SignalSwitchSystem). Выключатель связан с лентами
+// списком клеток (`links` карты); порт `On` включает ленты вперёд, `Off` останавливает (так связаны все
+// 33 ленты Saltern). Поворот ленты — `rot` карты, в четвертях против часовой от севера.
+[
+    (id: "ConveyorBelt", name: Some("conveyor belt"), components: {
+        "Sprite": (sprite: "Structures/conveyor.rsi", state: "conveyor_stopped"),
+        "Conveyor": (speed: 2.0),
+        "ApcPowerReceiver": (),
+    }),
+    (id: "SignalSwitch", name: Some("signal switch"), components: {
+        "Sprite": (sprite: "Structures/Wallmounts/switch.rsi", state: "off"),
+        "SignalSwitch": (),
+    }),
+    (id: "SignalSwitchDirectional", parents: ["SignalSwitch"], name: Some("signal switch"), components: {}),
+]

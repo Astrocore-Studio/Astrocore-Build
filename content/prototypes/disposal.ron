@@ -1,0 +1,10 @@
+// Диспозал (Resources/Prototypes/Entities/Structures/Piping/Disposal/units.yml и Content.Shared/Disposal).
+// Трубы лежат под полом и на карте задаются зонами `disposal_tube` (см. disposal.rs); ёмкость — объект.
+// Питание ёмкости: `idlePowerDraw: 5` (GenericVisualizer в SS14).
+[
+    (id: "DisposalUnit", name: Some("disposal unit"), components: {
+        "Sprite": (sprite: "Structures/Piping/disposal.rsi", state: "disposal"),
+        "DisposalUnit": (maxCapacity: 30),
+        "ApcPowerReceiver": (load: 5.0),
+    }),
+]

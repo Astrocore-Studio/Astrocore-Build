@@ -1,4 +1,6 @@
 mod body;
+mod conveyor;
+mod disposal;
 mod doafter;
 mod edibles;
 pub mod electric;

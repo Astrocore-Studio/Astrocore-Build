@@ -76,6 +76,15 @@ const PROTOS: &str = r#"[
         "Refillable": (),
         "Solution": (maxVol: 360.0, reagents: (Water: 360.0)),
     }),
+    (id: "Belt", components: {
+        "Conveyor": (speed: 2.0),
+    }),
+    (id: "Switch", components: {
+        "SignalSwitch": (),
+    }),
+    (id: "DisposalBin", components: {
+        "DisposalUnit": (maxCapacity: 30),
+    }),
     (id: "Satchel", components: {
         "Item": (size: "Small"),
         "Storage": (grid: ["0,0,1,1"], maxItemSize: "Tiny"),
@@ -1878,5 +1887,102 @@ mod puddles {
         let b = h.join("b");
         h.ticks(30);
         assert!(!puddles(&h, b).is_empty(), "новичок видит лужи");
+    }
+}
+
+mod disposal_tests {
+    use super::*;
+    use crate::wire::{CMD_INTERACT, interact_data};
+
+    fn tube(h: &mut Harness, n: u128, x: f32, z: f32, exits: &str, entry: bool) {
+        let mut o = AuthoredObject::new(
+            oid(n),
+            AuthoredKind::Zone,
+            FloorId(0),
+            Vec3::new(x + 0.01, 0.0, z + 0.01),
+            Vec3::new(x + 0.99, 3.0, z + 0.99),
+        );
+        o.metadata.insert("disposal_tube".into(), exits.into());
+        if entry {
+            o.metadata.insert("disposal_entry".into(), "1".into());
+        }
+        spawn(h, o);
+    }
+
+    fn item_pos(h: &Harness, id: ObjectId) -> Option<Vec3> {
+        h.server
+            .world()
+            .authored()
+            .find(|o| o.id == id)
+            .map(|o| (o.min() + o.max()) * 0.5)
+    }
+
+    #[test]
+    fn an_item_put_in_a_unit_flies_through_the_pipe_and_lands_at_the_open_end() {
+        let mut h = harness();
+        let a = h.join("a");
+        h.ticks(5);
+        spawn(
+            &mut h,
+            item_at(800, "ss14:disposal_bin", Vec3::new(1.2, 0.9, 2.4)),
+        );
+        tube(&mut h, 801, 1.0, 2.0, "S", true);
+        tube(&mut h, 802, 1.0, 3.0, "SN", false);
+        tube(&mut h, 803, 1.0, 4.0, "SN", false);
+        spawn(
+            &mut h,
+            item_at(140, "ss14:lube_bottle", Vec3::new(2.6, 0.6, 2.6)),
+        );
+        h.ticks(30);
+        command(&mut h, a, CMD_PICKUP, pickup_data(oid(140)));
+        h.ticks(5);
+        assert!(item_pos(&h, oid(140)).is_none(), "бутылка в руке");
+        command(&mut h, a, CMD_INTERACT, interact_data(oid(800)));
+        h.ticks(5);
+        assert!(item_pos(&h, oid(140)).is_none(), "бутылка внутри ёмкости");
+        // Через 30 с ёмкость сбрасывает сама, холдер доезжает за доли секунды.
+        h.ticks(20 * 33);
+        let at = item_pos(&h, oid(140)).expect("бутылка вылетела");
+        assert!((at.x - 1.5).abs() < 0.6, "{at:?}");
+        assert!(at.z > 4.5, "улетела за конец трубы: {at:?}");
+    }
+
+    #[test]
+    fn a_switch_runs_the_belts_and_carries_an_item_along_them() {
+        let mut h = harness();
+        let a = h.join("a");
+        h.ticks(5);
+        for (i, x) in [3.0_f32, 4.0, 5.0].iter().enumerate() {
+            let mut b = item_at(900 + i as u128, "ss14:belt", Vec3::new(*x + 0.1, 0.9, 4.1));
+            b.metadata.insert("rot".into(), "3".into());
+            spawn(&mut h, b);
+        }
+        let mut s = item_at(910, "ss14:switch", Vec3::new(3.0, 0.9, 3.0));
+        s.metadata.insert("links".into(), "3,4;4,4;5,4".into());
+        spawn(&mut h, s);
+        spawn(
+            &mut h,
+            item_at(140, "ss14:lube_bottle", Vec3::new(3.3, 0.9, 4.3)),
+        );
+        h.ticks(20);
+        let start = item_pos(&h, oid(140)).expect("бутылка");
+        // Ленты выключены: бутылка стоит.
+        h.ticks(40);
+        assert_eq!(item_pos(&h, oid(140)).unwrap(), start);
+        command(&mut h, a, CMD_INTERACT, interact_data(oid(910)));
+        h.ticks(20 * 3);
+        let moved = item_pos(&h, oid(140)).expect("бутылка");
+        assert!(moved.x > start.x + 1.5, "{start:?} → {moved:?}");
+        // Ленту на восток довела до края: центр оказался над третьей лентой или за ней.
+        assert!(
+            (moved.z - 4.25).abs() < 0.2,
+            "выровнялась по оси ленты: {moved:?}"
+        );
+        // Выключили — стоит.
+        command(&mut h, a, CMD_INTERACT, interact_data(oid(910)));
+        h.ticks(5);
+        let stopped = item_pos(&h, oid(140)).unwrap();
+        h.ticks(40);
+        assert_eq!(item_pos(&h, oid(140)).unwrap(), stopped);
     }
 }

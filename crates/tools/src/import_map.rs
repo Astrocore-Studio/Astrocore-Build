@@ -74,6 +74,8 @@ pub struct Report {
     pub items: usize,
     /// Трубы газовой сети (зоны `gas_pipe`).
     pub pipes: usize,
+    /// Трубы диспозала (зоны `disposal_tube`).
+    pub disposal_tubes: usize,
     /// Клетки с кабелями (зоны `power_cable`).
     pub cables: usize,
     /// Столы, стойки и шкафы (ящики-конструкции) и стулья.
@@ -111,17 +113,26 @@ fn classify(proto: &str) -> Kind {
 
 /// Список устройств сигнализации (`DeviceList.devices`): `uid` связанных сущностей.
 fn device_list(entity: &Value) -> Vec<i64> {
-    entity
-        .get("components")
-        .and_then(Value::as_sequence)
-        .and_then(|c| {
+    let comps = entity.get("components").and_then(Value::as_sequence);
+    let find = |name: &str| {
+        comps.and_then(|c| {
             c.iter()
-                .find(|c| c.get("type").and_then(Value::as_str) == Some("DeviceList"))
+                .find(|c| c.get("type").and_then(Value::as_str) == Some(name))
         })
+    };
+    let mut out: Vec<i64> = find("DeviceList")
         .and_then(|c| c.get("devices"))
         .and_then(Value::as_sequence)
         .map(|l| l.iter().filter_map(Value::as_i64).collect())
-        .unwrap_or_default()
+        .unwrap_or_default();
+    // Выключатели и кнопки: `DeviceLinkSource.linkedPorts` — цели сигнала по uid.
+    if let Some(ports) = find("DeviceLinkSource")
+        .and_then(|c| c.get("linkedPorts"))
+        .and_then(Value::as_mapping)
+    {
+        out.extend(ports.keys().filter_map(Value::as_i64));
+    }
+    out
 }
 
 /// Поворот сущности в четвертях оборота против часовой стрелки (`rot: 1.57… rad`).
@@ -218,6 +229,27 @@ fn rotate_pipe_dirs(dirs: u8, quarters: u8) -> u8 {
         d = n;
     }
     d
+}
+
+/// Выходы трубы диспозала по порядку прототипа SS14 (`DisposalTube.exits`, поворот 0).
+fn disposal_exits(proto: &str) -> Option<&'static str> {
+    Some(match proto {
+        "DisposalPipe" => "SN",
+        "DisposalTrunk" => "S",
+        "DisposalJunction" => "SWN",
+        "DisposalJunctionFlipped" => "SEN",
+        "DisposalYJunction" => "SWE",
+        "DisposalXJunction" => "SENW",
+        "DisposalBend" => "SW",
+        _ => return None,
+    })
+}
+
+/// Сторона света, повёрнутая на `quarters` четвертей против часовой: юг → восток → север → запад.
+fn rotate_exit(c: char, quarters: u8) -> char {
+    let order = ['S', 'E', 'N', 'W'];
+    let i = order.iter().position(|o| *o == c).unwrap_or(0);
+    order[(i + usize::from(quarters)) % 4]
 }
 
 fn dirs_text(d: u8) -> String {
@@ -428,6 +460,27 @@ pub fn import(
                         metadata: [("gas_pipe".to_string(), dirs_text(dirs))].into(),
                     });
                     report.pipes += 1;
+                }
+                Kind::Other if disposal_exits(proto).is_some() => {
+                    let rot = entity_rot(entity);
+                    let exits: String = disposal_exits(proto)
+                        .unwrap_or("")
+                        .chars()
+                        .map(|c| rotate_exit(c, rot))
+                        .collect();
+                    let (cx, cz) = (cell.0 as f32, cell.1 as f32);
+                    let mut metadata: std::collections::BTreeMap<String, String> =
+                        [("disposal_tube".to_string(), exits)].into();
+                    if proto == "DisposalTrunk" {
+                        metadata.insert("disposal_entry".into(), "1".into());
+                    }
+                    zones.push(MapZone {
+                        min: [cx + 0.01, 0.0, cz + 0.01],
+                        max: [cx + 0.99, 3.0, cz + 0.99],
+                        floor: 0,
+                        metadata,
+                    });
+                    report.disposal_tubes += 1;
                 }
                 Kind::Other if furniture_box(proto).is_some() => {
                     if let Some((m, h)) = furniture_box(proto) {

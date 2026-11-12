@@ -102,6 +102,14 @@ impl Actor {
     }
 }
 
+/// Ёмкость диспозала в мире: состояние, клетка и точка.
+#[derive(Debug, Clone)]
+pub(crate) struct DisposalSlot {
+    pub(crate) unit: crate::disposal::Unit,
+    pub(crate) cell: atmos::Cell,
+    pub(crate) at: Vec3,
+}
+
 /// Группа сигнализации: сама сигнализация, её датчики, вентили, скрубберы и огнезапоры из списка.
 #[derive(Debug, Clone, Default)]
 pub(crate) struct AlarmGroup {
@@ -192,6 +200,22 @@ pub struct State {
     pub(crate) alarm_sig: Vec<(ObjectId, atmos::Cell, u32)>,
     pub(crate) monitor_state: BTreeMap<ObjectId, crate::monitor::AlarmState>,
     pub(crate) alarm_timer: f32,
+    /// Конвейеры: прототипы лент (скорость), выключатели, состояние лент и включённые выключатели.
+    pub(crate) conveyor_protos: BTreeMap<PrototypeId, f32>,
+    pub(crate) switch_protos: BTreeSet<PrototypeId>,
+    pub(crate) conveyor_state: BTreeMap<ObjectId, crate::conveyor::State>,
+    pub(crate) switch_on: BTreeSet<ObjectId>,
+    pub(crate) conveyor_timer: f32,
+    /// Диспозал: прототипы ёмкостей, сеть труб, ёмкости, холдеры в пути.
+    pub(crate) disposal_units: BTreeSet<PrototypeId>,
+    pub(crate) disposal_net: crate::disposal::Net,
+    pub(crate) disposal_entries: BTreeSet<atmos::Cell>,
+    pub(crate) disposal_torn: BTreeSet<atmos::Cell>,
+    pub(crate) disposal_sig: Vec<(atmos::Cell, String)>,
+    pub(crate) disposal_state: BTreeMap<ObjectId, DisposalSlot>,
+    pub(crate) disposal_holders: Vec<crate::disposal::Holder>,
+    pub(crate) disposal_rng: crate::disposal::Rng,
+    pub(crate) disposal_timer: f32,
     /// Игроки, уже получившие место появления.
     pub(crate) placed: BTreeSet<NetworkEntityId>,
     pub(crate) spawn_next: usize,
@@ -223,6 +247,9 @@ impl State {
         let mut heat_protection = BTreeMap::new();
         let mut power_parts = BTreeMap::new();
         let mut monitor_kinds = BTreeMap::new();
+        let mut disposal_units = BTreeSet::new();
+        let mut conveyor_protos = BTreeMap::new();
+        let mut switch_protos = BTreeSet::new();
         let mut refillables = BTreeSet::new();
         let mut tank_templates = BTreeMap::new();
         for (id, name) in names {
@@ -252,6 +279,20 @@ impl State {
                     .and_then(prototypes::Data::as_f64)
                 {
                     heat_protection.insert(id.clone(), c as f32);
+                }
+                if let Some(c) = r.component("Conveyor") {
+                    conveyor_protos.insert(
+                        id.clone(),
+                        c.get("speed")
+                            .and_then(prototypes::Data::as_f64)
+                            .unwrap_or(2.0) as f32,
+                    );
+                }
+                if r.component("SignalSwitch").is_some() {
+                    switch_protos.insert(id.clone());
+                }
+                if r.component("DisposalUnit").is_some() {
+                    disposal_units.insert(id.clone());
                 }
                 if let Some(c) = r.component("AtmosMonitor") {
                     monitor_kinds.insert(
@@ -371,6 +412,20 @@ impl State {
             alarm_sig: Vec::new(),
             monitor_state: BTreeMap::new(),
             alarm_timer: 0.0,
+            conveyor_protos,
+            switch_protos,
+            conveyor_state: BTreeMap::new(),
+            switch_on: BTreeSet::new(),
+            conveyor_timer: 0.0,
+            disposal_units,
+            disposal_net: crate::disposal::Net::default(),
+            disposal_entries: BTreeSet::new(),
+            disposal_torn: BTreeSet::new(),
+            disposal_sig: Vec::new(),
+            disposal_state: BTreeMap::new(),
+            disposal_holders: Vec::new(),
+            disposal_rng: crate::disposal::Rng(0x9e37_79b9_7f4a_7c15),
+            disposal_timer: 0.0,
             placed: BTreeSet::new(),
             spawn_next: 0,
             firelock_cells: BTreeMap::new(),
@@ -1268,6 +1323,8 @@ impl State {
         self.sync_pipes(ctx);
         self.sync_power(ctx);
         self.place_joiners(ctx);
+        self.tick_disposal(ctx, dt);
+        self.tick_conveyors(ctx, dt);
         self.tick_alarms(ctx, dt);
         self.tick_firelocks(ctx, dt);
         self.tick_power(dt);
@@ -1701,6 +1758,341 @@ impl State {
         self.power = built.state;
     }
 
+    /// Точка клетки сетки: центр клетки на полу своего этажа.
+    fn cell_point(ctx: &HookContext<'_>, cell: atmos::Cell) -> Vec3 {
+        let stride = atmos::grid::FLOOR_STRIDE;
+        let floor = (cell.1 + stride / 2).div_euclid(stride);
+        let z = cell.1 - floor * stride;
+        let base = ctx
+            .world
+            .floors()
+            .find(|f| f.id.0 == floor)
+            .map_or(0.0, |f| f.base_y);
+        Vec3::new(cell.0 as f32 + 0.5, base + 0.2, z as f32 + 0.5)
+    }
+
+    /// Сеть труб и ёмкости из карты: зоны `disposal_tube` и объекты с `DisposalUnit`.
+    fn sync_disposal(&mut self, ctx: &mut HookContext<'_>) {
+        use crate::disposal::{ENTRY_KEY, TUBE_KEY, Tube, parse_exits};
+        let mut tubes: Vec<(atmos::Cell, String, bool)> = Vec::new();
+        let mut units: Vec<(ObjectId, atmos::Cell, Vec3)> = Vec::new();
+        for o in ctx.world.authored() {
+            let centre = (o.min() + o.max()) * 0.5;
+            let cell = crate::piping::cell_at(o.floor.0, centre);
+            match &o.kind {
+                AuthoredKind::Zone => {
+                    if let Some(exits) = o.metadata.get(TUBE_KEY)
+                        && !self.disposal_torn.contains(&cell)
+                    {
+                        tubes.push((cell, exits.clone(), o.metadata.contains_key(ENTRY_KEY)));
+                    }
+                }
+                AuthoredKind::Placement { prototype }
+                    if self.disposal_units.contains(prototype) =>
+                {
+                    units.push((o.id, cell, Vec3::new(centre.x, o.min().y, centre.z)));
+                }
+                _ => {}
+            }
+        }
+        let mut sig: Vec<(atmos::Cell, String)> =
+            tubes.iter().map(|(c, e, _)| (*c, e.clone())).collect();
+        sig.sort();
+        if sig != self.disposal_sig {
+            self.disposal_sig = sig;
+            self.disposal_entries = tubes.iter().filter(|t| t.2).map(|t| t.0).collect();
+            self.disposal_net = crate::disposal::Net::new(tubes.iter().map(|(c, e, entry)| {
+                (
+                    *c,
+                    Tube {
+                        exits: parse_exits(e),
+                        entry: *entry,
+                    },
+                )
+            }));
+        }
+        let ids: BTreeSet<ObjectId> = units.iter().map(|u| u.0).collect();
+        self.disposal_state.retain(|id, _| ids.contains(id));
+        for (id, cell, at) in units {
+            self.disposal_state
+                .entry(id)
+                .and_modify(|s| {
+                    s.cell = cell;
+                    s.at = at;
+                })
+                .or_insert_with(|| DisposalSlot {
+                    unit: crate::disposal::Unit::default(),
+                    cell,
+                    at,
+                });
+        }
+    }
+
+    /// Диспозал каждый кадр: ёмкости набирают давление и сбрасывают, холдеры едут по трубам.
+    fn tick_disposal(&mut self, ctx: &mut HookContext<'_>, dt: f32) {
+        self.disposal_timer += dt;
+        if self.disposal_timer >= 1.0
+            || self.disposal_sig.is_empty() && self.disposal_state.is_empty()
+        {
+            if self.disposal_timer >= 1.0 {
+                self.disposal_timer = 0.0;
+            }
+            self.sync_disposal(ctx);
+        }
+        if self.disposal_state.is_empty() && self.disposal_holders.is_empty() {
+            return;
+        }
+        let now = self.clock;
+        let powered = self.powered_map();
+        let mut due = Vec::new();
+        for (id, slot) in &mut self.disposal_state {
+            let on = !self.power_required
+                || !self.power_gated.contains(id)
+                || powered.get(id).copied().unwrap_or(false);
+            if on != slot.unit.powered {
+                slot.unit.powered = on;
+                slot.unit.recalculate(now, true);
+            }
+            if slot.unit.update(now) {
+                due.push(*id);
+            }
+        }
+        for id in due {
+            self.flush_unit(ctx, id);
+        }
+        let mut holders = std::mem::take(&mut self.disposal_holders);
+        let mut net = std::mem::take(&mut self.disposal_net);
+        let mut kept = Vec::new();
+        for mut h in holders.drain(..) {
+            match h.advance(&mut net, dt, &mut self.disposal_rng) {
+                crate::disposal::Outcome::Moving => kept.push(h),
+                crate::disposal::Outcome::Exited { at, dir } => {
+                    if !net.tube(at).is_some() {
+                        self.disposal_torn.insert(at);
+                    }
+                    self.exit_holder(ctx, h, at, dir);
+                }
+            }
+        }
+        self.disposal_net = net;
+        self.disposal_holders = kept;
+    }
+
+    /// `TryFlush`: найти вход в трубы под ёмкостью, отправить содержимое.
+    fn flush_unit(&mut self, ctx: &mut HookContext<'_>, id: ObjectId) {
+        let now = self.clock;
+        let Some(slot) = self.disposal_state.get_mut(&id) else {
+            return;
+        };
+        if !slot.unit.can_flush(now) {
+            return;
+        }
+        if !self.disposal_entries.contains(&slot.cell) {
+            slot.unit.set_engage(false, now);
+            return;
+        }
+        let cell = slot.cell;
+        let items = slot.unit.eject(now);
+        slot.unit.flushed(now);
+        if items.is_empty() {
+            return;
+        }
+        let mut holder = crate::disposal::Holder::new(items, cell);
+        let mut net = std::mem::take(&mut self.disposal_net);
+        if holder.enter(&mut net, cell, &mut self.disposal_rng) {
+            self.disposal_holders.push(holder);
+            self.disposal_net = net;
+        } else {
+            self.disposal_net = net;
+            let dir = holder.dir;
+            self.exit_holder(ctx, holder, cell, dir);
+        }
+    }
+
+    /// `Exit` холдера: в ёмкость на той же клетке (и сразу из неё), иначе выброс вперёд на
+    /// `exitDistanceMultiplier` клеток, но не сквозь стену.
+    fn exit_holder(
+        &mut self,
+        ctx: &mut HookContext<'_>,
+        holder: crate::disposal::Holder,
+        at: atmos::Cell,
+        dir: Option<crate::disposal::Dir>,
+    ) {
+        let start = Self::cell_point(ctx, at);
+        let landing = if let Some(slot) = self.disposal_state.values().find(|s| s.cell == at) {
+            Vec3::new(slot.at.x, start.y, slot.at.z)
+        } else if let Some(d) = dir {
+            let (dx, dz) = d.delta();
+            let target = [
+                start.x + dx as f32 * crate::disposal::EXIT_DISTANCE,
+                start.y,
+                start.z + dz as f32 * crate::disposal::EXIT_DISTANCE,
+            ];
+            self.drop_point(ctx, start, Some(target))
+        } else {
+            start
+        };
+        for item in &holder.items {
+            Self::place(ctx, item, landing);
+        }
+    }
+
+    /// Нажатие выключателя (`SignalSwitchSystem.OnActivated`): состояние переключается, порт `On` или
+    /// `Off` посылает сигнал связанным лентам — вперёд или стоп.
+    pub(crate) fn toggle_switch(&mut self, ctx: &HookContext<'_>, id: ObjectId) -> bool {
+        let Some(obj) = ctx.world.authored_object(id) else {
+            return false;
+        };
+        let on = !self.switch_on.contains(&id);
+        if on {
+            self.switch_on.insert(id);
+        } else {
+            self.switch_on.remove(&id);
+        }
+        let cells: BTreeSet<atmos::Cell> = obj
+            .metadata
+            .get("links")
+            .map(String::as_str)
+            .unwrap_or("")
+            .split(';')
+            .filter_map(|p| p.split_once(','))
+            .filter_map(|(x, z)| {
+                Some(atmos::floor_cell(
+                    obj.floor.0,
+                    x.parse().ok()?,
+                    z.parse().ok()?,
+                ))
+            })
+            .collect();
+        let state = if on {
+            crate::conveyor::State::Forward
+        } else {
+            crate::conveyor::State::Off
+        };
+        for o in ctx.world.authored() {
+            let AuthoredKind::Placement { prototype } = &o.kind else {
+                continue;
+            };
+            if self.conveyor_protos.contains_key(prototype)
+                && cells.contains(&crate::piping::cell_at(
+                    o.floor.0,
+                    (o.min() + o.max()) * 0.5,
+                ))
+            {
+                self.conveyor_state.insert(o.id, state);
+            }
+        }
+        true
+    }
+
+    /// Ленты (10 раз в секунду): предметы над работающей лентой едут к её центру и вдоль неё.
+    fn tick_conveyors(&mut self, ctx: &mut HookContext<'_>, dt: f32) {
+        const STEP: f32 = 0.1;
+        self.conveyor_timer += dt;
+        if self.conveyor_timer < STEP {
+            return;
+        }
+        let step = self.conveyor_timer;
+        self.conveyor_timer = 0.0;
+        if self
+            .conveyor_state
+            .values()
+            .all(|s| *s == crate::conveyor::State::Off)
+        {
+            return;
+        }
+        let powered = self.powered_map();
+        // Работающие ленты по клеткам: направление, скорость, центр.
+        let mut belts: BTreeMap<atmos::Cell, ([f32; 2], f32, [f32; 2])> = BTreeMap::new();
+        for o in ctx.world.authored() {
+            let AuthoredKind::Placement { prototype } = &o.kind else {
+                continue;
+            };
+            let Some(speed) = self.conveyor_protos.get(prototype) else {
+                continue;
+            };
+            let state = self.conveyor_state.get(&o.id).copied().unwrap_or_default();
+            let on = !self.power_required
+                || !self.power_gated.contains(&o.id)
+                || powered.get(&o.id).copied().unwrap_or(false);
+            if state == crate::conveyor::State::Off || !on {
+                continue;
+            }
+            let rot = o
+                .metadata
+                .get("rot")
+                .and_then(|v| v.parse::<u8>().ok())
+                .unwrap_or(0);
+            let c = (o.min() + o.max()) * 0.5;
+            belts.insert(
+                crate::piping::cell_at(o.floor.0, c),
+                (crate::conveyor::direction(rot, state), *speed, [c.x, c.z]),
+            );
+        }
+        if belts.is_empty() {
+            return;
+        }
+        let mut moves = Vec::new();
+        for o in ctx.world.authored() {
+            let AuthoredKind::Placement { prototype } = &o.kind else {
+                continue;
+            };
+            if !self.infos.contains_key(prototype) {
+                continue;
+            }
+            let c = (o.min() + o.max()) * 0.5;
+            let Some((dir, speed, centre)) = belts.get(&crate::piping::cell_at(o.floor.0, c))
+            else {
+                continue;
+            };
+            let v = crate::conveyor::convey(*dir, *speed, [centre[0] - c.x, centre[1] - c.z]);
+            let delta = Vec3::new(v[0] * step, 0.0, v[1] * step);
+            if delta.length() < 1e-4 {
+                continue;
+            }
+            // Стена на пути: предмет не едет.
+            let probe = c + Vec3::Y * 0.3;
+            let len = delta.length();
+            if ctx.unobstructed_distance(probe, probe + delta * (0.5 / len + 1.0)) < len * 1.5 {
+                continue;
+            }
+            moves.push((o.clone(), delta));
+        }
+        for (mut obj, delta) in moves {
+            let mm = |v: f32| (v * 1000.0).round() as i32;
+            for k in [0, 2] {
+                let d = mm(if k == 0 { delta.x } else { delta.z });
+                obj.min_mm[k] += d;
+                obj.max_mm[k] += d;
+            }
+            ctx.request(WorldCommand::RemoveAuthored { id: obj.id });
+            ctx.request(WorldCommand::PlaceAuthored(obj));
+        }
+    }
+
+    /// Положить предмет из руки в ёмкость диспозала (`AfterInteractUsing`).
+    pub(crate) fn insert_into_unit(
+        &mut self,
+        ctx: &mut HookContext<'_>,
+        actor: NetworkEntityId,
+        unit: ObjectId,
+        hand: usize,
+    ) -> bool {
+        let now = self.clock;
+        let Some(item) = self.actor(actor).hands.get(hand).cloned() else {
+            return false;
+        };
+        let Some(slot) = self.disposal_state.get_mut(&unit) else {
+            return false;
+        };
+        if slot.unit.insert(item, now).is_err() {
+            return false;
+        }
+        let _ = self.actor(actor).hands.drop_hand(hand);
+        self.publish(ctx, actor);
+        true
+    }
+
     /// Новички появляются на точках должностей `Passenger` и `Latejoin` карты по очереди; если на
     /// карте таких нет, остаётся точка появления по умолчанию.
     fn place_joiners(&mut self, ctx: &mut HookContext<'_>) {
@@ -1892,18 +2284,9 @@ impl State {
         self.firelock_hold = hold;
     }
 
-    /// Раз в секунду: мониторы измеряют воздух, группа берёт самое тяжёлое состояние, при смене
-    /// огнезапоры, вентили и скрубберы реагируют.
-    fn tick_alarms(&mut self, ctx: &mut HookContext<'_>, dt: f32) {
-        use crate::monitor::{AlarmState, evaluate};
-        self.alarm_timer += dt;
-        if self.alarm_timer < 1.0 {
-            return;
-        }
-        self.alarm_timer = 0.0;
-        self.sync_alarms(ctx);
-        let powered: BTreeMap<ObjectId, bool> = self
-            .power_receivers
+    /// Получает ли потребитель всю мощность.
+    fn powered_map(&self) -> BTreeMap<ObjectId, bool> {
+        self.power_receivers
             .iter()
             .map(|(id, idx, want)| {
                 (
@@ -1914,7 +2297,20 @@ impl State {
                         .is_some_and(|l| l.receiving_power >= want * 0.999),
                 )
             })
-            .collect();
+            .collect()
+    }
+
+    /// Раз в секунду: мониторы измеряют воздух, группа берёт самое тяжёлое состояние, при смене
+    /// огнезапоры, вентили и скрубберы реагируют.
+    fn tick_alarms(&mut self, ctx: &mut HookContext<'_>, dt: f32) {
+        use crate::monitor::{AlarmState, evaluate};
+        self.alarm_timer += dt;
+        if self.alarm_timer < 1.0 {
+            return;
+        }
+        self.alarm_timer = 0.0;
+        self.sync_alarms(ctx);
+        let powered = self.powered_map();
         let mut groups = std::mem::take(&mut self.alarm_groups);
         for g in &mut groups {
             for (id, cell) in &g.monitors {

@@ -285,10 +285,73 @@ impl InteractionHandler for GasDeviceUse {
     }
 }
 
+/// Ёмкость диспозала: предмет из руки кладётся внутрь (`AfterInteractUsing`), пустая рука
+/// включает или выключает смыв (кнопка `Engage` интерфейса SS14).
+pub struct DisposalUnitUse;
+
+impl InteractionHandler for DisposalUnitUse {
+    fn interact_hand(
+        &mut self,
+        state: &mut State,
+        _ctx: &mut HookContext<'_>,
+        _user: NetworkEntityId,
+        target: &Target,
+    ) -> bool {
+        let Target::Item { id, .. } = target else {
+            return false;
+        };
+        let now = state.clock;
+        let Some(slot) = state.disposal_state.get_mut(id) else {
+            return false;
+        };
+        let engaged = slot.unit.engaged;
+        slot.unit.set_engage(!engaged, now);
+        true
+    }
+
+    fn interact_using(
+        &mut self,
+        state: &mut State,
+        ctx: &mut HookContext<'_>,
+        user: NetworkEntityId,
+        used: &Used,
+        target: &Target,
+    ) -> bool {
+        let Target::Item { id, .. } = target else {
+            return false;
+        };
+        if !state.disposal_state.contains_key(id) {
+            return false;
+        }
+        // Нельзя сложить в ёмкость саму ёмкость (стоит на полу).
+        state.insert_into_unit(ctx, user, *id, used.hand)
+    }
+}
+
+/// Выключатель (`SignalSwitch`): пустая рука переключает его и связанные ленты.
+pub struct SwitchUse;
+
+impl InteractionHandler for SwitchUse {
+    fn interact_hand(
+        &mut self,
+        state: &mut State,
+        ctx: &mut HookContext<'_>,
+        _user: NetworkEntityId,
+        target: &Target,
+    ) -> bool {
+        let Target::Item { id, prototype, .. } = target else {
+            return false;
+        };
+        state.switch_protos.contains(prototype) && state.toggle_switch(ctx, *id)
+    }
+}
+
 /// Базовая цепочка: порядок важен — первый обработавший прекращает обход.
 pub fn default_handlers() -> Vec<Box<dyn InteractionHandler>> {
     vec![
         Box::new(GasDeviceUse),
+        Box::new(DisposalUnitUse),
+        Box::new(SwitchUse),
         Box::new(PryDoor),
         Box::new(StorageClickInsert),
         Box::new(PickupHandler),

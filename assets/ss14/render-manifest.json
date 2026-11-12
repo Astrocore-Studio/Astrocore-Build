@@ -578,6 +578,14 @@
         0.6000000238418579
       ]
     },
+    "ss14:conveyor_belt": {
+      "image": "Textures/Structures/conveyor.rsi/conveyor_stopped.png",
+      "layout": "billboard",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
     "ss14:corpse": {
       "image": "Textures/Mobs/Species/Human/parts.rsi/full.png",
       "layout": "billboard",
@@ -592,6 +600,14 @@
       "size": [
         0.36000001430511475,
         0.36000001430511475
+      ]
+    },
+    "ss14:disposal_unit": {
+      "image": "Textures/Structures/Piping/disposal.rsi/disposal.png",
+      "layout": "billboard",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
       ]
     },
     "ss14:drink_water_bottle_full": {
@@ -760,6 +776,22 @@
       "size": [
         0.36000001430511475,
         0.36000001430511475
+      ]
+    },
+    "ss14:signal_switch": {
+      "image": "Textures/Structures/Wallmounts/switch.rsi/off.png",
+      "layout": "billboard",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:signal_switch_directional": {
+      "image": "Textures/Structures/Wallmounts/switch.rsi/off.png",
+      "layout": "billboard",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
       ]
     },
     "ss14:smesbasic": {
