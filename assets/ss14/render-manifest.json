@@ -842,6 +842,598 @@
         0.6000000238418579
       ]
     },
+    "ss14:vending_bar_drobe": {
+      "image": "Textures/Structures/Machines/VendingMachines/bardrobe.rsi/off.png",
+      "layout": "billboard",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:vending_machine_ammo": {
+      "image": "Textures/Structures/Machines/VendingMachines/ammo.rsi/off.png",
+      "layout": "billboard",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:vending_machine_atmos_drobe": {
+      "image": "Textures/Structures/Machines/VendingMachines/atmosdrobe.rsi/off.png",
+      "layout": "billboard",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:vending_machine_booze": {
+      "image": "Textures/Structures/Machines/VendingMachines/boozeomat.rsi/off.png",
+      "layout": "billboard",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:vending_machine_booze_syndicate": {
+      "image": "Textures/Structures/Machines/VendingMachines/bruiseomat.rsi/off.png",
+      "layout": "billboard",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:vending_machine_cargo_drobe": {
+      "image": "Textures/Structures/Machines/VendingMachines/cargodrobe.rsi/off.png",
+      "layout": "billboard",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:vending_machine_cart": {
+      "image": "Textures/Structures/Machines/VendingMachines/cart.rsi/off.png",
+      "layout": "billboard",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:vending_machine_cent_drobe": {
+      "image": "Textures/Structures/Machines/VendingMachines/centdrobe.rsi/off.png",
+      "layout": "billboard",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:vending_machine_chang": {
+      "image": "Textures/Structures/Machines/VendingMachines/changs.rsi/off.png",
+      "layout": "billboard",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:vending_machine_chapel": {
+      "image": "Textures/Structures/Machines/VendingMachines/chapdrobe.rsi/off.png",
+      "layout": "billboard",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:vending_machine_chef_drobe": {
+      "image": "Textures/Structures/Machines/VendingMachines/chefdrobe.rsi/off.png",
+      "layout": "billboard",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:vending_machine_chefvend": {
+      "image": "Textures/Structures/Machines/VendingMachines/chefvend.rsi/off.png",
+      "layout": "billboard",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:vending_machine_chem_drobe": {
+      "image": "Textures/Structures/Machines/VendingMachines/chemdrobe.rsi/off.png",
+      "layout": "billboard",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:vending_machine_chemicals": {
+      "image": "Textures/Structures/Machines/VendingMachines/chemvend.rsi/off.png",
+      "layout": "billboard",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:vending_machine_chemicals_med": {
+      "image": "Textures/Structures/Machines/VendingMachines/chemvend.rsi/off.png",
+      "layout": "billboard",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:vending_machine_chemicals_syndicate": {
+      "image": "Textures/Structures/Machines/VendingMachines/chemvend.rsi/off.png",
+      "layout": "billboard",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:vending_machine_cigs": {
+      "image": "Textures/Structures/Machines/VendingMachines/cigs.rsi/off.png",
+      "layout": "billboard",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:vending_machine_clothing": {
+      "image": "Textures/Structures/Machines/VendingMachines/clothing.rsi/off.png",
+      "layout": "billboard",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:vending_machine_coffee": {
+      "image": "Textures/Structures/Machines/VendingMachines/coffee.rsi/off.png",
+      "layout": "billboard",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:vending_machine_cola": {
+      "image": "Textures/Structures/Machines/VendingMachines/cola.rsi/off.png",
+      "layout": "billboard",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:vending_machine_cola_black": {
+      "image": "Textures/Structures/Machines/VendingMachines/cola-black.rsi/off.png",
+      "layout": "billboard",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:vending_machine_cola_red": {
+      "image": "Textures/Structures/Machines/VendingMachines/cola-red.rsi/off.png",
+      "layout": "billboard",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:vending_machine_condiments": {
+      "image": "Textures/Structures/Machines/VendingMachines/condiments.rsi/off.png",
+      "layout": "billboard",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:vending_machine_cura_drobe": {
+      "image": "Textures/Structures/Machines/VendingMachines/curadrobe.rsi/off.png",
+      "layout": "billboard",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:vending_machine_det_drobe": {
+      "image": "Textures/Structures/Machines/VendingMachines/detdrobe.rsi/off.png",
+      "layout": "billboard",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:vending_machine_dinnerware": {
+      "image": "Textures/Structures/Machines/VendingMachines/dinnerware.rsi/off.png",
+      "layout": "billboard",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:vending_machine_discount": {
+      "image": "Textures/Structures/Machines/VendingMachines/discount.rsi/off.png",
+      "layout": "billboard",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:vending_machine_donut": {
+      "image": "Textures/Structures/Machines/VendingMachines/donut.rsi/off.png",
+      "layout": "billboard",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:vending_machine_dr_gibb": {
+      "image": "Textures/Structures/Machines/VendingMachines/gib.rsi/off.png",
+      "layout": "billboard",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:vending_machine_engi_drobe": {
+      "image": "Textures/Structures/Machines/VendingMachines/engidrobe.rsi/off.png",
+      "layout": "billboard",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:vending_machine_engivend": {
+      "image": "Textures/Structures/Machines/VendingMachines/engivend.rsi/off.png",
+      "layout": "billboard",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:vending_machine_games": {
+      "image": "Textures/Structures/Machines/VendingMachines/games.rsi/off.png",
+      "layout": "billboard",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:vending_machine_gene_drobe": {
+      "image": "Textures/Structures/Machines/VendingMachines/genedrobe.rsi/off.png",
+      "layout": "billboard",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:vending_machine_happy_honk": {
+      "image": "Textures/Structures/Machines/VendingMachines/happyhonk.rsi/off.png",
+      "layout": "billboard",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:vending_machine_hydrobe": {
+      "image": "Textures/Structures/Machines/VendingMachines/hydrobe.rsi/off.png",
+      "layout": "billboard",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:vending_machine_jani_drobe": {
+      "image": "Textures/Structures/Machines/VendingMachines/janidrobe.rsi/off.png",
+      "layout": "billboard",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:vending_machine_law_drobe": {
+      "image": "Textures/Structures/Machines/VendingMachines/lawdrobe.rsi/off.png",
+      "layout": "billboard",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:vending_machine_magivend": {
+      "image": "Textures/Structures/Machines/VendingMachines/magivend.rsi/off.png",
+      "layout": "billboard",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:vending_machine_medi_drobe": {
+      "image": "Textures/Structures/Machines/VendingMachines/medidrobe.rsi/off.png",
+      "layout": "billboard",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:vending_machine_medical": {
+      "image": "Textures/Structures/Machines/VendingMachines/medical.rsi/off.png",
+      "layout": "billboard",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:vending_machine_medical_base": {
+      "image": "Textures/Structures/Machines/VendingMachines/medical.rsi/off-civilian.png",
+      "layout": "billboard",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:vending_machine_nutri": {
+      "image": "Textures/Structures/Machines/VendingMachines/nutri.rsi/off.png",
+      "layout": "billboard",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:vending_machine_pride": {
+      "image": "Textures/Structures/Machines/VendingMachines/pride.rsi/off.png",
+      "layout": "billboard",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:vending_machine_pwr_game": {
+      "image": "Textures/Structures/Machines/VendingMachines/pwrgame.rsi/off.png",
+      "layout": "billboard",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:vending_machine_robo_drobe": {
+      "image": "Textures/Structures/Machines/VendingMachines/robodrobe.rsi/off.png",
+      "layout": "billboard",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:vending_machine_robotics": {
+      "image": "Textures/Structures/Machines/VendingMachines/robotics.rsi/off.png",
+      "layout": "billboard",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:vending_machine_salvage": {
+      "image": "Textures/Structures/Machines/VendingMachines/mining.rsi/off.png",
+      "layout": "billboard",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:vending_machine_salvage_cargo": {
+      "image": "Textures/Structures/Machines/VendingMachines/mining.rsi/off.png",
+      "layout": "billboard",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:vending_machine_sci_drobe": {
+      "image": "Textures/Structures/Machines/VendingMachines/scidrobe.rsi/off.png",
+      "layout": "billboard",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:vending_machine_sec": {
+      "image": "Textures/Structures/Machines/VendingMachines/sec.rsi/off.png",
+      "layout": "billboard",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:vending_machine_sec_drobe": {
+      "image": "Textures/Structures/Machines/VendingMachines/secdrobe.rsi/off.png",
+      "layout": "billboard",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:vending_machine_seeds": {
+      "image": "Textures/Structures/Machines/VendingMachines/seeds.rsi/off.png",
+      "layout": "billboard",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:vending_machine_seeds_unlocked": {
+      "image": "Textures/Structures/Machines/VendingMachines/seeds.rsi/off.png",
+      "layout": "billboard",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:vending_machine_shamblers_juice": {
+      "image": "Textures/Structures/Machines/VendingMachines/shamblersjuice.rsi/off.png",
+      "layout": "billboard",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:vending_machine_smite": {
+      "image": "Textures/Structures/Machines/VendingMachines/smite.rsi/off.png",
+      "layout": "billboard",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:vending_machine_snack": {
+      "image": "Textures/Structures/Machines/VendingMachines/snack.rsi/off.png",
+      "layout": "billboard",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:vending_machine_snack_blue": {
+      "image": "Textures/Structures/Machines/VendingMachines/snack-blue.rsi/off.png",
+      "layout": "billboard",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:vending_machine_snack_green": {
+      "image": "Textures/Structures/Machines/VendingMachines/snack-green.rsi/off.png",
+      "layout": "billboard",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:vending_machine_snack_orange": {
+      "image": "Textures/Structures/Machines/VendingMachines/snack-orange.rsi/off.png",
+      "layout": "billboard",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:vending_machine_snack_teal": {
+      "image": "Textures/Structures/Machines/VendingMachines/snack-teal.rsi/off.png",
+      "layout": "billboard",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:vending_machine_soda": {
+      "image": "Textures/Structures/Machines/VendingMachines/soda.rsi/off.png",
+      "layout": "billboard",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:vending_machine_soviet_soda": {
+      "image": "Textures/Structures/Machines/VendingMachines/sovietsoda.rsi/off.png",
+      "layout": "billboard",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:vending_machine_space_up": {
+      "image": "Textures/Structures/Machines/VendingMachines/spaceup.rsi/off.png",
+      "layout": "billboard",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:vending_machine_starkist": {
+      "image": "Textures/Structures/Machines/VendingMachines/starkist.rsi/off.png",
+      "layout": "billboard",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:vending_machine_sustenance": {
+      "image": "Textures/Structures/Machines/VendingMachines/sustenance.rsi/off.png",
+      "layout": "billboard",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:vending_machine_syndie_drobe": {
+      "image": "Textures/Structures/Machines/VendingMachines/syndiedrobe.rsi/off.png",
+      "layout": "billboard",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:vending_machine_tank_dispenser_engineering": {
+      "image": "Textures/Structures/Machines/VendingMachines/tankdispenser.rsi/dispenser.png",
+      "layout": "billboard",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:vending_machine_theater": {
+      "image": "Textures/Structures/Machines/VendingMachines/theater.rsi/off.png",
+      "layout": "billboard",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:vending_machine_vendomat": {
+      "image": "Textures/Structures/Machines/VendingMachines/vendomat.rsi/off.png",
+      "layout": "billboard",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:vending_machine_viro_drobe": {
+      "image": "Textures/Structures/Machines/VendingMachines/virodrobe.rsi/off.png",
+      "layout": "billboard",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:vending_machine_wall_medical": {
+      "image": "Textures/Structures/Machines/VendingMachines/wallmed.rsi/off.png",
+      "layout": "billboard",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:vending_machine_wall_medical_civilian": {
+      "image": "Textures/Structures/Machines/VendingMachines/wallmed.rsi/off-civilian.png",
+      "layout": "billboard",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:vending_machine_winter": {
+      "image": "Textures/Structures/Machines/VendingMachines/winterdrobe.rsi/off.png",
+      "layout": "billboard",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:vending_machine_you_tool": {
+      "image": "Textures/Structures/Machines/VendingMachines/youtool.rsi/off.png",
+      "layout": "billboard",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
     "ss14:water_vapor_canister": {
       "image": "Textures/Structures/Storage/canister.rsi/water_vapor.png",
       "layout": "billboard",

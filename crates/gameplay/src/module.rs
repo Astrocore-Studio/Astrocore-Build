@@ -102,6 +102,15 @@ impl Actor {
     }
 }
 
+/// Торговый автомат по прототипу.
+#[derive(Debug, Clone)]
+pub(crate) struct VendSpec {
+    pub(crate) title: String,
+    pub(crate) stock: Vec<(String, PrototypeId, u32)>,
+    pub(crate) quality: f32,
+    pub(crate) eject_delay: f32,
+}
+
 /// Ёмкость диспозала в мире: состояние, клетка и точка.
 #[derive(Debug, Clone)]
 pub(crate) struct DisposalSlot {
@@ -200,6 +209,13 @@ pub struct State {
     pub(crate) alarm_sig: Vec<(ObjectId, atmos::Cell, u32)>,
     pub(crate) monitor_state: BTreeMap<ObjectId, crate::monitor::AlarmState>,
     pub(crate) alarm_timer: f32,
+    /// Торговые автоматы: описания по прототипам, автоматы в мире, кто какой смотрит.
+    pub(crate) vending_specs: BTreeMap<PrototypeId, VendSpec>,
+    pub(crate) vending: BTreeMap<ObjectId, crate::vending::Machine>,
+    pub(crate) vending_open: BTreeMap<NetworkEntityId, ObjectId>,
+    pub(crate) vending_sent: BTreeMap<NetworkEntityId, Vec<u8>>,
+    pub(crate) vending_serial: u128,
+    pub(crate) vending_rng: crate::disposal::Rng,
     /// Конвейеры: прототипы лент (скорость), выключатели, состояние лент и включённые выключатели.
     pub(crate) conveyor_protos: BTreeMap<PrototypeId, f32>,
     pub(crate) switch_protos: BTreeSet<PrototypeId>,
@@ -234,6 +250,11 @@ impl State {
     /// `Err`, если два имени прототипов дают один идентификатор движка.
     pub(crate) fn new(registry: Arc<PrototypeRegistry>) -> Result<Self, prototypes::ProtoError> {
         let names = registry.engine_index(NAMESPACE)?;
+        let by_name: BTreeMap<String, PrototypeId> = names
+            .iter()
+            .map(|(id, n)| (n.clone(), id.clone()))
+            .collect();
+        let mut vending_specs = BTreeMap::new();
         let mut infos = BTreeMap::new();
         let mut delays = BTreeMap::new();
         let mut melee = BTreeMap::new();
@@ -279,6 +300,36 @@ impl State {
                     .and_then(prototypes::Data::as_f64)
                 {
                     heat_protection.insert(id.clone(), c as f32);
+                }
+                if let Some(c) = r.component("VendingMachine") {
+                    let stock = c
+                        .get("stock")
+                        .and_then(prototypes::Data::as_map)
+                        .map(|s| {
+                            s.iter()
+                                .filter_map(|(k, v)| {
+                                    // Нет такого прототипа в Build — позиция пропускается (`HasIndex`).
+                                    registry.spawnable(k).ok()?;
+                                    Some((k.clone(), by_name.get(k)?.clone(), v.as_f64()? as u32))
+                                })
+                                .collect()
+                        })
+                        .unwrap_or_default();
+                    vending_specs.insert(
+                        id.clone(),
+                        VendSpec {
+                            title: name.clone(),
+                            stock,
+                            quality: c
+                                .get("initialStockQuality")
+                                .and_then(prototypes::Data::as_f64)
+                                .unwrap_or(1.0) as f32,
+                            eject_delay: c
+                                .get("ejectDelay")
+                                .and_then(prototypes::Data::as_f64)
+                                .unwrap_or(1.2) as f32,
+                        },
+                    );
                 }
                 if let Some(c) = r.component("Conveyor") {
                     conveyor_protos.insert(
@@ -412,6 +463,12 @@ impl State {
             alarm_sig: Vec::new(),
             monitor_state: BTreeMap::new(),
             alarm_timer: 0.0,
+            vending_specs,
+            vending: BTreeMap::new(),
+            vending_open: BTreeMap::new(),
+            vending_sent: BTreeMap::new(),
+            vending_serial: 0,
+            vending_rng: crate::disposal::Rng(0x2545_f491_4f6c_dd1d),
             conveyor_protos,
             switch_protos,
             conveyor_state: BTreeMap::new(),
@@ -1325,6 +1382,7 @@ impl State {
         self.place_joiners(ctx);
         self.tick_disposal(ctx, dt);
         self.tick_conveyors(ctx, dt);
+        self.tick_vending(ctx);
         self.tick_alarms(ctx, dt);
         self.tick_firelocks(ctx, dt);
         self.tick_power(dt);
@@ -1934,6 +1992,129 @@ impl State {
         };
         for item in &holder.items {
             Self::place(ctx, item, landing);
+        }
+    }
+
+    /// Автоматы из карты получают начальный запас при первом появлении (`MapInit`).
+    fn sync_vending(&mut self, ctx: &HookContext<'_>) {
+        let mut seen = BTreeSet::new();
+        for o in ctx.world.authored() {
+            let AuthoredKind::Placement { prototype } = &o.kind else {
+                continue;
+            };
+            let Some(spec) = self.vending_specs.get(prototype) else {
+                continue;
+            };
+            seen.insert(o.id);
+            if !self.vending.contains_key(&o.id) {
+                let machine = crate::vending::Machine::new(
+                    spec.stock.iter().cloned(),
+                    spec.quality,
+                    spec.eject_delay,
+                    &mut self.vending_rng,
+                );
+                self.vending.insert(o.id, machine);
+            }
+        }
+        self.vending.retain(|id, _| seen.contains(id));
+    }
+
+    /// Окно автомата открывается пустой рукой, если есть ток (`ActivatableUIRequiresPower`).
+    pub(crate) fn open_vending(&mut self, user: NetworkEntityId, id: ObjectId) -> bool {
+        if !self.vending.contains_key(&id) {
+            return false;
+        }
+        if self.power_required && !self.powered_map().get(&id).copied().unwrap_or(false) {
+            return true;
+        }
+        self.vending_open.insert(user, id);
+        true
+    }
+
+    /// Заказ товара из открытого автомата.
+    pub(crate) fn vend(&mut self, ctx: &HookContext<'_>, user: NetworkEntityId, item: &str) {
+        let Some(id) = self.vending_open.get(&user).copied() else {
+            return;
+        };
+        let now = self.clock;
+        let powered = !self.power_required || self.powered_map().get(&id).copied().unwrap_or(false);
+        let _ = ctx;
+        if let Some(machine) = self.vending.get_mut(&id) {
+            let _ = machine.order(now, item, powered);
+        }
+    }
+
+    /// Автоматы каждый кадр: выдача готовых товаров, окна у игроков.
+    fn tick_vending(&mut self, ctx: &mut HookContext<'_>) {
+        if self.vending_specs.is_empty() {
+            return;
+        }
+        self.sync_vending(ctx);
+        let now = self.clock;
+        let ids: Vec<ObjectId> = self.vending.keys().copied().collect();
+        for id in ids {
+            let Some(done) = self.vending.get_mut(&id).and_then(|m| m.update(now)) else {
+                continue;
+            };
+            let Some(o) = ctx.world.authored_object(id) else {
+                continue;
+            };
+            // Товар ложится у автомата, на полу перед ним.
+            let c = (o.min() + o.max()) * 0.5;
+            self.vending_serial += 1;
+            let item = HeldItem {
+                id: ObjectId::from_u128(0xD3AD_0000_0000 + self.vending_serial),
+                prototype: done,
+            };
+            Self::place(ctx, &item, Vec3::new(c.x, o.min().y, c.z));
+        }
+        // Окна: закрыть, если игрок ушёл от автомата; послать изменения.
+        let players: Vec<NetworkEntityId> = ctx.players().collect();
+        let mut views: Vec<(NetworkEntityId, Vec<u8>)> = Vec::new();
+        for p in players {
+            let open = self.vending_open.get(&p).copied();
+            let view = open.and_then(|id| {
+                let o = ctx.world.authored_object(id)?;
+                let feet = ctx.position_of(p)?;
+                let c = (o.min() + o.max()) * 0.5;
+                if (c - feet).length() > self.range_m + 1.0 {
+                    return None;
+                }
+                let machine = self.vending.get(&id)?;
+                let AuthoredKind::Placement { prototype } = &o.kind else {
+                    return None;
+                };
+                Some(crate::vending::VendingView {
+                    machine: id,
+                    name: self
+                        .vending_specs
+                        .get(prototype)
+                        .map(|s| s.title.clone())
+                        .unwrap_or_default(),
+                    items: machine
+                        .entries
+                        .iter()
+                        .map(|e| crate::vending::VendingItem {
+                            name: e.name.clone(),
+                            proto: e.proto.to_string(),
+                            amount: e.amount,
+                        })
+                        .collect(),
+                    ejecting: machine.ejecting(),
+                    denying: machine.denying(),
+                })
+            });
+            if view.is_none() {
+                self.vending_open.remove(&p);
+            }
+            let bytes = crate::vending::encode_vending(view.as_ref());
+            if self.vending_sent.get(&p) != Some(&bytes) {
+                views.push((p, bytes));
+            }
+        }
+        for (p, bytes) in views {
+            ctx.set_component(p, crate::vending::VENDING_COMPONENT, bytes.clone());
+            self.vending_sent.insert(p, bytes);
         }
     }
 
@@ -2982,6 +3163,14 @@ impl GameModule for GameplayModule {
                     if let [hand] = data[..] {
                         st.spill_item(ctx, *actor, usize::from(hand));
                     }
+                }
+                crate::wire::CMD_VEND => {
+                    if let Ok(item) = std::str::from_utf8(data) {
+                        st.vend(ctx, *actor, item);
+                    }
+                }
+                crate::wire::CMD_VEND_CLOSE => {
+                    st.vending_open.remove(actor);
                 }
                 CMD_RESIST => {
                     let resisted = st

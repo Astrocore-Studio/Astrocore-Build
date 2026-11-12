@@ -25,6 +25,8 @@ pub struct Loadout {
     pub doafter: Option<(gameplay::DoAfterView, f32)>,
     pub health: Option<gameplay::HealthView>,
     pub vitals: Option<gameplay::Vitals>,
+    /// Открытый торговый автомат.
+    pub vending: Option<gameplay::VendingView>,
     /// Когда (по часам клиента) пришло последнее состояние здоровья.
     pub health_at: f32,
 }
@@ -188,6 +190,10 @@ fn refresh_loadout(net: Option<NonSend<Net>>, time: Res<Time>, mut loadout: ResM
         .core
         .component(me, gameplay::DOAFTER_COMPONENT)
         .and_then(gameplay::decode_doafter);
+    loadout.vending = net
+        .core
+        .component(me, gameplay::VENDING_COMPONENT)
+        .and_then(gameplay::decode_vending);
     loadout.doafter = match (view, loadout.doafter.take()) {
         (Some(v), Some((old, since))) if old == v => Some((old, since)),
         (Some(v), _) => Some((v, time.elapsed_secs())),
@@ -408,6 +414,8 @@ fn loadout_window(
             fraction: *f,
         }),
     );
+    let mut commands = commands;
+    commands.extend(hud::vending_window(&ctx, icons, loadout.vending.as_ref()));
     for (kind, data) in commands {
         net.send_command(kind, data);
     }

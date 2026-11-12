@@ -346,12 +346,31 @@ impl InteractionHandler for SwitchUse {
     }
 }
 
+/// Торговый автомат: пустая рука открывает окно товаров.
+pub struct VendingUse;
+
+impl InteractionHandler for VendingUse {
+    fn interact_hand(
+        &mut self,
+        state: &mut State,
+        _ctx: &mut HookContext<'_>,
+        user: NetworkEntityId,
+        target: &Target,
+    ) -> bool {
+        let Target::Item { id, .. } = target else {
+            return false;
+        };
+        state.open_vending(user, *id)
+    }
+}
+
 /// Базовая цепочка: порядок важен — первый обработавший прекращает обход.
 pub fn default_handlers() -> Vec<Box<dyn InteractionHandler>> {
     vec![
         Box::new(GasDeviceUse),
         Box::new(DisposalUnitUse),
         Box::new(SwitchUse),
+        Box::new(VendingUse),
         Box::new(PryDoor),
         Box::new(StorageClickInsert),
         Box::new(PickupHandler),

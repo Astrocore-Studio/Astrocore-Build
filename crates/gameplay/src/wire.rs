@@ -53,6 +53,10 @@ pub const CMD_SPILL: &str = "item.spill";
 pub const CMD_USE_GROUND: &str = "use.ground";
 
 /// Сбить огонь на себе (перекат): без данных. Тот же эффект у щелчка по значку огня.
+/// Заказать товар в открытом автомате: данные — имя прототипа SS14 (UTF-8).
+pub const CMD_VEND: &str = "vend.eject";
+/// Закрыть окно автомата.
+pub const CMD_VEND_CLOSE: &str = "vend.close";
 pub const CMD_RESIST: &str = "fire.resist";
 
 /// Взаимодействие с целью в мире (предмет на земле или дверь): `[id цели 16 байт]`.
@@ -159,6 +163,12 @@ pub fn register_replication(reg: &mut ReplicationRegistry) -> Result<(), Replica
         channel: ReplicationChannel::ReliableOrdered,
         interest: Interest::Everyone,
         max_bytes: crate::doafter::DOAFTER_MAX_BYTES,
+    })?;
+    reg.register(ReplicatedKind {
+        name: crate::vending::VENDING_COMPONENT.into(),
+        channel: ReplicationChannel::ReliableOrdered,
+        interest: Interest::Owner,
+        max_bytes: crate::vending::VENDING_MAX_BYTES,
     })?;
     reg.register(ReplicatedKind {
         name: crate::health::HEALTH_COMPONENT.into(),

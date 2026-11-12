@@ -849,6 +849,53 @@ fn draw_frame(ctx: &egui::Context, ui: &egui::Ui, icons: &mut Icons, outer: Rect
     }
 }
 
+/// Окно торгового автомата (`VendingMachineMenu`): список товаров со значками и остатком; нажатие
+/// заказывает товар, закрытие окна закрывает автомат.
+pub fn vending_window(
+    ctx: &egui::Context,
+    icons: &mut Icons,
+    view: Option<&gameplay::VendingView>,
+) -> Commands {
+    let mut out: Commands = Vec::new();
+    let Some(v) = view else {
+        return out;
+    };
+    let mut open = true;
+    egui::Window::new(&v.name)
+        .id(egui::Id::new("vending"))
+        .default_pos(Pos2::new(120.0, 120.0))
+        .resizable(false)
+        .open(&mut open)
+        .show(ctx, |ui| {
+            egui::ScrollArea::vertical()
+                .max_height(420.0)
+                .show(ui, |ui| {
+                    for item in &v.items {
+                        ui.horizontal(|ui| {
+                            let (r, _) = ui.allocate_exact_size(Vec2::splat(32.0), Sense::hover());
+                            let tex = icons.item(ctx, &item.proto);
+                            paint_image(ui, tex, r, Color32::WHITE);
+                            let enabled = item.amount > 0 && !v.ejecting;
+                            let button =
+                                egui::Button::new(format!("{} [{}]", item.name, item.amount));
+                            if ui.add_enabled(enabled, button).clicked() {
+                                out.push((gameplay::CMD_VEND, item.name.clone().into_bytes()));
+                            }
+                        });
+                    }
+                });
+            if v.denying {
+                ui.colored_label(Color32::LIGHT_RED, "Отказано");
+            } else if v.ejecting {
+                ui.label("Выдаю…");
+            }
+        });
+    if !open {
+        out.push((gameplay::CMD_VEND_CLOSE, Vec::new()));
+    }
+    out
+}
+
 fn bag_window(
     ctx: &egui::Context,
     icons: &mut Icons,

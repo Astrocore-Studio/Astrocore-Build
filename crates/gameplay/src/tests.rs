@@ -76,6 +76,9 @@ const PROTOS: &str = r#"[
         "Refillable": (),
         "Solution": (maxVol: 360.0, reagents: (Water: 360.0)),
     }),
+    (id: "VendTool", components: {
+        "VendingMachine": (pack: "ToolsInventory", initialStockQuality: 1.0, ejectDelay: 1.2, stock: (Crowbar: 2, Pen: 1, NoSuchThing: 5)),
+    }),
     (id: "Belt", components: {
         "Conveyor": (speed: 2.0),
     }),
@@ -1984,5 +1987,58 @@ mod disposal_tests {
         let stopped = item_pos(&h, oid(140)).unwrap();
         h.ticks(40);
         assert_eq!(item_pos(&h, oid(140)).unwrap(), stopped);
+    }
+
+    fn view(h: &Harness, who: ConnId) -> Option<crate::VendingView> {
+        let net = h.client(who).net_id()?;
+        h.client(who)
+            .component(net, crate::VENDING_COMPONENT)
+            .and_then(crate::decode_vending)
+    }
+
+    #[test]
+    fn a_vending_machine_lists_stock_dispenses_and_denies_when_empty() {
+        let mut h = harness();
+        let a = h.join("a");
+        h.ticks(5);
+        spawn(
+            &mut h,
+            item_at(950, "ss14:vend_tool", Vec3::new(3.0, 0.9, 3.0)),
+        );
+        h.ticks(5);
+        assert!(view(&h, a).is_none());
+        command(&mut h, a, CMD_INTERACT, interact_data(oid(950)));
+        h.ticks(5);
+        let v = view(&h, a).expect("окно открыто");
+        // Позиция без прототипа в Build пропущена.
+        let names: Vec<_> = v
+            .items
+            .iter()
+            .map(|i| (i.name.as_str(), i.amount))
+            .collect();
+        assert_eq!(names, vec![("Crowbar", 2), ("Pen", 1)], "{v:?}");
+        command(&mut h, a, crate::CMD_VEND, b"Pen".to_vec());
+        h.ticks(5);
+        assert!(view(&h, a).unwrap().ejecting);
+        h.ticks(40);
+        let v = view(&h, a).unwrap();
+        assert!(!v.ejecting);
+        assert_eq!(v.items[1].amount, 0);
+        // Товар лежит у автомата.
+        let drops = h
+            .server
+            .world()
+            .authored()
+            .filter(|o| matches!(&o.kind, AuthoredKind::Placement { prototype } if prototype.as_str() == "ss14:pen"))
+            .count();
+        assert!(drops >= 1);
+        // Закончился: отказ.
+        command(&mut h, a, crate::CMD_VEND, b"Pen".to_vec());
+        h.ticks(5);
+        assert!(view(&h, a).unwrap().denying);
+        // Закрыли окно.
+        command(&mut h, a, crate::CMD_VEND_CLOSE, vec![]);
+        h.ticks(5);
+        assert!(view(&h, a).is_none());
     }
 }
