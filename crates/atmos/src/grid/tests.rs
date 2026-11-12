@@ -344,7 +344,7 @@ fn the_reactions_run_in_priority_order() {
 mod piping {
     use super::*;
     use crate::pipes::{
-        Canister, Device, DeviceEvent, EAST, NodeSpec, SOUTH, Scrubber, Tank, VentPump, WEST,
+        Canister, Device, DeviceEvent, EAST, NORTH, NodeSpec, SOUTH, Scrubber, Tank, VentPump, WEST,
     };
 
     fn pipe(key: u64, x: i32, z: i32, dirs: u8) -> NodeSpec {
@@ -461,6 +461,75 @@ mod piping {
         }
         g.run_cycles(10);
         assert!(g.pipes().air_of(30).unwrap().pressure() < 310.0);
+    }
+
+    #[test]
+    fn a_gas_filter_sends_its_gas_to_the_side_pipe_and_the_rest_onward() {
+        let mut g = Grid::new();
+        g.set_layout(room(5, 3));
+        let specs = vec![
+            pipe(1, 2, 0, SOUTH),
+            pipe(20, 2, 1, NORTH),
+            pipe(21, 2, 1, WEST),
+            pipe(22, 2, 1, SOUTH),
+            pipe(30, 2, 2, NORTH),
+            pipe(40, 1, 1, EAST),
+        ];
+        g.set_pipe_nodes(&specs);
+        g.run_cycles(1);
+        g.pipes_mut().add_device(
+            500,
+            (2, 1),
+            Device::Filter {
+                inlet: 20,
+                filter: 21,
+                outlet: 22,
+                enabled: true,
+                rate: 1000.0,
+                gas: Some(Gas::CarbonDioxide),
+            },
+        );
+        let a = g.pipes_mut().air_of_mut(1).unwrap();
+        a.adjust_moles(Gas::Oxygen, 20.0);
+        a.adjust_moles(Gas::CarbonDioxide, 10.0);
+        g.run_cycles(30);
+        let side = g.pipes().air_of(40).unwrap();
+        let out = g.pipes().air_of(30).unwrap();
+        assert!(side.moles(Gas::CarbonDioxide) > 5.0, "углекислый ушёл вбок");
+        assert!(side.moles(Gas::Oxygen) < 0.01, "кислород вбок не идёт");
+        assert!(out.moles(Gas::Oxygen) > 5.0, "кислород прошёл дальше");
+        assert!(out.moles(Gas::CarbonDioxide) < 0.01);
+    }
+
+    #[test]
+    fn a_freezer_cools_the_pipe_gas_to_its_target_with_hysteresis() {
+        let mut g = Grid::new();
+        g.set_layout(room(4, 1));
+        let mut specs = vec![pipe(1, 0, 0, EAST)];
+        specs.extend(line(2, 1, 2, 0));
+        g.set_pipe_nodes(&specs);
+        g.run_cycles(1);
+        g.pipes_mut().add_device(
+            600,
+            (3, 0),
+            Device::Thermo(crate::pipes::Thermo::new(2, -3.9, 150.0)),
+        );
+        let a = g.pipes_mut().air_of_mut(1).unwrap();
+        a.adjust_moles(Gas::Oxygen, 40.0);
+        a.set_temperature(T20C);
+        g.run_cycles(120);
+        let t = g.pipes().air_of(1).unwrap().temperature();
+        assert!(
+            (t - 150.0).abs() < 6.0 || (t > 140.0 && t < 160.0),
+            "температура {t}"
+        );
+        // Выключенный ничего не делает.
+        if let Some(Device::Thermo(m)) = g.pipes_mut().device_mut(600) {
+            m.enabled = false;
+            m.target = 80.0;
+        }
+        g.run_cycles(30);
+        assert!(g.pipes().air_of(1).unwrap().temperature() > 140.0);
     }
 
     #[test]

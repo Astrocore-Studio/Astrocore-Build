@@ -13138,6 +13138,22 @@
         0.36000001430511475
       ]
     },
+    "ss14:gas_filter": {
+      "image": "Textures/Structures/Piping/Atmospherics/gasfilter.rsi/gasFilter.png",
+      "layout": "billboard",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:gas_filter_flipped": {
+      "image": "Textures/Structures/Piping/Atmospherics/gasfilter.rsi/gasFilterF.png",
+      "layout": "billboard",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
     "ss14:gas_passive_vent": {
       "image": "Textures/Structures/Piping/Atmospherics/vent.rsi/vent_passive.png",
       "layout": "billboard",
@@ -13164,6 +13180,38 @@
     },
     "ss14:gas_pressure_pump": {
       "image": "Textures/Structures/Piping/Atmospherics/pump.rsi/pumpPressure.png",
+      "layout": "billboard",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:gas_thermo_machine_freezer": {
+      "image": "Textures/Structures/Piping/Atmospherics/thermomachine.rsi/freezerOff.png",
+      "layout": "billboard",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:gas_thermo_machine_freezer_enabled": {
+      "image": "Textures/Structures/Piping/Atmospherics/thermomachine.rsi/freezerOn.png",
+      "layout": "billboard",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:gas_thermo_machine_heater": {
+      "image": "Textures/Structures/Piping/Atmospherics/thermomachine.rsi/heaterOff.png",
+      "layout": "billboard",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:gas_thermo_machine_heater_enabled": {
+      "image": "Textures/Structures/Piping/Atmospherics/thermomachine.rsi/heaterOn.png",
       "layout": "billboard",
       "size": [
         0.6000000238418579,

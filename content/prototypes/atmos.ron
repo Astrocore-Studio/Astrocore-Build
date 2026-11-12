@@ -34,6 +34,40 @@
         "GasVentScrubber": (node: 0),
         "ApcPowerReceiver": (),
     }),
+    (id: "GasFilter", parents: ["GasDevice"], name: Some("gas filter"), components: {
+        "Sprite": (sprite: "Structures/Piping/Atmospherics/gasfilter.rsi", state: "gasFilter"),
+        "GasPipe": (nodes: [(dirs: "N"), (dirs: "W"), (dirs: "S")]),
+        "GasFilter": (inlet: 0, filter: 1, outlet: 2, enabled: false, rate: 1000.0),
+    }),
+    (id: "GasFilterFlipped", parents: ["GasDevice"], name: Some("gas filter"), components: {
+        "Sprite": (sprite: "Structures/Piping/Atmospherics/gasfilter.rsi", state: "gasFilterF"),
+        "GasPipe": (nodes: [(dirs: "N"), (dirs: "E"), (dirs: "S")]),
+        "GasFilter": (inlet: 0, filter: 1, outlet: 2, enabled: false, rate: 1000.0),
+    }),
+    (id: "GasThermoMachineFreezer", parents: ["GasDevice"], name: Some("freezer"), components: {
+        "Sprite": (sprite: "Structures/Piping/Atmospherics/thermomachine.rsi", state: "freezerOff"),
+        "GasPipe": (nodes: [(dirs: "S")]),
+        "GasThermoMachine": (node: 0, cp: -3.9, target: 293.15, enabled: false),
+        "ApcPowerReceiver": (load: 5000.0),
+    }),
+    (id: "GasThermoMachineFreezerEnabled", parents: ["GasDevice"], name: Some("freezer"), components: {
+        "Sprite": (sprite: "Structures/Piping/Atmospherics/thermomachine.rsi", state: "freezerOn"),
+        "GasPipe": (nodes: [(dirs: "S")]),
+        "GasThermoMachine": (node: 0, cp: -3.9, target: 293.15, enabled: true),
+        "ApcPowerReceiver": (load: 5000.0),
+    }),
+    (id: "GasThermoMachineHeater", parents: ["GasDevice"], name: Some("heater"), components: {
+        "Sprite": (sprite: "Structures/Piping/Atmospherics/thermomachine.rsi", state: "heaterOff"),
+        "GasPipe": (nodes: [(dirs: "S")]),
+        "GasThermoMachine": (node: 0, cp: 0.95, target: 293.15, enabled: false),
+        "ApcPowerReceiver": (load: 5000.0),
+    }),
+    (id: "GasThermoMachineHeaterEnabled", parents: ["GasDevice"], name: Some("heater"), components: {
+        "Sprite": (sprite: "Structures/Piping/Atmospherics/thermomachine.rsi", state: "heaterOn"),
+        "GasPipe": (nodes: [(dirs: "S")]),
+        "GasThermoMachine": (node: 0, cp: 0.95, target: 293.15, enabled: true),
+        "ApcPowerReceiver": (load: 5000.0),
+    }),
     (id: "GasPort", parents: ["GasDevice"], name: Some("connector port"), components: {
         "Sprite": (sprite: "Structures/Piping/Atmospherics/gascanisterport.rsi", state: "gasCanisterPort"),
         "GasPipe": (nodes: [(dirs: "S")]),

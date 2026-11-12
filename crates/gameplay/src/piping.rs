@@ -90,6 +90,22 @@ pub enum DeviceSpec {
     },
     Canister(GasMixture, f32),
     Port,
+    /// Фильтр на три узла: вход, боковой выход (фильтруемый газ), выход.
+    Filter {
+        inlet: usize,
+        filter: usize,
+        outlet: usize,
+        enabled: bool,
+        rate: f32,
+        gas: Option<atmos::Gas>,
+    },
+    /// Термомашина: холодильник (`cp < 0`) или нагреватель.
+    Thermo {
+        node: usize,
+        cp: f32,
+        target: f32,
+        enabled: bool,
+    },
     /// Воздух криокапсулы заданного объёма, л.
     Cryo {
         node: usize,
@@ -210,6 +226,22 @@ impl PipePart {
                 container_mixture(c, atmos::pipes::CANISTER_VOLUME),
                 float(c, "releasePressure", atmos::ONE_ATMOSPHERE),
             ))
+        } else if let Some(c) = r.component("GasFilter") {
+            Some(DeviceSpec::Filter {
+                inlet: index(c, "inlet"),
+                filter: index(c, "filter"),
+                outlet: index(c, "outlet"),
+                enabled: bool_of(c, "enabled", false),
+                rate: float(c, "rate", 1000.0),
+                gas: c.get("gas").and_then(Data::as_str).and_then(gas_named),
+            })
+        } else if let Some(c) = r.component("GasThermoMachine") {
+            Some(DeviceSpec::Thermo {
+                node: index(c, "node"),
+                cp: float(c, "cp", -3.9),
+                target: float(c, "target", 293.15),
+                enabled: bool_of(c, "enabled", false),
+            })
         } else if let Some(c) = r.component("CryoPodAir") {
             Some(DeviceSpec::Cryo {
                 node: index(c, "node"),
@@ -294,6 +326,31 @@ pub fn device_of(spec: &DeviceSpec, object_key: u64, port: Option<u64>) -> Optio
             Device::Canister(Box::new(c))
         }
         DeviceSpec::Port => return None,
+        DeviceSpec::Filter {
+            inlet,
+            filter,
+            outlet,
+            enabled,
+            rate,
+            gas,
+        } => Device::Filter {
+            inlet: n(*inlet),
+            filter: n(*filter),
+            outlet: n(*outlet),
+            enabled: *enabled,
+            rate: *rate,
+            gas: *gas,
+        },
+        DeviceSpec::Thermo {
+            node,
+            cp,
+            target,
+            enabled,
+        } => {
+            let mut t = atmos::pipes::Thermo::new(n(*node), *cp, *target);
+            t.enabled = *enabled;
+            Device::Thermo(t)
+        }
         DeviceSpec::Cryo { node, volume } => Device::CryoPod {
             node: n(*node),
             air: GasMixture::new(*volume),
@@ -304,4 +361,21 @@ pub fn device_of(spec: &DeviceSpec, object_key: u64, port: Option<u64>) -> Optio
 /// Клетка атмосферы объекта по центру его рамки.
 pub fn cell_at(floor: i32, centre: astrocore_math::glam::Vec3) -> Cell {
     floor_cell(floor, centre.x.floor() as i32, centre.z.floor() as i32)
+}
+
+/// Газ по имени из `gases.yml` (`Oxygen`, `Nitrogen`, …).
+pub fn gas_named(name: &str) -> Option<atmos::Gas> {
+    use atmos::Gas::*;
+    Some(match name {
+        "Oxygen" => Oxygen,
+        "Nitrogen" => Nitrogen,
+        "CarbonDioxide" => CarbonDioxide,
+        "Plasma" => Plasma,
+        "Tritium" => Tritium,
+        "WaterVapor" => WaterVapor,
+        "Ammonia" => Ammonia,
+        "NitrousOxide" => NitrousOxide,
+        "Frezon" => Frezon,
+        _ => return None,
+    })
 }

@@ -253,6 +253,40 @@ impl GasDeviceUse {
                 }
             }
             Device::Valve { open, .. } => *open = !*open,
+            Device::Filter { enabled, gas, .. } => {
+                if wrench {
+                    // Гаечный ключ листает фильтруемый газ: ничего → кислород → … → фрезон → ничего.
+                    use atmos::Gas::*;
+                    const ORDER: [atmos::Gas; 9] = [
+                        Oxygen,
+                        Nitrogen,
+                        CarbonDioxide,
+                        Plasma,
+                        Tritium,
+                        WaterVapor,
+                        Ammonia,
+                        NitrousOxide,
+                        Frezon,
+                    ];
+                    *gas = match gas.and_then(|g| ORDER.iter().position(|o| *o == g)) {
+                        None if gas.is_none() => Some(ORDER[0]),
+                        Some(i) if i + 1 < ORDER.len() => Some(ORDER[i + 1]),
+                        _ => None,
+                    };
+                } else {
+                    *enabled = !*enabled;
+                }
+            }
+            Device::Thermo(t) => {
+                if wrench {
+                    // Целевая температура по шагам: 100, 150, 200, 293,15, 350, 450 К.
+                    const PRESETS: [f32; 6] = [100.0, 150.0, 200.0, 293.15, 350.0, 450.0];
+                    let next = PRESETS.iter().position(|p| *p > t.target + 0.01);
+                    t.target = PRESETS[next.unwrap_or(0)];
+                } else {
+                    t.enabled = !t.enabled;
+                }
+            }
             Device::Canister(c) => {
                 if wrench {
                     c.port = if c.port.is_some() { None } else { port };

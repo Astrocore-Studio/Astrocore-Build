@@ -80,8 +80,53 @@ pub enum Device {
     Valve { a: u64, b: u64, open: bool },
     /// `GasCanister`: баллон на разъёме.
     Canister(Box<Canister>),
+    /// `GasFilter`: из входа в выход, выбранный газ уходит в боковой узел (`GasFilterSystem`).
+    Filter {
+        inlet: u64,
+        filter: u64,
+        outlet: u64,
+        enabled: bool,
+        /// Литров в секунду.
+        rate: f32,
+        gas: Option<Gas>,
+    },
+    /// `GasThermoMachine`: холодильник (`cp < 0`) или нагреватель (`cp > 0`) газа в трубе.
+    Thermo(Thermo),
     /// `CryoPodAir`: воздух капсулы, на каждом шаге реагирует и смешивается с сетью порта.
     CryoPod { node: u64, air: GasMixture },
+}
+
+/// Термомашина (`GasThermoMachineComponent`).
+#[derive(Debug, Clone, PartialEq)]
+pub struct Thermo {
+    pub node: u64,
+    /// Включена ли (переключатель питания).
+    pub enabled: bool,
+    pub target: f32,
+    pub tolerance: f32,
+    /// Теплоёмкость машины, Дж/с при полной мощности.
+    pub heat_capacity: f32,
+    /// Коэффициент полезного действия: отрицательный у холодильника.
+    pub cp: f32,
+    pub min_temperature: f32,
+    pub max_temperature: f32,
+    pub hysteresis: bool,
+}
+
+impl Thermo {
+    pub fn new(node: u64, cp: f32, target: f32) -> Self {
+        Self {
+            node,
+            enabled: true,
+            target,
+            tolerance: 2.0,
+            heat_capacity: 5000.0,
+            cp,
+            min_temperature: 73.15,
+            max_temperature: 593.15,
+            hysteresis: false,
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -534,7 +579,10 @@ impl Pipes {
         let mut gone = Vec::new();
         for (key, (cell, device)) in &mut devices {
             if self.unpowered.contains(key)
-                && !matches!(device, Device::Canister(_) | Device::CryoPod { .. })
+                && !matches!(
+                    device,
+                    Device::Canister(_) | Device::CryoPod { .. } | Device::Filter { .. }
+                )
             {
                 continue;
             }
@@ -553,6 +601,23 @@ impl Pipes {
                 Device::VentPump(v) => self.vent_pump(v, *cell, dt, env),
                 Device::Scrubber(s) => self.scrub(s, *cell, dt, env),
                 Device::Valve { .. } => {}
+                Device::Filter {
+                    inlet,
+                    filter,
+                    outlet,
+                    enabled,
+                    rate,
+                    gas,
+                } => {
+                    if *enabled {
+                        self.filter(*inlet, *filter, *outlet, *rate, *gas, dt);
+                    }
+                }
+                Device::Thermo(t) => {
+                    if t.enabled {
+                        self.thermo(t, dt);
+                    }
+                }
                 Device::CryoPod { node, air } => {
                     // `OnCryoPodUpdateAtmosphere`: реакции и обмен с сетью порта.
                     reactions::react(air, false);
@@ -603,6 +668,80 @@ impl Pipes {
             let moles = delta * dst.volume / (src.temperature() * R);
             let removed = src.remove(moles);
             dst.merge(&removed);
+        }
+    }
+
+    /// `GasFilterSystem.OnFilterUpdated`.
+    fn filter(
+        &mut self,
+        inlet: u64,
+        filter: u64,
+        outlet: u64,
+        rate: f32,
+        gas: Option<Gas>,
+        dt: f32,
+    ) {
+        let (Some(i), Some(f), Some(o)) =
+            (self.net_of(inlet), self.net_of(filter), self.net_of(outlet))
+        else {
+            return;
+        };
+        if i == f || i == o || f == o {
+            return;
+        }
+        if self.nets[o].pressure() >= MAX_OUTPUT_PRESSURE
+            && self.nets[f].pressure() >= MAX_OUTPUT_PRESSURE
+        {
+            return;
+        }
+        let volume = rate * dt;
+        if volume <= 0.0 {
+            return;
+        }
+        let mut removed = self.nets[i].remove_volume(volume);
+        if let Some(g) = gas {
+            let limit = moles_to_max_pressure(&removed, &self.nets[f], MAX_OUTPUT_PRESSURE);
+            let take = removed.moles(g).min(limit).max(0.0);
+            let mut part = GasMixture::new(removed.volume);
+            part.set_temperature(removed.temperature());
+            part.set_moles(g, take);
+            removed.set_moles(g, removed.moles(g) - take);
+            self.nets[f].merge(&part);
+        }
+        let ratio = fraction_to_max_pressure(&removed, &self.nets[o], MAX_OUTPUT_PRESSURE);
+        let pass = removed.remove_ratio(ratio);
+        self.nets[o].merge(&pass);
+        self.nets[i].merge(&removed);
+    }
+
+    /// `GasThermoMachineSystem.OnThermoMachineUpdated`: гистерезис, не перегревать за целевую.
+    fn thermo(&mut self, t: &mut Thermo, dt: f32) {
+        let Some(n) = self.net_of(t.node) else { return };
+        let sign = t.cp.signum();
+        let temp = self.nets[n].temperature();
+        let high = t.target + sign * t.tolerance;
+        if sign * temp >= sign * high {
+            t.hysteresis = false;
+        } else if sign * temp < sign * t.target {
+            t.hysteresis = true;
+        }
+        if !t.hysteresis {
+            return;
+        }
+        let mut dq = t.heat_capacity * t.cp * dt;
+        let cin = self.nets[n].heat_capacity();
+        let dq_lim = (high - temp) * cin;
+        let mut scale = 1.0;
+        if dq.abs() > dq_lim.abs() {
+            scale = dq_lim / dq;
+            t.hysteresis = false;
+        }
+        dq *= scale;
+        let cap = self.nets[n].heat_capacity();
+        if cap > 0.0 && self.nets[n].total_moles() > 0.0 {
+            let new_t =
+                (temp + dq / cap).clamp(t.min_temperature.min(temp), t.max_temperature.max(temp));
+            self.nets[n].set_temperature(new_t);
         }
     }
 
@@ -793,6 +932,21 @@ fn two_mut(nets: &mut [GasMixture], a: usize, b: usize) -> (&mut GasMixture, &mu
         let (l, r) = nets.split_at_mut(a);
         (&mut r[0], &mut l[b])
     }
+}
+
+/// `MolesToMaxPressure`: сколько молей `giver` можно добавить в `receiver`, не превысив `max` кПа.
+pub fn moles_to_max_pressure(giver: &GasMixture, receiver: &GasMixture, max: f32) -> f32 {
+    let t = giver.temperature().max(1.0);
+    ((max - receiver.pressure()) * receiver.volume / (t * R)).max(0.0)
+}
+
+/// `FractionToMaxPressure`: доля `giver`, которую можно отдать `receiver` до `max` кПа.
+pub fn fraction_to_max_pressure(giver: &GasMixture, receiver: &GasMixture, max: f32) -> f32 {
+    let total = giver.total_moles();
+    if total <= 0.0 {
+        return 0.0;
+    }
+    (moles_to_max_pressure(giver, receiver, max) / total).clamp(0.0, 1.0)
 }
 
 /// `MixContainerWithPipeNet`: смесь сосуда и сети перемешивается и делится по объёму.

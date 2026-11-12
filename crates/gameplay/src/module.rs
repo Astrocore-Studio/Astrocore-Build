@@ -2308,6 +2308,28 @@ impl State {
                         for n in &mut part.nodes {
                             n.0 = crate::piping::rotate_dirs(n.0, rot);
                         }
+                        // Настройки с карты: целевая температура термомашины и фильтруемый газ.
+                        match &mut part.device {
+                            Some(crate::piping::DeviceSpec::Thermo { target, .. }) => {
+                                if let Some(t) = o
+                                    .metadata
+                                    .get("thermo_target")
+                                    .and_then(|v| v.parse::<f32>().ok())
+                                {
+                                    *target = t;
+                                }
+                            }
+                            Some(crate::piping::DeviceSpec::Filter { gas, .. }) => {
+                                if let Some(g) = o
+                                    .metadata
+                                    .get("filter_gas")
+                                    .and_then(|v| crate::piping::gas_named(v))
+                                {
+                                    *gas = Some(g);
+                                }
+                            }
+                            _ => {}
+                        }
                         parts.push((o.id, cell, part));
                         sig.push((o.id, cell, rot));
                     }

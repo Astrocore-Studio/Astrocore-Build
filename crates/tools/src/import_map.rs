@@ -151,6 +151,25 @@ fn component_bool(entity: &Value, component: &str, field: &str) -> Option<bool> 
         .as_bool()
 }
 
+fn component_field<'a>(entity: &'a Value, component: &str, field: &str) -> Option<&'a Value> {
+    entity
+        .get("components")?
+        .as_sequence()?
+        .iter()
+        .find(|c| c.get("type").and_then(Value::as_str) == Some(component))?
+        .get(field)
+}
+
+fn component_number(entity: &Value, component: &str, field: &str) -> Option<f64> {
+    component_field(entity, component, field)?.as_f64()
+}
+
+fn component_text(entity: &Value, component: &str, field: &str) -> Option<String> {
+    component_field(entity, component, field)?
+        .as_str()
+        .map(String::from)
+}
+
 fn device_list(entity: &Value) -> Vec<i64> {
     let comps = entity.get("components").and_then(Value::as_sequence);
     let find = |name: &str| {
@@ -583,6 +602,15 @@ pub fn import(
                     let mut meta = BTreeMap::new();
                     if let Some(locked) = component_bool(entity, "Lock", "locked") {
                         meta.insert("locked".to_string(), u8::from(locked).to_string());
+                    }
+                    // Настройки газовых устройств, заданные на карте.
+                    if let Some(t) =
+                        component_number(entity, "GasThermoMachine", "targetTemperature")
+                    {
+                        meta.insert("thermo_target".to_string(), t.to_string());
+                    }
+                    if let Some(g) = component_text(entity, "GasFilter", "filteredGas") {
+                        meta.insert("filter_gas".to_string(), g);
                     }
                     items.push(MapItem {
                         prototype,
