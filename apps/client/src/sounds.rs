@@ -20,6 +20,8 @@ pub struct Sounds {
     door_open: Option<Handle<AudioSource>>,
     door_close: Option<Handle<AudioSource>>,
     counter: usize,
+    root: std::path::PathBuf,
+    cache: HashMap<String, Option<Handle<AudioSource>>>,
 }
 
 /// Громкость по расстоянию до слушателя.
@@ -46,6 +48,33 @@ impl Sounds {
             door_open: load("Machines/airlock_open.ogg"),
             door_close: load("Machines/airlock_close.ogg"),
             counter: 0,
+            root: root.to_path_buf(),
+            cache: HashMap::new(),
+        }
+    }
+
+    /// Сыграть звук по пути внутри `Audio` на расстоянии `distance` от слушателя; без файла — тишина.
+    pub fn play_path(
+        &mut self,
+        commands: &mut Commands,
+        assets: &mut Assets<AudioSource>,
+        path: &str,
+        distance: f32,
+    ) {
+        let v = attenuation(distance) * 0.8;
+        if v <= 0.0 {
+            return;
+        }
+        let root = self.root.clone();
+        let handle = self.cache.entry(path.to_string()).or_insert_with(|| {
+            std::fs::read(root.join("Audio").join(path)).ok().map(|b| {
+                assets.add(AudioSource {
+                    bytes: Arc::from(b),
+                })
+            })
+        });
+        if let Some(h) = handle {
+            play(commands, h, v);
         }
     }
 

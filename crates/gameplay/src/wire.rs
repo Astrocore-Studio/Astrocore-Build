@@ -65,6 +65,8 @@ pub const CMD_ID_EJECT: &str = "idc.eject";
 pub const CMD_ID_CLOSE: &str = "idc.close";
 /// Консоль ID: записать имя, должность и доступ (JSON `WriteRequest`).
 pub const CMD_ID_WRITE: &str = "idc.write";
+/// Количество у ёмкости или шприца в руке (данные: рука, номер; 255 — следующее по кругу).
+pub const CMD_CHEM_AMOUNT: &str = "chem.amount";
 /// Закрыть окно анализатора здоровья.
 pub const CMD_SCAN_CLOSE: &str = "scan.close";
 /// Раздатчик: налить из банки (данные: номер банки).
@@ -189,6 +191,18 @@ pub fn register_replication(reg: &mut ReplicationRegistry) -> Result<(), Replica
         channel: ReplicationChannel::ReliableOrdered,
         interest: Interest::Everyone,
         max_bytes: crate::doafter::DOAFTER_MAX_BYTES,
+    })?;
+    reg.register(ReplicatedKind {
+        name: crate::chemhand::CHEMHAND_COMPONENT.into(),
+        channel: ReplicationChannel::ReliableOrdered,
+        interest: Interest::Owner,
+        max_bytes: crate::chemhand::CHEMHAND_MAX_BYTES,
+    })?;
+    reg.register(ReplicatedKind {
+        name: crate::fx::FX_COMPONENT.into(),
+        channel: ReplicationChannel::ReliableOrdered,
+        interest: Interest::Owner,
+        max_bytes: crate::fx::FX_MAX_BYTES,
     })?;
     reg.register(ReplicatedKind {
         name: crate::analyzer::SCAN_COMPONENT.into(),

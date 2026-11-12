@@ -419,6 +419,11 @@ impl Body {
         self.bleed = (self.bleed + amount).clamp(0.0, MAX_BLEED);
     }
 
+    /// Сколько крови сейчас в теле.
+    pub fn blood_volume(&self) -> f32 {
+        self.blood
+    }
+
     /// `TryModifyBloodLevel`: добавить или убавить крови; добавлять можно только до нормы.
     pub fn modify_blood(&mut self, amount: f32) {
         self.blood = if amount > 0.0 {

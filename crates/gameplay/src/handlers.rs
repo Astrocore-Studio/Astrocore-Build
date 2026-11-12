@@ -63,6 +63,10 @@ impl InteractionHandler for DoorActivate {
         };
         // Считыватель не пускает без нужного доступа.
         if !state.door_allowed(ctx, user, *element) {
+            state.popup(user, "Доступ запрещён");
+            if let Target::Door { at, .. } = target {
+                state.sound("Machines/airlock_deny.ogg", *at);
+            }
             return true;
         }
         // Огнезапор держит давление или жар: рукой не открыть (`BeforeDoorOpenedEvent`).
@@ -436,7 +440,7 @@ impl InteractionHandler for ChemUse {
         &mut self,
         state: &mut State,
         _ctx: &mut HookContext<'_>,
-        _user: NetworkEntityId,
+        user: NetworkEntityId,
         used: &Used,
         target: &Target,
     ) -> bool {
@@ -447,7 +451,11 @@ impl InteractionHandler for ChemUse {
             id: *id,
             prototype: prototype.clone(),
         };
-        state.chem_use(&used.item, &target_item)
+        let handled = state.chem_use(&used.item, &target_item);
+        if handled {
+            state.popup(user, "Содержимое перелито");
+        }
+        handled
     }
 
     fn use_in_hand(

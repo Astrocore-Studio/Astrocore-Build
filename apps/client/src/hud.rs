@@ -1019,6 +1019,28 @@ pub fn idconsole_window(
     out
 }
 
+/// Подсказки у нижнего края экрана: каждая держится 3 с и гаснет.
+pub fn toasts(ctx: &egui::Context, list: &mut Vec<(String, f32)>, now: f32) {
+    list.retain(|(_, t)| now - t < 3.5);
+    if list.is_empty() {
+        return;
+    }
+    egui::Area::new(egui::Id::new("toasts"))
+        .anchor(egui::Align2::CENTER_BOTTOM, [0.0, -150.0])
+        .interactable(false)
+        .show(ctx, |ui| {
+            for (text, t) in list.iter() {
+                let alpha = (3.5 - (now - t)).clamp(0.0, 1.0);
+                ui.label(
+                    egui::RichText::new(text)
+                        .color(Color32::from_white_alpha((alpha * 255.0) as u8))
+                        .size(16.0)
+                        .strong(),
+                );
+            }
+        });
+}
+
 fn hex_color(s: &str) -> Color32 {
     let t = s.trim_start_matches('#');
     u32::from_str_radix(t, 16).map_or(Color32::WHITE, |v| {
@@ -1292,6 +1314,36 @@ fn bag_window(
     if !open {
         state.bags_closed.insert(bag_id(bag));
     }
+}
+
+/// Выбор количества у ёмкости или шприца в активной руке: кнопки из прототипа.
+pub fn chemhand_bar(ctx: &egui::Context, view: Option<&gameplay::ChemHandView>) -> Commands {
+    let mut out: Commands = Vec::new();
+    let Some(v) = view.filter(|v| !v.amounts.is_empty()) else {
+        return out;
+    };
+    egui::Area::new(egui::Id::new("chemhand"))
+        .anchor(egui::Align2::CENTER_BOTTOM, [0.0, -150.0])
+        .show(ctx, |ui| {
+            egui::Frame::popup(ui.style()).show(ui, |ui| {
+                ui.horizontal(|ui| {
+                    let what = match v.mode.as_str() {
+                        "" => "Перелив",
+                        "Inject" => "Шприц: ввод",
+                        "Draw" => "Шприц: набор",
+                        _ => "Шприц",
+                    };
+                    ui.label(what);
+                    for (i, a) in v.amounts.iter().enumerate() {
+                        let on = (a - v.amount).abs() < 1e-3;
+                        if ui.selectable_label(on, format!("{a:.0}")).clicked() {
+                            out.push((gameplay::CMD_CHEM_AMOUNT, vec![v.hand, i as u8]));
+                        }
+                    }
+                });
+            });
+        });
+    out
 }
 
 #[cfg(test)]

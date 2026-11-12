@@ -335,6 +335,13 @@ pub struct State {
     pub(crate) alarm_sig: Vec<(ObjectId, atmos::Cell, u32)>,
     pub(crate) monitor_state: BTreeMap<ObjectId, crate::monitor::AlarmState>,
     pub(crate) alarm_timer: f32,
+    pub(crate) transfer_amount: BTreeMap<ObjectId, f32>,
+    pub(crate) chemhand_sent: BTreeMap<NetworkEntityId, Vec<u8>>,
+    pub(crate) transfer_max: BTreeMap<PrototypeId, f32>,
+    /// Очередь подсказок игрокам и звуков в мире за тик, номера пачек.
+    pub(crate) fx_popups: Vec<(NetworkEntityId, String)>,
+    pub(crate) fx_sounds: Vec<(String, Vec3)>,
+    pub(crate) fx_seq: BTreeMap<NetworkEntityId, u32>,
     /// Анализаторы здоровья: прототипы, кто кого сканирует, таймер обновления.
     pub(crate) analyzers: BTreeSet<PrototypeId>,
     pub(crate) scans: BTreeMap<NetworkEntityId, NetworkEntityId>,
@@ -430,6 +437,7 @@ impl State {
             .map(|(id, n)| (n.clone(), id.clone()))
             .collect();
         let mut vending_specs = BTreeMap::new();
+        let mut transfer_max = BTreeMap::new();
         let mut analyzers = BTreeSet::new();
         let mut dispenser_tables = BTreeMap::new();
         let mut fits_in_dispenser = BTreeSet::new();
@@ -495,6 +503,12 @@ impl State {
                     injectors.insert(id.clone(), spec);
                 }
                 if let Some(c) = r.component("SolutionTransfer") {
+                    transfer_max.insert(
+                        id.clone(),
+                        c.get("max")
+                            .and_then(prototypes::Data::as_f64)
+                            .unwrap_or(1000.0) as f32,
+                    );
                     transfers.insert(
                         id.clone(),
                         c.get("amount")
@@ -787,6 +801,12 @@ impl State {
             alarm_sig: Vec::new(),
             monitor_state: BTreeMap::new(),
             alarm_timer: 0.0,
+            transfer_amount: BTreeMap::new(),
+            chemhand_sent: BTreeMap::new(),
+            transfer_max,
+            fx_popups: Vec::new(),
+            fx_sounds: Vec::new(),
+            fx_seq: BTreeMap::new(),
             analyzers,
             scans: BTreeMap::new(),
             scan_sent: BTreeMap::new(),
@@ -1380,9 +1400,13 @@ impl State {
         else {
             return;
         };
-        let Some((_, amount)) = self.injector_of(&item) else {
+        let Some((mode, amount)) = self.injector_of(&item) else {
             return;
         };
+        if mode.behavior == Behavior::Draw {
+            self.draw_blood(ctx, actor, &item, target, amount);
+            return;
+        }
         let room = self
             .actors
             .get(&target)
@@ -1404,6 +1428,50 @@ impl State {
                 body.chemicals.add(r, *q);
             }
         }
+        self.popup(actor, format!("Введено {take:.0} ед."));
+        if target != actor {
+            self.popup(target, "Вам сделали укол");
+        }
+        if let Some(at) = ctx.position_of(actor) {
+            self.sound("Items/hypospray.ogg", at);
+        }
+        self.publish(ctx, actor);
+    }
+
+    /// `InjectorSystem.DrawFromBlood`: из крови цели в шприц уходит `amount` (по умолчанию 5)
+    /// — сколько есть и сколько влезает; кровь убывает.
+    fn draw_blood(
+        &mut self,
+        ctx: &mut HookContext<'_>,
+        actor: NetworkEntityId,
+        item: &HeldItem,
+        target: NetworkEntityId,
+        amount: Option<f32>,
+    ) {
+        let have = self
+            .actors
+            .get(&target)
+            .and_then(|a| a.body.as_ref())
+            .map_or(0.0, |b| b.blood_volume());
+        let take = amount
+            .unwrap_or(5.0)
+            .min(have)
+            .min(self.solution_room(item));
+        if take <= 0.0 {
+            self.popup(actor, "Нечего набирать");
+            return;
+        }
+        if let Some(body) = self.actor(target).body.as_mut() {
+            body.modify_blood(-take);
+        }
+        if let Some(sol) = self.solution_mut(item) {
+            sol.add("Blood", take);
+        }
+        self.popup(actor, format!("Набрано {take:.0} ед. крови"));
+        if let Some(at) = ctx.position_of(actor) {
+            self.sound("Items/hypospray.ogg", at);
+        }
+        self.after_health_change(ctx, target);
         self.publish(ctx, actor);
     }
 
@@ -1598,9 +1666,18 @@ impl State {
                 let alive = ctx.position_of(*target).is_some()
                     && self.actors.get(target).is_none_or(|t| t.body.is_some());
                 let ok = a.hands.get(*hand).is_some_and(|i| {
-                    self.injector_of(i)
-                        .is_some_and(|(m, _)| m.behavior != Behavior::Draw)
-                        && self.solution_volume(i) > 0.0
+                    self.injector_of(i).is_some_and(|(m, _)| match m.behavior {
+                        // Набор крови: в шприце есть место, у цели есть кровь.
+                        Behavior::Draw => {
+                            self.solution_room(i) > 0.0
+                                && self
+                                    .actors
+                                    .get(target)
+                                    .and_then(|t| t.body.as_ref())
+                                    .is_some_and(|b| b.blood_volume() > 0.0)
+                        }
+                        _ => self.solution_volume(i) > 0.0,
+                    })
                 });
                 alive && ok && self.in_reach(ctx, actor, *target)
             }
@@ -1687,6 +1764,9 @@ impl State {
             Action::Heal { hand, target } => self.heal(ctx, actor, hand, target),
             Action::Inject { hand, target } => self.inject_body(ctx, actor, hand, target),
             Action::Scan { target, .. } => {
+                if let Some(at) = ctx.position_of(actor) {
+                    self.sound("Items/Medical/healthscanner.ogg", at);
+                }
                 self.scans.insert(actor, target);
                 self.scan_timer = 1.0;
             }
@@ -1853,8 +1933,10 @@ impl State {
         self.tick_id_consoles(ctx);
         self.tick_dispensers(ctx);
         self.tick_scans(ctx);
+        self.publish_chemhand(ctx);
         self.publish_jobs(ctx);
         self.resolve_spawners(ctx);
+        self.flush_fx(ctx);
         self.tick_alarms(ctx, dt);
         self.tick_firelocks(ctx, dt);
         self.tick_power(dt);
@@ -2427,6 +2509,8 @@ impl State {
         if items.is_empty() {
             return;
         }
+        let at = Self::cell_point(ctx, cell);
+        self.sound("Machines/disposalflush.ogg", at);
         let mut holder = crate::disposal::Holder::new(items, cell);
         let mut net = std::mem::take(&mut self.disposal_net);
         if holder.enter(&mut net, cell, &mut self.disposal_rng) {
@@ -2744,6 +2828,14 @@ impl State {
     }
 
     /// Режим и количество шприца (по умолчанию — из прототипа).
+    /// Свободное место в растворе предмета.
+    pub(crate) fn solution_room(&self, item: &HeldItem) -> f32 {
+        self.solutions
+            .get(&item.id)
+            .or_else(|| self.solution_templates.get(&item.prototype))
+            .map_or(0.0, Solution::available)
+    }
+
     pub(crate) fn injector_of(&self, item: &HeldItem) -> Option<(InjectorMode, Option<f32>)> {
         let spec = self.injectors.get(&item.prototype)?;
         let (active, amount) = self
@@ -2777,7 +2869,12 @@ impl State {
     /// Предмет из руки на ёмкость в мире: перелив (`SolutionTransferSystem.OnAfterInteract`) или
     /// шприц на контейнере (`InjectorSystem`). Сначала то, что держим, наливается в цель; иначе берётся из цели.
     pub(crate) fn chem_use(&mut self, used: &HeldItem, target: &HeldItem) -> bool {
-        if let Some(amount) = self.transfers.get(&used.prototype).copied() {
+        if let Some(default) = self.transfers.get(&used.prototype).copied() {
+            let amount = self
+                .transfer_amount
+                .get(&used.id)
+                .copied()
+                .unwrap_or(default);
             let send = self.drainables.contains(&used.prototype)
                 && self.refillables.contains(&target.prototype);
             let recv = self.refillables.contains(&used.prototype)
@@ -2807,6 +2904,97 @@ impl State {
             };
         }
         false
+    }
+
+    /// Что можно выбрать у предмета в руке: список количеств и текущее.
+    fn chemhand_of(&self, item: &HeldItem, hand: usize) -> Option<crate::chemhand::ChemHandView> {
+        if let Some(default) = self.transfers.get(&item.prototype) {
+            let max = self
+                .transfer_max
+                .get(&item.prototype)
+                .copied()
+                .unwrap_or(1000.0);
+            let amounts: Vec<f32> = crate::chemhand::TRANSFER_AMOUNTS
+                .iter()
+                .copied()
+                .filter(|a| *a <= max)
+                .collect();
+            return Some(crate::chemhand::ChemHandView {
+                hand: hand as u8,
+                mode: String::new(),
+                amount: self
+                    .transfer_amount
+                    .get(&item.id)
+                    .copied()
+                    .unwrap_or(*default),
+                amounts,
+            });
+        }
+        let (mode, amount) = self.injector_of(item)?;
+        Some(crate::chemhand::ChemHandView {
+            hand: hand as u8,
+            mode: match mode.behavior {
+                Behavior::Inject => "Inject",
+                Behavior::Draw => "Draw",
+                Behavior::Dynamic => "Dynamic",
+            }
+            .to_string(),
+            amount: amount.unwrap_or(-1.0),
+            amounts: mode.amounts,
+        })
+    }
+
+    /// Выбор количества: `idx` — номер в списке, `255` — следующее по кругу.
+    pub(crate) fn set_chem_amount(&mut self, user: NetworkEntityId, hand: usize, idx: u8) {
+        let Some(item) = self
+            .actors
+            .get(&user)
+            .and_then(|a| a.hands.get(hand))
+            .cloned()
+        else {
+            return;
+        };
+        let Some(view) = self.chemhand_of(&item, hand) else {
+            return;
+        };
+        if view.amounts.is_empty() {
+            return;
+        }
+        let i = if idx == 255 {
+            view.amounts
+                .iter()
+                .position(|a| (*a - view.amount).abs() < 1e-3)
+                .map_or(0, |p| (p + 1) % view.amounts.len())
+        } else {
+            usize::from(idx).min(view.amounts.len() - 1)
+        };
+        let amount = view.amounts[i];
+        if self.transfers.contains_key(&item.prototype) {
+            self.transfer_amount.insert(item.id, amount);
+        } else if let Some(spec) = self.injectors.get(&item.prototype) {
+            let active = self
+                .injector_state
+                .get(&item.id)
+                .map_or(spec.active, |s| s.0);
+            self.injector_state.insert(item.id, (active, amount));
+        }
+        self.popup(user, format!("Количество: {amount:.0} ед."));
+    }
+
+    /// Рассылка владельцу: что настраивается у предмета в активной руке.
+    fn publish_chemhand(&mut self, ctx: &mut HookContext<'_>) {
+        for p in ctx.players().collect::<Vec<_>>() {
+            let view = self.actors.get(&p).and_then(|a| {
+                let hand = a.hands.active();
+                let item = a.hands.get(hand)?;
+                self.chemhand_of(item, hand)
+            });
+            let bytes = crate::chemhand::encode_chemhand(view.as_ref());
+            if self.chemhand_sent.get(&p) != Some(&bytes) {
+                ctx.set_component(p, crate::chemhand::CHEMHAND_COMPONENT, bytes.clone());
+                self.chemhand_sent.insert(p, bytes);
+            }
+        }
     }
 
     /// Переключить режим шприца (по кругу) — «использовать в руке».
@@ -2888,6 +3076,60 @@ impl State {
                 ctx.set_component(user, crate::analyzer::SCAN_COMPONENT, bytes.clone());
                 self.scan_sent.insert(user, bytes);
             }
+        }
+    }
+
+    /// Центр объекта мира.
+    fn center_of(ctx: &HookContext<'_>, id: ObjectId) -> Option<Vec3> {
+        let o = ctx.world.authored_object(id)?;
+        Some((o.min() + o.max()) * 0.5)
+    }
+
+    /// Подсказка игроку.
+    pub(crate) fn popup(&mut self, to: NetworkEntityId, text: impl Into<String>) {
+        self.fx_popups.push((to, text.into()));
+    }
+
+    /// Звук в точке мира (путь внутри `Audio`).
+    pub(crate) fn sound(&mut self, path: &str, at: Vec3) {
+        self.fx_sounds.push((path.to_string(), at));
+    }
+
+    /// В конце тика: каждому игроку — его подсказки и звуки поблизости.
+    fn flush_fx(&mut self, ctx: &mut HookContext<'_>) {
+        if self.fx_popups.is_empty() && self.fx_sounds.is_empty() {
+            return;
+        }
+        let popups = std::mem::take(&mut self.fx_popups);
+        let sounds = std::mem::take(&mut self.fx_sounds);
+        for p in ctx.players().collect::<Vec<_>>() {
+            let Some(pos) = ctx.position_of(p) else {
+                continue;
+            };
+            let mine: Vec<String> = popups
+                .iter()
+                .filter(|(t, _)| *t == p)
+                .map(|(_, s)| s.clone())
+                .collect();
+            let near: Vec<crate::fx::FxSound> = sounds
+                .iter()
+                .filter(|(_, at)| (*at - pos).length() <= crate::fx::HEARING_M)
+                .map(|(path, at)| crate::fx::FxSound {
+                    path: path.clone(),
+                    at: at.to_array(),
+                })
+                .collect();
+            if mine.is_empty() && near.is_empty() {
+                continue;
+            }
+            let seq = self.fx_seq.entry(p).or_insert(0);
+            *seq += 1;
+            let batch = crate::fx::FxBatch {
+                seq: *seq,
+                popups: mine,
+                sounds: near,
+            };
+            ctx.set_component(p, crate::fx::FX_COMPONENT, crate::fx::encode_fx(&batch));
         }
     }
 
@@ -2982,7 +3224,10 @@ impl State {
             return;
         };
         let amount = d.amount;
-        self.pour(&src, &beaker, amount);
+        let moved = self.pour(&src, &beaker, amount);
+        if moved > 0.0 {
+            self.popup(user, format!("Налито {moved:.0} ед."));
+        }
     }
 
     /// Окна раздатчиков у игроков (по изменению).
@@ -3175,6 +3420,7 @@ impl State {
         let name = crate::idconsole::clip(&req.name, crate::idconsole::MAX_NAME_LEN);
         let title = crate::idconsole::clip(&req.title, crate::idconsole::MAX_JOB_LEN);
         self.card_names.insert(target.id, (name, title));
+        self.popup(user, "Карта записана");
         let old = self.item_access(&target);
         let perms = self.item_access(&privileged);
         if let Some(new) = crate::idconsole::rewrite_access(&old, &req.access, &levels, &perms) {
@@ -3373,6 +3619,14 @@ impl State {
             Self::swap_locker_proto(ctx, id, &open);
             self.scatter(ctx, &items, at);
         }
+        self.sound(
+            if l.open {
+                "Effects/closetclose.ogg"
+            } else {
+                "Effects/closetopen.ogg"
+            },
+            at,
+        );
         true
     }
 
@@ -3394,9 +3648,23 @@ impl State {
             return false;
         }
         let allowed = Self::access_ok(&spec.access, &self.user_access(user));
-        let _ = ctx;
+        let at = Self::center_of(ctx, id);
         if allowed && let Some(l) = self.lockers.get_mut(&id) {
             l.locked = !l.locked;
+            let (sound, text) = if l.locked {
+                ("Machines/door_lock_on.ogg", "Заперто")
+            } else {
+                ("Machines/door_lock_off.ogg", "Отперто")
+            };
+            if let Some(at) = at {
+                self.sound(sound, at);
+            }
+            self.popup(user, text);
+        } else if !allowed {
+            self.popup(user, "Доступ запрещён");
+            if let Some(at) = at {
+                self.sound("Machines/custom_deny.ogg", at);
+            }
         }
         true
     }
@@ -3472,11 +3740,27 @@ impl State {
                 _ => None,
             })
             .is_none_or(|s| Self::access_ok(&s.access, &self.user_access(user)));
+        let at = Self::center_of(ctx, id);
+        let mut say: Option<(&str, &str)> = None;
         if let Some(machine) = self.vending.get_mut(&id) {
             if allowed {
-                let _ = machine.order(now, item, powered);
+                say = match machine.order(now, item, powered) {
+                    Ok(()) => Some(("Machines/machine_vend.ogg", "")),
+                    Err(crate::vending::Refusal::Denied) => Some((
+                        "Machines/custom_deny.ogg",
+                        "Нет такого товара или он кончился",
+                    )),
+                    Err(_) => None,
+                };
             } else {
                 machine.refuse(now);
+                say = Some(("Machines/custom_deny.ogg", "Доступ запрещён"));
+            }
+        }
+        if let (Some((path, text)), Some(at)) = (say, at) {
+            self.sound(path, at);
+            if !text.is_empty() {
+                self.popup(user, text);
             }
         }
     }
@@ -4693,6 +4977,11 @@ impl GameModule for GameplayModule {
                         && let Some(s) = st.solution_mut(&b)
                     {
                         s.contents.clear();
+                    }
+                }
+                crate::wire::CMD_CHEM_AMOUNT => {
+                    if let [hand, idx] = data[..] {
+                        st.set_chem_amount(*actor, usize::from(hand), idx);
                     }
                 }
                 crate::wire::CMD_SCAN_CLOSE => {

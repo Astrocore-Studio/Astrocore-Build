@@ -2471,4 +2471,47 @@ mod disposal_tests {
         assert!(v.active && v.state == "Alive", "{v:?}");
         assert!(v.blood > 0.9 && v.total_damage < 1.0);
     }
+
+    fn chemhand_of(h: &Harness, who: ConnId) -> Option<crate::ChemHandView> {
+        let net = h.client(who).net_id()?;
+        h.client(who)
+            .component(net, crate::CHEMHAND_COMPONENT)
+            .and_then(crate::decode_chemhand)
+    }
+
+    #[test]
+    fn a_syringe_draws_chosen_amount_of_blood_from_a_player_and_says_so() {
+        let mut h = harness();
+        let a = h.join("a");
+        let b = h.join("b");
+        h.ticks(5);
+        spawn(
+            &mut h,
+            item_at(996, "ss14:syringe_t", Vec3::new(2.6, 0.9, 2.6)),
+        );
+        h.ticks(10);
+        command(&mut h, a, CMD_PICKUP_ANY, pickup_data(oid(996)));
+        h.ticks(5);
+        // Количества берутся из прототипа; выбираем второе (10 ед.).
+        let v = chemhand_of(&h, a).expect("шприц настраивается");
+        assert_eq!(v.amounts, vec![5.0, 10.0]);
+        assert_eq!(v.amount, 5.0);
+        command(&mut h, a, crate::CMD_CHEM_AMOUNT, vec![v.hand, 1]);
+        h.ticks(5);
+        assert_eq!(chemhand_of(&h, a).unwrap().amount, 10.0);
+        let target = h.client(b).net_id().unwrap();
+        command(&mut h, a, crate::CMD_HEAL, crate::heal_data(v.hand, target));
+        h.ticks(600);
+        let net = h.client(a).net_id().unwrap();
+        let fx = h
+            .client(a)
+            .component(net, crate::FX_COMPONENT)
+            .and_then(crate::decode_fx)
+            .expect("подсказка пришла");
+        assert!(
+            fx.popups.iter().any(|p| p.contains("крови")),
+            "{:?}",
+            fx.popups
+        );
+    }
 }

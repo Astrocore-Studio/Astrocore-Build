@@ -34,6 +34,10 @@ pub struct Loadout {
     /// Раздатчик реагентов и анализатор здоровья.
     pub dispenser: Option<gameplay::DispenserView>,
     pub scan: Option<gameplay::ScanView>,
+    pub chemhand: Option<gameplay::ChemHandView>,
+    /// Подсказки на экране: текст и время появления; номер последней обработанной пачки.
+    pub toasts: Vec<(String, f32)>,
+    pub fx_seq: u32,
     /// Когда (по часам клиента) пришло последнее состояние здоровья.
     pub health_at: f32,
 }
@@ -86,6 +90,7 @@ impl Plugin for BuildClientPlugin {
                     players::tint_ghosts,
                     sounds::door_sounds,
                     sounds::item_sounds,
+                    fx_events,
                     combat::attack_and_heal,
                     fire::sync_fx,
                     fire::animate_flames,
@@ -101,6 +106,42 @@ impl Plugin for BuildClientPlugin {
 
 #[derive(Resource)]
 struct BodyRoot(std::path::PathBuf, Option<std::path::PathBuf>);
+
+/// Подсказки и звуки от сервера (`build.fx`): новая пачка — показать подсказки, сыграть звуки.
+fn fx_events(
+    net: Option<NonSend<Net>>,
+    time: Res<Time>,
+    mut loadout: ResMut<Loadout>,
+    sounds: Option<ResMut<sounds::Sounds>>,
+    mut audio: ResMut<Assets<bevy::audio::AudioSource>>,
+    mut commands: Commands,
+) {
+    let Some(net) = net else { return };
+    let Some(me) = net.core.net_id() else { return };
+    let Some(batch) = net
+        .core
+        .component(me, gameplay::FX_COMPONENT)
+        .and_then(gameplay::decode_fx)
+    else {
+        return;
+    };
+    if batch.seq == loadout.fx_seq {
+        return;
+    }
+    loadout.fx_seq = batch.seq;
+    let now = time.elapsed_secs();
+    for p in batch.popups {
+        loadout.toasts.push((p, now));
+    }
+    if let Some(mut sounds) = sounds {
+        let here = net.core.position();
+        for s in batch.sounds {
+            let d = here.distance(Vec3::from_array(s.at));
+            sounds.play_path(&mut commands, &mut audio, &s.path, d);
+        }
+    }
+    loadout.toasts.retain(|(_, t)| now - t < 4.0);
+}
 
 fn install_sounds(
     root: Option<Res<BodyRoot>>,
@@ -201,6 +242,10 @@ fn refresh_loadout(net: Option<NonSend<Net>>, time: Res<Time>, mut loadout: ResM
         .core
         .component(me, gameplay::DISPENSER_COMPONENT)
         .and_then(gameplay::decode_dispenser);
+    loadout.chemhand = net
+        .core
+        .component(me, gameplay::CHEMHAND_COMPONENT)
+        .and_then(gameplay::decode_chemhand);
     loadout.scan = net
         .core
         .component(me, gameplay::SCAN_COMPONENT)
@@ -378,7 +423,7 @@ fn ghost_camera(
 
 fn loadout_window(
     mut contexts: EguiContexts,
-    loadout: Res<Loadout>,
+    mut loadout: ResMut<Loadout>,
     mut hud: ResMut<Hud>,
     look: Option<Res<astrocore_client::Look>>,
     ground: Res<Ground>,
@@ -455,12 +500,14 @@ fn loadout_window(
         loadout.idconsole.as_ref(),
         hand,
     ));
+    hud::toasts(&ctx, &mut loadout.toasts, time.elapsed_secs());
     commands.extend(hud::dispenser_window(
         &ctx,
         loadout.dispenser.as_ref(),
         hand,
     ));
     commands.extend(hud::scan_window(&ctx, loadout.scan.as_ref()));
+    commands.extend(hud::chemhand_bar(&ctx, loadout.chemhand.as_ref()));
     commands.extend(hud::jobs_window(&ctx, state, loadout.jobs.as_ref()));
     for (kind, data) in commands {
         net.send_command(kind, data);
