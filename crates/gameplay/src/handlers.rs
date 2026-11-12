@@ -260,7 +260,7 @@ impl GasDeviceUse {
                     c.release_open = !c.release_open;
                 }
             }
-            Device::PassiveVent { .. } => return false,
+            Device::PassiveVent { .. } | Device::CryoPod { .. } => return false,
         }
         true
     }
@@ -518,6 +518,38 @@ impl InteractionHandler for DefibUse {
     }
 }
 
+/// Криокапсула: пустая рука открывает окно, мензурка в руке встаёт в слот.
+pub struct CryoUse;
+
+impl InteractionHandler for CryoUse {
+    fn interact_hand(
+        &mut self,
+        state: &mut State,
+        _ctx: &mut HookContext<'_>,
+        user: NetworkEntityId,
+        target: &Target,
+    ) -> bool {
+        let Target::Item { id, .. } = target else {
+            return false;
+        };
+        state.open_cryo(user, *id)
+    }
+
+    fn interact_using(
+        &mut self,
+        state: &mut State,
+        ctx: &mut HookContext<'_>,
+        user: NetworkEntityId,
+        used: &Used,
+        target: &Target,
+    ) -> bool {
+        let Target::Item { id, .. } = target else {
+            return false;
+        };
+        state.cryo.contains_key(id) && state.cryo_insert(ctx, user, *id, used.hand)
+    }
+}
+
 /// Химические машины: пустая рука открывает окно, мензурка в руке встаёт в слот.
 pub struct LabUse;
 
@@ -658,6 +690,7 @@ pub fn default_handlers() -> Vec<Box<dyn InteractionHandler>> {
         Box::new(LockerUse),
         Box::new(IdConsoleUse),
         Box::new(DispenserUse),
+        Box::new(CryoUse),
         Box::new(LabUse),
         Box::new(MixUse),
         Box::new(DefibUse),

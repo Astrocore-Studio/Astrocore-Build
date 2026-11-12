@@ -8386,6 +8386,14 @@
         0.36000001430511475
       ]
     },
+    "ss14:cryo_pod": {
+      "image": "Textures/Structures/Machines/Medical/cryopod.rsi/pod-open.png",
+      "layout": "billboard",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
     "ss14:cryoxadone_beaker_small": {
       "image": "Textures/Objects/Specific/Chemistry/beaker.rsi/beaker.png",
       "layout": "flat",

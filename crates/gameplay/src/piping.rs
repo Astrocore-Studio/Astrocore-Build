@@ -90,6 +90,11 @@ pub enum DeviceSpec {
     },
     Canister(GasMixture, f32),
     Port,
+    /// Воздух криокапсулы заданного объёма, л.
+    Cryo {
+        node: usize,
+        volume: f32,
+    },
 }
 
 /// Узлы и устройство объекта.
@@ -205,6 +210,11 @@ impl PipePart {
                 container_mixture(c, atmos::pipes::CANISTER_VOLUME),
                 float(c, "releasePressure", atmos::ONE_ATMOSPHERE),
             ))
+        } else if let Some(c) = r.component("CryoPodAir") {
+            Some(DeviceSpec::Cryo {
+                node: index(c, "node"),
+                volume: float(c, "volume", 2000.0),
+            })
         } else if r.component("GasPort").is_some() {
             Some(DeviceSpec::Port)
         } else {
@@ -284,6 +294,10 @@ pub fn device_of(spec: &DeviceSpec, object_key: u64, port: Option<u64>) -> Optio
             Device::Canister(Box::new(c))
         }
         DeviceSpec::Port => return None,
+        DeviceSpec::Cryo { node, volume } => Device::CryoPod {
+            node: n(*node),
+            air: GasMixture::new(*volume),
+        },
     })
 }
 

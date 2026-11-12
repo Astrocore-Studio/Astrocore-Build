@@ -149,6 +149,11 @@ const PROTOS: &str = r#"[
             (id: "Draw", behavior: "Draw", amounts: [5.0, 10.0], mobTime: 5.0, selfModifier: 0.5, downedModifier: 0.5, delayPerVolume: 0.1, ignoreDelayForVolume: 5.0, drawTime: 0.0),
         ], active: 1, amount: 5.0),
     }),
+    (id: "CryoT", components: {
+        "GasPipe": (nodes: [(dirs: "S")]),
+        "CryoPodAir": (node: 0, volume: 2000.0),
+        "CryoPod": (beakerTransferTime: 2.0, beakerTransferAmount: 1.0, entryDelay: 2.0),
+    }),
     (id: "HotplateT", components: {
         "SolutionHeater": (heatPerSecond: 160.0),
     }),
@@ -2903,5 +2908,62 @@ mod disposal_tests {
             }
         }
         assert!(lost.is_empty(), "не поместилось: {lost:?}");
+    }
+
+    fn cryo_view(h: &Harness, who: ConnId) -> Option<crate::CryoView> {
+        let net = h.client(who).net_id()?;
+        h.client(who)
+            .component(net, crate::CRYO_COMPONENT)
+            .and_then(crate::decode_cryo)
+    }
+
+    #[test]
+    fn a_cryo_pod_holds_a_patient_and_feeds_the_blood_from_its_beaker_until_ejected() {
+        let mut h = harness();
+        let (a, b) = (h.join("a"), h.join("b"));
+        h.ticks(5);
+        place_machine(&mut h, 960, "ss14:cryo_t", Vec3::new(3.0, 0.9, 3.2));
+        spawn(
+            &mut h,
+            item_at(962, "ss14:beaker_water_t", Vec3::new(2.6, 0.9, 2.6)),
+        );
+        h.ticks(10);
+        command(&mut h, b, CMD_INTERACT, interact_data(oid(960)));
+        h.ticks(5);
+        let v = cryo_view(&h, b).expect("окно капсулы");
+        assert!(v.patient.is_none());
+        let patient = h.client(a).net_id().unwrap();
+        assert!(v.nearby.iter().any(|n| n.0 == patient.0), "{v:?}");
+        // Положить человека: 2 секунды, потом он внутри.
+        command(
+            &mut h,
+            b,
+            crate::CMD_CRYO_PUT,
+            patient.0.to_le_bytes().to_vec(),
+        );
+        h.ticks(10);
+        assert_eq!(
+            super::inventory_and_storage::doafter(&h, b).map(|d| d.kind),
+            Some("cryo".to_string())
+        );
+        h.ticks(150);
+        assert!(cryo_view(&h, b).unwrap().patient.is_some());
+        // Мензурка в слот, 20 ед. в буфер, раз в 2 с 1 ед. уходит в кровь пациента.
+        command(&mut h, b, CMD_PICKUP_ANY, pickup_data(oid(962)));
+        h.ticks(3);
+        let hand = hands_of(&h, b, b).unwrap().active() as u8;
+        command(&mut h, b, crate::CMD_CRYO_INSERT, vec![hand]);
+        h.ticks(3);
+        command(&mut h, b, crate::CMD_CRYO_INJECT, vec![3]);
+        h.ticks(3);
+        let v = cryo_view(&h, b).unwrap();
+        assert!(v.buffer_volume > 17.0 && v.beaker.is_some(), "{v:?}");
+        h.ticks(420);
+        let after = cryo_view(&h, b).unwrap();
+        assert!(after.buffer_volume < v.buffer_volume - 2.5, "{after:?}");
+        // Пациент сам выходит клавишей сопротивления.
+        command(&mut h, a, crate::CMD_RESIST, vec![]);
+        h.ticks(5);
+        assert!(cryo_view(&h, b).unwrap().patient.is_none());
     }
 }

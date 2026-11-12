@@ -36,6 +36,7 @@ pub struct Loadout {
     pub scan: Option<gameplay::ScanView>,
     pub chemhand: Option<gameplay::ChemHandView>,
     pub lab: Option<gameplay::LabView>,
+    pub cryo: Option<gameplay::CryoView>,
     /// Подсказки на экране: текст и время появления; номер последней обработанной пачки.
     pub toasts: Vec<(String, f32)>,
     pub fx_seq: u32,
@@ -243,6 +244,10 @@ fn refresh_loadout(net: Option<NonSend<Net>>, time: Res<Time>, mut loadout: ResM
         .core
         .component(me, gameplay::DISPENSER_COMPONENT)
         .and_then(gameplay::decode_dispenser);
+    loadout.cryo = net
+        .core
+        .component(me, gameplay::CRYO_COMPONENT)
+        .and_then(gameplay::decode_cryo);
     loadout.lab = net
         .core
         .component(me, gameplay::LAB_COMPONENT)
@@ -516,6 +521,7 @@ fn loadout_window(
     ));
     commands.extend(hud::scan_window(&ctx, loadout.scan.as_ref()));
     commands.extend(hud::chemhand_bar(&ctx, loadout.chemhand.as_ref()));
+    commands.extend(hud::cryo_window(&ctx, loadout.cryo.as_ref(), hand));
     commands.extend(hud::lab_window(&ctx, loadout.lab.as_ref(), hand));
     commands.extend(hud::jobs_window(&ctx, state, loadout.jobs.as_ref()));
     for (kind, data) in commands {

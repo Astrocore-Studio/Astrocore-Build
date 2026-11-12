@@ -80,6 +80,8 @@ pub enum Device {
     Valve { a: u64, b: u64, open: bool },
     /// `GasCanister`: баллон на разъёме.
     Canister(Box<Canister>),
+    /// `CryoPodAir`: воздух капсулы, на каждом шаге реагирует и смешивается с сетью порта.
+    CryoPod { node: u64, air: GasMixture },
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -331,6 +333,21 @@ impl Pipes {
         self.devices.get(&key).map(|(_, d)| d)
     }
 
+    /// Воздух капсулы без пересчёта сетей.
+    pub fn cryo_air_mut(&mut self, key: u64) -> Option<&mut GasMixture> {
+        match self.devices.get_mut(&key).map(|(_, d)| d) {
+            Some(Device::CryoPod { air, .. }) => Some(air),
+            _ => None,
+        }
+    }
+
+    pub fn cryo_air(&self, key: u64) -> Option<&GasMixture> {
+        match self.devices.get(&key).map(|(_, d)| d) {
+            Some(Device::CryoPod { air, .. }) => Some(air),
+            _ => None,
+        }
+    }
+
     pub fn device_mut(&mut self, key: u64) -> Option<&mut Device> {
         // Любое изменение (клапан, разъём) может поменять сети.
         self.dirty = true;
@@ -516,7 +533,9 @@ impl Pipes {
         let mut devices = std::mem::take(&mut self.devices);
         let mut gone = Vec::new();
         for (key, (cell, device)) in &mut devices {
-            if self.unpowered.contains(key) && !matches!(device, Device::Canister(_)) {
+            if self.unpowered.contains(key)
+                && !matches!(device, Device::Canister(_) | Device::CryoPod { .. })
+            {
                 continue;
             }
             match device {
@@ -534,6 +553,15 @@ impl Pipes {
                 Device::VentPump(v) => self.vent_pump(v, *cell, dt, env),
                 Device::Scrubber(s) => self.scrub(s, *cell, dt, env),
                 Device::Valve { .. } => {}
+                Device::CryoPod { node, air } => {
+                    // `OnCryoPodUpdateAtmosphere`: реакции и обмен с сетью порта.
+                    reactions::react(air, false);
+                    if self.net_size(*node) > 1
+                        && let Some(net) = self.air_of_mut(*node)
+                    {
+                        mix_with_net(air, net);
+                    }
+                }
                 Device::Canister(c) => {
                     if self.canister(c, *cell, dt, env) == PressureStatus::Ruptured {
                         gone.push(*key);

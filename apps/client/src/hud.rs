@@ -1124,6 +1124,106 @@ pub fn dispenser_window(
     out
 }
 
+/// Окно криокапсулы (`CryoPodWindow`): пациент, газ, мензурка и буфер впрыска.
+pub fn cryo_window(
+    ctx: &egui::Context,
+    view: Option<&gameplay::CryoView>,
+    active_hand: u8,
+) -> Commands {
+    let mut out: Commands = Vec::new();
+    let Some(v) = view else {
+        return out;
+    };
+    let mut open = true;
+    egui::Window::new("Криокапсула")
+        .id(egui::Id::new("cryo"))
+        .default_pos(Pos2::new(200.0, 110.0))
+        .resizable(false)
+        .open(&mut open)
+        .show(ctx, |ui| {
+            if !v.powered {
+                ui.colored_label(Color32::LIGHT_RED, "Нет питания");
+            }
+            match &v.patient {
+                Some(p) => {
+                    ui.label(format!(
+                        "Пациент: {}, тело {:.1} °C, кровь {:.0}%, урон {:.0}",
+                        p.state,
+                        p.temperature_k - 273.15,
+                        p.blood * 100.0,
+                        p.total_damage
+                    ));
+                    if ui.button("Вынуть пациента").clicked() {
+                        out.push((gameplay::CMD_CRYO_EJECT, Vec::new()));
+                    }
+                }
+                None => {
+                    ui.label("Капсула пуста");
+                    for (id, label) in &v.nearby {
+                        if ui.button(format!("Положить: {label}")).clicked() {
+                            out.push((gameplay::CMD_CRYO_PUT, id.to_le_bytes().to_vec()));
+                        }
+                    }
+                }
+            }
+            ui.separator();
+            ui.label(format!(
+                "Воздух: {:.1} °C, {:.1} кПа",
+                v.air_temperature_k - 273.15,
+                v.air_pressure_kpa
+            ));
+            for (g, pct) in &v.gases {
+                ui.label(format!("   {g}: {pct:.1}%"));
+            }
+            ui.separator();
+            match &v.beaker {
+                Some(b) => {
+                    ui.horizontal(|ui| {
+                        ui.label(format!("Мензурка {:.0}/{:.0}", b.volume, b.max));
+                        if ui.button("Вынуть").clicked() {
+                            out.push((gameplay::CMD_CRYO_BEAKER_EJECT, Vec::new()));
+                        }
+                    });
+                    for (_, name, q) in &b.reagents {
+                        ui.label(format!("   {name}: {q:.1}"));
+                    }
+                    ui.horizontal(|ui| {
+                        ui.label("Налить в буфер:");
+                        for (i, a) in v.amounts.iter().enumerate() {
+                            if ui
+                                .add_enabled(
+                                    v.patient.is_some(),
+                                    egui::Button::new(format!("{a:.0}")),
+                                )
+                                .clicked()
+                            {
+                                out.push((gameplay::CMD_CRYO_INJECT, vec![i as u8]));
+                            }
+                        }
+                    });
+                }
+                None => {
+                    if ui.button("Поставить мензурку из руки").clicked() {
+                        out.push((gameplay::CMD_CRYO_INSERT, vec![active_hand]));
+                    }
+                }
+            }
+            ui.horizontal(|ui| {
+                ui.label(format!("Буфер впрыска: {:.0} ед.", v.buffer_volume));
+                if ui.button("Очистить").clicked() {
+                    out.push((gameplay::CMD_CRYO_CLEAR, Vec::new()));
+                }
+            });
+            for (_, name, q) in &v.buffer {
+                ui.label(format!("   {name}: {q:.1}"));
+            }
+        });
+    if !open {
+        out.push((gameplay::CMD_CRYO_CLOSE, Vec::new()));
+    }
+    out
+}
+
 /// Окно химической машины: центрифуга и электролизёр (слот и пуск) или ХимМастер (буфер, таблетки, бутылки).
 pub fn lab_window(
     ctx: &egui::Context,

@@ -281,6 +281,10 @@ pub trait Environment {
     }
     /// Записать температуру воздуха клетки после теплообмена с телом.
     fn set_air_temperature(&mut self, _temperature: f32) {}
+    /// Множитель теплообмена (`BeforeHeatExchangeEvent.HeatTransferModifier`): в криокапсуле 15.
+    fn heat_transfer_modifier(&self) -> f32 {
+        1.0
+    }
     /// Горящее тело поджигает воздух клетки (`IgnitionSource` с температурой 700 К).
     fn ignite_tile(&mut self, _temperature: f32) {}
 }
@@ -552,7 +556,10 @@ impl Body {
         if let Some((air_t, air_c)) = env.air_thermal()
             && (air_t - self.temperature).abs() > 0.01
         {
-            let g = THERMAL_CONDUCTIVITY * EXPOSED_AREA * self.heat_protection;
+            let g = THERMAL_CONDUCTIVITY
+                * EXPOSED_AREA
+                * self.heat_protection
+                * env.heat_transfer_modifier();
             let dq_raw = g * (air_t - self.temperature) * TEMPERATURE_UPDATE_S;
             let dq_max = ((self.temperature - air_t)
                 * (BODY_HEAT_CAPACITY * air_c / (BODY_HEAT_CAPACITY + air_c)))

@@ -77,6 +77,8 @@ pub(crate) struct Actor {
     pub(crate) slip_until: f32,
     /// Тело, оставшееся после смерти (предмет-труп в мире): по нему дефибриллятор находит владельца.
     pub(crate) corpse: Option<ObjectId>,
+    /// Криокапсула, в которой стоит персонаж.
+    pub(crate) cryo: Option<ObjectId>,
     /// Где был на прошлом шаге: клетка и точка — для скорости и входа на клетку.
     pub(crate) last_step: Option<(atmos::Cell, Vec3)>,
 }
@@ -100,6 +102,7 @@ impl Actor {
             last_vitals: None,
             slip_until: 0.0,
             corpse: None,
+            cryo: None,
             last_step: None,
         }
     }
@@ -348,6 +351,10 @@ pub struct State {
     /// Анализаторы здоровья: прототипы, кто кого сканирует, таймер обновления.
     pub(crate) analyzers: BTreeSet<PrototypeId>,
     pub(crate) lab: crate::chemlab::LabSpecs,
+    pub(crate) cryo_specs: BTreeMap<PrototypeId, crate::cryo::CryoSpec>,
+    pub(crate) cryo: BTreeMap<ObjectId, crate::cryo::CryoPod>,
+    pub(crate) cryo_open: BTreeMap<NetworkEntityId, ObjectId>,
+    pub(crate) cryo_sent: BTreeMap<NetworkEntityId, Vec<u8>>,
     pub(crate) mixer_machines: BTreeMap<ObjectId, crate::chemlab::MixerMachine>,
     pub(crate) masters: BTreeMap<ObjectId, crate::chemlab::Master>,
     pub(crate) lab_open: BTreeMap<NetworkEntityId, ObjectId>,
@@ -456,6 +463,7 @@ impl State {
         let mut analyzers = BTreeSet::new();
         let mut defibs = BTreeMap::new();
         let mut lab = crate::chemlab::LabSpecs::default();
+        let mut cryo_specs = BTreeMap::new();
         let mut titles = BTreeMap::new();
         let mut dispenser_tables = BTreeMap::new();
         let mut fits_in_dispenser = BTreeSet::new();
@@ -545,6 +553,9 @@ impl State {
                     dispenser_tables.insert(id.clone(), t);
                 }
                 lab.load(&id, r);
+                if let Some(c) = crate::cryo::CryoSpec::parse(r) {
+                    cryo_specs.insert(id.clone(), c);
+                }
                 if let Some(n) = r.name.as_ref() {
                     titles.insert(id.clone(), n.clone());
                 }
@@ -836,6 +847,10 @@ impl State {
             defibs,
             defib_state: BTreeMap::new(),
             lab,
+            cryo_specs,
+            cryo: BTreeMap::new(),
+            cryo_open: BTreeMap::new(),
+            cryo_sent: BTreeMap::new(),
             mixer_machines: BTreeMap::new(),
             masters: BTreeMap::new(),
             lab_open: BTreeMap::new(),
@@ -1710,7 +1725,7 @@ impl State {
     /// После любого изменения здоровья: рассылка и последствия. Тот, кто не может действовать,
     /// замораживается, бросает действие и роняет всё из рук; с двумя негодными ногами не ходят;
     /// негодная рука выпускает предмет и больше ничего не берёт.
-    fn after_health_change(&mut self, ctx: &mut HookContext<'_>, who: NetworkEntityId) {
+    pub(crate) fn after_health_change(&mut self, ctx: &mut HookContext<'_>, who: NetworkEntityId) {
         let Some(a) = self.actors.get(&who) else {
             return;
         };
@@ -1719,7 +1734,9 @@ impl State {
         let died = now == MobState::Dead && before != MobState::Dead;
         let resisting = a.body.as_ref().is_some_and(Body::resisting);
         let slipped = a.slip_until > self.clock;
-        let freeze = (!now.can_act() || legs || resisting || slipped) && !a.ghost && !died;
+        let in_cryo = a.cryo.is_some();
+        let freeze =
+            (!now.can_act() || legs || resisting || slipped || in_cryo) && !a.ghost && !died;
         let feet = ctx.position_of(who);
         let mut to_floor: Vec<HeldItem> = Vec::new();
         let clock = self.clock;
@@ -1884,6 +1901,16 @@ impl State {
                 target,
                 shake,
             } => self.mix_can(ctx, actor, *hand, *target, *shake),
+            Action::CryoPut { pod, target } => {
+                self.cryo.get(pod).is_some_and(|c| c.patient.is_none())
+                    && self.cryo_pos(ctx, *pod).is_some_and(|p| {
+                        ctx.position_of(actor)
+                            .is_some_and(|f| (p - f).length() <= crate::cryo::REACH_M)
+                            && ctx
+                                .position_of(*target)
+                                .is_some_and(|t| (p - t).length() <= crate::cryo::REACH_M)
+                    })
+            }
             Action::Defib { hand, target } => {
                 let Some(held) = a.hands.get(*hand) else {
                     return false;
@@ -1948,6 +1975,11 @@ impl State {
                 .and_then(|i| self.healing.get(&i.prototype))
                 .map_or(0.0, |h| h.delay),
             Action::Mix { hand, shake, .. } => self.mix_delay(actor, *hand, *shake),
+            Action::CryoPut { .. } => self
+                .cryo_specs
+                .values()
+                .next()
+                .map_or(2.0, |s| s.entry_delay),
             Action::Defib { hand, .. } => a
                 .hands
                 .get(*hand)
@@ -1988,6 +2020,7 @@ impl State {
             Action::Heal { hand, target } => self.heal(ctx, actor, hand, target),
             Action::Inject { hand, target } => self.inject_body(ctx, actor, hand, target),
             Action::Defib { hand, target } => self.zap(ctx, actor, hand, target),
+            Action::CryoPut { pod, target } => self.cryo_put(ctx, pod, target),
             Action::Mix {
                 hand,
                 target,
@@ -2102,7 +2135,14 @@ impl State {
                 .filter_map(|i| self.heat_protection.get(&i.prototype))
                 .product();
             body.set_heat_protection(protection);
-            let outcome = {
+            let cryo_key = self.actors[&id].cryo.map(|pod| self.pipe_keys.key_of(pod));
+            let outcome = if let Some(key) = cryo_key
+                && let Some(air) = self.atmos.pipes_mut().cryo_air_mut(key)
+            {
+                // Пациент капсулы дышит её воздухом и обменивается с ним теплом.
+                let mut env = crate::cryo::CryoEnv { air };
+                body.tick(dt, &mut env, mob, barotrauma)
+            } else {
                 let mut env = ActorEnv {
                     grid: Some(&mut self.atmos),
                     cell,
@@ -2166,6 +2206,7 @@ impl State {
         let dt = self.last_dt;
         self.tick_defibs(dt);
         self.tick_lab(ctx, dt);
+        self.tick_cryo(ctx);
         self.publish_chemhand(ctx);
         self.publish_jobs(ctx);
         self.resolve_spawners(ctx);
@@ -5217,6 +5258,47 @@ impl GameModule for GameplayModule {
                         s.contents.clear();
                     }
                 }
+                crate::wire::CMD_CRYO_PUT => {
+                    if let Ok(b) = <[u8; 4]>::try_from(&data[..])
+                        && let Some(id) = st.cryo_open.get(actor).copied()
+                    {
+                        let target = NetworkEntityId(u32::from_le_bytes(b));
+                        st.begin(ctx, *actor, Action::CryoPut { pod: id, target });
+                    }
+                }
+                crate::wire::CMD_CRYO_EJECT => {
+                    if let Some(id) = st.cryo_open.get(actor).copied() {
+                        st.cryo_eject_patient(ctx, id);
+                    }
+                }
+                crate::wire::CMD_CRYO_BEAKER_EJECT => {
+                    if let Some(id) = st.cryo_open.get(actor).copied() {
+                        st.cryo_eject_beaker(ctx, *actor, id);
+                    }
+                }
+                crate::wire::CMD_CRYO_INSERT => {
+                    if let [hand] = data[..]
+                        && let Some(id) = st.cryo_open.get(actor).copied()
+                    {
+                        st.cryo_insert(ctx, *actor, id, usize::from(hand));
+                    }
+                }
+                crate::wire::CMD_CRYO_INJECT => {
+                    if let [i] = data[..]
+                        && let Some(id) = st.cryo_open.get(actor).copied()
+                        && let Some(a) = crate::cryo::INJECT_AMOUNTS.get(usize::from(i))
+                    {
+                        st.cryo_inject(id, *a);
+                    }
+                }
+                crate::wire::CMD_CRYO_CLEAR => {
+                    if let Some(id) = st.cryo_open.get(actor).copied() {
+                        st.cryo_clear(id);
+                    }
+                }
+                crate::wire::CMD_CRYO_CLOSE => {
+                    st.cryo_open.remove(actor);
+                }
                 crate::wire::CMD_SHAKE => {
                     let hand = st.actors.get(actor).map(|a| a.hands.active());
                     if let Some(hand) = hand {
@@ -5318,6 +5400,10 @@ impl GameModule for GameplayModule {
                     st.vending_open.remove(actor);
                 }
                 CMD_RESIST => {
+                    // Пациент криокапсулы выходит из неё (`TryEjectBody`).
+                    if let Some(pod) = st.actors.get(actor).and_then(|a| a.cryo) {
+                        st.cryo_eject_patient(ctx, pod);
+                    }
                     let resisted = st
                         .actors
                         .get_mut(actor)

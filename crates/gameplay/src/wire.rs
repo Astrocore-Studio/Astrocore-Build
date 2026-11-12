@@ -78,6 +78,15 @@ pub const CMD_LAB_SOURCE: &str = "lab.source";
 pub const CMD_LAB_REAGENT: &str = "lab.reagent";
 pub const CMD_LAB_PILLS: &str = "lab.pills";
 pub const CMD_LAB_BOTTLE: &str = "lab.bottle";
+/// Криокапсула: положить человека (его сетевой номер, 8 байт), вынуть пациента, вынуть мензурку,
+/// мензурку из руки в слот (рука), перелить в буфер (номер кнопки), очистить буфер, закрыть окно.
+pub const CMD_CRYO_PUT: &str = "cryo.put";
+pub const CMD_CRYO_EJECT: &str = "cryo.eject";
+pub const CMD_CRYO_BEAKER_EJECT: &str = "cryo.beaker_eject";
+pub const CMD_CRYO_INSERT: &str = "cryo.insert";
+pub const CMD_CRYO_INJECT: &str = "cryo.inject";
+pub const CMD_CRYO_CLEAR: &str = "cryo.clear";
+pub const CMD_CRYO_CLOSE: &str = "cryo.close";
 /// Встряхнуть предмет в активной руке (`ShakeableSystem`).
 pub const CMD_SHAKE: &str = "shake";
 /// Закрыть окно анализатора здоровья.
@@ -204,6 +213,12 @@ pub fn register_replication(reg: &mut ReplicationRegistry) -> Result<(), Replica
         channel: ReplicationChannel::ReliableOrdered,
         interest: Interest::Everyone,
         max_bytes: crate::doafter::DOAFTER_MAX_BYTES,
+    })?;
+    reg.register(ReplicatedKind {
+        name: crate::cryo::CRYO_COMPONENT.into(),
+        channel: ReplicationChannel::ReliableOrdered,
+        interest: Interest::Owner,
+        max_bytes: crate::cryo::CRYO_MAX_BYTES,
     })?;
     reg.register(ReplicatedKind {
         name: crate::chemlab::LAB_COMPONENT.into(),

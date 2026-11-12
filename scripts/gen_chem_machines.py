@@ -10,14 +10,15 @@ from ss14yaml import Protos
 
 P = Protos(sys.argv[1])
 q = lambda s: json.dumps(s, ensure_ascii=False)
-MACHINES = ['ChemMaster', 'ChemistryHotplate', 'MachineCentrifuge', 'MachineElectrolysisUnit']
+MACHINES = ['ChemMaster', 'ChemistryHotplate', 'MachineCentrifuge', 'MachineElectrolysisUnit', 'CryoPod']
 
 
 def sprite(c):
     sp = c.get('Sprite', {})
     rsi, state = sp.get('sprite'), sp.get('state')
     for l in sp.get('layers') or []:
-        if state is None and isinstance(l, dict) and l.get('state'):
+        # Слои чужих наборов (труба под капсулой) не годятся как основной спрайт.
+        if state is None and isinstance(l, dict) and l.get('state') and 'sprite' not in l:
             state = l['state']
     return rsi.removeprefix('/Textures/').lstrip('/'), state
 
@@ -41,6 +42,12 @@ for p in MACHINES:
         comps.append('"SolutionContainerMixer": (mixDuration: %s)' % num(c['SolutionContainerMixer'].get('mixDuration'), 10.0))
     if 'ReactionMixer' in c:
         comps.append('"ReactionMixer": (types: [%s], mixerType: "Machine", time: 0.0)' % ', '.join(q(t) for t in c['ReactionMixer'].get('reactionTypes') or []))
+    if 'CryoPod' in c:
+        cp = c['CryoPod']
+        comps.append('"CryoPod": (beakerTransferTime: %s, beakerTransferAmount: %s, entryDelay: %s)' % (
+            num(cp.get('beakerTransferTime'), 2.0), num(cp.get('beakerTransferAmount'), 1.0), num(cp.get('entryDelay'), 2.0)))
+        comps.append('"GasPipe": (nodes: [(dirs: "S")])')
+        comps.append('"CryoPodAir": (node: 0, volume: 2000.0)')
     lines.append('    (id: %s, name: Some(%s), components: {%s}),' % (q(p), q(P.entity_name(p) or p), ', '.join(comps)))
 lines.append(']')
 open('content/prototypes/chem_machines.ron', 'w').write('\n'.join(lines) + '\n')

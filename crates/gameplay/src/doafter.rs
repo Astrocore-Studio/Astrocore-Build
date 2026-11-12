@@ -58,6 +58,11 @@ pub(crate) enum Action {
         target: Option<ObjectId>,
         shake: bool,
     },
+    /// Положить человека в криокапсулу (`CryoPodDragFinished`).
+    CryoPut {
+        pod: ObjectId,
+        target: astrocore_core::NetworkEntityId,
+    },
     /// Съесть или выпить укус из предмета в руке.
     Eat {
         hand: usize,
@@ -84,6 +89,7 @@ impl Action {
             Self::Inject { .. } => "inject",
             Self::Scan { .. } => "scan",
             Self::Defib { .. } => "defib",
+            Self::CryoPut { .. } => "cryo",
             Self::Mix { shake: true, .. } => "shake",
             Self::Mix { .. } => "mix",
             Self::Eat { .. } => "eat",

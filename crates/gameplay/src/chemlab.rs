@@ -244,7 +244,7 @@ impl State {
             .or_else(|| self.solution_templates.get(&item.prototype))
     }
 
-    fn container_info(&self, item: &HeldItem) -> ContainerInfo {
+    pub(crate) fn container_info(&self, item: &HeldItem) -> ContainerInfo {
         let s = self.solution_of(item);
         let mut items = Vec::new();
         if let Some(st) = self.storages.get(&item.id) {
@@ -272,7 +272,7 @@ impl State {
         }
     }
 
-    fn named(&self, contents: &BTreeMap<String, f32>) -> Vec<(String, String, f32)> {
+    pub(crate) fn named(&self, contents: &BTreeMap<String, f32>) -> Vec<(String, String, f32)> {
         contents
             .iter()
             .map(|(k, v)| {
