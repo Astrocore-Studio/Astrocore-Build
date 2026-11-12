@@ -402,7 +402,8 @@ impl Body {
             stomach_timer: METABOLISM_INTERVAL_S,
             chemicals: Solution::new(CHEMICALS_SOLUTION_MAX),
             chemicals_timer: METABOLISM_INTERVAL_S,
-            metabolites: Solution::new(CHEMICALS_SOLUTION_MAX),
+            // `BloodstreamSystem.OnMapInit`: объём метаболитов равен объёму крови (600 × 1,2).
+            metabolites: Solution::new(BLOOD_REFERENCE * BLOOD_MAX_MODIFIER),
             metabolites_timer: METABOLISM_INTERVAL_S,
             table: TableRef(table),
             damage_now: BTreeMap::new(),

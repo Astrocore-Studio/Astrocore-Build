@@ -671,9 +671,15 @@ impl State {
             None => item.clone(),
         };
         let reacted = self.react_item(&subject, Some(&types));
-        // Звук встряхивания (`soda_shake.ogg`) под CC-BY-NC, в сборку не берётся.
-        if !shake && let Some(at) = ctx.position_of(actor) {
-            self.sound("Items/Medical/paper_centrifuge.ogg", at);
+        if let Some(at) = ctx.position_of(actor) {
+            self.sound(
+                if shake {
+                    "Items/soda_shake.ogg"
+                } else {
+                    "Items/Medical/paper_centrifuge.ogg"
+                },
+                at,
+            );
         }
         self.popup(
             actor,

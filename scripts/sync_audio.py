@@ -9,6 +9,7 @@ import yaml
 
 ROOT = sys.argv[1] + '/Resources/Audio/'
 DEST = 'assets/ss14/Audio/'
+ALLOWED_NC = {'Items/soda_shake.ogg'}
 SOUNDS = [
     'Machines/machine_vend.ogg', 'Machines/buzz-sigh.ogg', 'Machines/door_lock_on.ogg',
     'Machines/door_lock_off.ogg', 'Machines/disposalflush.ogg', 'Machines/airlock_deny.ogg',
@@ -17,7 +18,7 @@ SOUNDS = [
     'Effects/Chemistry/bubbles.ogg', 'Items/Defib/defib_charge.ogg', 'Items/Defib/defib_zap.ogg',
     'Items/Defib/defib_success.ogg', 'Items/Defib/defib_failed.ogg', 'Items/Defib/defib_safety_on.ogg',
     'Items/Defib/defib_safety_off.ogg', 'Machines/buzz_loop.ogg',
-    'Items/Medical/paper_centrifuge.ogg', 'Machines/spinning.ogg', 'Items/Defib/defib_ready.ogg',
+    'Items/soda_shake.ogg', 'Items/Medical/paper_centrifuge.ogg', 'Machines/spinning.ogg', 'Items/Defib/defib_ready.ogg',
 ]
 
 # Звуки эмоций и рвоты из эффектов реагентов (`scripts/gen_chem.py`).
@@ -52,7 +53,8 @@ for rel in sorted(set(SOUNDS) | set(existing)):
     a = attribution(rel)
     # Без записи действует лицензия Resources SS14 по умолчанию — CC-BY-SA-3.0 (как у спрайтов).
     lic = (a or {}).get('license', 'CC-BY-SA-3.0 (записи нет, лицензия Resources по умолчанию)')
-    if '-NC' in lic or '-ND' in lic or not lic.startswith(('CC0', 'CC-BY')):
+    # Звук шейкера (CC-BY-NC) разрешён владельцем проекта явно.
+    if rel not in ALLOWED_NC and ('-NC' in lic or '-ND' in lic or not lic.startswith(('CC0', 'CC-BY'))):
         skipped.append((rel, lic))
         if rel in existing and os.path.exists(DEST + rel):
             os.remove(DEST + rel)

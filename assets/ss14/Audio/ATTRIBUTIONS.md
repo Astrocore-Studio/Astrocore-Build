@@ -23,6 +23,7 @@
 | `Items/Toys/weh.ogg` | CC-BY-SA-3.0 (записи нет, лицензия Resources по умолчанию) | авторство не указано |
 | `Items/bikehorn.ogg` | CC-BY-SA-3.0 (записи нет, лицензия Resources по умолчанию) | авторство не указано |
 | `Items/hypospray.ogg` | CC-BY-SA-3.0 (записи нет, лицензия Resources по умолчанию) | авторство не указано |
+| `Items/soda_shake.ogg` | CC-BY-NC-4.0 | User mcmast on freesound.org. Converted and edited by Tayrtahn |
 | `Machines/airlock_deny.ogg` | CC-BY-SA-3.0 | /tg/station |
 | `Machines/buzz-sigh.ogg` | CC-BY-SA-3.0 | Taken from TG station. |
 | `Machines/buzz_loop.ogg` | CC0-1.0 | Created by Duasun, converted to OGG by EmoGarbage404 (github). |
