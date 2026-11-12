@@ -347,3 +347,112 @@ fn saltern_power_report() {
     let supply: f32 = b.state.supplies.iter().map(|s| s.current_supply).sum();
     println!("выдача источников {supply:.0} Вт");
 }
+
+/// Огнезапоры Saltern: сколько закрыто сразу и через минуту. `ASTRO_MAP_FILE=/tmp/saltern.ron cargo test
+/// -p round saltern_firelocks -- --ignored --nocapture`.
+#[test]
+#[ignore]
+fn saltern_firelocks() {
+    let Some(path) = std::env::var_os("ASTRO_MAP_FILE") else {
+        return;
+    };
+    polygon::use_map_file(std::path::Path::new(&path));
+    let round = Round::start(1, &content(), &RoundConfig::default()).unwrap();
+    let ids: Vec<_> = round
+        .server
+        .world()
+        .elements()
+        .filter(|e| e.material.as_str().ends_with("firelock"))
+        .map(|e| e.id)
+        .collect();
+    let mut h = Harness::with_server(round.server);
+    let _a = h.join("a");
+    for secs in [1, 5, 30, 90] {
+        h.ticks(20 * secs);
+        let closed = ids
+            .iter()
+            .filter(|i| !h.server.doors().is_open(**i))
+            .count();
+        println!(
+            "через {secs} с: огнезапоров {}, закрыто {closed}",
+            ids.len()
+        );
+    }
+}
+
+/// Пролом в стене: сигнализации рядом должны закрыть огнезапоры. Запуск как у `saltern_firelocks`.
+#[test]
+#[ignore]
+fn saltern_breach_closes_firelocks() {
+    use astrocore_world::{AuthoredKind, Placement, StructureKind, WorldCommand};
+    let Some(path) = std::env::var_os("ASTRO_MAP_FILE") else {
+        return;
+    };
+    polygon::use_map_file(std::path::Path::new(&path));
+    let mut firelocks = Vec::new();
+    let round = Round::start_with(1, &content(), &RoundConfig::default(), |w| {
+        firelocks = w
+            .elements()
+            .filter(|e| e.material.as_str().ends_with("firelock"))
+            .map(|e| e.id)
+            .collect();
+        // Сигнализация, чьи связи касаются огнезапора.
+        let fire_cells: std::collections::BTreeSet<(i32, i32)> = w
+            .elements()
+            .filter(|e| e.material.as_str().ends_with("firelock"))
+            .filter_map(|e| match e.placement {
+                Placement::Edge(g) => Some(g),
+                _ => None,
+            })
+            .flat_map(|g| match g.dir {
+                astrocore_math::EdgeDir::AlongX => [(g.x, g.z - 1), (g.x, g.z)],
+                astrocore_math::EdgeDir::AlongZ => [(g.x - 1, g.z), (g.x, g.z)],
+            })
+            .collect();
+        let alarm = w
+            .authored()
+            .filter(|o| matches!(&o.kind, AuthoredKind::Placement { prototype } if prototype.as_str().ends_with("air_alarm")))
+            .find(|o| {
+                o.metadata.get("links").is_some_and(|l| {
+                    l.split(';').filter_map(|p| p.split_once(',')).any(|(x, z)| {
+                        matches!((x.parse(), z.parse()), (Ok(x), Ok(z)) if fire_cells.contains(&(x, z)))
+                    })
+                })
+            })
+            .expect("сигнализация с огнезапором")
+            .clone();
+        let cells: Vec<(i32, i32)> = alarm.metadata["links"]
+            .split(';')
+            .filter_map(|p| p.split_once(','))
+            .filter_map(|(x, z)| Some((x.parse().ok()?, z.parse().ok()?)))
+            .collect();
+        let walls: Vec<_> = w
+            .elements()
+            .filter(|e| matches!(e.kind, StructureKind::Wall))
+            .filter_map(|e| match e.placement {
+                Placement::Edge(g) => Some((e.id, g)),
+                _ => None,
+            })
+            .filter(|(_, g)| cells.iter().any(|c| (g.x - c.0).abs() <= 1 && (g.z - c.1).abs() <= 1))
+            .map(|(id, _)| id)
+            .collect();
+        println!("пролом: убрано стен {}", walls.len());
+        for id in walls {
+            let _ = w.apply(WorldCommand::RemoveElement { id });
+        }
+    })
+    .unwrap();
+    let mut h = Harness::with_server(round.server);
+    let _a = h.join("a");
+    for secs in [1, 10, 60] {
+        h.ticks(20 * secs);
+        let closed = firelocks
+            .iter()
+            .filter(|i| !h.server.doors().is_open(**i))
+            .count();
+        println!(
+            "через {secs} с: огнезапоров {}, закрыто {closed}",
+            firelocks.len()
+        );
+    }
+}

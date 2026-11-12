@@ -39,9 +39,20 @@ pub struct Round {
 impl Round {
     /// Начать раунд с номером `number` из содержимого в `content`.
     pub fn start(number: u32, content: &Path, config: &RoundConfig) -> Result<Self, RoundError> {
+        Self::start_with(number, content, config, |_| {})
+    }
+
+    /// То же, но мир можно изменить до старта (пролом в стене для проверок).
+    pub fn start_with(
+        number: u32,
+        content: &Path,
+        config: &RoundConfig,
+        edit: impl FnOnce(&mut astrocore_world::World),
+    ) -> Result<Self, RoundError> {
         let registry = Arc::new(polygon::load_registry(content)?);
         let mut world = polygon::build_world()?;
         polygon::place_items(&mut world, &registry)?;
+        edit(&mut world);
 
         let mut modules = ModuleHost::new();
         let module = gameplay::GameplayModule::new(registry)

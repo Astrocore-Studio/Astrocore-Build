@@ -508,6 +508,7 @@ pub fn import(
     // Огнезапоры стоят в проходах и перекрывают его вместе со стенами и соседними огнезапорами.
     let mut barrier = solid.clone();
     barrier.extend(fire_cells.iter().copied());
+    barrier.extend(doors.iter().copied());
     walk.extend(fire_cells.iter().copied());
     let all: Vec<((i32, i32), bool)> = doors
         .iter()
@@ -515,8 +516,12 @@ pub fn import(
         .chain(fire_cells.iter().map(|d| (*d, true)))
         .collect();
     for (d, fire) in all {
+        // Огнезапор на клетке двери: проход уже закрыт дверью.
+        if fire && doors.contains(&d) {
+            continue;
+        }
         // Ось, вдоль которой идёт стена: оба соседа на ней — стены; проход — поперёк.
-        let wall: &BTreeSet<(i32, i32)> = if fire { &barrier } else { &solid };
+        let wall: &BTreeSet<(i32, i32)> = &barrier;
         let along_x = wall.contains(&(d.0 - 1, d.1)) && wall.contains(&(d.0 + 1, d.1));
         let along_z = wall.contains(&(d.0, d.1 - 1)) && wall.contains(&(d.0, d.1 + 1));
         let candidates = if along_x && !along_z {

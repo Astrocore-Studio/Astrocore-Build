@@ -109,6 +109,8 @@ pub(crate) struct AlarmGroup {
     pub(crate) devices: Vec<ObjectId>,
     pub(crate) firelocks: Vec<ObjectId>,
     pub(crate) state: crate::monitor::AlarmState,
+    /// Состояние уже применено к огнезапорам (при старте они закрыты, в SS14 — открыты).
+    pub(crate) applied: bool,
 }
 
 /// Игровой модуль рук, инвентаря и хранилищ; логика следует Content.Shared SS14.
@@ -1784,6 +1786,18 @@ impl State {
             group.firelocks.dedup();
             groups.push(group);
         }
+        // Огнезапоры вне групп открыты (в SS14 они открыты, пока не сработала сигнализация).
+        let grouped: BTreeSet<ObjectId> = groups
+            .iter()
+            .flat_map(|g| g.firelocks.iter().copied())
+            .collect();
+        for ids in doors_at.values() {
+            for id in ids {
+                if !grouped.contains(id) && ctx.door_open(*id) == Some(false) {
+                    ctx.request_door(*id, DoorAction::Open, false);
+                }
+            }
+        }
         self.alarm_groups = groups;
     }
 
@@ -1818,7 +1832,16 @@ impl State {
                     || !self.power_gated.contains(id)
                     || powered.get(id).copied().unwrap_or(false);
                 if on {
-                    let air = self.atmos.air(*cell);
+                    // Настенный монитор стоит в клетке стены без воздуха: берём воздух соседней клетки.
+                    let mut air = self.atmos.air(*cell);
+                    if air.total_moles() <= 0.0 {
+                        for (dx, dz) in [(1, 0), (-1, 0), (0, 1), (0, -1)] {
+                            let next = self.atmos.air((cell.0 + dx, cell.1 + dz));
+                            if next.total_moles() > air.total_moles() {
+                                air = next;
+                            }
+                        }
+                    }
                     self.monitor_state.insert(*id, evaluate(&air));
                 }
             }
@@ -1833,10 +1856,11 @@ impl State {
                 })
                 .max()
                 .unwrap_or(AlarmState::Normal);
-            if state == g.state {
+            if state == g.state && g.applied {
                 continue;
             }
             g.state = state;
+            g.applied = true;
             for fl in &g.firelocks {
                 match state {
                     AlarmState::Danger => ctx.request_door(*fl, DoorAction::Close, false),
