@@ -197,6 +197,19 @@ pub fn load_doors(content: &Path) -> Result<Vec<DoorSource>, PolygonError> {
     ron::from_str(&text).map_err(|e| PolygonError::Ron(path, e.to_string()))
 }
 
+/// Список доступа считывателя прототипа из `content/door_access.ron`.
+#[derive(Debug, Clone, serde::Deserialize)]
+pub struct DoorAccess {
+    pub proto: String,
+    pub access: Vec<Vec<String>>,
+}
+
+pub fn load_door_access(content: &Path) -> Result<Vec<DoorAccess>, PolygonError> {
+    let path = content.join("door_access.ron");
+    let text = std::fs::read_to_string(&path).map_err(|e| PolygonError::Io(path.clone(), e))?;
+    ron::from_str(&text).map_err(|e| PolygonError::Ron(path, e.to_string()))
+}
+
 /// Спрайты предметов: у каждого прототипа с `Sprite` (набор и состояние) и `Item`.
 pub fn sprites_of(registry: &PrototypeRegistry) -> Result<Vec<SpriteSource>, PolygonError> {
     let mut out = Vec::new();

@@ -42,6 +42,8 @@ pub struct Materials {
     pub firelock: PrototypeId,
     /// Материал по имени плитки SS14 (`FloorSteel` → `ss14:tile_floorsteel`); неизвестные плитки — `floor`.
     pub tiles: BTreeMap<String, PrototypeId>,
+    /// Списки доступа считывателей по имени прототипа SS14 (`door_access.ron`).
+    pub door_access: BTreeMap<String, Vec<Vec<String>>>,
 }
 
 impl Default for Materials {
@@ -53,6 +55,7 @@ impl Default for Materials {
             door: id("ss14:airlock"),
             firelock: id("ss14:firelock"),
             tiles: BTreeMap::new(),
+            door_access: BTreeMap::new(),
         }
     }
 }
@@ -74,6 +77,8 @@ pub struct Report {
     pub items: usize,
     /// Трубы газовой сети (зоны `gas_pipe`).
     pub pipes: usize,
+    /// Двери с ограничением доступа (зоны `door_access`).
+    pub door_access: usize,
     /// Трубы диспозала (зоны `disposal_tube`).
     pub disposal_tubes: usize,
     /// Клетки с кабелями (зоны `power_cable`).
@@ -112,6 +117,29 @@ fn classify(proto: &str) -> Kind {
 }
 
 /// Список устройств сигнализации (`DeviceList.devices`): `uid` связанных сущностей.
+/// `AccessReader.access` самой сущности карты: списки уровней доступа.
+fn reader_access(entity: &Value) -> Option<Vec<Vec<String>>> {
+    let comp = entity
+        .get("components")
+        .and_then(Value::as_sequence)?
+        .iter()
+        .find(|c| c.get("type").and_then(Value::as_str) == Some("AccessReader"))?;
+    let lists = comp.get("access")?.as_sequence()?;
+    Some(
+        lists
+            .iter()
+            .filter_map(|l| {
+                Some(
+                    l.as_sequence()?
+                        .iter()
+                        .filter_map(|t| t.as_str().map(String::from))
+                        .collect(),
+                )
+            })
+            .collect(),
+    )
+}
+
 fn device_list(entity: &Value) -> Vec<i64> {
     let comps = entity.get("components").and_then(Value::as_sequence);
     let find = |name: &str| {
@@ -404,6 +432,8 @@ pub fn import(
         }
     }
     let mut fire_cells: BTreeSet<(i32, i32)> = BTreeSet::new();
+    let mut door_lists: BTreeMap<(i32, i32), Vec<Vec<String>>> = BTreeMap::new();
+    let mut edge_access: BTreeMap<GridEdge, Vec<Vec<String>>> = BTreeMap::new();
     let mut cables_seen: BTreeSet<((i32, i32), &str)> = BTreeSet::new();
     // Ящики мебели: клетка, материал, высота.
     let mut boxes: Vec<((i32, i32), &'static str, f32)> = Vec::new();
@@ -431,6 +461,12 @@ pub fn import(
                 }
                 Kind::Door => {
                     doors.insert(cell);
+                    // Доступ: свой `AccessReader` на карте или плата прототипа.
+                    let lists =
+                        reader_access(entity).or_else(|| mats.door_access.get(proto).cloned());
+                    if let Some(l) = lists.filter(|l| !l.is_empty()) {
+                        door_lists.insert(cell, l);
+                    }
                 }
                 Kind::Firelock => {
                     fire_cells.insert(cell);
@@ -606,6 +642,9 @@ pub fn import(
         match (edge, fire) {
             (Some(e), false) => {
                 door_edges.insert(e);
+                if let Some(l) = door_lists.get(&d) {
+                    edge_access.insert(e, l.clone());
+                }
             }
             (Some(e), true) if !door_edges.contains(&e) => {
                 fire_edges.insert(e);
@@ -691,6 +730,24 @@ pub fn import(
     }
     report.wall_edges = wall_edges.len();
     report.doors = door_edges.len();
+    for (e, lists) in &edge_access {
+        let text: Vec<String> = lists.iter().map(|l| l.join(",")).collect();
+        let dir = match e.dir {
+            astrocore_math::EdgeDir::AlongX => "X",
+            astrocore_math::EdgeDir::AlongZ => "Z",
+        };
+        zones.push(MapZone {
+            min: [e.x as f32 + 0.45, 0.0, e.z as f32 + 0.45],
+            max: [e.x as f32 + 0.55, 3.0, e.z as f32 + 0.55],
+            floor: 0,
+            metadata: [
+                ("door_edge".to_string(), format!("{},{},{dir}", e.x, e.z)),
+                ("door_access".to_string(), text.join(";")),
+            ]
+            .into(),
+        });
+        report.door_access += 1;
+    }
 
     let (sx, sz) = spawn.unwrap_or_else(|| {
         let c = walk.iter().next().copied().unwrap_or((0, 0));

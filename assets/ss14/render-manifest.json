@@ -586,6 +586,14 @@
         0.36000001430511475
       ]
     },
+    "ss14:atmos_idcard": {
+      "image": "Textures/Objects/Misc/id_cards.rsi/default.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
     "ss14:atmos_pda": {
       "image": "Textures/Objects/Devices/pda.rsi/pda.png",
       "layout": "flat",
@@ -676,6 +684,14 @@
     },
     "ss14:barber_scissors": {
       "image": "Textures/Objects/Tools/scissors.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:bartender_idcard": {
+      "image": "Textures/Objects/Misc/id_cards.rsi/default.png",
       "layout": "flat",
       "size": [
         0.36000001430511475,
@@ -1068,6 +1084,14 @@
     },
     "ss14:borg_module_fire_extinguisher": {
       "image": "Textures/Objects/Specific/Robotics/borgmodule.rsi/generic.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:botanist_idcard": {
+      "image": "Textures/Objects/Misc/id_cards.rsi/default.png",
       "layout": "flat",
       "size": [
         0.36000001430511475,
@@ -1570,6 +1594,14 @@
         0.48000001907348633
       ]
     },
+    "ss14:cargo_idcard": {
+      "image": "Textures/Objects/Misc/id_cards.rsi/default.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
     "ss14:cargo_pda": {
       "image": "Textures/Objects/Devices/pda.rsi/pda.png",
       "layout": "flat",
@@ -1588,6 +1620,14 @@
     },
     "ss14:cautery": {
       "image": "Textures/Objects/Specific/Medical/Surgery/cautery.rsi/cautery.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:ceidcard": {
+      "image": "Textures/Objects/Misc/id_cards.rsi/silver.png",
       "layout": "flat",
       "size": [
         0.36000001430511475,
@@ -1658,6 +1698,14 @@
         0.30000001192092896
       ]
     },
+    "ss14:chaplain_idcard": {
+      "image": "Textures/Objects/Misc/id_cards.rsi/default.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
     "ss14:chaplain_pda": {
       "image": "Textures/Objects/Devices/pda.rsi/pda.png",
       "layout": "flat",
@@ -1690,6 +1738,14 @@
         0.36000001430511475
       ]
     },
+    "ss14:chef_idcard": {
+      "image": "Textures/Objects/Misc/id_cards.rsi/default.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
     "ss14:chef_pda": {
       "image": "Textures/Objects/Devices/pda.rsi/pda.png",
       "layout": "flat",
@@ -1704,6 +1760,14 @@
       "size": [
         0.6000000238418579,
         0.6000000238418579
+      ]
+    },
+    "ss14:chemist_idcard": {
+      "image": "Textures/Objects/Misc/id_cards.rsi/default.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
       ]
     },
     "ss14:chemistry_bottle_epinephrine": {
@@ -6498,6 +6562,14 @@
         0.48000001907348633
       ]
     },
+    "ss14:clown_idcard": {
+      "image": "Textures/Objects/Misc/id_cards.rsi/default.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
     "ss14:clown_pda": {
       "image": "Textures/Objects/Devices/pda.rsi/pda.png",
       "layout": "flat",
@@ -6528,6 +6600,14 @@
       "size": [
         0.30000001192092896,
         0.30000001192092896
+      ]
+    },
+    "ss14:cmoidcard": {
+      "image": "Textures/Objects/Misc/id_cards.rsi/silver.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
       ]
     },
     "ss14:cmopda": {
@@ -7196,6 +7276,14 @@
     },
     "ss14:desk_bell": {
       "image": "Textures/Objects/Misc/desk_bell.rsi/icon-bell.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:detective_idcard": {
+      "image": "Textures/Objects/Misc/id_cards.rsi/default.png",
       "layout": "flat",
       "size": [
         0.36000001430511475,
@@ -9052,6 +9140,14 @@
     },
     "ss14:engineer_pda": {
       "image": "Textures/Objects/Devices/pda.rsi/pda.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:engineering_idcard": {
+      "image": "Textures/Objects/Misc/id_cards.rsi/default.png",
       "layout": "flat",
       "size": [
         0.36000001430511475,
@@ -11378,8 +11474,24 @@
         0.48000001907348633
       ]
     },
+    "ss14:ho_pidcard": {
+      "image": "Textures/Objects/Misc/id_cards.rsi/silver.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
     "ss14:ho_ppda": {
       "image": "Textures/Objects/Devices/pda.rsi/pda.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:ho_sidcard": {
+      "image": "Textures/Objects/Misc/id_cards.rsi/silver.png",
       "layout": "flat",
       "size": [
         0.36000001430511475,
@@ -11500,6 +11612,14 @@
     },
     "ss14:irish_bool_glass": {
       "image": "Textures/Objects/Consumable/Drinks/glass_clear.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:janitor_idcard": {
+      "image": "Textures/Objects/Misc/id_cards.rsi/default.png",
       "layout": "flat",
       "size": [
         0.36000001430511475,
@@ -11810,6 +11930,14 @@
         0.30000001192092896
       ]
     },
+    "ss14:librarian_idcard": {
+      "image": "Textures/Objects/Misc/id_cards.rsi/default.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
     "ss14:librarian_pda": {
       "image": "Textures/Objects/Devices/pda.rsi/pda.png",
       "layout": "flat",
@@ -12066,6 +12194,22 @@
         0.48000001907348633
       ]
     },
+    "ss14:medical_idcard": {
+      "image": "Textures/Objects/Misc/id_cards.rsi/default.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:medical_intern_idcard": {
+      "image": "Textures/Objects/Misc/id_cards.rsi/default.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
     "ss14:medical_intern_pda": {
       "image": "Textures/Objects/Devices/pda.rsi/pda.png",
       "layout": "flat",
@@ -12154,6 +12298,14 @@
         0.36000001430511475
       ]
     },
+    "ss14:mime_idcard": {
+      "image": "Textures/Objects/Misc/id_cards.rsi/default.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
     "ss14:mime_pda": {
       "image": "Textures/Objects/Devices/pda.rsi/pda.png",
       "layout": "flat",
@@ -12228,6 +12380,14 @@
     },
     "ss14:music_box_instrument": {
       "image": "Textures/Objects/Fun/Instruments/musicbox.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:musician_idcard": {
+      "image": "Textures/Objects/Misc/id_cards.rsi/default.png",
       "layout": "flat",
       "size": [
         0.36000001430511475,
@@ -12456,6 +12616,14 @@
       "size": [
         0.30000001192092896,
         0.30000001192092896
+      ]
+    },
+    "ss14:paramedic_idcard": {
+      "image": "Textures/Objects/Misc/id_cards.rsi/default.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
       ]
     },
     "ss14:paramedic_pda": {
@@ -13626,6 +13794,14 @@
         0.30000001192092896
       ]
     },
+    "ss14:quartermaster_idcard": {
+      "image": "Textures/Objects/Misc/id_cards.rsi/silver.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
     "ss14:quartermaster_pda": {
       "image": "Textures/Objects/Devices/pda.rsi/pda.png",
       "layout": "flat",
@@ -13668,6 +13844,14 @@
     },
     "ss14:rcdammo": {
       "image": "Textures/Objects/Tools/rcd.rsi/ammo.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:rdidcard": {
+      "image": "Textures/Objects/Misc/id_cards.rsi/silver.png",
       "layout": "flat",
       "size": [
         0.36000001430511475,
@@ -13762,6 +13946,14 @@
         0.36000001430511475
       ]
     },
+    "ss14:research_assistant_idcard": {
+      "image": "Textures/Objects/Misc/id_cards.rsi/default.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
     "ss14:research_assistant_pda": {
       "image": "Textures/Objects/Devices/pda.rsi/pda.png",
       "layout": "flat",
@@ -13772,6 +13964,14 @@
     },
     "ss14:research_disk5000": {
       "image": "Textures/Objects/Specific/Research/researchdisk.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:research_idcard": {
+      "image": "Textures/Objects/Misc/id_cards.rsi/default.png",
       "layout": "flat",
       "size": [
         0.36000001430511475,
@@ -13938,6 +14138,14 @@
         0.36000001430511475
       ]
     },
+    "ss14:salvage_idcard": {
+      "image": "Textures/Objects/Misc/id_cards.rsi/default.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
     "ss14:salvage_magnet_machine_circuitboard": {
       "image": "Textures/Objects/Misc/module.rsi/supply.png",
       "layout": "flat",
@@ -14050,8 +14258,24 @@
         0.48000001907348633
       ]
     },
+    "ss14:security_cadet_idcard": {
+      "image": "Textures/Objects/Misc/id_cards.rsi/default.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
     "ss14:security_cadet_pda": {
       "image": "Textures/Objects/Devices/pda.rsi/pda.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:security_idcard": {
+      "image": "Textures/Objects/Misc/id_cards.rsi/default.png",
       "layout": "flat",
       "size": [
         0.36000001430511475,
@@ -14072,6 +14296,14 @@
       "size": [
         0.30000001192092896,
         0.30000001192092896
+      ]
+    },
+    "ss14:service_worker_idcard": {
+      "image": "Textures/Objects/Misc/id_cards.rsi/default.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
       ]
     },
     "ss14:service_worker_pda": {
@@ -14532,6 +14764,14 @@
     },
     "ss14:tear_gas_grenade": {
       "image": "Textures/Objects/Weapons/Grenades/tear_gas.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:technical_assistant_idcard": {
+      "image": "Textures/Objects/Misc/id_cards.rsi/default.png",
       "layout": "flat",
       "size": [
         0.36000001430511475,
@@ -16008,6 +16248,14 @@
       "size": [
         0.48000001907348633,
         0.48000001907348633
+      ]
+    },
+    "ss14:warden_idcard": {
+      "image": "Textures/Objects/Misc/id_cards.rsi/default.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
       ]
     },
     "ss14:warden_pda": {

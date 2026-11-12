@@ -91,6 +91,10 @@ const PROTOS: &str = r#"[
     (id: "JobFree", components: {
         "Job": (title: "Free", start: -1, max: -1, weight: 0, equipment: {}, inhand: [], storage: {}),
     }),
+    (id: "VendLocked", components: {
+        "VendingMachine": (pack: "P", initialStockQuality: 1.0, ejectDelay: 1.2, stock: (Crowbar: 2)),
+        "AccessReader": (access: [["Security"]]),
+    }),
     (id: "Belt", components: {
         "Conveyor": (speed: 2.0),
     }),
@@ -2123,5 +2127,24 @@ mod disposal_tests {
         command(&mut h, b, crate::CMD_JOB, b"Tester".to_vec());
         h.ticks(10);
         assert_eq!(jobs_view(&h, b).unwrap().current.as_deref(), Some("Free"));
+    }
+
+    #[test]
+    fn a_vending_machine_with_a_reader_refuses_without_access() {
+        let mut h = harness();
+        let a = h.join("a");
+        h.ticks(5);
+        spawn(
+            &mut h,
+            item_at(960, "ss14:vend_locked", Vec3::new(3.0, 0.9, 3.0)),
+        );
+        h.ticks(5);
+        command(&mut h, a, CMD_INTERACT, interact_data(oid(960)));
+        h.ticks(5);
+        command(&mut h, a, crate::CMD_VEND, b"Crowbar".to_vec());
+        h.ticks(5);
+        let v = view(&h, a).unwrap();
+        assert!(v.denying && !v.ejecting, "{v:?}");
+        assert_eq!(v.items[0].amount, 2);
     }
 }

@@ -55,12 +55,16 @@ impl InteractionHandler for DoorActivate {
         &mut self,
         state: &mut State,
         ctx: &mut HookContext<'_>,
-        _user: NetworkEntityId,
+        user: NetworkEntityId,
         target: &Target,
     ) -> bool {
         let Target::Door { element, .. } = target else {
             return false;
         };
+        // Считыватель не пускает без нужного доступа.
+        if !state.door_allowed(ctx, user, *element) {
+            return true;
+        }
         // Огнезапор держит давление или жар: рукой не открыть (`BeforeDoorOpenedEvent`).
         if state.firelock_hold.get(element).is_some_and(|h| h.0 || h.1) {
             return true;

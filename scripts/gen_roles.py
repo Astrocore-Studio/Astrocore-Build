@@ -116,12 +116,16 @@ def main():
             for k, v in s.items():
                 storage.setdefault(k, []).extend(v)
         title = names.get(job.get('name', ''), jid)
+        access = list(job.get('access') or [])
+        for g in job.get('accessGroups') or []:
+            access += (P.get('accessGroup', g) or {}).get('tags', [])
+        access = sorted(set(access))
         eqs = ', '.join('%s: %s' % (ron_str(k), ron_str(v)) for k, v in sorted(eq.items()))
         ihs = ', '.join(ron_str(x) for x in inhand)
         sts = ', '.join('%s: [%s]' % (ron_str(k), ', '.join(ron_str(x) for x in v)) for k, v in sorted(storage.items()))
         lines.append(
-            '    (id: "Job%s", name: Some(%s), components: {"Job": (title: %s, start: %d, max: %d, weight: %d, equipment: {%s}, inhand: [%s], storage: {%s})}),'
-            % (jid, ron_str(title), ron_str(title), start, mx, int(weights.get(jid, 0)), eqs, ihs, sts)
+            '    (id: "Job%s", name: Some(%s), components: {"Job": (title: %s, start: %d, max: %d, weight: %d, access: [%s], equipment: {%s}, inhand: [%s], storage: {%s})}),'
+            % (jid, ron_str(title), ron_str(title), start, mx, int(weights.get(jid, 0)), ', '.join(ron_str(a) for a in access), eqs, ihs, sts)
         )
         n += 1
     lines.append(']')

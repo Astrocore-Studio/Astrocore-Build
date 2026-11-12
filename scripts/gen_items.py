@@ -42,6 +42,9 @@ def seeds():
 
 def fill_ids(comps):
     ids = []
+    pda = comps.get('Pda', {}).get('id')
+    if isinstance(pda, str):
+        ids.append(pda)
     for c in comps.get('StorageFill', {}).get('contents') or []:
         if isinstance(c, dict) and c.get('id'):
             ids.append(c['id'])
@@ -102,6 +105,13 @@ def convert(i):
         grid = ', '.join(q(g) for g in st['grid'])
         ms = st.get('maxItemSize')
         out.append('"Storage": (grid: [%s]%s)' % (grid, ', maxItemSize: %s' % q(ms) if isinstance(ms, str) else ''))
+    pda = comps.get('Pda', {}).get('id')
+    if isinstance(pda, str):
+        out.append('"Pda": (card: %s)' % q(pda))
+    if 'IdCard' in comps:
+        tags = comps.get('Access', {}).get('tags') or []
+        job = comps.get('PresetIdCard', {}).get('job')
+        out.append('"IdCard": (access: [%s]%s)' % (', '.join(q(t) for t in tags), ', job: %s' % q(job) if isinstance(job, str) else ''))
     fill = comps.get('StorageFill', {}).get('contents') or []
     ents = []
     for c in fill:

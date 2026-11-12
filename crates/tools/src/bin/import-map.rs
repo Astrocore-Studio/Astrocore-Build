@@ -29,6 +29,9 @@ fn main() {
             materials.tiles.insert(t.tile, id);
         }
     }
+    for a in polygon::load_door_access(&polygon::content_dir()).unwrap_or_default() {
+        materials.door_access.insert(a.proto, a.access);
+    }
     match tools::import_map::import(&yaml, &name, &known, &materials) {
         Ok((map, r)) => {
             if let Err(e) = map.save(Path::new(&args[1])) {
@@ -36,7 +39,7 @@ fn main() {
                 std::process::exit(1);
             }
             println!(
-                "карта «{name}» → {}\n  пол: {} клеток, стен-клеток: {} (рёбер {}), дверей: {} (не поставлено {}), огнезапоров: {} (не поставлено {}), сигнализаций со связями: {},\n  спавнов: {}, предметов: {}, труб: {}, труб диспозала: {}, клеток с кабелями: {}, мебели-ящиков: {}, стульев: {}, пропущено сущностей: {}",
+                "карта «{name}» → {}\n  пол: {} клеток, стен-клеток: {} (рёбер {}), дверей: {} (не поставлено {}), огнезапоров: {} (не поставлено {}), сигнализаций со связями: {},\n  спавнов: {}, предметов: {}, труб: {}, труб диспозала: {}, дверей с доступом: {}, клеток с кабелями: {}, мебели-ящиков: {}, стульев: {}, пропущено сущностей: {}",
                 args[1],
                 r.floor_tiles,
                 r.wall_cells,
@@ -50,6 +53,7 @@ fn main() {
                 r.items,
                 r.pipes,
                 r.disposal_tubes,
+                r.door_access,
                 r.cables,
                 r.furniture,
                 r.chairs,

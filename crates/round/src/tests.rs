@@ -122,6 +122,56 @@ mod doors {
         (h, a, b)
     }
 
+    /// Закрыть дверь на доступ `Engineering`: зона карты с ребром двери.
+    fn restrict(h: &mut Harness, door: ObjectId) {
+        use astrocore_world::{AuthoredKind, AuthoredObject, FloorId, Placement, WorldCommand};
+        let e = h.server.world().element(door).unwrap().clone();
+        let Placement::Edge(g) = e.placement else {
+            panic!("дверь на ребре");
+        };
+        let dir = if matches!(g.dir, astrocore_math::EdgeDir::AlongX) {
+            "X"
+        } else {
+            "Z"
+        };
+        let mut z = AuthoredObject::new(
+            ObjectId::from_u128(0xACCE_5500),
+            AuthoredKind::Zone,
+            FloorId(0),
+            astrocore_math::glam::Vec3::new(0.0, 0.0, 0.0),
+            astrocore_math::glam::Vec3::new(0.1, 0.1, 0.1),
+        );
+        z.metadata
+            .insert("door_edge".into(), format!("{},{},{dir}", g.x, g.z));
+        z.metadata
+            .insert("door_access".into(), "Engineering".into());
+        let outs = h
+            .server
+            .apply_world_command(WorldCommand::PlaceAuthored(z))
+            .unwrap();
+        h.deliver(outs);
+    }
+
+    #[test]
+    fn a_door_with_a_reader_opens_only_for_a_card_with_the_access() {
+        let (mut h, a, _b) = setup();
+        let door = door_element(&h);
+        restrict(&mut h, door);
+        h.ticks(5);
+        // Без должности — без доступа.
+        interact(&mut h, a, door);
+        assert!(!h.server.doors().is_open(door));
+        // Инженер получает КПК с картой `Engineering`.
+        let p = h
+            .client(a)
+            .command_packet(gameplay::CMD_JOB, b"StationEngineer".to_vec())
+            .unwrap();
+        h.send(a, p);
+        h.ticks(10);
+        interact(&mut h, a, door);
+        assert!(h.server.doors().is_open(door));
+    }
+
     #[test]
     fn a_hand_opens_and_closes_the_door_for_everyone() {
         let (mut h, a, b) = setup();

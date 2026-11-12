@@ -89,6 +89,11 @@ impl Machine {
         self.deny_end.is_some()
     }
 
+    /// Отказ без заказа (нет доступа).
+    pub fn refuse(&mut self, now: f32) {
+        self.deny(now);
+    }
+
     fn deny(&mut self, now: f32) {
         if self.deny_end.is_none() {
             self.deny_end = Some(now + DENY_DELAY_S);

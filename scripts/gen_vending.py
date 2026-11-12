@@ -55,6 +55,10 @@ for i, e in sorted(ents.items()):
     if not rsi or not state:
         continue
     name = next((x['name'] for x in chain(i) if x.get('name')), 'vending machine').replace('"', '')
+    ar = comp(i, 'AccessReader').get('access') or []
+    access = ''
+    if ar:
+        access = ', "AccessReader": (access: [%s])' % ', '.join('[%s]' % ', '.join('"%s"' % t for t in s) for s in ar)
     delay = comp(i, 'VendingMachineEject').get('ejectDelay', 1.2)
     quality = v.get('initialStockQuality', 1.0)
     stock = ', '.join(f'{k}: {int(a)}' for k, a in sorted(packs[pack].items()))
@@ -62,7 +66,7 @@ for i, e in sorted(ents.items()):
         f'    (id: "{i}", name: Some("{name}"), components: {{'
         f'"Sprite": (sprite: "{rsi}", state: "{state}"), '
         f'"VendingMachine": (pack: "{pack}", initialStockQuality: {float(quality)}, ejectDelay: {float(delay)}, stock: ({stock})), '
-        f'"ApcPowerReceiver": (load: 200.0)}}),'
+        f'"ApcPowerReceiver": (load: 200.0){access}}}),'
     )
     n += 1
 lines.append(']')

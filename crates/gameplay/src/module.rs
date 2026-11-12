@@ -102,6 +102,13 @@ impl Actor {
     }
 }
 
+/// Удостоверение по прототипу: уровни доступа и должность, по которой они выдаются.
+#[derive(Debug, Clone)]
+pub(crate) struct IdSpec {
+    pub(crate) access: Vec<String>,
+    pub(crate) job: Option<String>,
+}
+
 /// Торговый автомат по прототипу.
 #[derive(Debug, Clone)]
 pub(crate) struct VendSpec {
@@ -109,6 +116,7 @@ pub(crate) struct VendSpec {
     pub(crate) stock: Vec<(String, PrototypeId, u32)>,
     pub(crate) quality: f32,
     pub(crate) eject_delay: f32,
+    pub(crate) access: Vec<Vec<String>>,
 }
 
 /// Ёмкость диспозала в мире: состояние, клетка и точка.
@@ -209,6 +217,10 @@ pub struct State {
     pub(crate) alarm_sig: Vec<(ObjectId, atmos::Cell, u32)>,
     pub(crate) monitor_state: BTreeMap<ObjectId, crate::monitor::AlarmState>,
     pub(crate) alarm_timer: f32,
+    /// Удостоверения: уровни доступа по прототипу, карта в КПК, выданные при выборе должности.
+    pub(crate) id_specs: BTreeMap<PrototypeId, IdSpec>,
+    pub(crate) pda_cards: BTreeMap<PrototypeId, String>,
+    pub(crate) card_access: BTreeMap<ObjectId, BTreeSet<String>>,
     /// Должности карты, занятость мест, должность каждого игрока, заполнение контейнеров.
     pub(crate) jobs: Vec<crate::jobs::JobSpec>,
     pub(crate) job_taken: BTreeMap<String, u32>,
@@ -271,6 +283,8 @@ impl State {
             .map(|(id, n)| (n.clone(), id.clone()))
             .collect();
         let mut vending_specs = BTreeMap::new();
+        let mut id_specs = BTreeMap::new();
+        let mut pda_cards = BTreeMap::new();
         let mut jobs = Vec::new();
         let mut fills = BTreeMap::new();
         let mut spawner_specs = BTreeMap::new();
@@ -321,6 +335,33 @@ impl State {
                 {
                     heat_protection.insert(id.clone(), c as f32);
                 }
+                if let Some(c) = r.component("IdCard") {
+                    id_specs.insert(
+                        id.clone(),
+                        IdSpec {
+                            access: c
+                                .get("access")
+                                .and_then(prototypes::Data::as_list)
+                                .map(|l| {
+                                    l.iter()
+                                        .filter_map(|x| x.as_str().map(String::from))
+                                        .collect()
+                                })
+                                .unwrap_or_default(),
+                            job: c
+                                .get("job")
+                                .and_then(prototypes::Data::as_str)
+                                .map(String::from),
+                        },
+                    );
+                }
+                if let Some(card) = r
+                    .component("Pda")
+                    .and_then(|c| c.get("card"))
+                    .and_then(prototypes::Data::as_str)
+                {
+                    pda_cards.insert(id.clone(), card.to_string());
+                }
                 if let Some(j) = r
                     .component("Job")
                     .and_then(|c| crate::jobs::JobSpec::parse(&name, c))
@@ -370,6 +411,10 @@ impl State {
                                 .get("initialStockQuality")
                                 .and_then(prototypes::Data::as_f64)
                                 .unwrap_or(1.0) as f32,
+                            access: r
+                                .component("AccessReader")
+                                .map(access_lists)
+                                .unwrap_or_default(),
                             eject_delay: c
                                 .get("ejectDelay")
                                 .and_then(prototypes::Data::as_f64)
@@ -509,6 +554,9 @@ impl State {
             alarm_sig: Vec::new(),
             monitor_state: BTreeMap::new(),
             alarm_timer: 0.0,
+            id_specs,
+            pda_cards,
+            card_access: BTreeMap::new(),
             jobs: {
                 let mut j = jobs;
                 j.sort_by(|a, b| b.weight.cmp(&a.weight).then(a.id.cmp(&b.id)));
@@ -2068,6 +2116,83 @@ impl State {
         }
     }
 
+    /// Уровни доступа удостоверения или КПК (`FindAccessTagsItem`): выданные при выборе должности,
+    /// иначе по прототипу карты (`Access.tags` и должность `PresetIdCard`).
+    fn item_access(&self, item: &HeldItem) -> BTreeSet<String> {
+        if let Some(t) = self.card_access.get(&item.id) {
+            return t.clone();
+        }
+        let card = self
+            .pda_cards
+            .get(&item.prototype)
+            .and_then(|n| self.proto_by_name.get(n))
+            .unwrap_or(&item.prototype);
+        let Some(spec) = self.id_specs.get(card) else {
+            return BTreeSet::new();
+        };
+        let mut tags: BTreeSet<String> = spec.access.iter().cloned().collect();
+        if let Some(job) = spec
+            .job
+            .as_deref()
+            .and_then(|j| self.jobs.iter().find(|x| x.id == j))
+        {
+            tags.extend(job.access.iter().cloned());
+        }
+        tags
+    }
+
+    /// Всё, что даёт доступ персонажу: удостоверения и КПК в руках и на теле.
+    pub(crate) fn user_access(&self, actor: NetworkEntityId) -> BTreeSet<String> {
+        let Some(a) = self.actors.get(&actor) else {
+            return BTreeSet::new();
+        };
+        a.hands
+            .held()
+            .chain(a.inventory.worn())
+            .flat_map(|i| self.item_access(i))
+            .collect()
+    }
+
+    /// Пускает ли считыватель: пустой список — всех, иначе нужен хотя бы один список целиком.
+    pub(crate) fn access_ok(lists: &[Vec<String>], tags: &BTreeSet<String>) -> bool {
+        lists.is_empty() || lists.iter().any(|l| l.iter().all(|t| tags.contains(t)))
+    }
+
+    /// Дверь открывается этим персонажем? Ограничения берутся из зон карты `door_access`.
+    pub(crate) fn door_allowed(
+        &self,
+        ctx: &HookContext<'_>,
+        actor: NetworkEntityId,
+        element: ObjectId,
+    ) -> bool {
+        let Some(e) = ctx.world.element(element) else {
+            return true;
+        };
+        let Placement::Edge(g) = e.placement else {
+            return true;
+        };
+        let key = format!(
+            "{},{},{}",
+            g.x,
+            g.z,
+            if matches!(g.dir, astrocore_math::EdgeDir::AlongX) {
+                "X"
+            } else {
+                "Z"
+            }
+        );
+        let Some(lists) = ctx.world.authored().find_map(|o| {
+            (o.metadata.get("door_edge") == Some(&key)).then(|| o.metadata.get("door_access"))?
+        }) else {
+            return true;
+        };
+        let lists: Vec<Vec<String>> = lists
+            .split(';')
+            .map(|l| l.split(',').map(String::from).collect())
+            .collect();
+        Self::access_ok(&lists, &self.user_access(actor))
+    }
+
     /// Создать предмет по имени прототипа SS14; контейнеры наполняются (`StorageFill`).
     pub(crate) fn create_item(&mut self, name: &str) -> Option<HeldItem> {
         let proto = self.proto_by_name.get(name)?.clone();
@@ -2127,6 +2252,11 @@ impl State {
             if let Some(item) = self.create_item(name) {
                 self.actor(actor).inventory.equip_forced(&slot.name, item);
             }
+        }
+        // Удостоверение в слоте `id` получает доступ должности (`SetAccessToJob`).
+        if let Some(card) = self.actors.get(&actor).and_then(|a| a.inventory.get("id")) {
+            self.card_access
+                .insert(card.id, spec.access.iter().cloned().collect());
         }
         for name in &spec.inhand {
             if let Some(item) = self.create_item(name)
@@ -2291,9 +2421,21 @@ impl State {
         };
         let now = self.clock;
         let powered = !self.power_required || self.powered_map().get(&id).copied().unwrap_or(false);
-        let _ = ctx;
+        // Доступ к автомату (`IsAuthorized`): без нужного уровня — отказ.
+        let allowed = ctx
+            .world
+            .authored_object(id)
+            .and_then(|o| match &o.kind {
+                AuthoredKind::Placement { prototype } => self.vending_specs.get(prototype),
+                _ => None,
+            })
+            .is_none_or(|s| Self::access_ok(&s.access, &self.user_access(user)));
         if let Some(machine) = self.vending.get_mut(&id) {
-            let _ = machine.order(now, item, powered);
+            if allowed {
+                let _ = machine.order(now, item, powered);
+            } else {
+                machine.refuse(now);
+            }
         }
     }
 
@@ -3248,6 +3390,25 @@ fn vitals_differ(a: &Vitals, b: &Vitals) -> bool {
 }
 
 /// Этаж, в который попадает высота `y` (ступни стоят на нижней границе).
+/// `AccessReader.access`: списки уровней доступа.
+fn access_lists(c: &prototypes::Data) -> Vec<Vec<String>> {
+    c.get("access")
+        .and_then(prototypes::Data::as_list)
+        .map(|ls| {
+            ls.iter()
+                .filter_map(|l| {
+                    Some(
+                        l.as_list()?
+                            .iter()
+                            .filter_map(|t| t.as_str().map(String::from))
+                            .collect(),
+                    )
+                })
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
 fn floor_at(ctx: &HookContext<'_>, y: f32) -> Option<FloorId> {
     ctx.world
         .floors()
