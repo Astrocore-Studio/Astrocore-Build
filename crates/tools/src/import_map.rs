@@ -531,7 +531,7 @@ pub fn import(
                 half_mm: [490, (h * 1000.0) as u32, 490],
             }),
             &material,
-            0.0,
+            0.1,
         ));
         report.furniture += 1;
     }
