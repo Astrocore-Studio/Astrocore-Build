@@ -48,8 +48,344 @@
     }
   },
   "materials": {
+    "ss14:bookshelf": {
+      "image": "Textures/Structures/Furniture/bookshelf.rsi/base.png"
+    },
     "ss14:floor_dark": {
       "image": "Textures/Tiles/Basic/Dark/dark.png"
+    },
+    "ss14:rack": {
+      "image": "Textures/Structures/Furniture/furniture.rsi/rack.png"
+    },
+    "ss14:table_generic": {
+      "image": "Textures/Structures/Furniture/Tables/generic.rsi/full.png"
+    },
+    "ss14:table_glass": {
+      "image": "Textures/Structures/Furniture/Tables/glass.rsi/full.png"
+    },
+    "ss14:table_reinforced": {
+      "image": "Textures/Structures/Furniture/Tables/reinforced.rsi/full.png"
+    },
+    "ss14:table_wood": {
+      "image": "Textures/Structures/Furniture/Tables/wood.rsi/full.png"
+    },
+    "ss14:tile_floorarcadeblue": {
+      "image": "Textures/Tiles/arcadeblue.png"
+    },
+    "ss14:tile_floorarcadered": {
+      "image": "Textures/Tiles/arcadered.png"
+    },
+    "ss14:tile_floorasteroidironsandborderless": {
+      "image": "Textures/Tiles/Ironsand/ironsand.png"
+    },
+    "ss14:tile_floorasteroidsand": {
+      "image": "Textures/Tiles/Asteroid/asteroid.png"
+    },
+    "ss14:tile_floorasteroidtile": {
+      "image": "Textures/Tiles/Asteroid/asteroid-tile.png"
+    },
+    "ss14:tile_floorastroice": {
+      "image": "Textures/Tiles/Ice/ice.png"
+    },
+    "ss14:tile_floorbar": {
+      "image": "Textures/Tiles/Checker/checker-bar.png"
+    },
+    "ss14:tile_floorbasalt": {
+      "image": "Textures/Tiles/Cave/cave.png"
+    },
+    "ss14:tile_floorblue": {
+      "image": "Textures/Tiles/blue.png"
+    },
+    "ss14:tile_floorbluecircuit": {
+      "image": "Textures/Tiles/Circuit/circuit-blue.png"
+    },
+    "ss14:tile_floorboxing": {
+      "image": "Textures/Tiles/boxing.png"
+    },
+    "ss14:tile_floorbrokenwood": {
+      "image": "Textures/Tiles/Wood/wood-broken.png"
+    },
+    "ss14:tile_floorcarpetclown": {
+      "image": "Textures/Tiles/carpetclown.png"
+    },
+    "ss14:tile_floorcarpetoffice": {
+      "image": "Textures/Tiles/carpetoffice.png"
+    },
+    "ss14:tile_floorcave": {
+      "image": "Textures/Tiles/Cave/cave.png"
+    },
+    "ss14:tile_floorchromite": {
+      "image": "Textures/Tiles/Chromite/chromite.png"
+    },
+    "ss14:tile_floorclown": {
+      "image": "Textures/Tiles/Checker/checker-clown.png"
+    },
+    "ss14:tile_floorconcretemono": {
+      "image": "Textures/Tiles/Concrete/concrete-mono.png"
+    },
+    "ss14:tile_floorconcretesmooth": {
+      "image": "Textures/Tiles/Concrete/concrete-smooth.png"
+    },
+    "ss14:tile_floordark": {
+      "image": "Textures/Tiles/Basic/Dark/dark.png"
+    },
+    "ss14:tile_floordarkherringbone": {
+      "image": "Textures/Tiles/Basic/Dark/dark-herringbone.png"
+    },
+    "ss14:tile_floordarkhorizontalslatsbordered": {
+      "image": "Textures/Tiles/Basic/Dark/dark-horizontal-slats.png"
+    },
+    "ss14:tile_floordarkmarble": {
+      "image": "Textures/Tiles/Marble/dark-marble.png"
+    },
+    "ss14:tile_floordarkmarblemono": {
+      "image": "Textures/Tiles/Marble/dark-marble-mono.png"
+    },
+    "ss14:tile_floordarkmini": {
+      "image": "Textures/Tiles/Basic/Dark/dark-mini.png"
+    },
+    "ss14:tile_floordarkmono": {
+      "image": "Textures/Tiles/Basic/Dark/dark-mono.png"
+    },
+    "ss14:tile_floordarkpavement": {
+      "image": "Textures/Tiles/Basic/Dark/dark-pavement.png"
+    },
+    "ss14:tile_floordarkpavementvertical": {
+      "image": "Textures/Tiles/Basic/Dark/dark-pavement-vertical.png"
+    },
+    "ss14:tile_floordarkplastic": {
+      "image": "Textures/Tiles/Basic/Dark/dark-plastic.png"
+    },
+    "ss14:tile_floordarkverticalslatsbordered": {
+      "image": "Textures/Tiles/Basic/Dark/dark-vertical-slats.png"
+    },
+    "ss14:tile_floordesertastrosand": {
+      "image": "Textures/Tiles/Desert/desert.png"
+    },
+    "ss14:tile_floordirt": {
+      "image": "Textures/Tiles/Dirt/dirt.png"
+    },
+    "ss14:tile_floorexoborg": {
+      "image": "Textures/Tiles/Exo/exo-borg.png"
+    },
+    "ss14:tile_floorexocornerne": {
+      "image": "Textures/Tiles/Exo/exo-NE.png"
+    },
+    "ss14:tile_floorexocornernw": {
+      "image": "Textures/Tiles/Exo/exo-NW.png"
+    },
+    "ss14:tile_floorexocornerse": {
+      "image": "Textures/Tiles/Exo/exo-SE.png"
+    },
+    "ss14:tile_floorexocornersw": {
+      "image": "Textures/Tiles/Exo/exo-SW.png"
+    },
+    "ss14:tile_floorexohorizontal": {
+      "image": "Textures/Tiles/Exo/exo-horizontal.png"
+    },
+    "ss14:tile_floorexohull": {
+      "image": "Textures/Tiles/Exo/exo-hull.png"
+    },
+    "ss14:tile_floorexotechmaint": {
+      "image": "Textures/Tiles/Exo/exo-maint.png"
+    },
+    "ss14:tile_floorexovertical": {
+      "image": "Textures/Tiles/Exo/exo-vertical.png"
+    },
+    "ss14:tile_floorflesh": {
+      "image": "Textures/Tiles/meat.png"
+    },
+    "ss14:tile_floorfreezer": {
+      "image": "Textures/Tiles/freezer.png"
+    },
+    "ss14:tile_floorglassplasma": {
+      "image": "Textures/Tiles/Glass/glass-plasma.png"
+    },
+    "ss14:tile_floorglassplastitanium": {
+      "image": "Textures/Tiles/Glass/glass-plastitanium.png"
+    },
+    "ss14:tile_floorglassuranium": {
+      "image": "Textures/Tiles/Glass/glass-uranium.png"
+    },
+    "ss14:tile_floorgold": {
+      "image": "Textures/Tiles/gold.png"
+    },
+    "ss14:tile_floorgrass": {
+      "image": "Textures/Tiles/Grass/grass.png"
+    },
+    "ss14:tile_floorgrassdark": {
+      "image": "Textures/Tiles/GrassDark/grass.png"
+    },
+    "ss14:tile_floorgrassjungle": {
+      "image": "Textures/Tiles/GrassJungle/grass.png"
+    },
+    "ss14:tile_floorgym": {
+      "image": "Textures/Tiles/gym.png"
+    },
+    "ss14:tile_floorhull": {
+      "image": "Textures/Tiles/hull.png"
+    },
+    "ss14:tile_floorhullreinforced": {
+      "image": "Textures/Tiles/debug-indestructible.png"
+    },
+    "ss14:tile_floorkitchen": {
+      "image": "Textures/Tiles/Checker/checker-kitchen.png"
+    },
+    "ss14:tile_floorlaundry": {
+      "image": "Textures/Tiles/Checker/checker-laundry.png"
+    },
+    "ss14:tile_floorlino": {
+      "image": "Textures/Tiles/lino.png"
+    },
+    "ss14:tile_floormetaldiamond": {
+      "image": "Textures/Tiles/metaldiamond.png"
+    },
+    "ss14:tile_floormetalfoam": {
+      "image": "Textures/Tiles/foammetal.png"
+    },
+    "ss14:tile_floormime": {
+      "image": "Textures/Tiles/Checker/checker-mime.png"
+    },
+    "ss14:tile_floorplastic": {
+      "image": "Textures/Tiles/Basic/Gray/gray-plastic.png"
+    },
+    "ss14:tile_floorredcircuit": {
+      "image": "Textures/Tiles/Circuit/circuit-red.png"
+    },
+    "ss14:tile_floorreinforced": {
+      "image": "Textures/Tiles/reinforced.png"
+    },
+    "ss14:tile_floorreinforcedhardened": {
+      "image": "Textures/Tiles/super_reinforced.png"
+    },
+    "ss14:tile_floorrglass": {
+      "image": "Textures/Tiles/Glass/glass-reinf.png"
+    },
+    "ss14:tile_floorshuttleblack": {
+      "image": "Textures/Tiles/Shuttle/shuttle-black.png"
+    },
+    "ss14:tile_floorshuttleblue": {
+      "image": "Textures/Tiles/Shuttle/shuttle-blue.png"
+    },
+    "ss14:tile_floorshuttlegrey": {
+      "image": "Textures/Tiles/Shuttle/shuttle-gray.png"
+    },
+    "ss14:tile_floorshuttleorange": {
+      "image": "Textures/Tiles/Shuttle/shuttle-orange.png"
+    },
+    "ss14:tile_floorshuttlepurple": {
+      "image": "Textures/Tiles/Shuttle/shuttle-purple.png"
+    },
+    "ss14:tile_floorshuttlered": {
+      "image": "Textures/Tiles/Shuttle/shuttle-red.png"
+    },
+    "ss14:tile_floorsilver": {
+      "image": "Textures/Tiles/silver.png"
+    },
+    "ss14:tile_floorsnow": {
+      "image": "Textures/Tiles/Snow/snow.png"
+    },
+    "ss14:tile_floorsteel": {
+      "image": "Textures/Tiles/Basic/Gray/gray.png"
+    },
+    "ss14:tile_floorsteelcheckerdark": {
+      "image": "Textures/Tiles/Checker/checker-dark.png"
+    },
+    "ss14:tile_floorsteelcheckerlight": {
+      "image": "Textures/Tiles/Checker/checker-light.png"
+    },
+    "ss14:tile_floorsteeldamaged": {
+      "image": "Textures/Tiles/Basic/Gray/gray-damaged.png"
+    },
+    "ss14:tile_floorsteelherringbone": {
+      "image": "Textures/Tiles/Basic/Gray/gray-herringbone.png"
+    },
+    "ss14:tile_floorsteelhorizontalslatsbordered": {
+      "image": "Textures/Tiles/Basic/Gray/gray-horizontal-slats.png"
+    },
+    "ss14:tile_floorsteellime": {
+      "image": "Textures/Tiles/lime.png"
+    },
+    "ss14:tile_floorsteelmini": {
+      "image": "Textures/Tiles/Basic/Gray/gray-mini.png"
+    },
+    "ss14:tile_floorsteelmono": {
+      "image": "Textures/Tiles/Basic/Gray/gray-mono.png"
+    },
+    "ss14:tile_floorsteelpavement": {
+      "image": "Textures/Tiles/Basic/Gray/gray-pavement.png"
+    },
+    "ss14:tile_floorsteelpavementvertical": {
+      "image": "Textures/Tiles/Basic/Gray/gray-pavement-vertical.png"
+    },
+    "ss14:tile_floorsteelverticalslatsbordered": {
+      "image": "Textures/Tiles/Basic/Gray/gray-vertical-slats.png"
+    },
+    "ss14:tile_floortechmaint2": {
+      "image": "Textures/Tiles/Basic/Gray/gray-maint.png"
+    },
+    "ss14:tile_floortechmaint3": {
+      "image": "Textures/Tiles/grating-maint.png"
+    },
+    "ss14:tile_floortechmaintdark": {
+      "image": "Textures/Tiles/Basic/Dark/dark-maint.png"
+    },
+    "ss14:tile_floorwebtile": {
+      "image": "Textures/Tiles/web.png"
+    },
+    "ss14:tile_floorwhite": {
+      "image": "Textures/Tiles/Basic/White/white.png"
+    },
+    "ss14:tile_floorwhiteherringbone": {
+      "image": "Textures/Tiles/Basic/White/white-herringbone.png"
+    },
+    "ss14:tile_floorwhitehorizontalslatsbordered": {
+      "image": "Textures/Tiles/Basic/White/white-horizontal-slats.png"
+    },
+    "ss14:tile_floorwhitemarblemono": {
+      "image": "Textures/Tiles/Marble/white-marble-mono.png"
+    },
+    "ss14:tile_floorwhitemini": {
+      "image": "Textures/Tiles/Basic/White/white-mini.png"
+    },
+    "ss14:tile_floorwhitemono": {
+      "image": "Textures/Tiles/Basic/White/white-mono.png"
+    },
+    "ss14:tile_floorwhitepavement": {
+      "image": "Textures/Tiles/Basic/White/white-pavement.png"
+    },
+    "ss14:tile_floorwhitepavementvertical": {
+      "image": "Textures/Tiles/Basic/White/white-pavement-vertical.png"
+    },
+    "ss14:tile_floorwhiteplastic": {
+      "image": "Textures/Tiles/Basic/White/white-plastic.png"
+    },
+    "ss14:tile_floorwhiteverticalslatsbordered": {
+      "image": "Textures/Tiles/Basic/White/white-vertical-slats.png"
+    },
+    "ss14:tile_floorwood": {
+      "image": "Textures/Tiles/Wood/wood.png"
+    },
+    "ss14:tile_floorwoodlarge": {
+      "image": "Textures/Tiles/Wood/wood-large.png"
+    },
+    "ss14:tile_floorwoodtile": {
+      "image": "Textures/Tiles/Wood/wood-tile.png"
+    },
+    "ss14:tile_lattice": {
+      "image": "Textures/Tiles/lattice.png"
+    },
+    "ss14:tile_plating": {
+      "image": "Textures/Tiles/plating.png"
+    },
+    "ss14:tile_platingasteroid": {
+      "image": "Textures/Tiles/Asteroid/asteroid-plating.png"
+    },
+    "ss14:tile_platingdamaged": {
+      "image": "Textures/Tiles/plating-damaged.png"
+    },
+    "ss14:tile_platingsnow": {
+      "image": "Textures/Tiles/Snow/snow-plating.png"
     },
     "ss14:wall_solid": {
       "image": "Textures/Structures/Walls/solid.rsi/full.png"
@@ -122,6 +458,38 @@
     },
     "ss14:carbon_dioxide_canister": {
       "image": "Textures/Structures/Storage/canister.rsi/black.png",
+      "layout": "billboard",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:chair": {
+      "image": "Textures/Structures/Furniture/chairs.rsi/chair.png",
+      "layout": "billboard",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:chair_comfy": {
+      "image": "Textures/Structures/Furniture/chairs.rsi/comfy.png",
+      "layout": "billboard",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:chair_office": {
+      "image": "Textures/Structures/Furniture/chairs.rsi/office-dark.png",
+      "layout": "billboard",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:chair_wooden": {
+      "image": "Textures/Structures/Furniture/chairs.rsi/wooden.png",
       "layout": "billboard",
       "size": [
         0.6000000238418579,
@@ -342,6 +710,14 @@
       "size": [
         0.36000001430511475,
         0.36000001430511475
+      ]
+    },
+    "ss14:stool_bar": {
+      "image": "Textures/Structures/Furniture/chairs.rsi/stool.png",
+      "layout": "billboard",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
       ]
     },
     "ss14:substation_basic": {

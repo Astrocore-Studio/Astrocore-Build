@@ -34,6 +34,7 @@ pub const FIXED_DIRS: &[(&str, &[&str])] = &[
     ("Interface/Default/Storage", &["tile_", "piece_"]),
 ];
 pub const FIXED_FILES: &[&str] = &[
+    "Tiles/attributions.yml",
     "Interface/Alerts/Fire/fire.png",
     "Interface/Default/meta.json",
     "Interface/Default/SlotBackground.png",

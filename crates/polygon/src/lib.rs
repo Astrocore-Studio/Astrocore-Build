@@ -152,7 +152,37 @@ pub fn place_items_from(
 pub fn load_materials(content: &Path) -> Result<Vec<MaterialSource>, PolygonError> {
     let path = content.join("materials.ron");
     let text = std::fs::read_to_string(&path).map_err(|e| PolygonError::Io(path.clone(), e))?;
+    let mut list: Vec<MaterialSource> =
+        ron::from_str(&text).map_err(|e| PolygonError::Ron(path, e.to_string()))?;
+    // Плитки пола SS14 (`content/tiles.ron`) тоже материалы: `ss14:tile_<имя строчными>`.
+    for t in load_tiles(content)? {
+        list.push(MaterialSource {
+            id: tile_material_id(&t.tile),
+            image: t.image,
+        });
+    }
+    Ok(list)
+}
+
+/// Плитка пола SS14 и её картинка.
+#[derive(Debug, Clone, serde::Deserialize)]
+pub struct TileDef {
+    pub tile: String,
+    pub image: String,
+}
+
+/// Плитки из `content/tiles.ron`; без файла — пусто.
+pub fn load_tiles(content: &Path) -> Result<Vec<TileDef>, PolygonError> {
+    let path = content.join("tiles.ron");
+    let Ok(text) = std::fs::read_to_string(&path) else {
+        return Ok(Vec::new());
+    };
     ron::from_str(&text).map_err(|e| PolygonError::Ron(path, e.to_string()))
+}
+
+/// Идентификатор материала плитки.
+pub fn tile_material_id(tile: &str) -> String {
+    format!("ss14:tile_{}", tile.to_ascii_lowercase())
 }
 
 /// Двери из `content/doors.ron`: материал проёма → набор RSI со спрайтами состояний.

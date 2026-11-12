@@ -2,4 +2,11 @@
 [
     (id: "ss14:wall_solid", image: "Structures/Walls/solid.rsi/full.png"),
     (id: "ss14:floor_dark", image: "Tiles/Basic/Dark/dark.png"),
+    // Мебель-ящики (столы, стойки, шкафы): верхние текстуры SS14.
+    (id: "ss14:table_generic", image: "Structures/Furniture/Tables/generic.rsi/full.png"),
+    (id: "ss14:table_wood", image: "Structures/Furniture/Tables/wood.rsi/full.png"),
+    (id: "ss14:table_reinforced", image: "Structures/Furniture/Tables/reinforced.rsi/full.png"),
+    (id: "ss14:table_glass", image: "Structures/Furniture/Tables/glass.rsi/full.png"),
+    (id: "ss14:rack", image: "Structures/Furniture/furniture.rsi/rack.png"),
+    (id: "ss14:bookshelf", image: "Structures/Furniture/bookshelf.rsi/base.png"),
 ]

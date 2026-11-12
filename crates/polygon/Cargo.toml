@@ -14,6 +14,7 @@ astrocore-math.workspace = true
 astrocore-world.workspace = true
 prototypes.workspace = true
 ron.workspace = true
+serde.workspace = true
 thiserror.workspace = true
 
 [dev-dependencies]

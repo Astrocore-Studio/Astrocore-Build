@@ -23,19 +23,20 @@ fn main() {
     let known: BTreeSet<String> = polygon::load_registry(&polygon::content_dir())
         .map(|r| r.ids().map(str::to_string).collect())
         .unwrap_or_default();
-    match tools::import_map::import(
-        &yaml,
-        &name,
-        &known,
-        &tools::import_map::Materials::default(),
-    ) {
+    let mut materials = tools::import_map::Materials::default();
+    for t in polygon::load_tiles(&polygon::content_dir()).unwrap_or_default() {
+        if let Ok(id) = astrocore_core::PrototypeId::new(polygon::tile_material_id(&t.tile)) {
+            materials.tiles.insert(t.tile, id);
+        }
+    }
+    match tools::import_map::import(&yaml, &name, &known, &materials) {
         Ok((map, r)) => {
             if let Err(e) = map.save(Path::new(&args[1])) {
                 eprintln!("{e}");
                 std::process::exit(1);
             }
             println!(
-                "карта «{name}» → {}\n  пол: {} клеток, стен-клеток: {} (рёбер {}), дверей: {} (не поставлено {}),\n  спавнов: {}, предметов: {}, труб: {}, клеток с кабелями: {}, пропущено сущностей: {}",
+                "карта «{name}» → {}\n  пол: {} клеток, стен-клеток: {} (рёбер {}), дверей: {} (не поставлено {}),\n  спавнов: {}, предметов: {}, труб: {}, клеток с кабелями: {}, мебели-ящиков: {}, стульев: {}, пропущено сущностей: {}",
                 args[1],
                 r.floor_tiles,
                 r.wall_cells,
@@ -46,6 +47,8 @@ fn main() {
                 r.items,
                 r.pipes,
                 r.cables,
+                r.furniture,
+                r.chairs,
                 r.skipped_entities
             );
         }

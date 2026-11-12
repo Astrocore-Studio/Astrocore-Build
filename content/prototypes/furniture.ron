@@ -1,0 +1,19 @@
+// Стулья (chairs.rsi SS14): стоячие спрайты без коллизии. Столы, стойки и шкафы — ящики-конструкции,
+// их ставит импортёр карт (см. tools/import_map.rs).
+[
+    (id: "Chair", name: Some("chair"), components: {
+        "Sprite": (sprite: "Structures/Furniture/chairs.rsi", state: "chair"),
+    }),
+    (id: "ChairOffice", name: Some("office chair"), components: {
+        "Sprite": (sprite: "Structures/Furniture/chairs.rsi", state: "office-dark"),
+    }),
+    (id: "ChairComfy", name: Some("comfy chair"), components: {
+        "Sprite": (sprite: "Structures/Furniture/chairs.rsi", state: "comfy"),
+    }),
+    (id: "ChairWooden", name: Some("wooden chair"), components: {
+        "Sprite": (sprite: "Structures/Furniture/chairs.rsi", state: "wooden"),
+    }),
+    (id: "StoolBar", name: Some("stool"), components: {
+        "Sprite": (sprite: "Structures/Furniture/chairs.rsi", state: "stool"),
+    }),
+]

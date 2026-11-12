@@ -39,6 +39,8 @@ pub struct Materials {
     pub wall: PrototypeId,
     pub floor: PrototypeId,
     pub door: PrototypeId,
+    /// Материал по имени плитки SS14 (`FloorSteel` → `ss14:tile_floorsteel`); неизвестные плитки — `floor`.
+    pub tiles: BTreeMap<String, PrototypeId>,
 }
 
 impl Default for Materials {
@@ -48,6 +50,7 @@ impl Default for Materials {
             wall: id("ss14:wall_solid"),
             floor: id("ss14:floor_dark"),
             door: id("ss14:airlock"),
+            tiles: BTreeMap::new(),
         }
     }
 }
@@ -66,6 +69,9 @@ pub struct Report {
     pub pipes: usize,
     /// Клетки с кабелями (зоны `power_cable`).
     pub cables: usize,
+    /// Столы, стойки и шкафы (ящики-конструкции) и стулья.
+    pub furniture: usize,
+    pub chairs: usize,
     pub skipped_entities: usize,
 }
 
@@ -126,6 +132,39 @@ fn pipe_base_dirs(proto: &str) -> Option<u8> {
         "GasPipeTJunction" => S | E | W,
         "GasPipeFourway" => N | S | E | W,
         "GasPipeHalf" => S,
+        _ => return None,
+    })
+}
+
+/// Мебель-ящик по прототипу SS14: материал и высота, м (`Table*`, `Rack`, шкафы с книгами).
+fn furniture_box(proto: &str) -> Option<(&'static str, f32)> {
+    if proto.starts_with("Table") {
+        let material = if proto.contains("Wood") || proto.contains("Carpet") {
+            "ss14:table_wood"
+        } else if proto.contains("Reinforced") && !proto.contains("Glass") {
+            "ss14:table_reinforced"
+        } else if proto.contains("Glass") {
+            "ss14:table_glass"
+        } else {
+            "ss14:table_generic"
+        };
+        return Some((material, 0.78));
+    }
+    match proto {
+        "Rack" => Some(("ss14:rack", 0.9)),
+        "BookshelfFilled" | "Bookshelf" => Some(("ss14:bookshelf", 1.6)),
+        _ => None,
+    }
+}
+
+/// Стул SS14 → прототип Build из `furniture.ron`.
+fn chair_proto(proto: &str) -> Option<&'static str> {
+    Some(match proto {
+        "Chair" | "ChairFolding" | "ChairPilotSeat" | "ChairRitual" => "Chair",
+        p if p.starts_with("ChairOffice") => "ChairOffice",
+        "ComfyChair" => "ChairComfy",
+        "ChairWood" => "ChairWooden",
+        "Stool" | "StoolBar" => "StoolBar",
         _ => return None,
     })
 }
@@ -290,6 +329,8 @@ pub fn import(
     let mut items: Vec<MapItem> = Vec::new();
     let mut zones: Vec<MapZone> = Vec::new();
     let mut cables_seen: BTreeSet<((i32, i32), &str)> = BTreeSet::new();
+    // Ящики мебели: клетка, материал, высота.
+    let mut boxes: Vec<((i32, i32), &'static str, f32)> = Vec::new();
     for group in &groups {
         let proto = group
             .get("proto")
@@ -330,6 +371,22 @@ pub fn import(
                         metadata: [("gas_pipe".to_string(), dirs_text(dirs))].into(),
                     });
                     report.pipes += 1;
+                }
+                Kind::Other if furniture_box(proto).is_some() => {
+                    if let Some((m, h)) = furniture_box(proto) {
+                        boxes.push((cell, m, h));
+                    }
+                }
+                Kind::Other if chair_proto(proto).is_some() => {
+                    if let Some(c) = chair_proto(proto).filter(|c| known_items.contains(*c)) {
+                        items.push(MapItem {
+                            prototype: c.to_string(),
+                            x,
+                            z: -y,
+                            rot: 0,
+                        });
+                        report.chairs += 1;
+                    }
                 }
                 Kind::Other if cable_group(proto).is_some() => {
                     let group = cable_group(proto).unwrap_or("hv");
@@ -439,13 +496,44 @@ pub fn import(
             0.1,
         ));
     }
+    // Плитка каждой клетки: имя SS14 → материал (в наших координатах z = −y − 1).
+    let tile_at: BTreeMap<(i32, i32), &String> =
+        tiles.iter().map(|(&(x, y), n)| ((x, -y - 1), n)).collect();
     for &c in &walk {
+        let material = tile_at
+            .get(&c)
+            .and_then(|n| mats.tiles.get(n.as_str()))
+            .unwrap_or(&mats.floor);
         elements.push(element(
             StructureKind::Floor,
             Placement::Cell(GridCell::new(c.0, c.1)),
-            &mats.floor,
+            material,
             0.2,
         ));
+    }
+    // Мебель-ящики стоят на полу и мешают пройти; на одной клетке ящик один.
+    let mut boxed: BTreeSet<(i32, i32)> = BTreeSet::new();
+    for (c, m, h) in boxes {
+        if !walk.contains(&c) || !boxed.insert(c) {
+            continue;
+        }
+        let Ok(material) = PrototypeId::new(m) else {
+            continue;
+        };
+        elements.push(element(
+            StructureKind::Freeform,
+            Placement::Free(astrocore_world::FreePlacement {
+                cell: GridCell::new(c.0, c.1),
+                x_mm: 500,
+                z_mm: 500,
+                y_mm: (FLOOR_TOP_M * 1000.0) as i32,
+                yaw_cdeg: 0,
+                half_mm: [490, (h * 1000.0) as u32, 490],
+            }),
+            &material,
+            0.0,
+        ));
+        report.furniture += 1;
     }
     report.wall_edges = wall_edges.len();
     report.doors = door_edges.len();

@@ -6939,6 +6939,7 @@ dependencies = [
  "maps",
  "prototypes",
  "ron 0.10.1",
+ "serde",
  "thiserror 2.0.21",
 ]
 
