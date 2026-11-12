@@ -77,6 +77,7 @@ def main():
     ftl = open(root + '/Resources/Locale/en-US/job/job-names.ftl').read()
     for m in re.finditer(r'^(job-name-[\w-]+) = (.+)$', ftl, re.M):
         names[m.group(1)] = m.group(2)
+    weights = P.get('jobWeight', 'Default')['weights']
     n = 0
     for jid, (start, mx) in avail.items():
         job = P.get('job', jid)
@@ -119,8 +120,8 @@ def main():
         ihs = ', '.join(ron_str(x) for x in inhand)
         sts = ', '.join('%s: [%s]' % (ron_str(k), ', '.join(ron_str(x) for x in v)) for k, v in sorted(storage.items()))
         lines.append(
-            '    (id: "Job%s", name: Some(%s), components: {"Job": (title: %s, start: %d, max: %d, equipment: {%s}, inhand: [%s], storage: {%s})}),'
-            % (jid, ron_str(title), ron_str(title), start, mx, eqs, ihs, sts)
+            '    (id: "Job%s", name: Some(%s), components: {"Job": (title: %s, start: %d, max: %d, weight: %d, equipment: {%s}, inhand: [%s], storage: {%s})}),'
+            % (jid, ron_str(title), ron_str(title), start, mx, int(weights.get(jid, 0)), eqs, ihs, sts)
         )
         n += 1
     lines.append(']')

@@ -216,6 +216,88 @@ impl Spawner {
     }
 }
 
+/// Запись `StorageFill.contents` (`EntitySpawnEntry`).
+#[derive(Debug, Clone, PartialEq)]
+pub struct FillEntry {
+    pub id: String,
+    pub prob: f32,
+    pub or_group: String,
+    pub amount: u32,
+    pub max_amount: u32,
+}
+
+impl FillEntry {
+    pub fn parse_list(d: &Data) -> Vec<Self> {
+        d.get("contents")
+            .and_then(Data::as_list)
+            .map(|l| {
+                l.iter()
+                    .filter_map(|e| {
+                        Some(Self {
+                            id: e.get("id")?.as_str()?.to_string(),
+                            prob: e.get("prob").and_then(Data::as_f64).unwrap_or(1.0) as f32,
+                            or_group: e.get("orGroup").and_then(Data::as_str).unwrap_or("").into(),
+                            amount: e.get("amount").and_then(Data::as_int).unwrap_or(1).max(0)
+                                as u32,
+                            max_amount: e
+                                .get("maxAmount")
+                                .and_then(Data::as_int)
+                                .unwrap_or(1)
+                                .max(0) as u32,
+                        })
+                    })
+                    .collect()
+            })
+            .unwrap_or_default()
+    }
+
+    /// `GetAmount`: от `amount` до `maxAmount` (верхняя граница не включается, как `Random.Next`).
+    fn count(&self, rng: &mut Rng) -> u32 {
+        if self.max_amount <= self.amount {
+            return self.amount;
+        }
+        let span = self.max_amount - self.amount;
+        self.amount + ((rng.next_f32() * span as f32) as u32).min(span - 1)
+    }
+}
+
+/// `EntitySpawnCollection.GetSpawns`: свободные записи по вероятности, группы `orGroup` — одна
+/// запись на группу по накопленной вероятности.
+pub fn fill_spawns(entries: &[FillEntry], rng: &mut Rng) -> Vec<String> {
+    let mut out = Vec::new();
+    let mut groups: Vec<(String, Vec<&FillEntry>)> = Vec::new();
+    for e in entries {
+        if e.or_group.is_empty() {
+            if e.prob != 1.0 && rng.next_f32() >= e.prob {
+                continue;
+            }
+            for _ in 0..e.count(rng) {
+                out.push(e.id.clone());
+            }
+        } else if let Some((_, g)) = groups.iter_mut().find(|(n, _)| *n == e.or_group) {
+            g.push(e);
+        } else {
+            groups.push((e.or_group.clone(), vec![e]));
+        }
+    }
+    for (_, g) in groups {
+        let total: f32 = g.iter().map(|e| e.prob).sum();
+        let dice = rng.next_f32() * total;
+        let mut cumulative = 0.0;
+        for e in g {
+            cumulative += e.prob;
+            if dice > cumulative {
+                continue;
+            }
+            for _ in 0..e.count(rng) {
+                out.push(e.id.clone());
+            }
+            break;
+        }
+    }
+    out
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -331,5 +413,41 @@ mod tests {
         let mut out = Vec::new();
         n.spawns(&BTreeMap::new(), &mut Rng(2), &mut out);
         assert_eq!(out, ["Wrench"]);
+    }
+
+    fn fill(id: &str, prob: f32, group: &str, amount: u32, max: u32) -> FillEntry {
+        FillEntry {
+            id: id.into(),
+            prob,
+            or_group: group.into(),
+            amount,
+            max_amount: max,
+        }
+    }
+
+    #[test]
+    fn storage_fill_handles_probability_amount_and_or_groups() {
+        let entries = vec![
+            fill("Always", 1.0, "", 2, 2),
+            fill("Maybe", 0.5, "", 1, 1),
+            fill("A", 1.0, "g", 1, 1),
+            fill("B", 3.0, "g", 1, 1),
+            fill("Many", 1.0, "", 1, 4),
+        ];
+        let mut rng = Rng(4);
+        let (mut a, mut b, mut maybe) = (0, 0, 0);
+        for _ in 0..2000 {
+            let out = fill_spawns(&entries, &mut rng);
+            assert_eq!(out.iter().filter(|x| *x == "Always").count(), 2);
+            let many = out.iter().filter(|x| *x == "Many").count();
+            assert!((1..=3).contains(&many), "{many}");
+            assert_eq!(out.iter().filter(|x| *x == "A" || *x == "B").count(), 1);
+            a += out.iter().filter(|x| *x == "A").count();
+            b += out.iter().filter(|x| *x == "B").count();
+            maybe += out.iter().filter(|x| *x == "Maybe").count();
+        }
+        // В группе B втрое вероятнее A; необязательная запись выпадает примерно в половине случаев.
+        assert!(b > a * 2 && b < a * 4, "{a} {b}");
+        assert!(maybe > 800 && maybe < 1200, "{maybe}");
     }
 }

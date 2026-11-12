@@ -102,6 +102,14 @@ def convert(i):
         grid = ', '.join(q(g) for g in st['grid'])
         ms = st.get('maxItemSize')
         out.append('"Storage": (grid: [%s]%s)' % (grid, ', maxItemSize: %s' % q(ms) if isinstance(ms, str) else ''))
+    fill = comps.get('StorageFill', {}).get('contents') or []
+    ents = []
+    for c in fill:
+        if isinstance(c, dict) and c.get('id'):
+            ents.append('(id: %s, prob: %s, orGroup: %s, amount: %d, maxAmount: %d)' % (
+                q(c['id']), float(c.get('prob', 1)), q(c.get('orGroup', '')), int(c.get('amount', 1)), int(c.get('maxAmount', 1))))
+    if ents:
+        out.append('"StorageFill": (contents: [%s])' % ', '.join(ents))
     name = P.entity_name(i) or i
     return '    (id: %s, name: Some(%s), components: {%s}),' % (q(i), q(name), ', '.join(out))
 

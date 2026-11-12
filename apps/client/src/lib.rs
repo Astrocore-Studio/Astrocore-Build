@@ -27,6 +27,8 @@ pub struct Loadout {
     pub vitals: Option<gameplay::Vitals>,
     /// Открытый торговый автомат.
     pub vending: Option<gameplay::VendingView>,
+    /// Список должностей и текущая.
+    pub jobs: Option<gameplay::JobsView>,
     /// Когда (по часам клиента) пришло последнее состояние здоровья.
     pub health_at: f32,
 }
@@ -190,6 +192,10 @@ fn refresh_loadout(net: Option<NonSend<Net>>, time: Res<Time>, mut loadout: ResM
         .core
         .component(me, gameplay::DOAFTER_COMPONENT)
         .and_then(gameplay::decode_doafter);
+    loadout.jobs = net
+        .core
+        .component(me, gameplay::JOBS_COMPONENT)
+        .and_then(gameplay::decode_jobs);
     loadout.vending = net
         .core
         .component(me, gameplay::VENDING_COMPONENT)
@@ -416,6 +422,7 @@ fn loadout_window(
     );
     let mut commands = commands;
     commands.extend(hud::vending_window(&ctx, icons, loadout.vending.as_ref()));
+    commands.extend(hud::jobs_window(&ctx, state, loadout.jobs.as_ref()));
     for (kind, data) in commands {
         net.send_command(kind, data);
     }

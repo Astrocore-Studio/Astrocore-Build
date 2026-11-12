@@ -1090,12 +1090,52 @@
         0.48000001907348633
       ]
     },
+    "ss14:box_agrichem": {
+      "image": "Textures/Objects/Storage/boxes.rsi/boxwide.png",
+      "layout": "flat",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
     "ss14:box_beanbag": {
       "image": "Textures/Objects/Weapons/Guns/Ammunition/Boxes/shotgun.rsi/base.png",
       "layout": "flat",
       "size": [
         0.48000001907348633,
         0.48000001907348633
+      ]
+    },
+    "ss14:box_body_bag": {
+      "image": "Textures/Objects/Storage/boxes.rsi/box.png",
+      "layout": "flat",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:box_bottle": {
+      "image": "Textures/Objects/Storage/boxes.rsi/box.png",
+      "layout": "flat",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:box_candle": {
+      "image": "Textures/Objects/Storage/boxes.rsi/box.png",
+      "layout": "flat",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:box_candle_small": {
+      "image": "Textures/Objects/Storage/boxes.rsi/box.png",
+      "layout": "flat",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
       ]
     },
     "ss14:box_cartridge_cap": {
@@ -1106,12 +1146,36 @@
         0.36000001430511475
       ]
     },
+    "ss14:box_darts": {
+      "image": "Textures/Objects/Storage/boxes.rsi/box.png",
+      "layout": "flat",
+      "size": [
+        0.48000001907348633,
+        0.48000001907348633
+      ]
+    },
     "ss14:box_donk_soft_box": {
       "image": "Textures/Objects/Storage/boxes.rsi/boxwidetoy.png",
       "layout": "flat",
       "size": [
         0.36000001430511475,
         0.36000001430511475
+      ]
+    },
+    "ss14:box_flare": {
+      "image": "Textures/Objects/Storage/boxes.rsi/box.png",
+      "layout": "flat",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:box_flashbang": {
+      "image": "Textures/Objects/Storage/boxes.rsi/box_security.png",
+      "layout": "flat",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
       ]
     },
     "ss14:box_folder_base": {
@@ -1186,8 +1250,40 @@
         0.36000001430511475
       ]
     },
+    "ss14:box_handcuff": {
+      "image": "Textures/Objects/Storage/boxes.rsi/box_security.png",
+      "layout": "flat",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:box_inflatable": {
+      "image": "Textures/Objects/Storage/boxes.rsi/box.png",
+      "layout": "flat",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:box_latex_gloves": {
+      "image": "Textures/Objects/Storage/boxes.rsi/box.png",
+      "layout": "flat",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
     "ss14:box_lethalshot": {
       "image": "Textures/Objects/Weapons/Guns/Ammunition/Boxes/shotgun.rsi/base.png",
+      "layout": "flat",
+      "size": [
+        0.48000001907348633,
+        0.48000001907348633
+      ]
+    },
+    "ss14:box_light_mixed": {
+      "image": "Textures/Objects/Storage/EntityProvider/packaged_lights.rsi/base.png",
       "layout": "flat",
       "size": [
         0.48000001907348633,
@@ -1200,6 +1296,14 @@
       "size": [
         0.48000001907348633,
         0.48000001907348633
+      ]
+    },
+    "ss14:box_mre": {
+      "image": "Textures/Objects/Storage/boxes.rsi/box.png",
+      "layout": "flat",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
       ]
     },
     "ss14:box_shotgun_flare": {
@@ -1216,6 +1320,62 @@
       "size": [
         0.48000001907348633,
         0.48000001907348633
+      ]
+    },
+    "ss14:box_sterile_mask": {
+      "image": "Textures/Objects/Storage/boxes.rsi/box.png",
+      "layout": "flat",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:box_survival": {
+      "image": "Textures/Objects/Storage/boxes.rsi/internals.png",
+      "layout": "flat",
+      "size": [
+        0.48000001907348633,
+        0.48000001907348633
+      ]
+    },
+    "ss14:box_survival_engineering": {
+      "image": "Textures/Objects/Storage/boxes.rsi/internals.png",
+      "layout": "flat",
+      "size": [
+        0.48000001907348633,
+        0.48000001907348633
+      ]
+    },
+    "ss14:box_survival_hug": {
+      "image": "Textures/Objects/Storage/boxes.rsi/box_hug.png",
+      "layout": "flat",
+      "size": [
+        0.48000001907348633,
+        0.48000001907348633
+      ]
+    },
+    "ss14:box_survival_medical": {
+      "image": "Textures/Objects/Storage/boxes.rsi/internals.png",
+      "layout": "flat",
+      "size": [
+        0.48000001907348633,
+        0.48000001907348633
+      ]
+    },
+    "ss14:box_survival_security": {
+      "image": "Textures/Objects/Storage/boxes.rsi/internals.png",
+      "layout": "flat",
+      "size": [
+        0.48000001907348633,
+        0.48000001907348633
+      ]
+    },
+    "ss14:box_ziptie": {
+      "image": "Textures/Objects/Storage/boxes.rsi/box_security.png",
+      "layout": "flat",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
       ]
     },
     "ss14:brb_sign": {
@@ -2042,6 +2202,22 @@
         0.6000000238418579
       ]
     },
+    "ss14:clothing_belt_chef_filled": {
+      "image": "Textures/Clothing/Belt/chef.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:clothing_belt_holster_filled": {
+      "image": "Textures/Clothing/Belt/holster.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
     "ss14:clothing_belt_janitor": {
       "image": "Textures/Clothing/Belt/janitor.rsi/icon.png",
       "layout": "flat",
@@ -2050,8 +2226,48 @@
         0.6000000238418579
       ]
     },
+    "ss14:clothing_belt_janitor_filled": {
+      "image": "Textures/Clothing/Belt/janitor.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:clothing_belt_medical_emtfilled": {
+      "image": "Textures/Clothing/Belt/emt.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:clothing_belt_medical_filled": {
+      "image": "Textures/Clothing/Belt/medical.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
     "ss14:clothing_belt_military_webbing": {
       "image": "Textures/Clothing/Belt/militarywebbing.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:clothing_belt_plant_filled": {
+      "image": "Textures/Clothing/Belt/plant.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:clothing_belt_security_filled": {
+      "image": "Textures/Clothing/Belt/security.rsi/icon.png",
       "layout": "flat",
       "size": [
         0.6000000238418579,
@@ -2091,6 +2307,22 @@
       ]
     },
     "ss14:clothing_belt_utility": {
+      "image": "Textures/Clothing/Belt/utility.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:clothing_belt_utility_engineering": {
+      "image": "Textures/Clothing/Belt/utility.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:clothing_belt_utility_filled": {
       "image": "Textures/Clothing/Belt/utility.rsi/icon.png",
       "layout": "flat",
       "size": [
@@ -4914,6 +5146,14 @@
         0.48000001907348633
       ]
     },
+    "ss14:clothing_shoes_boots_jack_filled": {
+      "image": "Textures/Clothing/Shoes/Boots/jackboots.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.48000001907348633,
+        0.48000001907348633
+      ]
+    },
     "ss14:clothing_shoes_boots_laceup": {
       "image": "Textures/Clothing/Shoes/Boots/laceups.rsi/icon.png",
       "layout": "flat",
@@ -6370,6 +6610,14 @@
         0.30000001192092896
       ]
     },
+    "ss14:crate_tech_board_random": {
+      "image": "Textures/Objects/Storage/boxes.rsi/tote-0.png",
+      "layout": "flat",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
     "ss14:crayon_black": {
       "image": "Textures/Objects/Fun/crayons.rsi/black.png",
       "layout": "flat",
@@ -6996,6 +7244,22 @@
     },
     "ss14:door_electronics": {
       "image": "Textures/Objects/Misc/module.rsi/door_electronics.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:double_emergency_nitrogen_tank_filled": {
+      "image": "Textures/Objects/Tanks/emergency_double_red.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:double_emergency_oxygen_tank_filled": {
+      "image": "Textures/Objects/Tanks/emergency_double.rsi/icon.png",
       "layout": "flat",
       "size": [
         0.36000001430511475,
@@ -8690,6 +8954,14 @@
         0.48000001907348633
       ]
     },
+    "ss14:emergency_funny_oxygen_tank_filled": {
+      "image": "Textures/Objects/Tanks/emergency_clown.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
     "ss14:emergency_medipen": {
       "image": "Textures/Objects/Specific/Medical/medipen.rsi/medipen.png",
       "layout": "flat",
@@ -9742,8 +10014,8 @@
       "image": "Textures/Objects/Storage/Happyhonk/clown.rsi/box.png",
       "layout": "flat",
       "size": [
-        0.36000001430511475,
-        0.36000001430511475
+        0.6000000238418579,
+        0.6000000238418579
       ]
     },
     "ss14:food_meal_memoryleek": {
@@ -10730,6 +11002,14 @@
         0.30000001192092896
       ]
     },
+    "ss14:foolbox_filled": {
+      "image": "Textures/Objects/Tools/Toolboxes/foolbox.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
     "ss14:football": {
       "image": "Textures/Objects/Fun/Balls/football.rsi/icon.png",
       "layout": "flat",
@@ -11070,16 +11350,16 @@
       "image": "Textures/Objects/Storage/Happyhonk/clown.rsi/box.png",
       "layout": "flat",
       "size": [
-        0.36000001430511475,
-        0.36000001430511475
+        0.6000000238418579,
+        0.6000000238418579
       ]
     },
     "ss14:happy_honk_mime": {
       "image": "Textures/Objects/Storage/Happyhonk/mime.rsi/box.png",
       "layout": "flat",
       "size": [
-        0.36000001430511475,
-        0.36000001430511475
+        0.6000000238418579,
+        0.6000000238418579
       ]
     },
     "ss14:harmonica_instrument": {
@@ -11802,6 +12082,62 @@
         0.36000001430511475
       ]
     },
+    "ss14:medkit_brute_filled": {
+      "image": "Textures/Objects/Specific/Medical/firstaidkits.rsi/brutekit.png",
+      "layout": "flat",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:medkit_burn_filled": {
+      "image": "Textures/Objects/Specific/Medical/firstaidkits.rsi/burnkit.png",
+      "layout": "flat",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:medkit_combat_filled": {
+      "image": "Textures/Objects/Specific/Medical/firstaidkits.rsi/blackkit.png",
+      "layout": "flat",
+      "size": [
+        0.48000001907348633,
+        0.48000001907348633
+      ]
+    },
+    "ss14:medkit_filled": {
+      "image": "Textures/Objects/Specific/Medical/firstaidkits.rsi/firstaid.png",
+      "layout": "flat",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:medkit_oxygen_filled": {
+      "image": "Textures/Objects/Specific/Medical/firstaidkits.rsi/o2kit.png",
+      "layout": "flat",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:medkit_radiation_filled": {
+      "image": "Textures/Objects/Specific/Medical/firstaidkits.rsi/radkit.png",
+      "layout": "flat",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:medkit_toxin_filled": {
+      "image": "Textures/Objects/Specific/Medical/firstaidkits.rsi/toxinkit.png",
+      "layout": "flat",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
     "ss14:micro_manipulator_stock_part": {
       "image": "Textures/Objects/Misc/stock_parts.rsi/micro_mani.png",
       "layout": "flat",
@@ -11954,12 +12290,28 @@
         0.6000000238418579
       ]
     },
+    "ss14:nitrogen_tank_filled": {
+      "image": "Textures/Objects/Tanks/red.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.48000001907348633,
+        0.48000001907348633
+      ]
+    },
     "ss14:nitrous_oxide_canister": {
       "image": "Textures/Structures/Storage/canister.rsi/redws.png",
       "layout": "billboard",
       "size": [
         0.6000000238418579,
         0.6000000238418579
+      ]
+    },
+    "ss14:nitrous_oxide_tank_filled": {
+      "image": "Textures/Objects/Tanks/anesthetic.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.48000001907348633,
+        0.48000001907348633
       ]
     },
     "ss14:nuke_disk_fake": {
@@ -12043,6 +12395,14 @@
       ]
     },
     "ss14:oxygen_tank": {
+      "image": "Textures/Objects/Tanks/oxygen.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.48000001907348633,
+        0.48000001907348633
+      ]
+    },
+    "ss14:oxygen_tank_filled": {
       "image": "Textures/Objects/Tanks/oxygen.rsi/icon.png",
       "layout": "flat",
       "size": [
@@ -12307,6 +12667,14 @@
       ]
     },
     "ss14:plasma_tank": {
+      "image": "Textures/Objects/Tanks/plasma.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.48000001907348633,
+        0.48000001907348633
+      ]
+    },
+    "ss14:plasma_tank_filled": {
       "image": "Textures/Objects/Tanks/plasma.rsi/icon.png",
       "layout": "flat",
       "size": [
@@ -14226,6 +14594,46 @@
         0.6000000238418579
       ]
     },
+    "ss14:toolbox_artistic_filled": {
+      "image": "Textures/Objects/Tools/Toolboxes/toolbox_green.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:toolbox_electrical_filled": {
+      "image": "Textures/Objects/Tools/Toolboxes/toolbox_yellow.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:toolbox_emergency_filled": {
+      "image": "Textures/Objects/Tools/Toolboxes/toolbox_red.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:toolbox_gold_filled": {
+      "image": "Textures/Objects/Tools/Toolboxes/toolbox_gold.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:toolbox_mechanical_filled": {
+      "image": "Textures/Objects/Tools/Toolboxes/toolbox_blue.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
     "ss14:tourniquet": {
       "image": "Textures/Objects/Specific/Medical/medical.rsi/tourniquet.png",
       "layout": "flat",
@@ -14912,6 +15320,14 @@
       "size": [
         0.36000001430511475,
         0.36000001430511475
+      ]
+    },
+    "ss14:variant_cube_box": {
+      "image": "Textures/Objects/Misc/monkeycube.rsi/box_variant.png",
+      "layout": "flat",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
       ]
     },
     "ss14:vending_bar_drobe": {

@@ -14,8 +14,21 @@ use gameplay::{HANDS_COMPONENT, WORN_COMPONENT, decode_hands, decode_worn};
 
 const CELL: u32 = 32;
 
-/// Порядок слоёв надетого снизу вверх (как порядок слоёв в SS14: пояс под рюкзаком).
-const SLOT_ORDER: &[(&str, &str)] = &[("belt", "BELT"), ("back", "BACKPACK")];
+/// Порядок слоёв надетого снизу вверх (порядок слоёв гуманоида в SS14; имена слоёв — флаги `equipped-*`).
+const SLOT_ORDER: &[(&str, &str)] = &[
+    ("shoes", "FEET"),
+    ("jumpsuit", "INNERCLOTHING"),
+    ("gloves", "HAND"),
+    ("id", "IDCARD"),
+    ("outerClothing", "OUTERCLOTHING"),
+    ("belt", "BELT"),
+    ("back", "BACKPACK"),
+    ("neck", "NECK"),
+    ("mask", "MASK"),
+    ("eyes", "EYES"),
+    ("ears", "EARS"),
+    ("head", "HELMET"),
+];
 
 #[derive(Resource)]
 pub struct Outfits {

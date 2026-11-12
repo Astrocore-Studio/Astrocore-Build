@@ -127,6 +127,18 @@ impl Inventory {
         Ok(())
     }
 
+    /// Надеть принудительно (`TryEquip(force: true)` стартового снаряжения): форма предмета не
+    /// проверяется, занятый слот остаётся как был. `true`, если предмет надет.
+    pub fn equip_forced(&mut self, slot: &str, item: HeldItem) -> bool {
+        match self.slots.iter_mut().find(|(d, _)| d.name == slot) {
+            Some((_, s)) if s.is_none() => {
+                *s = Some(item);
+                true
+            }
+            _ => false,
+        }
+    }
+
     /// Снять предмет. Возвращает снятое и всё, что выпало из зависимых слотов (в SS14 снятая
     /// форма роняет карманы и удостоверение; рекурсивно).
     pub fn unequip(&mut self, slot: &str) -> Result<(HeldItem, Vec<HeldItem>), InventoryError> {

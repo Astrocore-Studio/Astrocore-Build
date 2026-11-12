@@ -259,6 +259,8 @@ pub struct HudState {
     /// Состояние тела: сытость, давление, кислород.
     pub vitals: Option<gameplay::Vitals>,
     pub clothes_open: bool,
+    /// Окно выбора должности закрыто вручную.
+    pub jobs_hidden: bool,
     /// Сумки, окна которых закрыты вручную.
     pub bags_closed: std::collections::HashSet<u128>,
 }
@@ -851,6 +853,54 @@ fn draw_frame(ctx: &egui::Context, ui: &egui::Ui, icons: &mut Icons, outer: Rect
 
 /// Окно торгового автомата (`VendingMachineMenu`): список товаров со значками и остатком; нажатие
 /// заказывает товар, закрытие окна закрывает автомат.
+/// Окно выбора должности (`LateJoinGui`): список со свободными местами; пока должности нет.
+pub fn jobs_window(
+    ctx: &egui::Context,
+    state: &mut HudState,
+    view: Option<&gameplay::JobsView>,
+) -> Commands {
+    let mut out: Commands = Vec::new();
+    let Some(v) = view else {
+        return out;
+    };
+    if v.current.is_some() {
+        // Взял должность — окно снова откроется после возрождения.
+        state.jobs_hidden = false;
+        return out;
+    }
+    if state.jobs_hidden {
+        return out;
+    }
+    let mut open = true;
+    egui::Window::new("Должность")
+        .id(egui::Id::new("jobs"))
+        .default_pos(Pos2::new(60.0, 80.0))
+        .resizable(false)
+        .open(&mut open)
+        .show(ctx, |ui| {
+            egui::ScrollArea::vertical()
+                .max_height(480.0)
+                .show(ui, |ui| {
+                    for j in &v.jobs {
+                        let free = j.max < 0 || j.taken < j.max as u32;
+                        let places = if j.max < 0 {
+                            "∞".to_string()
+                        } else {
+                            format!("{}/{}", j.taken, j.max)
+                        };
+                        let b = egui::Button::new(format!("{} [{places}]", j.title));
+                        if ui.add_enabled(free, b).clicked() {
+                            out.push((gameplay::CMD_JOB, j.id.clone().into_bytes()));
+                        }
+                    }
+                });
+        });
+    if !open {
+        state.jobs_hidden = true;
+    }
+    out
+}
+
 pub fn vending_window(
     ctx: &egui::Context,
     icons: &mut Icons,

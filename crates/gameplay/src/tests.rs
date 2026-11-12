@@ -85,6 +85,12 @@ const PROTOS: &str = r#"[
     (id: "ToolSpawner", components: {
         "Spawner": (offset: 0.2, table: (k: "nested", table: "Tools")),
     }),
+    (id: "JobTester", components: {
+        "Job": (title: "Tester", start: 1, max: 1, weight: 5, equipment: {"back": "Satchel"}, inhand: ["Crowbar"], storage: {"back": ["Pen"]}),
+    }),
+    (id: "JobFree", components: {
+        "Job": (title: "Free", start: -1, max: -1, weight: 0, equipment: {}, inhand: [], storage: {}),
+    }),
     (id: "Belt", components: {
         "Conveyor": (speed: 2.0),
     }),
@@ -2075,5 +2081,47 @@ mod disposal_tests {
         assert_eq!(count("ss14:tool_spawner"), 0);
         let crowbars = count("ss14:crowbar");
         assert!(crowbars > 8 && crowbars < 32, "{crowbars}");
+    }
+
+    fn jobs_view(h: &Harness, who: ConnId) -> Option<crate::JobsView> {
+        let net = h.client(who).net_id()?;
+        h.client(who)
+            .component(net, crate::JOBS_COMPONENT)
+            .and_then(crate::decode_jobs)
+    }
+
+    #[test]
+    fn picking_a_job_equips_the_gear_and_fills_the_places() {
+        let mut h = harness();
+        let a = h.join("a");
+        let b = h.join("b");
+        h.ticks(10);
+        let v = jobs_view(&h, a).expect("список должностей");
+        // Порядок: больший вес выше.
+        assert_eq!(v.jobs[0].id, "Tester");
+        assert_eq!(v.current, None);
+        command(&mut h, a, crate::CMD_JOB, b"Tester".to_vec());
+        h.ticks(10);
+        let hands = hands_of(&h, a, a).unwrap();
+        assert_eq!(
+            hands.held().next().unwrap().prototype.as_str(),
+            "ss14:crowbar"
+        );
+        let inv = inv_of(&h, a, a).unwrap();
+        let back = inv.inventory.get("back").expect("рюкзак надет");
+        assert_eq!(back.prototype.as_str(), "ss14:satchel");
+        let bag = inv.bags.iter().find(|b| b.id == back.id).expect("сумка");
+        assert_eq!(bag.items[0].item.prototype.as_str(), "ss14:pen");
+        // Место одно: второй игрок получает отказ, а у первого должность записана.
+        command(&mut h, b, crate::CMD_JOB, b"Tester".to_vec());
+        h.ticks(10);
+        assert!(hands_of(&h, b, b).unwrap().held().next().is_none());
+        assert_eq!(jobs_view(&h, a).unwrap().current.as_deref(), Some("Tester"));
+        assert_eq!(jobs_view(&h, b).unwrap().jobs[0].taken, 1);
+        // Должность без ограничений доступна всем; вторую взять нельзя.
+        command(&mut h, b, crate::CMD_JOB, b"Free".to_vec());
+        command(&mut h, b, crate::CMD_JOB, b"Tester".to_vec());
+        h.ticks(10);
+        assert_eq!(jobs_view(&h, b).unwrap().current.as_deref(), Some("Free"));
     }
 }

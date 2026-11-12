@@ -10,6 +10,8 @@ pub mod fire;
 pub mod handlers;
 mod hands;
 mod health;
+pub mod jobs;
+pub use jobs::{JOBS_COMPONENT, JobEntry, JobsView, decode_jobs};
 pub mod interact;
 pub mod inventory;
 pub mod items;
@@ -39,7 +41,7 @@ pub use module::{GameplayModule, INTERACTION_RANGE_M, NAMESPACE};
 pub use storage::{Storage, StorageError, StorageSpec};
 pub use wire::{
     BagView, CMD_ATTACK, CMD_CANCEL, CMD_DROP, CMD_EQUIP, CMD_FEED, CMD_HEAL, CMD_INTERACT,
-    CMD_MOVE_HAND, CMD_MOVE_SLOT, CMD_PICKUP, CMD_PICKUP_ANY, CMD_RESIST, CMD_RESPAWN,
+    CMD_JOB, CMD_MOVE_HAND, CMD_MOVE_SLOT, CMD_PICKUP, CMD_PICKUP_ANY, CMD_RESIST, CMD_RESPAWN,
     CMD_SELECT_HAND, CMD_SPILL, CMD_STORE, CMD_SWAP_HANDS, CMD_TAKE, CMD_TAKE_TO, CMD_UNEQUIP,
     CMD_UNEQUIP_TO, CMD_USE, CMD_USE_GROUND, CMD_VEND, CMD_VEND_CLOSE, HANDS_COMPONENT,
     INVENTORY_COMPONENT, InventoryView, WORN_COMPONENT, Worn, attack_data, attack_part_data,

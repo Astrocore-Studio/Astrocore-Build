@@ -57,6 +57,8 @@ pub const CMD_USE_GROUND: &str = "use.ground";
 pub const CMD_VEND: &str = "vend.eject";
 /// Закрыть окно автомата.
 pub const CMD_VEND_CLOSE: &str = "vend.close";
+/// Выбрать должность: данные — её идентификатор (UTF-8).
+pub const CMD_JOB: &str = "job.pick";
 pub const CMD_RESIST: &str = "fire.resist";
 
 /// Взаимодействие с целью в мире (предмет на земле или дверь): `[id цели 16 байт]`.
@@ -163,6 +165,12 @@ pub fn register_replication(reg: &mut ReplicationRegistry) -> Result<(), Replica
         channel: ReplicationChannel::ReliableOrdered,
         interest: Interest::Everyone,
         max_bytes: crate::doafter::DOAFTER_MAX_BYTES,
+    })?;
+    reg.register(ReplicatedKind {
+        name: crate::jobs::JOBS_COMPONENT.into(),
+        channel: ReplicationChannel::ReliableOrdered,
+        interest: Interest::Owner,
+        max_bytes: crate::jobs::JOBS_MAX_BYTES,
     })?;
     reg.register(ReplicatedKind {
         name: crate::vending::VENDING_COMPONENT.into(),

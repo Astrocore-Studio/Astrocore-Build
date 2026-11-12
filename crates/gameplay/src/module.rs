@@ -209,6 +209,13 @@ pub struct State {
     pub(crate) alarm_sig: Vec<(ObjectId, atmos::Cell, u32)>,
     pub(crate) monitor_state: BTreeMap<ObjectId, crate::monitor::AlarmState>,
     pub(crate) alarm_timer: f32,
+    /// Должности карты, занятость мест, должность каждого игрока, заполнение контейнеров.
+    pub(crate) jobs: Vec<crate::jobs::JobSpec>,
+    pub(crate) job_taken: BTreeMap<String, u32>,
+    pub(crate) player_job: BTreeMap<NetworkEntityId, String>,
+    pub(crate) jobs_sent: BTreeMap<NetworkEntityId, Vec<u8>>,
+    pub(crate) fills: BTreeMap<PrototypeId, Vec<crate::spawners::FillEntry>>,
+    pub(crate) item_serial: u128,
     /// Спавнеры карты, их таблицы и имя прототипа SS14 → идентификатор движка.
     pub(crate) spawner_specs: BTreeMap<PrototypeId, crate::spawners::Spawner>,
     pub(crate) spawner_tables: BTreeMap<String, crate::spawners::Node>,
@@ -264,6 +271,8 @@ impl State {
             .map(|(id, n)| (n.clone(), id.clone()))
             .collect();
         let mut vending_specs = BTreeMap::new();
+        let mut jobs = Vec::new();
+        let mut fills = BTreeMap::new();
         let mut spawner_specs = BTreeMap::new();
         let mut spawner_tables = BTreeMap::new();
         let mut infos = BTreeMap::new();
@@ -311,6 +320,18 @@ impl State {
                     .and_then(prototypes::Data::as_f64)
                 {
                     heat_protection.insert(id.clone(), c as f32);
+                }
+                if let Some(j) = r
+                    .component("Job")
+                    .and_then(|c| crate::jobs::JobSpec::parse(&name, c))
+                {
+                    jobs.push(j);
+                }
+                if let Some(c) = r.component("StorageFill") {
+                    let entries = crate::spawners::FillEntry::parse_list(c);
+                    if !entries.is_empty() {
+                        fills.insert(id.clone(), entries);
+                    }
                 }
                 if let Some(s) = r
                     .component("Spawner")
@@ -488,6 +509,16 @@ impl State {
             alarm_sig: Vec::new(),
             monitor_state: BTreeMap::new(),
             alarm_timer: 0.0,
+            jobs: {
+                let mut j = jobs;
+                j.sort_by(|a, b| b.weight.cmp(&a.weight).then(a.id.cmp(&b.id)));
+                j
+            },
+            job_taken: BTreeMap::new(),
+            player_job: BTreeMap::new(),
+            jobs_sent: BTreeMap::new(),
+            fills,
+            item_serial: 0,
             spawner_specs,
             spawner_tables,
             proto_by_name: by_name.clone(),
@@ -1297,6 +1328,13 @@ impl State {
     /// Возродиться: призрак по истечении ожидания получает новое тело в точке возрождения. Одежда
     /// старого тела остаётся лежать у места смерти.
     pub(crate) fn respawn(&mut self, ctx: &mut HookContext<'_>, actor: NetworkEntityId) {
+        let died_as_ghost = self
+            .actors
+            .get(&actor)
+            .is_some_and(|a| a.ghost && self.clock >= a.respawn_at);
+        if died_as_ghost {
+            self.release_job(actor);
+        }
         let (Some(spawn), Some(a)) = (self.spawn, self.actors.get(&actor)) else {
             return;
         };
@@ -1416,6 +1454,7 @@ impl State {
         self.tick_disposal(ctx, dt);
         self.tick_conveyors(ctx, dt);
         self.tick_vending(ctx);
+        self.publish_jobs(ctx);
         self.resolve_spawners(ctx);
         self.tick_alarms(ctx, dt);
         self.tick_firelocks(ctx, dt);
@@ -2029,6 +2068,138 @@ impl State {
         }
     }
 
+    /// Создать предмет по имени прототипа SS14; контейнеры наполняются (`StorageFill`).
+    pub(crate) fn create_item(&mut self, name: &str) -> Option<HeldItem> {
+        let proto = self.proto_by_name.get(name)?.clone();
+        self.item_serial += 1;
+        let item = HeldItem {
+            id: ObjectId::from_u128(0xA11C_E000_0000 + self.item_serial),
+            prototype: proto.clone(),
+        };
+        if let Some(entries) = self.fills.get(&proto).cloned() {
+            let spec = self.info(&proto).and_then(|i| i.storage.clone());
+            if let Some(spec) = spec {
+                for n in crate::spawners::fill_spawns(&entries, &mut self.spawn_rng) {
+                    if let Some(inner) = self.create_item(&n)
+                        && let Some(info) = self.info(&inner.prototype).cloned()
+                    {
+                        let _ = self
+                            .storages
+                            .entry(item.id)
+                            .or_default()
+                            .insert(&spec, inner, &info);
+                    }
+                }
+            }
+        }
+        Some(item)
+    }
+
+    /// Выбор должности: места есть, у игрока её ещё нет — создать и надеть снаряжение.
+    pub(crate) fn pick_job(
+        &mut self,
+        ctx: &mut HookContext<'_>,
+        actor: NetworkEntityId,
+        job: &str,
+    ) {
+        if self.player_job.contains_key(&actor)
+            || !self
+                .actors
+                .get(&actor)
+                .is_some_and(|a| !a.ghost && a.health.state().can_act())
+        {
+            return;
+        }
+        let Some(spec) = self.jobs.iter().find(|j| j.id == job).cloned() else {
+            return;
+        };
+        let taken = self.job_taken.get(job).copied().unwrap_or(0);
+        if spec.max >= 0 && taken >= spec.max as u32 {
+            return;
+        }
+        *self.job_taken.entry(job.to_string()).or_default() += 1;
+        self.player_job.insert(actor, job.to_string());
+        // Слоты по порядку шаблона: сначала то, от чего зависят другие (комбинезон, верхняя одежда).
+        for slot in crate::inventory::human_template() {
+            let Some(name) = spec.equipment.get(&slot.name) else {
+                continue;
+            };
+            if let Some(item) = self.create_item(name) {
+                self.actor(actor).inventory.equip_forced(&slot.name, item);
+            }
+        }
+        for name in &spec.inhand {
+            if let Some(item) = self.create_item(name)
+                && let Err(_) = self.actor(actor).hands.pickup_any(item.clone())
+                && let Some(feet) = ctx.position_of(actor)
+            {
+                Self::place(ctx, &item, feet);
+            }
+        }
+        for (slot, names) in &spec.storage {
+            let Some(bag) = self
+                .actors
+                .get(&actor)
+                .and_then(|a| a.inventory.get(slot))
+                .cloned()
+            else {
+                continue;
+            };
+            let Some(bag_spec) = self.info(&bag.prototype).and_then(|i| i.storage.clone()) else {
+                continue;
+            };
+            for name in names {
+                if let Some(item) = self.create_item(name)
+                    && let Some(info) = self.info(&item.prototype).cloned()
+                {
+                    let _ = self
+                        .storages
+                        .entry(bag.id)
+                        .or_default()
+                        .insert(&bag_spec, item, &info);
+                }
+            }
+        }
+        self.publish(ctx, actor);
+    }
+
+    /// Освободить место должности (игрок ушёл или возродился).
+    pub(crate) fn release_job(&mut self, actor: NetworkEntityId) {
+        if let Some(j) = self.player_job.remove(&actor)
+            && let Some(n) = self.job_taken.get_mut(&j)
+        {
+            *n = n.saturating_sub(1);
+        }
+    }
+
+    /// Список должностей каждому игроку (по изменению).
+    fn publish_jobs(&mut self, ctx: &mut HookContext<'_>) {
+        if self.jobs.is_empty() {
+            return;
+        }
+        let list: Vec<crate::jobs::JobEntry> = self
+            .jobs
+            .iter()
+            .map(|j| crate::jobs::JobEntry {
+                id: j.id.clone(),
+                title: j.title.clone(),
+                taken: self.job_taken.get(&j.id).copied().unwrap_or(0),
+                max: j.max,
+            })
+            .collect();
+        for p in ctx.players().collect::<Vec<_>>() {
+            let view = crate::jobs::JobsView {
+                jobs: list.clone(),
+                current: self.player_job.get(&p).cloned(),
+            };
+            let bytes = crate::jobs::encode_jobs(&view);
+            if self.jobs_sent.get(&p) != Some(&bytes) {
+                ctx.set_component(p, crate::jobs::JOBS_COMPONENT, bytes.clone());
+                self.jobs_sent.insert(p, bytes);
+            }
+        }
+    }
+
     /// Старт раунда: каждый спавнер карты заменяется предметами (`MapInit` спавнеров SS14).
     fn resolve_spawners(&mut self, ctx: &mut HookContext<'_>) {
         // Спавнер срабатывает, как только появился (`MapInit`): проверка раз в полсекунды.
@@ -2375,7 +2546,7 @@ impl State {
                 matches!(o.kind, AuthoredKind::Zone)
                     && matches!(
                         o.metadata.get("spawn_job").map(String::as_str),
-                        Some("Passenger" | "Latejoin")
+                        Some("Latejoin")
                     )
             })
             .map(|o| {
@@ -3252,6 +3423,11 @@ impl GameModule for GameplayModule {
                         st.vend(ctx, *actor, item);
                     }
                 }
+                crate::wire::CMD_JOB => {
+                    if let Ok(job) = std::str::from_utf8(data) {
+                        st.pick_job(ctx, *actor, job);
+                    }
+                }
                 crate::wire::CMD_VEND_CLOSE => {
                     st.vending_open.remove(actor);
                 }
@@ -3408,6 +3584,7 @@ impl GameModule for GameplayModule {
             HookEvent::PlayerLeft { actor, pos } => {
                 // Всё, что игрок держал и носил, остаётся лежать там, где он стоял (DropAll);
                 // содержимое сумок остаётся в сумках.
+                st.release_job(*actor);
                 if let Some(mut a) = st.actors.remove(actor) {
                     for item in a.hands.take_all().into_iter().chain(a.inventory.take_all()) {
                         State::place(ctx, &item, *pos);
