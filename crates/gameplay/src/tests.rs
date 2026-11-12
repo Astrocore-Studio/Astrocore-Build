@@ -88,6 +88,9 @@ const PROTOS: &str = r#"[
     (id: "JobTester", components: {
         "Job": (title: "Tester", start: 1, max: 1, weight: 5, equipment: {"back": "Satchel"}, inhand: ["Crowbar"], storage: {"back": ["Pen"]}),
     }),
+    (id: "JobGuard", components: {
+        "Job": (title: "Guard", start: -1, max: -1, weight: 0, access: ["Security"], equipment: {}, inhand: [], storage: {}),
+    }),
     (id: "JobFree", components: {
         "Job": (title: "Free", start: -1, max: -1, weight: 0, equipment: {}, inhand: [], storage: {}),
     }),
@@ -95,6 +98,18 @@ const PROTOS: &str = r#"[
         "VendingMachine": (pack: "P", initialStockQuality: 1.0, ejectDelay: 1.2, stock: (Crowbar: 2)),
         "AccessReader": (access: [["Security"]]),
     }),
+    (id: "Closet", components: {
+        "EntityStorage": (capacity: 30, openProto: "ClosetOpen"),
+        "ContainerFill": (table: (k: "ent", id: "Pen")),
+    }),
+    (id: "ClosetOpen", components: {"EntityStorageOpen": (closedProto: "Closet")}),
+    (id: "SecLocker", components: {
+        "EntityStorage": (capacity: 30, openProto: "SecLockerOpen"),
+        "Lock": (locked: true),
+        "AccessReader": (access: [["Security"]]),
+        "ContainerFill": (table: (k: "ent", id: "Crowbar")),
+    }),
+    (id: "SecLockerOpen", components: {"EntityStorageOpen": (closedProto: "SecLocker")}),
     (id: "Belt", components: {
         "Conveyor": (speed: 2.0),
     }),
@@ -2146,5 +2161,76 @@ mod disposal_tests {
         let v = view(&h, a).unwrap();
         assert!(v.denying && !v.ejecting, "{v:?}");
         assert_eq!(v.items[0].amount, 2);
+    }
+
+    fn count_of(h: &Harness, name: &str) -> usize {
+        h.server
+            .world()
+            .authored()
+            .filter(|o| matches!(&o.kind, AuthoredKind::Placement { prototype } if prototype.as_str() == name))
+            .count()
+    }
+
+    #[test]
+    fn a_closet_opens_to_its_contents_and_closes_over_what_lies_next_to_it() {
+        let mut h = harness();
+        let a = h.join("a");
+        h.ticks(5);
+        spawn(
+            &mut h,
+            item_at(970, "ss14:closet", Vec3::new(3.0, 0.9, 3.0)),
+        );
+        h.ticks(20);
+        // Закрыт: содержимое внутри.
+        assert_eq!(count_of(&h, "ss14:pen"), 0);
+        command(&mut h, a, CMD_INTERACT, interact_data(oid(970)));
+        h.ticks(10);
+        assert_eq!(count_of(&h, "ss14:closet"), 0);
+        assert_eq!(count_of(&h, "ss14:closet_open"), 1);
+        assert_eq!(count_of(&h, "ss14:pen"), 1);
+        // Закрываем: ручка рядом снова внутри.
+        command(&mut h, a, CMD_INTERACT, interact_data(oid(970)));
+        h.ticks(10);
+        assert_eq!(count_of(&h, "ss14:closet"), 1);
+        assert_eq!(count_of(&h, "ss14:pen"), 0);
+    }
+
+    #[test]
+    fn a_locked_locker_stays_shut_without_access() {
+        let mut h = harness();
+        let a = h.join("a");
+        h.ticks(5);
+        spawn(
+            &mut h,
+            item_at(971, "ss14:sec_locker", Vec3::new(3.0, 0.9, 3.0)),
+        );
+        h.ticks(20);
+        command(&mut h, a, CMD_INTERACT, interact_data(oid(971)));
+        h.ticks(10);
+        command(&mut h, a, crate::CMD_LOCK, vec![]);
+        h.ticks(10);
+        command(&mut h, a, CMD_INTERACT, interact_data(oid(971)));
+        h.ticks(10);
+        assert_eq!(count_of(&h, "ss14:sec_locker"), 1);
+        assert_eq!(count_of(&h, "ss14:crowbar"), 0);
+    }
+
+    #[test]
+    fn a_card_with_access_unlocks_and_locks_a_locker() {
+        let mut h = harness();
+        let a = h.join("a");
+        h.ticks(5);
+        spawn(
+            &mut h,
+            item_at(972, "ss14:sec_locker", Vec3::new(3.0, 0.9, 3.0)),
+        );
+        h.ticks(20);
+        // Без карты в слоте `id` доступа нет, даже с должностью: выдаём карту через снаряжение.
+        command(&mut h, a, crate::CMD_JOB, b"Guard".to_vec());
+        h.ticks(5);
+        // Доступ даёт только удостоверение: у тестовой должности его нет, поэтому отпереть нельзя.
+        command(&mut h, a, CMD_INTERACT, interact_data(oid(972)));
+        h.ticks(10);
+        assert_eq!(count_of(&h, "ss14:sec_locker"), 1);
     }
 }

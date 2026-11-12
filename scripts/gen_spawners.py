@@ -91,6 +91,103 @@ for p in sorted(placed):
         continue
     lines.append('    (id: %s, components: {"Spawner": (%s)}),' % (q(p), body))
     done.add(p)
+# --- Шкафы, ящики и морги (EntityStorage) ---
+import os
+from PIL import Image
+
+OUT_RSI = 'assets/ss14/Textures/Structures/Storage/generated'
+TEX = sys.argv[1] + '/Resources/Textures/'
+storage_lines = [
+    '// Шкафы, ящики и морги карты (EntityStorage, Lock, AccessReader, EntityTableContainerFill).',
+    '// Создано scripts/gen_spawners.py. Закрытый и открытый вид — два прототипа (`X` и `XOpen`) со склеенными спрайтами.',
+    '[',
+]
+
+
+def frame(rsi, state):
+    meta = json.load(open(TEX + rsi + '/meta.json'))
+    w, h = meta['size']['x'], meta['size']['y']
+    im = Image.open(TEX + rsi + '/' + state + '.png').convert('RGBA')
+    return im.crop((0, 0, w, h)), meta
+
+
+def compose(rsi, base, door):
+    layers = []
+    out = None
+    for s in (base, door):
+        if not s:
+            continue
+        try:
+            f, meta = frame(rsi, s)
+        except FileNotFoundError:
+            continue
+        if out is None:
+            out = Image.new('RGBA', f.size)
+        out.alpha_composite(f)
+    return out
+
+
+storage_done = []
+for p in sorted(placed):
+    if not P.get('entity', p) or P.is_abstract(p):
+        continue
+    c = P.entity_components(p)
+    if 'EntityStorage' not in c or 'Sprite' not in c:
+        continue
+    es = c['EntityStorage']
+    sp = c['Sprite']
+    rsi = sp.get('sprite')
+    if not rsi:
+        continue
+    vis = c.get('EntityStorageVisuals', {})
+    layers = sp.get('layers') or []
+    base_closed = vis.get('stateBaseClosed')
+    if not base_closed:
+        for l in layers:
+            if isinstance(l, dict) and l.get('state') and not l.get('map') or (isinstance(l, dict) and 'enum.StorageVisualLayers.Base' in (l.get('map') or [])):
+                base_closed = l['state']
+                break
+    base_open = vis.get('stateBaseOpen') or base_closed
+    door_closed = vis.get('stateDoorClosed')
+    door_open = vis.get('stateDoorOpen')
+    if not door_closed:
+        for l in layers:
+            if isinstance(l, dict) and 'enum.StorageVisualLayers.Door' in (l.get('map') or []):
+                door_closed = l.get('state')
+    closed = compose(rsi, base_closed, door_closed)
+    opened = compose(rsi, base_open, door_open)
+    if closed is None:
+        continue
+    d = '%s/%s.rsi' % (OUT_RSI, p)
+    os.makedirs(d, exist_ok=True)
+    src = json.load(open(TEX + rsi + '/meta.json'))
+    states = [{'name': 'closed'}]
+    closed.save(d + '/closed.png')
+    if opened is not None:
+        opened.save(d + '/open.png')
+        states.append({'name': 'open'})
+    json.dump({'version': 1, 'license': src.get('license', 'CC-BY-SA-3.0'), 'copyright': src.get('copyright', 'SS14') + ' (склеено scripts/gen_spawners.py)',
+               'size': {'x': closed.width, 'y': closed.height}, 'states': states}, open(d + '/meta.json', 'w'), indent=1)
+    rsipath = 'Structures/Storage/generated/%s.rsi' % p
+    lock = c.get('Lock')
+    ar = c.get('AccessReader', {}).get('access') or []
+    fill = (c.get('EntityTableContainerFill', {}).get('containers') or {}).get('entity_storage')
+    parts = ['"EntityStorage": (capacity: %d, openProto: %s)' % (int(es.get('capacity', 30)), q(p + 'Open'))]
+    if lock is not None:
+        parts.append('"Lock": (locked: %s)' % ('true' if lock.get('locked', True) else 'false'))
+    if ar:
+        parts.append('"AccessReader": (access: [%s])' % ', '.join('[%s]' % ', '.join(q(t) for t in s) for s in ar))
+    if fill:
+        parts.append('"ContainerFill": (table: %s)' % node(fill))
+    name = P.entity_name(p) or p
+    storage_lines.append('    (id: %s, name: Some(%s), components: {"Sprite": (sprite: %s, state: "closed"), %s}),' % (q(p), q(name), q(rsipath), ', '.join(parts)))
+    if opened is not None:
+        storage_lines.append('    (id: %s, name: Some(%s), components: {"Sprite": (sprite: %s, state: "open"), "EntityStorageOpen": (closedProto: %s)}),' % (q(p + 'Open'), q(name), q(rsipath), q(p)))
+    storage_done.append(p)
+storage_lines.append(']')
+open('content/prototypes/storage.ron', 'w').write('\n'.join(storage_lines) + '\n')
+print(len(storage_done), 'шкафов и ящиков')
+
 seen = set()
 while tables_needed:
     t = tables_needed.pop()

@@ -1,0 +1,14 @@
+{
+ "version": 1,
+ "license": "CC-BY-SA-3.0",
+ "copyright": "Taken from tgstation at https://github.com/tgstation/tgstation/commit/31d88c7454e429a64fbae4a9f7b4aecaf838e9a1 (\u0441\u043a\u043b\u0435\u0435\u043d\u043e scripts/gen_spawners.py)",
+ "size": {
+  "x": 32,
+  "y": 32
+ },
+ "states": [
+  {
+   "name": "closed"
+  }
+ ]
+}

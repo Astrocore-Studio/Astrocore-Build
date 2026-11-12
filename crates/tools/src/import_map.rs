@@ -140,6 +140,17 @@ fn reader_access(entity: &Value) -> Option<Vec<Vec<String>>> {
     )
 }
 
+/// Булево поле компонента сущности карты (`EntityStorage.open`, `Lock.locked`).
+fn component_bool(entity: &Value, component: &str, field: &str) -> Option<bool> {
+    entity
+        .get("components")?
+        .as_sequence()?
+        .iter()
+        .find(|c| c.get("type").and_then(Value::as_str) == Some(component))?
+        .get(field)?
+        .as_bool()
+}
+
 fn device_list(entity: &Value) -> Vec<i64> {
     let comps = entity.get("components").and_then(Value::as_sequence);
     let find = |name: &str| {
@@ -531,6 +542,7 @@ pub fn import(
                             z: -y,
                             rot: 0,
                             links: Vec::new(),
+                            meta: BTreeMap::new(),
                         });
                         report.chairs += 1;
                     }
@@ -559,12 +571,26 @@ pub fn import(
                     if !links.is_empty() {
                         report.alarms += 1;
                     }
+                    // Шкаф, открытый на карте: берётся прототип открытого вида; замок — как записано на карте.
+                    let open_name = format!("{proto}Open");
+                    let prototype = if component_bool(entity, "EntityStorage", "open") == Some(true)
+                        && known_items.contains(&open_name)
+                    {
+                        open_name
+                    } else {
+                        proto.to_string()
+                    };
+                    let mut meta = BTreeMap::new();
+                    if let Some(locked) = component_bool(entity, "Lock", "locked") {
+                        meta.insert("locked".to_string(), u8::from(locked).to_string());
+                    }
                     items.push(MapItem {
-                        prototype: proto.to_string(),
+                        prototype,
                         x,
                         z: -y,
                         rot: entity_rot(entity),
                         links,
+                        meta,
                     });
                 }
                 Kind::Other => report.skipped_entities += 1,

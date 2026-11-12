@@ -368,6 +368,32 @@ impl InteractionHandler for VendingUse {
     }
 }
 
+/// Шкаф или ящик: пустая рука отпирает запертый (`LockSystem.OnActivated`), иначе открывает или
+/// закрывает (`EntityStorage.ToggleOpen`).
+pub struct LockerUse;
+
+impl InteractionHandler for LockerUse {
+    fn interact_hand(
+        &mut self,
+        state: &mut State,
+        ctx: &mut HookContext<'_>,
+        user: NetworkEntityId,
+        target: &Target,
+    ) -> bool {
+        let Target::Item { id, .. } = target else {
+            return false;
+        };
+        let Some(l) = state.lockers.get(id) else {
+            return false;
+        };
+        if l.locked {
+            state.toggle_lock(ctx, user, *id, true);
+            return true;
+        }
+        state.toggle_locker(ctx, *id)
+    }
+}
+
 /// Базовая цепочка: порядок важен — первый обработавший прекращает обход.
 pub fn default_handlers() -> Vec<Box<dyn InteractionHandler>> {
     vec![
@@ -375,6 +401,7 @@ pub fn default_handlers() -> Vec<Box<dyn InteractionHandler>> {
         Box::new(DisposalUnitUse),
         Box::new(SwitchUse),
         Box::new(VendingUse),
+        Box::new(LockerUse),
         Box::new(PryDoor),
         Box::new(StorageClickInsert),
         Box::new(PickupHandler),

@@ -65,6 +65,8 @@ def sprite_of(comps):
             break
     if state is None:
         state = s.get('state')
+    if isinstance(rsi, str):
+        rsi = rsi.removeprefix('/Textures/').lstrip('/')
     if rsi and state:
         return rsi, state
     return None

@@ -23,6 +23,9 @@ pub struct MapItem {
     /// Клетки устройств, связанных с этим объектом (`DeviceList` сигнализации SS14).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub links: Vec<[i32; 2]>,
+    /// Дополнительные метаданные объекта (например, `locked` у шкафа).
+    #[serde(default, skip_serializing_if = "std::collections::BTreeMap::is_empty")]
+    pub meta: std::collections::BTreeMap<String, String>,
 }
 
 fn is_zero(v: &u8) -> bool {

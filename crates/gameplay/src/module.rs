@@ -109,6 +109,27 @@ pub(crate) struct IdSpec {
     pub(crate) job: Option<String>,
 }
 
+/// Шкаф или ящик по прототипу закрытого вида.
+#[derive(Debug, Clone)]
+pub(crate) struct StorageSpec {
+    pub(crate) capacity: usize,
+    /// Имя прототипа открытого вида.
+    pub(crate) open_name: String,
+    /// Замок: `Some(начальное состояние)`; `None` — замка нет.
+    pub(crate) lock: Option<bool>,
+    pub(crate) access: Vec<Vec<String>>,
+    pub(crate) fill: Option<crate::spawners::Node>,
+}
+
+/// Шкаф или ящик в мире: открыт ли, заперт ли и что лежит внутри.
+#[derive(Debug, Clone)]
+pub(crate) struct Locker {
+    pub(crate) closed_proto: PrototypeId,
+    pub(crate) open: bool,
+    pub(crate) locked: bool,
+    pub(crate) contents: Vec<HeldItem>,
+}
+
 /// Торговый автомат по прототипу.
 #[derive(Debug, Clone)]
 pub(crate) struct VendSpec {
@@ -217,6 +238,11 @@ pub struct State {
     pub(crate) alarm_sig: Vec<(ObjectId, atmos::Cell, u32)>,
     pub(crate) monitor_state: BTreeMap<ObjectId, crate::monitor::AlarmState>,
     pub(crate) alarm_timer: f32,
+    /// Шкафы и ящики: описания закрытых прототипов, соответствие «открытый → закрытый», состояние.
+    pub(crate) storage_specs: BTreeMap<PrototypeId, StorageSpec>,
+    pub(crate) storage_open_of: BTreeMap<PrototypeId, PrototypeId>,
+    pub(crate) lockers: BTreeMap<ObjectId, Locker>,
+    pub(crate) locker_timer: f32,
     /// Удостоверения: уровни доступа по прототипу, карта в КПК, выданные при выборе должности.
     pub(crate) id_specs: BTreeMap<PrototypeId, IdSpec>,
     pub(crate) pda_cards: BTreeMap<PrototypeId, String>,
@@ -283,6 +309,8 @@ impl State {
             .map(|(id, n)| (n.clone(), id.clone()))
             .collect();
         let mut vending_specs = BTreeMap::new();
+        let mut storage_specs = BTreeMap::new();
+        let mut storage_open_of: BTreeMap<PrototypeId, PrototypeId> = BTreeMap::new();
         let mut id_specs = BTreeMap::new();
         let mut pda_cards = BTreeMap::new();
         let mut jobs = Vec::new();
@@ -334,6 +362,43 @@ impl State {
                     .and_then(prototypes::Data::as_f64)
                 {
                     heat_protection.insert(id.clone(), c as f32);
+                }
+                if let Some(c) = r.component("EntityStorage") {
+                    storage_specs.insert(
+                        id.clone(),
+                        StorageSpec {
+                            capacity: c
+                                .get("capacity")
+                                .and_then(prototypes::Data::as_int)
+                                .unwrap_or(30) as usize,
+                            open_name: c
+                                .get("openProto")
+                                .and_then(prototypes::Data::as_str)
+                                .unwrap_or_default()
+                                .to_string(),
+                            lock: r.component("Lock").map(|l| {
+                                l.get("locked")
+                                    .and_then(prototypes::Data::as_bool)
+                                    .unwrap_or(true)
+                            }),
+                            access: r
+                                .component("AccessReader")
+                                .map(access_lists)
+                                .unwrap_or_default(),
+                            fill: r
+                                .component("ContainerFill")
+                                .and_then(|f| f.get("table"))
+                                .and_then(crate::spawners::Node::parse),
+                        },
+                    );
+                }
+                if let Some(closed) = r
+                    .component("EntityStorageOpen")
+                    .and_then(|c| c.get("closedProto"))
+                    .and_then(prototypes::Data::as_str)
+                    && let Some(cid) = by_name.get(closed)
+                {
+                    storage_open_of.insert(id.clone(), cid.clone());
                 }
                 if let Some(c) = r.component("IdCard") {
                     id_specs.insert(
@@ -554,6 +619,10 @@ impl State {
             alarm_sig: Vec::new(),
             monitor_state: BTreeMap::new(),
             alarm_timer: 0.0,
+            storage_specs,
+            storage_open_of,
+            lockers: BTreeMap::new(),
+            locker_timer: 0.0,
             id_specs,
             pda_cards,
             card_access: BTreeMap::new(),
@@ -1502,6 +1571,7 @@ impl State {
         self.tick_disposal(ctx, dt);
         self.tick_conveyors(ctx, dt);
         self.tick_vending(ctx);
+        self.tick_lockers(ctx);
         self.publish_jobs(ctx);
         self.resolve_spawners(ctx);
         self.tick_alarms(ctx, dt);
@@ -2376,6 +2446,191 @@ impl State {
                 Self::place(ctx, &held, at + Vec3::new(dx, 0.0, dz));
             }
         }
+    }
+
+    fn tick_lockers(&mut self, ctx: &mut HookContext<'_>) {
+        if self.storage_specs.is_empty() {
+            return;
+        }
+        self.locker_timer += self.last_dt;
+        if self.locker_timer < 0.5 && !self.lockers.is_empty() {
+            return;
+        }
+        self.locker_timer = 0.0;
+        self.sync_lockers(ctx);
+    }
+
+    /// Шкафы и ящики карты получают состояние и наполнение при первом появлении (`MapInit`).
+    fn sync_lockers(&mut self, ctx: &mut HookContext<'_>) {
+        let mut new: Vec<(ObjectId, PrototypeId, bool, Option<bool>, Vec3)> = Vec::new();
+        let mut seen = BTreeSet::new();
+        for o in ctx.world.authored() {
+            let AuthoredKind::Placement { prototype } = &o.kind else {
+                continue;
+            };
+            let (closed, open) = if self.storage_specs.contains_key(prototype) {
+                (prototype.clone(), false)
+            } else if let Some(c) = self.storage_open_of.get(prototype) {
+                (c.clone(), true)
+            } else {
+                continue;
+            };
+            seen.insert(o.id);
+            if self.lockers.contains_key(&o.id) {
+                continue;
+            }
+            let locked = o.metadata.get("locked").map(|v| v == "1");
+            let c = (o.min() + o.max()) * 0.5;
+            new.push((o.id, closed, open, locked, Vec3::new(c.x, o.min().y, c.z)));
+        }
+        self.lockers.retain(|id, _| seen.contains(id));
+        for (id, closed, open, locked, at) in new {
+            let Some(spec) = self.storage_specs.get(&closed).cloned() else {
+                continue;
+            };
+            let mut contents = Vec::new();
+            if let Some(table) = &spec.fill {
+                for name in table.roll_all(&self.spawner_tables, &mut self.spawn_rng) {
+                    if let Some(item) = self.create_item(&name) {
+                        contents.push(item);
+                    }
+                }
+            }
+            let state_locked =
+                !open && spec.lock.is_some() && locked.or(spec.lock).unwrap_or(false);
+            let mut locker = Locker {
+                closed_proto: closed,
+                open,
+                locked: state_locked,
+                contents,
+            };
+            // Открытый на карте шкаф сразу отдаёт содержимое.
+            if open {
+                let items = std::mem::take(&mut locker.contents);
+                self.scatter(ctx, &items, at);
+            }
+            self.lockers.insert(id, locker);
+        }
+    }
+
+    /// Разложить предметы вокруг точки (открытый шкаф).
+    fn scatter(&mut self, ctx: &mut HookContext<'_>, items: &[HeldItem], at: Vec3) {
+        for (i, item) in items.iter().enumerate() {
+            let a = i as f32 * 2.399_963; // золотой угол: равномерно по кругу
+            let r = 0.15 + 0.05 * (i % 4) as f32;
+            Self::place(ctx, item, at + Vec3::new(a.cos() * r, 0.0, a.sin() * r));
+        }
+    }
+
+    /// Заменить вид шкафа (открытый ↔ закрытый), сохранив идентификатор и метаданные.
+    fn swap_locker_proto(ctx: &mut HookContext<'_>, id: ObjectId, to: &PrototypeId) {
+        let Some(mut obj) = ctx.world.authored_object(id).cloned() else {
+            return;
+        };
+        obj.kind = AuthoredKind::Placement {
+            prototype: to.clone(),
+        };
+        ctx.request(WorldCommand::RemoveAuthored { id });
+        ctx.request(WorldCommand::PlaceAuthored(obj));
+    }
+
+    /// `ToggleOpen`: закрытый — открыть (содержимое на пол), открытый — закрыть (предметы рядом внутрь).
+    pub(crate) fn toggle_locker(&mut self, ctx: &mut HookContext<'_>, id: ObjectId) -> bool {
+        let Some(l) = self.lockers.get(&id).cloned() else {
+            return false;
+        };
+        let Some(spec) = self.storage_specs.get(&l.closed_proto).cloned() else {
+            return false;
+        };
+        let Some(obj) = ctx.world.authored_object(id) else {
+            return false;
+        };
+        let c = (obj.min() + obj.max()) * 0.5;
+        let at = Vec3::new(c.x, obj.min().y, c.z);
+        let floor = obj.floor;
+        if l.open {
+            // Закрыть: подбираются предметы в пределах шкафа (`Capacity`).
+            let mut taken = Vec::new();
+            let room = spec.capacity.saturating_sub(l.contents.len());
+            for o in ctx.world.authored() {
+                let AuthoredKind::Placement { prototype } = &o.kind else {
+                    continue;
+                };
+                if o.id == id || o.floor != floor || !self.infos.contains_key(prototype) {
+                    continue;
+                }
+                let p = (o.min() + o.max()) * 0.5;
+                if (p.x - at.x).abs() <= 0.5 && (p.z - at.z).abs() <= 0.5 && taken.len() < room {
+                    taken.push(HeldItem {
+                        id: o.id,
+                        prototype: prototype.clone(),
+                    });
+                }
+            }
+            for t in &taken {
+                ctx.request(WorldCommand::RemoveAuthored { id: t.id });
+            }
+            let locker = self.lockers.get_mut(&id).expect("шкаф известен");
+            locker.contents.extend(taken);
+            locker.open = false;
+            Self::swap_locker_proto(ctx, id, &l.closed_proto);
+        } else {
+            let Some(open) = self.proto_by_name.get(&spec.open_name).cloned() else {
+                return false;
+            };
+            let items = {
+                let locker = self.lockers.get_mut(&id).expect("шкаф известен");
+                locker.open = true;
+                std::mem::take(&mut locker.contents)
+            };
+            Self::swap_locker_proto(ctx, id, &open);
+            self.scatter(ctx, &items, at);
+        }
+        true
+    }
+
+    /// `LockSystem.TryUnlock/TryLock`: нужен доступ считывателя шкафа; открытый шкаф не запереть.
+    pub(crate) fn toggle_lock(
+        &mut self,
+        ctx: &HookContext<'_>,
+        user: NetworkEntityId,
+        id: ObjectId,
+        only_unlock: bool,
+    ) -> bool {
+        let Some(l) = self.lockers.get(&id) else {
+            return false;
+        };
+        let Some(spec) = self.storage_specs.get(&l.closed_proto) else {
+            return false;
+        };
+        if spec.lock.is_none() || l.open || (only_unlock && !l.locked) {
+            return false;
+        }
+        let allowed = Self::access_ok(&spec.access, &self.user_access(user));
+        let _ = ctx;
+        if allowed && let Some(l) = self.lockers.get_mut(&id) {
+            l.locked = !l.locked;
+        }
+        true
+    }
+
+    /// Ближайший шкаф или ящик в пределах досягаемости.
+    pub(crate) fn nearest_locker(
+        &self,
+        ctx: &HookContext<'_>,
+        user: NetworkEntityId,
+    ) -> Option<ObjectId> {
+        let feet = ctx.position_of(user)?;
+        self.lockers
+            .keys()
+            .filter_map(|id| {
+                let o = ctx.world.authored_object(*id)?;
+                let c = (o.min() + o.max()) * 0.5;
+                Some((*id, (c - (feet + Vec3::Y * 0.9)).length()))
+            })
+            .filter(|(_, d)| *d <= self.range_m)
+            .min_by(|a, b| a.1.total_cmp(&b.1))
+            .map(|(id, _)| id)
     }
 
     /// Автоматы из карты получают начальный запас при первом появлении (`MapInit`).
@@ -3582,6 +3837,11 @@ impl GameModule for GameplayModule {
                 crate::wire::CMD_VEND => {
                     if let Ok(item) = std::str::from_utf8(data) {
                         st.vend(ctx, *actor, item);
+                    }
+                }
+                crate::wire::CMD_LOCK => {
+                    if let Some(id) = st.nearest_locker(ctx, *actor) {
+                        st.toggle_lock(ctx, *actor, id, false);
                     }
                 }
                 crate::wire::CMD_JOB => {

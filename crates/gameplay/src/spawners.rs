@@ -94,6 +94,13 @@ impl Node {
         })
     }
 
+    /// Все предметы таблицы за один бросок (наполнение шкафа).
+    pub fn roll_all(&self, tables: &BTreeMap<String, Node>, rng: &mut Rng) -> Vec<String> {
+        let mut out = Vec::new();
+        self.spawns(tables, rng, &mut out);
+        out
+    }
+
     /// `EntityTableSelector.GetSpawns`.
     pub fn spawns(&self, tables: &BTreeMap<String, Node>, rng: &mut Rng, out: &mut Vec<String>) {
         for _ in 0..self.rolls.get(rng) {

@@ -1,0 +1,17 @@
+{
+ "version": 1,
+ "license": "CC-BY-SA-3.0",
+ "copyright": "Created by brainfood# 7460 (\u0441\u043a\u043b\u0435\u0435\u043d\u043e scripts/gen_spawners.py)",
+ "size": {
+  "x": 32,
+  "y": 32
+ },
+ "states": [
+  {
+   "name": "closed"
+  },
+  {
+   "name": "open"
+  }
+ ]
+}

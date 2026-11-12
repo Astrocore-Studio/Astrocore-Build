@@ -1,0 +1,17 @@
+{
+ "version": 1,
+ "license": "CC-BY-SA-3.0",
+ "copyright": "Taken from baystation at commit https://github.com/Baystation12/Baystation12/commit/a929584d9db319eb7484113221be25cfa1d5dc09. Label sprites by Vermidia. (\u0441\u043a\u043b\u0435\u0435\u043d\u043e scripts/gen_spawners.py)",
+ "size": {
+  "x": 32,
+  "y": 32
+ },
+ "states": [
+  {
+   "name": "closed"
+  },
+  {
+   "name": "open"
+  }
+ ]
+}

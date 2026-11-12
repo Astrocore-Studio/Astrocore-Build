@@ -80,7 +80,10 @@ pub fn referenced(content: &Path) -> Result<(BTreeSet<String>, BTreeSet<String>)
             .and_then(|c| c.get("sprite"))
             .and_then(Data::as_str)
         {
-            rsi.insert(s.to_string());
+            // Склеенные скриптом спрайты шкафов лежат сразу в assets, в источнике их нет.
+            if !s.contains("/generated/") {
+                rsi.insert(s.to_string());
+            }
         }
     }
     for d in polygon::load_doors(content).map_err(|e| SyncError::Content(e.to_string()))? {

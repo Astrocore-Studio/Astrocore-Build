@@ -173,6 +173,55 @@ mod doors {
     }
 
     #[test]
+    fn a_security_officer_unlocks_the_security_locker_and_a_civilian_cannot() {
+        use astrocore_world::{AuthoredKind, AuthoredObject, FloorId, WorldCommand};
+        let (mut h, a, _b) = setup();
+        let locker = |h: &Harness, name: &str| {
+            h.server
+                .world()
+                .authored()
+                .filter(|o| matches!(&o.kind, AuthoredKind::Placement { prototype } if prototype.as_str() == name))
+                .count()
+        };
+        let at = astrocore_math::glam::Vec3::new(4.6, 0.2, 2.3);
+        let obj = AuthoredObject::new(
+            ObjectId::from_u128(0x10CC_0001),
+            AuthoredKind::Placement {
+                prototype: astrocore_core::PrototypeId::new("ss14:locker_security_filled").unwrap(),
+            },
+            FloorId(0),
+            at,
+            at + astrocore_math::glam::Vec3::splat(0.4),
+        );
+        let outs = h
+            .server
+            .apply_world_command(WorldCommand::PlaceAuthored(obj))
+            .unwrap();
+        h.deliver(outs);
+        h.ticks(20);
+        assert_eq!(locker(&h, "ss14:locker_security_filled"), 1);
+        let id = ObjectId::from_u128(0x10CC_0001);
+        // Без должности и карты не отпереть.
+        interact(&mut h, a, id);
+        interact(&mut h, a, id);
+        h.ticks(5);
+        assert_eq!(locker(&h, "ss14:locker_security_filled"), 1);
+        // Офицер с КПК и картой охраны: первое нажатие отпирает, второе открывает.
+        let p = h
+            .client(a)
+            .command_packet(gameplay::CMD_JOB, b"SecurityOfficer".to_vec())
+            .unwrap();
+        h.send(a, p);
+        h.ticks(10);
+        interact(&mut h, a, id);
+        h.ticks(5);
+        interact(&mut h, a, id);
+        h.ticks(10);
+        assert_eq!(locker(&h, "ss14:locker_security_filled"), 0);
+        assert_eq!(locker(&h, "ss14:locker_security_filled_open"), 1);
+    }
+
+    #[test]
     fn a_hand_opens_and_closes_the_door_for_everyone() {
         let (mut h, a, b) = setup();
         let door = door_element(&h);

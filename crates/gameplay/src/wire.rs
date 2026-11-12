@@ -57,6 +57,8 @@ pub const CMD_USE_GROUND: &str = "use.ground";
 pub const CMD_VEND: &str = "vend.eject";
 /// Закрыть окно автомата.
 pub const CMD_VEND_CLOSE: &str = "vend.close";
+/// Запереть или отпереть ближайший шкаф или ящик (нужен доступ).
+pub const CMD_LOCK: &str = "lock.toggle";
 /// Выбрать должность: данные — её идентификатор (UTF-8).
 pub const CMD_JOB: &str = "job.pick";
 pub const CMD_RESIST: &str = "fire.resist";

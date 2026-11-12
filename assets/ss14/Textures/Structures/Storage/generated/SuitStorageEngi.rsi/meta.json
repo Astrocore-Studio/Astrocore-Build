@@ -1,0 +1,17 @@
+{
+ "version": 1,
+ "license": "CC-BY-SA-3.0",
+ "copyright": "Taken from /tg/station commit https://github.com/tgstation/tgstation/commit/af7b7043df593807f7a98b7a07880d7a977cda14 and resprited by Alekshhh, welded state drawn by Flareguy for Space Station 14 (\u0441\u043a\u043b\u0435\u0435\u043d\u043e scripts/gen_spawners.py)",
+ "size": {
+  "x": 32,
+  "y": 32
+ },
+ "states": [
+  {
+   "name": "closed"
+  },
+  {
+   "name": "open"
+  }
+ ]
+}

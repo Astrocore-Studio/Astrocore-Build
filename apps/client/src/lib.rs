@@ -222,6 +222,9 @@ fn hand_keys(keys: Res<ButtonInput<KeyCode>>, loadout: Res<Loadout>, net: Option
     if keys.just_pressed(KeyCode::KeyV) {
         net.send_command(gameplay::CMD_SPILL, vec![active]);
     }
+    if keys.just_pressed(KeyCode::KeyL) {
+        net.send_command(gameplay::CMD_LOCK, Vec::new());
+    }
     if keys.just_pressed(KeyCode::KeyZ) {
         net.send_command(gameplay::CMD_RESIST, Vec::new());
     }
