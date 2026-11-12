@@ -149,6 +149,10 @@ const PROTOS: &str = r#"[
             (id: "Draw", behavior: "Draw", amounts: [5.0, 10.0], mobTime: 5.0, selfModifier: 0.5, downedModifier: 0.5, delayPerVolume: 0.1, ignoreDelayForVolume: 5.0, drawTime: 0.0),
         ], active: 1, amount: 5.0),
     }),
+    (id: "DefibT", components: {
+        "Item": (size: "Large"),
+        "Defibrillator": (zapHeal: {"Asphyxiation": -40.0}, zapDamage: 5.0, writhe: 3.0, zapDelay: 5.0, doAfter: 3.0, useCharge: 100.0, drawRate: 1.0, charge: 720.0, powered: true, toggled: true),
+    }),
     (id: "Belt", components: {
         "Conveyor": (speed: 2.0),
     }),
@@ -599,7 +603,7 @@ fn near() -> Vec3 {
 mod inventory_and_storage {
     use super::*;
 
-    fn doafter(h: &Harness, who: ConnId) -> Option<crate::DoAfterView> {
+    pub(super) fn doafter(h: &Harness, who: ConnId) -> Option<crate::DoAfterView> {
         let net = h.client(who).net_id()?;
         crate::decode_doafter(h.client(who).component(net, crate::DOAFTER_COMPONENT)?)
     }
@@ -1359,14 +1363,14 @@ mod combat {
         assert_eq!(bleed(&h).bleed, 0.0, "кровотечение остановлено");
     }
 
-    fn ghost_flag(h: &Harness, viewer: ConnId, owner: ConnId) -> bool {
+    pub(super) fn ghost_flag(h: &Harness, viewer: ConnId, owner: ConnId) -> bool {
         let net = h.client(owner).net_id().unwrap();
         h.client(viewer)
             .component(net, crate::GHOST_COMPONENT)
             .is_some_and(|b| b.first() == Some(&1))
     }
 
-    fn kill(h: &mut Harness, killer: ConnId, victim: ConnId) {
+    pub(super) fn kill(h: &mut Harness, killer: ConnId, victim: ConnId) {
         hit_part(h, killer, victim, "Head");
         h.ticks(25);
         hit_part(h, killer, victim, "Head");
@@ -2513,5 +2517,82 @@ mod disposal_tests {
             "{:?}",
             fx.popups
         );
+    }
+
+    #[test]
+    fn a_defibrillator_needs_to_be_switched_on_and_shocks_the_dead_through_their_body() {
+        use super::combat::{ghost_flag, kill};
+        use super::inventory_and_storage::doafter;
+        let mut h = harness();
+        let (a, b) = (h.join("a"), h.join("b"));
+        h.ticks(5);
+        grab(&mut h, a, 10, near(), "ss14:cudgel");
+        kill(&mut h, a, b);
+        let active = hands_of(&h, a, a).unwrap().active() as u8;
+        command(
+            &mut h,
+            a,
+            crate::CMD_DROP,
+            crate::drop_at_data(active, [3.0, 0.9, 3.0]),
+        );
+        h.ticks(5);
+        grab(&mut h, a, 11, near(), "ss14:defib_t");
+        let corpse = ObjectId::from_u128(0xC0F5_0000_0000 + 1);
+        let fx = |h: &Harness| {
+            let net = h.client(a).net_id()?;
+            h.client(a)
+                .component(net, crate::FX_COMPONENT)
+                .and_then(crate::decode_fx)
+        };
+        // Выключенный разряд не даёт.
+        command(&mut h, a, CMD_INTERACT, interact_data(corpse));
+        h.ticks(250);
+        assert!(doafter(&h, a).is_none());
+        let before = fx(&h).map_or(0, |f| f.seq);
+        // Включили — приложение к телу запускает таймер.
+        let hand = hands_of(&h, a, a).unwrap().active() as u8;
+        command(&mut h, a, CMD_USE, use_data(hand));
+        h.ticks(5);
+        assert!(
+            fx(&h).unwrap().popups.iter().any(|p| p.contains("включён")),
+            "{:?}",
+            fx(&h)
+        );
+        assert!(fx(&h).unwrap().seq > before);
+        command(&mut h, a, CMD_INTERACT, interact_data(corpse));
+        h.ticks(5);
+        assert_eq!(doafter(&h, a).map(|d| d.kind), Some("defib".to_string()));
+        h.ticks(250);
+        // Голова разбита насмерть: сорока единиц лечения мало, тело остаётся.
+        assert!(
+            fx(&h)
+                .unwrap()
+                .popups
+                .iter()
+                .any(|p| p.contains("Не удалось")),
+            "{:?}",
+            fx(&h)
+        );
+        assert!(ghost_flag(&h, a, b));
+    }
+
+    #[test]
+    fn a_zap_heals_the_dead_and_revives_them_when_below_the_threshold() {
+        use crate::health::{Health, MobState};
+        let mut hp = Health::default();
+        let mut hurt = crate::health::DamageSpec::new();
+        hurt.insert("Asphyxiation".into(), 230.0);
+        hp.apply(&hurt);
+        assert_eq!(hp.state(), MobState::Dead);
+        let mut heal = crate::health::DamageSpec::new();
+        heal.insert("Asphyxiation".into(), -40.0);
+        hp.apply(&heal);
+        assert_eq!(
+            hp.state(),
+            MobState::Dead,
+            "обычное лечение мёртвого не берёт"
+        );
+        hp.apply_forced(&heal);
+        assert_eq!(hp.state(), MobState::Critical);
     }
 }

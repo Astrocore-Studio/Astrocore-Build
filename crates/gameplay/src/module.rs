@@ -75,6 +75,8 @@ pub(crate) struct Actor {
     pub(crate) last_vitals: Option<Vitals>,
     /// Пока не прошло это время (по часам модуля), персонаж сбит с ног лужей.
     pub(crate) slip_until: f32,
+    /// Тело, оставшееся после смерти (предмет-труп в мире): по нему дефибриллятор находит владельца.
+    pub(crate) corpse: Option<ObjectId>,
     /// Где был на прошлом шаге: клетка и точка — для скорости и входа на клетку.
     pub(crate) last_step: Option<(atmos::Cell, Vec3)>,
 }
@@ -97,6 +99,7 @@ impl Actor {
             body: Some(Body::new(seed)),
             last_vitals: None,
             slip_until: 0.0,
+            corpse: None,
             last_step: None,
         }
     }
@@ -344,6 +347,8 @@ pub struct State {
     pub(crate) fx_seq: BTreeMap<NetworkEntityId, u32>,
     /// Анализаторы здоровья: прототипы, кто кого сканирует, таймер обновления.
     pub(crate) analyzers: BTreeSet<PrototypeId>,
+    pub(crate) defibs: BTreeMap<PrototypeId, crate::defib::DefibSpec>,
+    pub(crate) defib_state: BTreeMap<ObjectId, crate::defib::DefibState>,
     pub(crate) scans: BTreeMap<NetworkEntityId, NetworkEntityId>,
     pub(crate) scan_sent: BTreeMap<NetworkEntityId, Vec<u8>>,
     pub(crate) scan_timer: f32,
@@ -439,6 +444,7 @@ impl State {
         let mut vending_specs = BTreeMap::new();
         let mut transfer_max = BTreeMap::new();
         let mut analyzers = BTreeSet::new();
+        let mut defibs = BTreeMap::new();
         let mut dispenser_tables = BTreeMap::new();
         let mut fits_in_dispenser = BTreeSet::new();
         let mut injectors = BTreeMap::new();
@@ -525,6 +531,9 @@ impl State {
                     .and_then(crate::spawners::Node::parse)
                 {
                     dispenser_tables.insert(id.clone(), t);
+                }
+                if let Some(c) = r.component("Defibrillator") {
+                    defibs.insert(id.clone(), crate::defib::DefibSpec::parse(c));
                 }
                 if r.component("HealthAnalyzer").is_some() {
                     analyzers.insert(id.clone());
@@ -808,6 +817,8 @@ impl State {
             fx_sounds: Vec::new(),
             fx_seq: BTreeMap::new(),
             analyzers,
+            defibs,
+            defib_state: BTreeMap::new(),
             scans: BTreeMap::new(),
             scan_sent: BTreeMap::new(),
             scan_timer: 0.0,
@@ -1239,6 +1250,164 @@ impl State {
         (a - t).length() <= MELEE_RANGE_M && ctx.is_unobstructed(a, t)
     }
 
+    /// Достаёт ли рука до тела: живого — где он стоит, погибшего (призрак) — где лежит его труп.
+    fn in_reach_body(
+        &self,
+        ctx: &HookContext<'_>,
+        actor: NetworkEntityId,
+        target: NetworkEntityId,
+    ) -> bool {
+        let Some(t) = self.actors.get(&target) else {
+            return self.in_reach(ctx, actor, target);
+        };
+        if !t.ghost {
+            return self.in_reach(ctx, actor, target);
+        }
+        let (Some(a), Some(body)) = (ctx.position_of(actor), t.death_pos) else {
+            return false;
+        };
+        let (a, body) = (a + Vec3::Y * CHEST_M, body + Vec3::Y * CHEST_M);
+        t.corpse.is_some() && (a - body).length() <= MELEE_RANGE_M && ctx.is_unobstructed(a, body)
+    }
+
+    /// Включить или выключить дефибриллятор в руке (`ItemToggle` + `ToggleCellDraw`).
+    pub(crate) fn toggle_defib(
+        &mut self,
+        ctx: &HookContext<'_>,
+        user: NetworkEntityId,
+        item: &HeldItem,
+    ) -> bool {
+        let Some(spec) = self.defibs.get(&item.prototype).cloned() else {
+            return false;
+        };
+        let st = self
+            .defib_state
+            .entry(item.id)
+            .or_insert_with(|| spec.fresh());
+        let (was_on, can_on) = (st.on, spec.can_turn_on(st));
+        if was_on || can_on {
+            st.on = !was_on;
+        }
+        let at = ctx.position_of(user);
+        let (text, sound) = match (was_on, can_on) {
+            (true, _) => (
+                "Дефибриллятор выключен",
+                Some("Items/Defib/defib_safety_off.ogg"),
+            ),
+            (false, true) => (
+                "Дефибриллятор включён",
+                Some("Items/Defib/defib_safety_on.ogg"),
+            ),
+            (false, false) => ("Не хватает заряда", None),
+        };
+        self.popup(user, text);
+        if let (Some(at), Some(sound)) = (at, sound) {
+            self.sound(sound, at);
+        }
+        true
+    }
+
+    /// Начало приложения: звук зарядки и тревога цели (`TryStartZap`).
+    pub(crate) fn defib_begin_feedback(
+        &mut self,
+        ctx: &HookContext<'_>,
+        actor: NetworkEntityId,
+        target: NetworkEntityId,
+    ) {
+        if let Some(at) = ctx.position_of(actor) {
+            self.sound("Items/Defib/defib_charge.ogg", at);
+        }
+        self.popup(actor, "Разряд заряжается");
+        if target != actor {
+            self.popup(target, "Вас сейчас ударят током из дефибриллятора");
+        }
+    }
+
+    /// `Zap`: заряд тратится, начинается откат, цель лечится и бьётся током; погибший с уроном ниже порога смерти оживает.
+    fn zap(
+        &mut self,
+        ctx: &mut HookContext<'_>,
+        actor: NetworkEntityId,
+        hand: usize,
+        target: NetworkEntityId,
+    ) {
+        let Some(item) = self
+            .actors
+            .get(&actor)
+            .and_then(|a| a.hands.get(hand))
+            .cloned()
+        else {
+            return;
+        };
+        let Some(spec) = self.defibs.get(&item.prototype).cloned() else {
+            return;
+        };
+        let at = ctx.position_of(actor);
+        let Some(st) = self.defib_state.get_mut(&item.id) else {
+            return;
+        };
+        if spec.powered {
+            st.charge -= spec.use_charge;
+        }
+        st.cooldown = spec.zap_delay;
+        if spec.powered && !spec.can_fire(st) {
+            st.on = false;
+        }
+        if let Some(at) = at {
+            self.sound("Items/Defib/defib_zap.ogg", at);
+        }
+        let clock = self.clock;
+        let t = self.actor(target);
+        let was_gone = t.ghost;
+        t.health.apply_forced(&spec.heal);
+        let mut shock = DamageSpec::new();
+        shock.insert("Shock".into(), spec.zap_damage);
+        t.health.apply_forced(&shock);
+        t.slip_until = t.slip_until.max(clock + spec.writhe);
+        let revived = t.health.state() != MobState::Dead;
+        if was_gone && revived {
+            // Оживление: тело встаёт на месте трупа, владелец возвращается в него.
+            let (corpse, pos) = (t.corpse.take(), t.death_pos.take());
+            t.ghost = false;
+            t.respawn_at = 0.0;
+            if let Some(id) = corpse {
+                ctx.request(WorldCommand::RemoveAuthored { id });
+            }
+            ctx.set_ghost(target, false);
+            if let Some(pos) = pos {
+                ctx.teleport(target, pos);
+            }
+        }
+        self.after_health_change(ctx, target);
+        let ok = !was_gone || revived;
+        if let Some(at) = at {
+            self.sound(
+                if ok {
+                    "Items/Defib/defib_success.ogg"
+                } else {
+                    "Items/Defib/defib_failed.ogg"
+                },
+                at,
+            );
+        }
+        self.popup(
+            actor,
+            if ok {
+                "Разряд прошёл"
+            } else {
+                "Не удалось: слишком тяжёлые повреждения"
+            },
+        );
+        self.publish(ctx, actor);
+    }
+
+    /// Расход заряда у включённых и откат между разрядами.
+    fn tick_defibs(&mut self, dt: f32) {
+        for st in self.defib_state.values_mut() {
+            st.tick(dt);
+        }
+    }
+
     /// Ударить: оружие из активной руки или кулак; темп ограничен `attackRate`.
     pub(crate) fn attack(
         &mut self,
@@ -1573,6 +1742,7 @@ impl State {
             if died {
                 self.corpses += 1;
                 let id = ObjectId::from_u128(0xC0F5_0000_0000 + u128::from(self.corpses));
+                self.actor(who).corpse = Some(id);
                 if let Some(floor) = floor_at(ctx, feet.y) {
                     let obj = AuthoredObject::new(
                         id,
@@ -1613,6 +1783,10 @@ impl State {
         let Some(start) = ctx.position_of(actor) else {
             return;
         };
+        if let Action::Defib { target, .. } = &action {
+            let target = *target;
+            self.defib_begin_feedback(ctx, actor, target);
+        }
         self.actor(actor).doafter = Some(DoAfter {
             action,
             delay,
@@ -1681,6 +1855,21 @@ impl State {
                 });
                 alive && ok && self.in_reach(ctx, actor, *target)
             }
+            Action::Defib { hand, target } => {
+                let Some(held) = a.hands.get(*hand) else {
+                    return false;
+                };
+                let (Some(spec), Some(st)) = (
+                    self.defibs.get(&held.prototype),
+                    self.defib_state.get(&held.id),
+                ) else {
+                    return false;
+                };
+                st.on
+                    && st.cooldown <= 0.0
+                    && spec.can_fire(st)
+                    && self.in_reach_body(ctx, actor, *target)
+            }
             Action::Scan { hand, target } => {
                 ctx.position_of(*target).is_some()
                     && a.hands
@@ -1729,6 +1918,11 @@ impl State {
                 .get(*hand)
                 .and_then(|i| self.healing.get(&i.prototype))
                 .map_or(0.0, |h| h.delay),
+            Action::Defib { hand, .. } => a
+                .hands
+                .get(*hand)
+                .and_then(|i| self.defibs.get(&i.prototype))
+                .map_or(0.0, |d| d.do_after),
             Action::Inject { hand, target } => a
                 .hands
                 .get(*hand)
@@ -1763,6 +1957,7 @@ impl State {
             Action::Pry { element, .. } => ctx.request_door(element, DoorAction::Open, true),
             Action::Heal { hand, target } => self.heal(ctx, actor, hand, target),
             Action::Inject { hand, target } => self.inject_body(ctx, actor, hand, target),
+            Action::Defib { hand, target } => self.zap(ctx, actor, hand, target),
             Action::Scan { target, .. } => {
                 if let Some(at) = ctx.position_of(actor) {
                     self.sound("Items/Medical/healthscanner.ogg", at);
@@ -1933,6 +2128,8 @@ impl State {
         self.tick_id_consoles(ctx);
         self.tick_dispensers(ctx);
         self.tick_scans(ctx);
+        let dt = self.last_dt;
+        self.tick_defibs(dt);
         self.publish_chemhand(ctx);
         self.publish_jobs(ctx);
         self.resolve_spawners(ctx);
@@ -3663,7 +3860,7 @@ impl State {
         } else if !allowed {
             self.popup(user, "Доступ запрещён");
             if let Some(at) = at {
-                self.sound("Machines/custom_deny.ogg", at);
+                self.sound("Machines/buzz-sigh.ogg", at);
             }
         }
         true
@@ -3747,14 +3944,14 @@ impl State {
                 say = match machine.order(now, item, powered) {
                     Ok(()) => Some(("Machines/machine_vend.ogg", "")),
                     Err(crate::vending::Refusal::Denied) => Some((
-                        "Machines/custom_deny.ogg",
+                        "Machines/buzz-sigh.ogg",
                         "Нет такого товара или он кончился",
                     )),
                     Err(_) => None,
                 };
             } else {
                 machine.refuse(now);
-                say = Some(("Machines/custom_deny.ogg", "Доступ запрещён"));
+                say = Some(("Machines/buzz-sigh.ogg", "Доступ запрещён"));
             }
         }
         if let (Some((path, text)), Some(at)) = (say, at) {
@@ -4630,7 +4827,7 @@ impl State {
 }
 
 /// Урон из данных прототипа: карта «вид → число».
-fn damage_spec(d: Option<&prototypes::Data>) -> DamageSpec {
+pub(crate) fn damage_spec(d: Option<&prototypes::Data>) -> DamageSpec {
     d.and_then(prototypes::Data::as_map)
         .map(|m| {
             m.iter()
@@ -5052,7 +5249,17 @@ impl GameModule for GameplayModule {
                             .get(actor)
                             .and_then(|a| a.hands.get(usize::from(hand)))
                             .is_some_and(|i| st.analyzers.contains(&i.prototype));
-                        let action = if holds_analyzer {
+                        let holds_defib = st
+                            .actors
+                            .get(actor)
+                            .and_then(|a| a.hands.get(usize::from(hand)))
+                            .is_some_and(|i| st.defibs.contains_key(&i.prototype));
+                        let action = if holds_defib {
+                            Action::Defib {
+                                hand: usize::from(hand),
+                                target,
+                            }
+                        } else if holds_analyzer {
                             Action::Scan {
                                 hand: usize::from(hand),
                                 target,

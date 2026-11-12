@@ -45,7 +45,7 @@ mod tests {
             seq: 3,
             popups: vec!["Отказано".into()],
             sounds: vec![FxSound {
-                path: "Machines/custom_deny.ogg".into(),
+                path: "Machines/buzz-sigh.ogg".into(),
                 at: [1.0, 0.0, 2.0],
             }],
         };

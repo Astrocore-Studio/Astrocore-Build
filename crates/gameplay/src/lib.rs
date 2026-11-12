@@ -10,6 +10,7 @@ pub use dispenser::{DISPENSER_COMPONENT, DispenserView, decode_dispenser};
 pub use fx::{FX_COMPONENT, FxBatch, FxSound, decode_fx};
 pub mod analyzer;
 pub mod chemhand;
+mod defib;
 pub use analyzer::{SCAN_COMPONENT, ScanView, decode_scan};
 pub use chemhand::{CHEMHAND_COMPONENT, ChemHandView, decode_chemhand};
 mod doafter;

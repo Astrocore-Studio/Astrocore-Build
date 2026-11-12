@@ -6,8 +6,23 @@
 
 | Файл | Лицензия | Авторство |
 | --- | --- | --- |
+| `Effects/Chemistry/bubbles.ogg` | CC-BY-SA-3.0 (записи нет, лицензия Resources по умолчанию) | авторство не указано |
+| `Effects/closetclose.ogg` | CC-BY-SA-3.0 (записи нет, лицензия Resources по умолчанию) | авторство не указано |
+| `Effects/closetopen.ogg` | CC-BY-SA-3.0 (записи нет, лицензия Resources по умолчанию) | авторство не указано |
+| `Items/Defib/defib_charge.ogg` | CC-BY-SA-3.0 (записи нет, лицензия Resources по умолчанию) | авторство не указано |
+| `Items/Defib/defib_failed.ogg` | CC-BY-SA-3.0 (записи нет, лицензия Resources по умолчанию) | авторство не указано |
+| `Items/Defib/defib_ready.ogg` | CC-BY-SA-3.0 (записи нет, лицензия Resources по умолчанию) | авторство не указано |
+| `Items/Defib/defib_safety_off.ogg` | CC-BY-SA-3.0 (записи нет, лицензия Resources по умолчанию) | авторство не указано |
+| `Items/Defib/defib_safety_on.ogg` | CC-BY-SA-3.0 (записи нет, лицензия Resources по умолчанию) | авторство не указано |
+| `Items/Defib/defib_success.ogg` | CC-BY-SA-3.0 (записи нет, лицензия Resources по умолчанию) | авторство не указано |
+| `Items/Defib/defib_zap.ogg` | CC-BY-SA-3.0 (записи нет, лицензия Resources по умолчанию) | авторство не указано |
 | `Items/Medical/healthscanner.ogg` | CC-BY-4.0 | Taken from FM Synthesis on freesound.org |
+| `Items/hypospray.ogg` | CC-BY-SA-3.0 (записи нет, лицензия Resources по умолчанию) | авторство не указано |
 | `Machines/airlock_deny.ogg` | CC-BY-SA-3.0 | /tg/station |
-| `Machines/custom_deny.ogg` | CC-BY-NC-4.0 | From eris/bay at commit 35bbad6764b14e15c03a816e3e89aa1751660ba9 |
-
-Не взяты (лицензия не подходит или файла нет): `Effects/Chemistry/bubbles.ogg` (нет записи), `Effects/closetclose.ogg` (нет записи), `Effects/closetopen.ogg` (нет записи), `Items/defib_charge.ogg` (нет в источнике), `Items/defib_failed.ogg` (нет в источнике), `Items/defib_safety_on.ogg` (нет в источнике), `Items/defib_success.ogg` (нет в источнике), `Items/defib_zap.ogg` (нет в источнике), `Items/hypospray.ogg` (нет записи), `Machines/disposalflush.ogg` (нет записи), `Machines/door_lock_off.ogg` (нет записи), `Machines/door_lock_on.ogg` (нет записи), `Machines/id_swipe.ogg` (нет записи), `Machines/machine_switch.ogg` (нет записи), `Machines/machine_vend.ogg` (нет записи).
+| `Machines/buzz-sigh.ogg` | CC-BY-SA-3.0 | Taken from TG station. |
+| `Machines/disposalflush.ogg` | CC-BY-SA-3.0 (записи нет, лицензия Resources по умолчанию) | авторство не указано |
+| `Machines/door_lock_off.ogg` | CC-BY-SA-3.0 (записи нет, лицензия Resources по умолчанию) | авторство не указано |
+| `Machines/door_lock_on.ogg` | CC-BY-SA-3.0 (записи нет, лицензия Resources по умолчанию) | авторство не указано |
+| `Machines/id_swipe.ogg` | CC-BY-SA-3.0 (записи нет, лицензия Resources по умолчанию) | авторство не указано |
+| `Machines/machine_switch.ogg` | CC-BY-SA-3.0 (записи нет, лицензия Resources по умолчанию) | авторство не указано |
+| `Machines/machine_vend.ogg` | CC-BY-SA-3.0 (записи нет, лицензия Resources по умолчанию) | авторство не указано |

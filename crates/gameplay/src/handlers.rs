@@ -469,6 +469,55 @@ impl InteractionHandler for ChemUse {
     }
 }
 
+/// Дефибриллятор: «использовать в руке» включает и выключает; приложенный к трупу (предмет-тело)
+/// запускает разряд по владельцу тела.
+pub struct DefibUse;
+
+impl InteractionHandler for DefibUse {
+    fn interact_using(
+        &mut self,
+        state: &mut State,
+        ctx: &mut HookContext<'_>,
+        user: NetworkEntityId,
+        used: &Used,
+        target: &Target,
+    ) -> bool {
+        let Target::Item { id, .. } = target else {
+            return false;
+        };
+        if !state.defibs.contains_key(&used.item.prototype) {
+            return false;
+        }
+        let Some(owner) = state
+            .actors
+            .iter()
+            .find(|(_, a)| a.ghost && a.corpse == Some(*id))
+            .map(|(n, _)| *n)
+        else {
+            return false;
+        };
+        state.begin(
+            ctx,
+            user,
+            crate::doafter::Action::Defib {
+                hand: used.hand,
+                target: owner,
+            },
+        );
+        true
+    }
+
+    fn use_in_hand(
+        &mut self,
+        state: &mut State,
+        ctx: &mut HookContext<'_>,
+        user: NetworkEntityId,
+        used: &Used,
+    ) -> bool {
+        state.toggle_defib(ctx, user, &used.item)
+    }
+}
+
 /// Раздатчик реагентов: пустая рука открывает окно, мензурка (`FitsInDispenser`) в руке встаёт в слот.
 pub struct DispenserUse;
 
@@ -512,6 +561,7 @@ pub fn default_handlers() -> Vec<Box<dyn InteractionHandler>> {
         Box::new(LockerUse),
         Box::new(IdConsoleUse),
         Box::new(DispenserUse),
+        Box::new(DefibUse),
         Box::new(ChemUse),
         Box::new(PryDoor),
         Box::new(StorageClickInsert),

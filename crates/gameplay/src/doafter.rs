@@ -47,6 +47,11 @@ pub(crate) enum Action {
         hand: usize,
         target: astrocore_core::NetworkEntityId,
     },
+    /// Разряд дефибриллятора из руки в живого или в тело погибшего (цель — его владелец).
+    Defib {
+        hand: usize,
+        target: astrocore_core::NetworkEntityId,
+    },
     /// Съесть или выпить укус из предмета в руке.
     Eat {
         hand: usize,
@@ -60,7 +65,8 @@ impl Action {
     /// Прерывается ли действие шагом в сторону: есть и пить можно на ходу (`BreakOnMove` у
     /// `EatingDoAfter` включён только при кормлении другого).
     pub(crate) fn breaks_on_move(&self) -> bool {
-        !matches!(self, Self::Eat { target: None, .. })
+        // Дефибриллятор: `AllowDoAfterMovement` включён, шаг не прерывает разряд.
+        !matches!(self, Self::Eat { target: None, .. } | Self::Defib { .. })
     }
 
     pub(crate) fn kind(&self) -> &'static str {
@@ -71,6 +77,7 @@ impl Action {
             Self::Heal { .. } => "heal",
             Self::Inject { .. } => "inject",
             Self::Scan { .. } => "scan",
+            Self::Defib { .. } => "defib",
             Self::Eat { .. } => "eat",
         }
     }

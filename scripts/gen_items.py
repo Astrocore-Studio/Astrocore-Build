@@ -25,6 +25,12 @@ def q(s):
     return json.dumps(s, ensure_ascii=False)
 
 
+def _secs(v, default):
+    if v is None:
+        return default
+    return float(v)
+
+
 def seeds():
     out = set()
     for fn in ('jobs.ron', 'vending.ron'):
@@ -146,6 +152,22 @@ def convert(i):
         out.append('"Refillable": ()')
     if 'DrainableSolution' in comps:
         out.append('"Drainable": ()')
+    df = comps.get('Defibrillator')
+    if df is not None:
+        heal = (df.get('zapHeal') or {}).get('types') or {}
+        draw = comps.get('PowerCellDraw') or {}
+        charge = None
+        if 'PowerCellDraw' in comps:
+            slot = ((comps.get('ItemSlots') or {}).get('slots') or {}).get('cell_slot') or {}
+            cell = slot.get('startingItem')
+            charge = 0.0
+            if cell:
+                charge = float(((P.entity_components(cell).get('Battery')) or {}).get('startingCharge', 0))
+        out.append('"Defibrillator": (zapHeal: {%s}, zapDamage: %s, writhe: %s, zapDelay: %s, doAfter: %s, useCharge: %s, drawRate: %s, charge: %s, powered: %s, toggled: %s)' % (
+            ', '.join('%s: %s' % (q(k), float(v)) for k, v in sorted(heal.items())),
+            float(df.get('zapDamage', 5)), 3.0, 5.0, float(_secs(df.get('doAfterDuration'), 3.0)),
+            float(draw.get('useCharge', 0)), float(draw.get('drawRate', 1)),
+            float(charge or 0.0), 'true' if charge is not None else 'false', 'true' if 'ToggleCellDraw' in comps else 'false'))
     inj = comps.get('Injector')
     if inj:
         modes = []

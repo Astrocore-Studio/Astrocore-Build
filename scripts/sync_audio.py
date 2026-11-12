@@ -10,12 +10,13 @@ import yaml
 ROOT = sys.argv[1] + '/Resources/Audio/'
 DEST = 'assets/ss14/Audio/'
 SOUNDS = [
-    'Machines/machine_vend.ogg', 'Machines/custom_deny.ogg', 'Machines/door_lock_on.ogg',
+    'Machines/machine_vend.ogg', 'Machines/buzz-sigh.ogg', 'Machines/door_lock_on.ogg',
     'Machines/door_lock_off.ogg', 'Machines/disposalflush.ogg', 'Machines/airlock_deny.ogg',
     'Machines/machine_switch.ogg', 'Machines/id_swipe.ogg', 'Effects/closetopen.ogg',
     'Effects/closetclose.ogg', 'Items/hypospray.ogg', 'Items/Medical/healthscanner.ogg',
-    'Effects/Chemistry/bubbles.ogg', 'Items/defib_charge.ogg', 'Items/defib_zap.ogg',
-    'Items/defib_success.ogg', 'Items/defib_failed.ogg', 'Items/defib_safety_on.ogg',
+    'Effects/Chemistry/bubbles.ogg', 'Items/Defib/defib_charge.ogg', 'Items/Defib/defib_zap.ogg',
+    'Items/Defib/defib_success.ogg', 'Items/Defib/defib_failed.ogg', 'Items/Defib/defib_safety_on.ogg',
+    'Items/Defib/defib_safety_off.ogg', 'Items/Defib/defib_ready.ogg',
 ]
 
 
@@ -44,13 +45,16 @@ for rel in sorted(set(SOUNDS) | set(existing)):
             skipped.append((rel, 'нет в источнике'))
         continue
     a = attribution(rel)
-    lic = (a or {}).get('license', '')
-    if rel in SOUNDS and (not a or not lic.startswith(('CC0', 'CC-BY'))):
-        skipped.append((rel, lic or 'нет записи'))
+    # Без записи действует лицензия Resources SS14 по умолчанию — CC-BY-SA-3.0 (как у спрайтов).
+    lic = (a or {}).get('license', 'CC-BY-SA-3.0 (записи нет, лицензия Resources по умолчанию)')
+    if '-NC' in lic or '-ND' in lic or not lic.startswith(('CC0', 'CC-BY')):
+        skipped.append((rel, lic))
+        if rel in existing and os.path.exists(DEST + rel):
+            os.remove(DEST + rel)
         continue
     os.makedirs(os.path.dirname(DEST + rel), exist_ok=True)
     shutil.copyfile(src, DEST + rel)
-    rows.append((rel, lic or 'в attributions.yml источника записи нет', (a or {}).get('copyright', '—')))
+    rows.append((rel, lic or 'в attributions.yml источника записи нет', (a or {}).get('copyright', 'авторство не указано')))
 with open(DEST + 'ATTRIBUTIONS.md', 'w') as o:
     o.write('# Звуки SS14\n\nФайлы скопированы без изменений из space-wizards/space-station-14 (`Resources/Audio`,\n'
             'коммит `910154a7a8fcc6e4fc24f7c5b4925e405d74cd3e`) скриптом `scripts/sync_audio.py`. Лицензия и авторство — по записям\n'

@@ -143,8 +143,17 @@ impl Health {
     /// уходит ниже нуля. Мёртвого вылечить нельзя. Возвращает фактический прирост урона по видам
     /// (только положительный): по нему кровеносная система считает кровотечение.
     pub fn apply_to(&mut self, part: Option<&str>, spec: &DamageSpec) -> DamageSpec {
+        self.apply_inner(part, spec, false)
+    }
+
+    /// Как `apply`, но лечит и мёртвого (разряд дефибриллятора: `TryChangeDamage` без проверки состояния).
+    pub fn apply_forced(&mut self, spec: &DamageSpec) -> DamageSpec {
+        self.apply_inner(None, spec, true)
+    }
+
+    fn apply_inner(&mut self, part: Option<&str>, spec: &DamageSpec, revive: bool) -> DamageSpec {
         let mut dealt = DamageSpec::new();
-        let dead = self.state() == MobState::Dead;
+        let dead = !revive && self.state() == MobState::Dead;
         for (kind, amount) in spec {
             if !KINDS.contains(&kind.as_str()) || !amount.is_finite() {
                 continue;

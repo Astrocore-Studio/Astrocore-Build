@@ -928,7 +928,7 @@
     (id: "DefaultStationBeaconToolRoom", name: Some("station beacon"), components: {"Sprite": (sprite: "Objects/Devices/station_beacon.rsi", state: "blink"), "Item": (size: "Small")}),
     (id: "DefaultStationBeaconVault", name: Some("station beacon"), components: {"Sprite": (sprite: "Objects/Devices/station_beacon.rsi", state: "blink"), "Item": (size: "Small")}),
     (id: "DefaultStationBeaconWardensOffice", name: Some("station beacon"), components: {"Sprite": (sprite: "Objects/Devices/station_beacon.rsi", state: "blink"), "Item": (size: "Small")}),
-    (id: "Defibrillator", name: Some("defibrillator"), components: {"Sprite": (sprite: "Objects/Specific/Medical/defib.rsi", state: "icon"), "Item": (size: "Large")}),
+    (id: "Defibrillator", name: Some("defibrillator"), components: {"Sprite": (sprite: "Objects/Specific/Medical/defib.rsi", state: "icon"), "Item": (size: "Large"), "Defibrillator": (zapHeal: {"Asphyxiation": -40.0}, zapDamage: 5.0, writhe: 3.0, zapDelay: 5.0, doAfter: 3.0, useCharge: 100.0, drawRate: 1.0, charge: 720.0, powered: true, toggled: true)}),
     (id: "DeskBell", name: Some("desk bell"), components: {"Sprite": (sprite: "Objects/Misc/desk_bell.rsi", state: "icon-bell"), "Item": (size: "Small")}),
     (id: "DetectiveIDCard", name: Some("detective ID card"), components: {"Sprite": (sprite: "Objects/Misc/id_cards.rsi", state: "default"), "Item": (size: "Small"), "Clothing": (slots: ["idcard"]), "IdCard": (access: [], job: "Detective")}),
     (id: "DetectivePDA", name: Some("detective PDA"), components: {"Sprite": (sprite: "Objects/Devices/pda.rsi", state: "pda"), "Item": (size: "Small"), "Clothing": (slots: ["idcard", "belt"]), "Pda": (card: "DetectiveIDCard")}),
