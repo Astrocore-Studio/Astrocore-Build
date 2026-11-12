@@ -53,7 +53,7 @@ pub struct DoorActivate;
 impl InteractionHandler for DoorActivate {
     fn interact_hand(
         &mut self,
-        _state: &mut State,
+        state: &mut State,
         ctx: &mut HookContext<'_>,
         _user: NetworkEntityId,
         target: &Target,
@@ -61,6 +61,10 @@ impl InteractionHandler for DoorActivate {
         let Target::Door { element, .. } = target else {
             return false;
         };
+        // Огнезапор держит давление или жар: рукой не открыть (`BeforeDoorOpenedEvent`).
+        if state.firelock_hold.get(element).is_some_and(|h| h.0 || h.1) {
+            return true;
+        }
         if ctx.door_locked(*element) == Some(true) {
             return true; // дверь заперта: событие обработано отказом
         }

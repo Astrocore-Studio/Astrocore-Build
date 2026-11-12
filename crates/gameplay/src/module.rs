@@ -192,6 +192,10 @@ pub struct State {
     pub(crate) alarm_sig: Vec<(ObjectId, atmos::Cell, u32)>,
     pub(crate) monitor_state: BTreeMap<ObjectId, crate::monitor::AlarmState>,
     pub(crate) alarm_timer: f32,
+    /// Огнезапоры: клетки по обе стороны проёма и что они удерживают (давление, температура).
+    pub(crate) firelock_cells: BTreeMap<ObjectId, (atmos::Cell, atmos::Cell)>,
+    pub(crate) firelock_hold: BTreeMap<ObjectId, (bool, bool)>,
+    pub(crate) firelock_timer: f32,
     pub(crate) power_lights: Vec<(ObjectId, Vec3, u8)>,
     pub(crate) power_kinds: Vec<[f32; 5]>,
     pub(crate) lights_sent: crate::electric::LightsView,
@@ -364,6 +368,9 @@ impl State {
             alarm_sig: Vec::new(),
             monitor_state: BTreeMap::new(),
             alarm_timer: 0.0,
+            firelock_cells: BTreeMap::new(),
+            firelock_hold: BTreeMap::new(),
+            firelock_timer: 0.0,
             power_lights: Vec::new(),
             power_kinds: Vec::new(),
             lights_sent: crate::electric::LightsView::default(),
@@ -1256,6 +1263,7 @@ impl State {
         self.sync_pipes(ctx);
         self.sync_power(ctx);
         self.tick_alarms(ctx, dt);
+        self.tick_firelocks(ctx, dt);
         self.tick_power(dt);
         self.publish_lights(ctx, dt);
         self.atmos.advance(dt);
@@ -1728,6 +1736,7 @@ impl State {
         }
         // Огнезапоры по клеткам, которых касается их ребро.
         let mut doors_at: BTreeMap<atmos::Cell, Vec<ObjectId>> = BTreeMap::new();
+        self.firelock_cells.clear();
         for e in ctx.world.elements() {
             let (StructureKind::Opening(OpeningKind::Door), Placement::Edge(g)) =
                 (e.kind, e.placement)
@@ -1742,6 +1751,13 @@ impl State {
                 astrocore_math::EdgeDir::AlongX => ((g.x, g.z - 1), (g.x, g.z)),
                 astrocore_math::EdgeDir::AlongZ => ((g.x - 1, g.z), (g.x, g.z)),
             };
+            self.firelock_cells.insert(
+                e.id,
+                (
+                    atmos::floor_cell(f, a.0, a.1),
+                    atmos::floor_cell(f, b.0, b.1),
+                ),
+            );
             for c in [a, b] {
                 doors_at
                     .entry(atmos::floor_cell(f, c.0, c.1))
@@ -1799,6 +1815,32 @@ impl State {
             }
         }
         self.alarm_groups = groups;
+    }
+
+    /// `FirelockSystem.Update`: раз в 1,5 с закрытый огнезапор измеряет разность давления и
+    /// температуры по обе стороны (`PressureThreshold` 20 кПа, `TemperatureThreshold` 330 К) и
+    /// не даёт руке открыть себя, пока она велика; ломик открывает силой.
+    fn tick_firelocks(&mut self, ctx: &mut HookContext<'_>, dt: f32) {
+        const PRESSURE_KPA: f32 = 20.0;
+        const TEMPERATURE_K: f32 = 330.0;
+        self.firelock_timer += dt;
+        if self.firelock_timer < 1.5 {
+            return;
+        }
+        self.firelock_timer = 0.0;
+        let mut hold = BTreeMap::new();
+        for (id, (a, b)) in &self.firelock_cells {
+            if ctx.door_open(*id) != Some(false) {
+                continue;
+            }
+            let (pa, pb) = (self.atmos.air(*a), self.atmos.air(*b));
+            let pressure = (pa.pressure() - pb.pressure()).abs() > PRESSURE_KPA;
+            let temperature = (pa.temperature() - pb.temperature()).abs() > TEMPERATURE_K;
+            if pressure || temperature {
+                hold.insert(*id, (pressure, temperature));
+            }
+        }
+        self.firelock_hold = hold;
     }
 
     /// Раз в секунду: мониторы измеряют воздух, группа берёт самое тяжёлое состояние, при смене
@@ -1865,7 +1907,9 @@ impl State {
                 match state {
                     AlarmState::Danger => ctx.request_door(*fl, DoorAction::Close, false),
                     AlarmState::Normal => {
-                        if ctx.door_open(*fl) == Some(false) {
+                        if ctx.door_open(*fl) == Some(false)
+                            && self.firelock_hold.get(fl).is_none_or(|h| !h.0 && !h.1)
+                        {
                             ctx.request_door(*fl, DoorAction::Open, false);
                         }
                     }
