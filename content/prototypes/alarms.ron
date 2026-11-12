@@ -1,0 +1,15 @@
+// Воздушные сигнализации и датчики (air_alarm.yml, sensor.yml SS14). `AtmosMonitor` — измеряет воздух
+// своей клетки по порогам станции (airalarms.yml) и сообщает связанным устройствам; список связей
+// `links` (клетки) приходит из карты, как `DeviceList` в SS14.
+[
+    (id: "AirAlarm", name: Some("air alarm"), components: {
+        "Sprite": (sprite: "Structures/Wallmounts/air-alarm.rsi", state: "alarm0"),
+        "AtmosMonitor": (kind: "alarm"),
+        "ApcPowerReceiver": (),
+    }),
+    (id: "AirSensor", name: Some("air sensor"), components: {
+        "Sprite": (sprite: "Structures/Specific/Atmospherics/sensor.rsi", state: "gsensor0"),
+        "AtmosMonitor": (kind: "sensor"),
+        "ApcPowerReceiver": (),
+    }),
+]

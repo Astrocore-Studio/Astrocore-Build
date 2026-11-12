@@ -10,6 +10,7 @@ pub mod interact;
 pub mod inventory;
 pub mod items;
 pub mod module;
+mod monitor;
 mod mopping;
 mod piping;
 pub mod puddles;

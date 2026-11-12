@@ -1365,6 +1365,18 @@ impl TileAccess for TileEnv<'_> {
         self.touched.push(i);
         Some(&mut self.tiles[i].air)
     }
+
+    fn adjacent(&mut self, cell: Cell) -> Vec<Cell> {
+        let Some(&i) = self.index.get(&cell) else {
+            return Vec::new();
+        };
+        self.tiles[i]
+            .adjacent
+            .iter()
+            .flatten()
+            .map(|&j| self.tiles[j].cell)
+            .collect()
+    }
 }
 
 fn two_mut(tiles: &mut [Tile], a: usize, b: usize) -> (&mut Tile, &mut Tile) {

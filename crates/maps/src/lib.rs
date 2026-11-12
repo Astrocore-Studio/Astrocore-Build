@@ -20,6 +20,9 @@ pub struct MapItem {
     /// Поворот в четвертях оборота против часовой стрелки (как у сущностей SS14), 0…3.
     #[serde(default, skip_serializing_if = "is_zero")]
     pub rot: u8,
+    /// Клетки устройств, связанных с этим объектом (`DeviceList` сигнализации SS14).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub links: Vec<[i32; 2]>,
 }
 
 fn is_zero(v: &u8) -> bool {

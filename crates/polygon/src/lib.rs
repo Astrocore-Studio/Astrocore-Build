@@ -117,6 +117,7 @@ pub fn place_items_from(
             x,
             z,
             rot,
+            links,
         },
     ) in items.iter().enumerate()
     {
@@ -141,6 +142,10 @@ pub fn place_items_from(
         );
         if *rot != 0 {
             obj.metadata.insert("rot".into(), rot.to_string());
+        }
+        if !links.is_empty() {
+            let text: Vec<String> = links.iter().map(|[x, z]| format!("{x},{z}")).collect();
+            obj.metadata.insert("links".into(), text.join(";"));
         }
         world.apply(WorldCommand::PlaceAuthored(obj))?;
         placed += 1;

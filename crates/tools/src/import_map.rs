@@ -39,6 +39,7 @@ pub struct Materials {
     pub wall: PrototypeId,
     pub floor: PrototypeId,
     pub door: PrototypeId,
+    pub firelock: PrototypeId,
     /// Материал по имени плитки SS14 (`FloorSteel` → `ss14:tile_floorsteel`); неизвестные плитки — `floor`.
     pub tiles: BTreeMap<String, PrototypeId>,
 }
@@ -50,6 +51,7 @@ impl Default for Materials {
             wall: id("ss14:wall_solid"),
             floor: id("ss14:floor_dark"),
             door: id("ss14:airlock"),
+            firelock: id("ss14:firelock"),
             tiles: BTreeMap::new(),
         }
     }
@@ -63,6 +65,11 @@ pub struct Report {
     pub wall_edges: usize,
     pub doors: usize,
     pub doors_unplaced: usize,
+    /// Огнезапоры поставлены / не поставлены.
+    pub firelocks: usize,
+    pub firelocks_unplaced: usize,
+    /// Сигнализации со списками устройств.
+    pub alarms: usize,
     pub spawns: usize,
     pub items: usize,
     /// Трубы газовой сети (зоны `gas_pipe`).
@@ -79,6 +86,8 @@ pub struct Report {
 enum Kind {
     Wall,
     Door,
+    /// Огнезапор (`Firelock`, `FirelockGlass`): дверь со своими спрайтами.
+    Firelock,
     Spawn,
     Other,
 }
@@ -89,6 +98,8 @@ fn classify(proto: &str) -> Kind {
         || proto.contains("Grille")
     {
         Kind::Wall
+    } else if proto == "Firelock" || proto == "FirelockGlass" {
+        Kind::Firelock
     } else if proto.contains("Airlock") || proto.starts_with("Door") || proto.contains("Windoor") {
         Kind::Door
     } else if proto.starts_with("SpawnPoint") {
@@ -96,6 +107,21 @@ fn classify(proto: &str) -> Kind {
     } else {
         Kind::Other
     }
+}
+
+/// Список устройств сигнализации (`DeviceList.devices`): `uid` связанных сущностей.
+fn device_list(entity: &Value) -> Vec<i64> {
+    entity
+        .get("components")
+        .and_then(Value::as_sequence)
+        .and_then(|c| {
+            c.iter()
+                .find(|c| c.get("type").and_then(Value::as_str) == Some("DeviceList"))
+        })
+        .and_then(|c| c.get("devices"))
+        .and_then(Value::as_sequence)
+        .map(|l| l.iter().filter_map(Value::as_i64).collect())
+        .unwrap_or_default()
 }
 
 /// Поворот сущности в четвертях оборота против часовой стрелки (`rot: 1.57… rad`).
@@ -328,6 +354,24 @@ pub fn import(
     let mut spawn: Option<(f32, f32)> = None;
     let mut items: Vec<MapItem> = Vec::new();
     let mut zones: Vec<MapZone> = Vec::new();
+    // Клетка каждой сущности по её `uid`: по ним читаются списки устройств сигнализаций.
+    let mut uid_cell: HashMap<i64, (i32, i32)> = HashMap::new();
+    for group in &groups {
+        for entity in group
+            .get("entities")
+            .and_then(Value::as_sequence)
+            .into_iter()
+            .flatten()
+        {
+            if let (Some(uid), Some((x, y))) = (
+                entity.get("uid").and_then(Value::as_i64),
+                entity_pos(entity),
+            ) {
+                uid_cell.insert(uid, (x.floor() as i32, -(y.floor() as i32) - 1));
+            }
+        }
+    }
+    let mut fire_cells: BTreeSet<(i32, i32)> = BTreeSet::new();
     let mut cables_seen: BTreeSet<((i32, i32), &str)> = BTreeSet::new();
     // Ящики мебели: клетка, материал, высота.
     let mut boxes: Vec<((i32, i32), &'static str, f32)> = Vec::new();
@@ -355,6 +399,9 @@ pub fn import(
                 }
                 Kind::Door => {
                     doors.insert(cell);
+                }
+                Kind::Firelock => {
+                    fire_cells.insert(cell);
                 }
                 Kind::Spawn => {
                     report.spawns += 1;
@@ -384,6 +431,7 @@ pub fn import(
                             x,
                             z: -y,
                             rot: 0,
+                            links: Vec::new(),
                         });
                         report.chairs += 1;
                     }
@@ -403,11 +451,21 @@ pub fn import(
                     }
                 }
                 Kind::Other if known_items.contains(proto) => {
+                    let links = device_list(entity)
+                        .iter()
+                        .filter_map(|u| uid_cell.get(u).map(|&(a, b)| [a, b]))
+                        .collect::<BTreeSet<[i32; 2]>>()
+                        .into_iter()
+                        .collect::<Vec<_>>();
+                    if !links.is_empty() {
+                        report.alarms += 1;
+                    }
                     items.push(MapItem {
                         prototype: proto.to_string(),
                         x,
                         z: -y,
                         rot: entity_rot(entity),
+                        links,
                     });
                 }
                 Kind::Other => report.skipped_entities += 1,
@@ -446,27 +504,46 @@ pub fn import(
     };
     let dirs = [(1, 0), (-1, 0), (0, 1), (0, -1)];
     let mut door_edges: BTreeSet<GridEdge> = BTreeSet::new();
-    for &d in &doors {
+    let mut fire_edges: BTreeSet<GridEdge> = BTreeSet::new();
+    // Огнезапоры стоят в проходах и перекрывают его вместе со стенами и соседними огнезапорами.
+    let mut barrier = solid.clone();
+    barrier.extend(fire_cells.iter().copied());
+    walk.extend(fire_cells.iter().copied());
+    let all: Vec<((i32, i32), bool)> = doors
+        .iter()
+        .map(|d| (*d, false))
+        .chain(fire_cells.iter().map(|d| (*d, true)))
+        .collect();
+    for (d, fire) in all {
         // Ось, вдоль которой идёт стена: оба соседа на ней — стены; проход — поперёк.
-        let along_x = solid.contains(&(d.0 - 1, d.1)) && solid.contains(&(d.0 + 1, d.1));
-        let along_z = solid.contains(&(d.0, d.1 - 1)) && solid.contains(&(d.0, d.1 + 1));
+        let wall: &BTreeSet<(i32, i32)> = if fire { &barrier } else { &solid };
+        let along_x = wall.contains(&(d.0 - 1, d.1)) && wall.contains(&(d.0 + 1, d.1));
+        let along_z = wall.contains(&(d.0, d.1 - 1)) && wall.contains(&(d.0, d.1 + 1));
         let candidates = if along_x && !along_z {
             [(d.0, d.1 + 1), (d.0, d.1 - 1)]
         } else if along_z && !along_x {
             [(d.0 + 1, d.1), (d.0 - 1, d.1)]
         } else {
-            report.doors_unplaced += 1;
+            if fire {
+                report.firelocks_unplaced += 1;
+            } else {
+                report.doors_unplaced += 1;
+            }
             continue;
         };
         let edge = candidates
             .into_iter()
-            .find(|c| walk.contains(c) && !doors.contains(c))
+            .find(|c| walk.contains(c) && !doors.contains(c) && !fire_cells.contains(c))
             .and_then(|t| GridEdge::between(GridCell::new(d.0, d.1), GridCell::new(t.0, t.1)));
-        match edge {
-            Some(e) => {
+        match (edge, fire) {
+            (Some(e), false) => {
                 door_edges.insert(e);
             }
-            None => report.doors_unplaced += 1,
+            (Some(e), true) if !door_edges.contains(&e) => {
+                fire_edges.insert(e);
+            }
+            (_, true) => report.firelocks_unplaced += 1,
+            (None, false) => report.doors_unplaced += 1,
         }
     }
     let mut wall_edges: BTreeSet<GridEdge> = BTreeSet::new();
@@ -496,6 +573,15 @@ pub fn import(
             0.1,
         ));
     }
+    for e in &fire_edges {
+        elements.push(element(
+            StructureKind::Opening(OpeningKind::Door),
+            Placement::Edge(*e),
+            &mats.firelock,
+            0.1,
+        ));
+    }
+    report.firelocks = fire_edges.len();
     // Плитка каждой клетки: имя SS14 → материал (в наших координатах z = −y − 1).
     let tile_at: BTreeMap<(i32, i32), &String> =
         tiles.iter().map(|(&(x, y), n)| ((x, -y - 1), n)).collect();

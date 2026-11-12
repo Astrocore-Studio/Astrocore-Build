@@ -102,6 +102,15 @@ impl Actor {
     }
 }
 
+/// Группа сигнализации: сама сигнализация, её датчики, вентили, скрубберы и огнезапоры из списка.
+#[derive(Debug, Clone, Default)]
+pub(crate) struct AlarmGroup {
+    pub(crate) monitors: Vec<(ObjectId, atmos::Cell)>,
+    pub(crate) devices: Vec<ObjectId>,
+    pub(crate) firelocks: Vec<ObjectId>,
+    pub(crate) state: crate::monitor::AlarmState,
+}
+
 /// Игровой модуль рук, инвентаря и хранилищ; логика следует Content.Shared SS14.
 ///
 /// Предметы на земле — авторские объекты мира (`AuthoredKind::Placement`): они реплицируются,
@@ -175,6 +184,12 @@ pub struct State {
     /// Объекты с `ApcPowerReceiver`: при проводке на карте без питания не работают.
     pub(crate) power_gated: std::collections::BTreeSet<ObjectId>,
     /// Светильники мира: объект, точка, вид (по палитре `power_kinds`).
+    /// Мониторы воздуха (сигнализации и датчики), группы сигнализаций и их состояние.
+    pub(crate) monitor_kinds: BTreeMap<PrototypeId, bool>,
+    pub(crate) alarm_groups: Vec<AlarmGroup>,
+    pub(crate) alarm_sig: Vec<(ObjectId, atmos::Cell, u32)>,
+    pub(crate) monitor_state: BTreeMap<ObjectId, crate::monitor::AlarmState>,
+    pub(crate) alarm_timer: f32,
     pub(crate) power_lights: Vec<(ObjectId, Vec3, u8)>,
     pub(crate) power_kinds: Vec<[f32; 5]>,
     pub(crate) lights_sent: crate::electric::LightsView,
@@ -198,6 +213,7 @@ impl State {
         let mut absorbents = BTreeMap::new();
         let mut heat_protection = BTreeMap::new();
         let mut power_parts = BTreeMap::new();
+        let mut monitor_kinds = BTreeMap::new();
         let mut refillables = BTreeSet::new();
         let mut tank_templates = BTreeMap::new();
         for (id, name) in names {
@@ -227,6 +243,12 @@ impl State {
                     .and_then(prototypes::Data::as_f64)
                 {
                     heat_protection.insert(id.clone(), c as f32);
+                }
+                if let Some(c) = r.component("AtmosMonitor") {
+                    monitor_kinds.insert(
+                        id.clone(),
+                        c.get("kind").and_then(prototypes::Data::as_str) == Some("alarm"),
+                    );
                 }
                 if let Some(p) = crate::electric::PowerPart::from_resolved(r) {
                     power_parts.insert(id.clone(), p);
@@ -335,6 +357,11 @@ impl State {
             power_charge: BTreeMap::new(),
             power_required: false,
             power_gated: std::collections::BTreeSet::new(),
+            monitor_kinds,
+            alarm_groups: Vec::new(),
+            alarm_sig: Vec::new(),
+            monitor_state: BTreeMap::new(),
+            alarm_timer: 0.0,
             power_lights: Vec::new(),
             power_kinds: Vec::new(),
             lights_sent: crate::electric::LightsView::default(),
@@ -1226,6 +1253,7 @@ impl State {
         self.tick_puddles(ctx, dt);
         self.sync_pipes(ctx);
         self.sync_power(ctx);
+        self.tick_alarms(ctx, dt);
         self.tick_power(dt);
         self.publish_lights(ctx, dt);
         self.atmos.advance(dt);
@@ -1655,6 +1683,188 @@ impl State {
         self.power_batteries = built.batteries;
         self.power_receivers = built.receivers;
         self.power = built.state;
+    }
+
+    /// Группы сигнализаций из карты: монитор, его список связей (клетки) → датчики, устройства труб,
+    /// огнезапоры (двери с материалом `ss14:firelock`, касающиеся клетки).
+    fn sync_alarms(&mut self, ctx: &mut HookContext<'_>) {
+        let mut sig: Vec<(ObjectId, atmos::Cell, u32)> = Vec::new();
+        let mut firelock_doors = 0u32;
+        for e in ctx.world.elements() {
+            if matches!(e.kind, StructureKind::Opening(OpeningKind::Door))
+                && e.material.as_str().ends_with("firelock")
+            {
+                firelock_doors += 1;
+            }
+        }
+        for o in ctx.world.authored() {
+            if let AuthoredKind::Placement { prototype } = &o.kind
+                && self.monitor_kinds.contains_key(prototype)
+            {
+                sig.push((
+                    o.id,
+                    crate::piping::cell_at(o.floor.0, (o.min() + o.max()) * 0.5),
+                    o.metadata.get("links").map_or(0, |l| l.len() as u32),
+                ));
+            }
+        }
+        sig.push((ObjectId::from_u128(0), (0, 0), firelock_doors));
+        sig.sort();
+        if sig == self.alarm_sig {
+            return;
+        }
+        self.alarm_sig = sig;
+        // Что лежит в каждой клетке: датчики, устройства труб.
+        let mut at_cell: BTreeMap<atmos::Cell, Vec<(ObjectId, PrototypeId)>> = BTreeMap::new();
+        for o in ctx.world.authored() {
+            if let AuthoredKind::Placement { prototype } = &o.kind {
+                at_cell
+                    .entry(crate::piping::cell_at(o.floor.0, (o.min() + o.max()) * 0.5))
+                    .or_default()
+                    .push((o.id, prototype.clone()));
+            }
+        }
+        // Огнезапоры по клеткам, которых касается их ребро.
+        let mut doors_at: BTreeMap<atmos::Cell, Vec<ObjectId>> = BTreeMap::new();
+        for e in ctx.world.elements() {
+            let (StructureKind::Opening(OpeningKind::Door), Placement::Edge(g)) =
+                (e.kind, e.placement)
+            else {
+                continue;
+            };
+            if !e.material.as_str().ends_with("firelock") {
+                continue;
+            }
+            let f = e.floor.0;
+            let (a, b) = match g.dir {
+                astrocore_math::EdgeDir::AlongX => ((g.x, g.z - 1), (g.x, g.z)),
+                astrocore_math::EdgeDir::AlongZ => ((g.x - 1, g.z), (g.x, g.z)),
+            };
+            for c in [a, b] {
+                doors_at
+                    .entry(atmos::floor_cell(f, c.0, c.1))
+                    .or_default()
+                    .push(e.id);
+            }
+        }
+        let mut groups = Vec::new();
+        for o in ctx.world.authored() {
+            let AuthoredKind::Placement { prototype } = &o.kind else {
+                continue;
+            };
+            if self.monitor_kinds.get(prototype) != Some(&true) {
+                continue;
+            }
+            let here = crate::piping::cell_at(o.floor.0, (o.min() + o.max()) * 0.5);
+            let mut group = AlarmGroup {
+                monitors: vec![(o.id, here)],
+                ..AlarmGroup::default()
+            };
+            let links = o.metadata.get("links").cloned().unwrap_or_default();
+            for pair in links.split(';').filter(|s| !s.is_empty()) {
+                let Some((x, z)) = pair.split_once(',') else {
+                    continue;
+                };
+                let (Ok(x), Ok(z)) = (x.parse::<i32>(), z.parse::<i32>()) else {
+                    continue;
+                };
+                let cell = atmos::floor_cell(o.floor.0, x, z);
+                for (id, proto) in at_cell.get(&cell).into_iter().flatten() {
+                    if self.monitor_kinds.get(proto) == Some(&false) {
+                        group.monitors.push((*id, cell));
+                    } else if self.pipe_parts.contains_key(proto) {
+                        group.devices.push(*id);
+                    }
+                }
+                group
+                    .firelocks
+                    .extend(doors_at.get(&cell).into_iter().flatten().copied());
+            }
+            group.firelocks.sort();
+            group.firelocks.dedup();
+            groups.push(group);
+        }
+        self.alarm_groups = groups;
+    }
+
+    /// Раз в секунду: мониторы измеряют воздух, группа берёт самое тяжёлое состояние, при смене
+    /// огнезапоры, вентили и скрубберы реагируют.
+    fn tick_alarms(&mut self, ctx: &mut HookContext<'_>, dt: f32) {
+        use crate::monitor::{AlarmState, evaluate};
+        self.alarm_timer += dt;
+        if self.alarm_timer < 1.0 {
+            return;
+        }
+        self.alarm_timer = 0.0;
+        self.sync_alarms(ctx);
+        let powered: BTreeMap<ObjectId, bool> = self
+            .power_receivers
+            .iter()
+            .map(|(id, idx, want)| {
+                (
+                    *id,
+                    self.power
+                        .loads
+                        .get(*idx)
+                        .is_some_and(|l| l.receiving_power >= want * 0.999),
+                )
+            })
+            .collect();
+        let mut groups = std::mem::take(&mut self.alarm_groups);
+        for g in &mut groups {
+            for (id, cell) in &g.monitors {
+                // Без питания монитор не обновляется.
+                let on = !self.power_required
+                    || !self.power_gated.contains(id)
+                    || powered.get(id).copied().unwrap_or(false);
+                if on {
+                    let air = self.atmos.air(*cell);
+                    self.monitor_state.insert(*id, evaluate(&air));
+                }
+            }
+            let state = g
+                .monitors
+                .iter()
+                .map(|(id, _)| {
+                    self.monitor_state
+                        .get(id)
+                        .copied()
+                        .unwrap_or(AlarmState::Normal)
+                })
+                .max()
+                .unwrap_or(AlarmState::Normal);
+            if state == g.state {
+                continue;
+            }
+            g.state = state;
+            for fl in &g.firelocks {
+                match state {
+                    AlarmState::Danger => ctx.request_door(*fl, DoorAction::Close, false),
+                    AlarmState::Normal => {
+                        if ctx.door_open(*fl) == Some(false) {
+                            ctx.request_door(*fl, DoorAction::Open, false);
+                        }
+                    }
+                    AlarmState::Warning => {}
+                }
+            }
+            for dev in &g.devices {
+                let Some(key) = self.pipe_keys.existing(*dev) else {
+                    continue;
+                };
+                match self.atmos.pipes_mut().device_mut(key) {
+                    Some(atmos::Device::VentPump(v)) => {
+                        v.enabled = state != AlarmState::Danger;
+                    }
+                    Some(atmos::Device::Scrubber(s)) => {
+                        s.enabled = true;
+                        s.wide_net = state == AlarmState::Danger;
+                    }
+                    _ => {}
+                }
+            }
+        }
+        self.alarm_groups = groups;
     }
 
     /// Светильники клиентам: включён, когда получает всю мощность (или питание не требуется).

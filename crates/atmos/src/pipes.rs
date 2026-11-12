@@ -114,6 +114,8 @@ pub struct Scrubber {
     pub siphoning: bool,
     pub filter: Vec<Gas>,
     pub transfer_rate: f32,
+    /// `WideNet`: скруббер чистит и соседние клетки.
+    pub wide_net: bool,
 }
 
 impl Scrubber {
@@ -132,6 +134,7 @@ impl Scrubber {
                 Gas::Frezon,
             ],
             transfer_rate: MAX_TRANSFER_RATE,
+            wide_net: false,
         }
     }
 }
@@ -638,12 +641,31 @@ impl Pipes {
 
     /// `GasVentScrubberSystem.Scrub`.
     fn scrub(&mut self, s: &Scrubber, cell: Cell, dt: f32, env: &mut dyn TileAccess) {
-        let (Some(n), Some(tile)) = (self.net_of(s.node), env.air(cell)) else {
+        let Some(n) = self.net_of(s.node) else {
             return;
         };
         if !s.enabled {
             return;
         }
+        self.scrub_tile(n, s, cell, dt, env);
+        if s.wide_net {
+            for adjacent in env.adjacent(cell) {
+                self.scrub_tile(n, s, adjacent, dt, env);
+            }
+        }
+    }
+
+    fn scrub_tile(
+        &mut self,
+        n: usize,
+        s: &Scrubber,
+        cell: Cell,
+        dt: f32,
+        env: &mut dyn TileAccess,
+    ) {
+        let Some(tile) = env.air(cell) else {
+            return;
+        };
         let pipe = &mut self.nets[n];
         if pipe.pressure() >= 50.0 * ONE_ATMOSPHERE {
             return;
@@ -725,6 +747,10 @@ pub enum DeviceEvent {
 /// Доступ устройств к воздуху клеток.
 pub trait TileAccess {
     fn air(&mut self, cell: Cell) -> Option<&mut GasMixture>;
+    /// Соседние клетки, между которыми проходит воздух (для `WideNet`).
+    fn adjacent(&mut self, _cell: Cell) -> Vec<Cell> {
+        Vec::new()
+    }
 }
 
 const UNDER_PRESSURE_LOCKOUT_THRESHOLD: f32 = 80.0;

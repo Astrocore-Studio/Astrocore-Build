@@ -45,6 +45,64 @@
         "image": "Textures/Structures/Doors/Airlocks/Standard/airlock-base.rsi/opening.png",
         "rows": 4
       }
+    },
+    "ss14:firelock": {
+      "closed": {
+        "cols": 2,
+        "delays": [],
+        "image": "Textures/Structures/Doors/Airlocks/Standard/firelock-base.rsi/closed.png",
+        "rows": 2
+      },
+      "closing": {
+        "cols": 15,
+        "delays": [
+          0.10000000149011612,
+          0.05000000074505806,
+          0.05000000074505806,
+          0.009999999776482582,
+          0.009999999776482582,
+          0.009999999776482582,
+          0.009999999776482582,
+          0.009999999776482582,
+          0.009999999776482582,
+          0.009999999776482582,
+          0.009999999776482582,
+          0.009999999776482582,
+          0.05000000074505806,
+          0.05000000074505806,
+          0.10000000149011612
+        ],
+        "image": "Textures/Structures/Doors/Airlocks/Standard/firelock-base.rsi/closing.png",
+        "rows": 4
+      },
+      "open": {
+        "cols": 2,
+        "delays": [],
+        "image": "Textures/Structures/Doors/Airlocks/Standard/firelock-base.rsi/open.png",
+        "rows": 2
+      },
+      "opening": {
+        "cols": 15,
+        "delays": [
+          0.10000000149011612,
+          0.05000000074505806,
+          0.05000000074505806,
+          0.009999999776482582,
+          0.009999999776482582,
+          0.009999999776482582,
+          0.009999999776482582,
+          0.009999999776482582,
+          0.009999999776482582,
+          0.009999999776482582,
+          0.009999999776482582,
+          0.009999999776482582,
+          0.05000000074505806,
+          0.05000000074505806,
+          0.10000000149011612
+        ],
+        "image": "Textures/Structures/Doors/Airlocks/Standard/firelock-base.rsi/opening.png",
+        "rows": 4
+      }
     }
   },
   "materials": {
@@ -392,8 +450,24 @@
     }
   },
   "sprites": {
+    "ss14:air_alarm": {
+      "image": "Textures/Structures/Wallmounts/air-alarm.rsi/alarm0.png",
+      "layout": "billboard",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
     "ss14:air_canister": {
       "image": "Textures/Structures/Storage/canister.rsi/grey.png",
+      "layout": "billboard",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:air_sensor": {
+      "image": "Textures/Structures/Specific/Atmospherics/sensor.rsi/gsensor0.png",
       "layout": "billboard",
       "size": [
         0.6000000238418579,

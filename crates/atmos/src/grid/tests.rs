@@ -698,3 +698,33 @@ fn bench_station_sized_grid() {
         g.fires().len()
     );
 }
+
+#[test]
+fn a_wide_net_scrubber_also_cleans_the_neighbouring_cells() {
+    use crate::pipes::{Device, NodeSpec, SOUTH, Scrubber};
+    let build = |wide: bool| {
+        let mut g = Grid::new();
+        g.set_layout(room(3, 1));
+        g.with_air((2, 0), |a| a.adjust_moles(Gas::Plasma, 20.0));
+        g.set_pipe_nodes(&[NodeSpec {
+            key: 1,
+            cell: (1, 0),
+            dirs: SOUTH,
+            volume: 200.0,
+        }]);
+        let mut sc = Scrubber::new(1);
+        sc.wide_net = wide;
+        g.pipes_mut().add_device(6, (1, 0), Device::Scrubber(sc));
+        g
+    };
+    let (mut narrow, mut wide) = (build(false), build(true));
+    narrow.run_cycles(3);
+    wide.run_cycles(3);
+    let in_pipe = |g: &Grid| g.pipes().air_of(1).unwrap().moles(Gas::Plasma);
+    assert!(
+        in_pipe(&wide) > in_pipe(&narrow),
+        "{} против {}",
+        in_pipe(&wide),
+        in_pipe(&narrow)
+    );
+}
