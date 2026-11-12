@@ -31,6 +31,9 @@ pub struct Loadout {
     pub jobs: Option<gameplay::JobsView>,
     /// Открытая консоль выдачи ID.
     pub idconsole: Option<gameplay::IdConsoleView>,
+    /// Раздатчик реагентов и анализатор здоровья.
+    pub dispenser: Option<gameplay::DispenserView>,
+    pub scan: Option<gameplay::ScanView>,
     /// Когда (по часам клиента) пришло последнее состояние здоровья.
     pub health_at: f32,
 }
@@ -194,6 +197,14 @@ fn refresh_loadout(net: Option<NonSend<Net>>, time: Res<Time>, mut loadout: ResM
         .core
         .component(me, gameplay::DOAFTER_COMPONENT)
         .and_then(gameplay::decode_doafter);
+    loadout.dispenser = net
+        .core
+        .component(me, gameplay::DISPENSER_COMPONENT)
+        .and_then(gameplay::decode_dispenser);
+    loadout.scan = net
+        .core
+        .component(me, gameplay::SCAN_COMPONENT)
+        .and_then(gameplay::decode_scan);
     loadout.idconsole = net
         .core
         .component(me, gameplay::IDCONSOLE_COMPONENT)
@@ -444,6 +455,12 @@ fn loadout_window(
         loadout.idconsole.as_ref(),
         hand,
     ));
+    commands.extend(hud::dispenser_window(
+        &ctx,
+        loadout.dispenser.as_ref(),
+        hand,
+    ));
+    commands.extend(hud::scan_window(&ctx, loadout.scan.as_ref()));
     commands.extend(hud::jobs_window(&ctx, state, loadout.jobs.as_ref()));
     for (kind, data) in commands {
         net.send_command(kind, data);

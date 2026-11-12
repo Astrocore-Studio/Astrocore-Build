@@ -188,6 +188,34 @@ storage_lines.append(']')
 open('content/prototypes/storage.ron', 'w').write('\n'.join(storage_lines) + '\n')
 print(len(storage_done), 'шкафов и ящиков')
 
+# --- Раздатчики реагентов (ReagentDispenser) ---
+disp = [
+    '// Раздатчики реагентов карты: банки в хранилище и слот мензурки. Создано scripts/gen_spawners.py.',
+    '[',
+]
+disp_done = []
+for p in sorted(placed):
+    if not P.get('entity', p) or P.is_abstract(p):
+        continue
+    c = P.entity_components(p)
+    if 'ReagentDispenser' not in c:
+        continue
+    sp = c.get('Sprite', {})
+    state = sp.get('state')
+    for l in sp.get('layers') or []:
+        if state is None and isinstance(l, dict) and l.get('state'):
+            state = l['state']
+    fill = (c.get('EntityTableContainerFill', {}).get('containers') or {}).get('storagebase')
+    if not sp.get('sprite') or not state or not fill:
+        continue
+    rsi = sp['sprite'].removeprefix('/Textures/')
+    disp.append('    (id: %s, name: Some(%s), components: {"Sprite": (sprite: %s, state: %s), "ApcPowerReceiver": (load: 200.0), "ReagentDispenser": (table: %s)}),' % (
+        q(p), q(P.entity_name(p) or p), q(rsi), q(state), node(fill)))
+    disp_done.append(p)
+disp.append(']')
+open('content/prototypes/dispensers.ron', 'w').write('\n'.join(disp) + '\n')
+print(len(disp_done), 'раздатчиков:', disp_done)
+
 seen = set()
 while tables_needed:
     t = tables_needed.pop()

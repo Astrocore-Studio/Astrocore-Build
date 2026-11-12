@@ -65,6 +65,20 @@ pub const CMD_ID_EJECT: &str = "idc.eject";
 pub const CMD_ID_CLOSE: &str = "idc.close";
 /// Консоль ID: записать имя, должность и доступ (JSON `WriteRequest`).
 pub const CMD_ID_WRITE: &str = "idc.write";
+/// Закрыть окно анализатора здоровья.
+pub const CMD_SCAN_CLOSE: &str = "scan.close";
+/// Раздатчик: налить из банки (данные: номер банки).
+pub const CMD_DISP_DISPENSE: &str = "disp.dispense";
+/// Раздатчик: выбрать количество (данные: номер в `AMOUNTS`).
+pub const CMD_DISP_AMOUNT: &str = "disp.amount";
+/// Раздатчик: вставить мензурку из руки (данные: рука).
+pub const CMD_DISP_INSERT: &str = "disp.insert";
+/// Раздатчик: вынуть мензурку.
+pub const CMD_DISP_EJECT: &str = "disp.eject";
+/// Раздатчик: очистить мензурку.
+pub const CMD_DISP_CLEAR: &str = "disp.clear";
+/// Раздатчик: закрыть окно.
+pub const CMD_DISP_CLOSE: &str = "disp.close";
 /// Запереть или отпереть ближайший шкаф или ящик (нужен доступ).
 pub const CMD_LOCK: &str = "lock.toggle";
 /// Выбрать должность: данные — её идентификатор (UTF-8).
@@ -175,6 +189,18 @@ pub fn register_replication(reg: &mut ReplicationRegistry) -> Result<(), Replica
         channel: ReplicationChannel::ReliableOrdered,
         interest: Interest::Everyone,
         max_bytes: crate::doafter::DOAFTER_MAX_BYTES,
+    })?;
+    reg.register(ReplicatedKind {
+        name: crate::analyzer::SCAN_COMPONENT.into(),
+        channel: ReplicationChannel::ReliableOrdered,
+        interest: Interest::Owner,
+        max_bytes: crate::analyzer::SCAN_MAX_BYTES,
+    })?;
+    reg.register(ReplicatedKind {
+        name: crate::dispenser::DISPENSER_COMPONENT.into(),
+        channel: ReplicationChannel::ReliableOrdered,
+        interest: Interest::Owner,
+        max_bytes: crate::dispenser::DISPENSER_MAX_BYTES,
     })?;
     reg.register(ReplicatedKind {
         name: crate::idconsole::IDCONSOLE_COMPONENT.into(),

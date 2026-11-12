@@ -33,8 +33,9 @@ def seeds():
             out.add(m.group(1))
         for m in re.finditer(r'\b([A-Z]\w+): \d+', t):
             out.add(m.group(1))
-    if os.path.exists('content/prototypes/spawners.ron'):
-        out |= set(re.findall(r'"(\w+)"', open('content/prototypes/spawners.ron').read()))
+    for fn in ('spawners.ron', 'storage.ron', 'dispensers.ron'):
+        if os.path.exists('content/prototypes/' + fn):
+            out |= set(re.findall(r'"(\w+)"', open('content/prototypes/' + fn).read()))
     t = open(MAP).read()
     out |= set(re.findall(r'^- proto: (\w+)$', t, re.M))
     return out
@@ -136,6 +137,11 @@ def convert(i):
     st_ = comps.get('SolutionTransfer')
     if st_ is not None:
         out.append('"SolutionTransfer": (amount: %s, max: %s)' % (float(st_.get('transferAmount', 5)), float(st_.get('maxTransferAmount', 1000))))
+    ha = comps.get('HealthAnalyzer')
+    if ha is not None:
+        out.append('"HealthAnalyzer": ()')
+    if 'FitsInDispenser' in comps:
+        out.append('"FitsInDispenser": ()')
     if 'RefillableSolution' in comps:
         out.append('"Refillable": ()')
     if 'DrainableSolution' in comps:

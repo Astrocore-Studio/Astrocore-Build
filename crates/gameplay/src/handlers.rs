@@ -461,6 +461,39 @@ impl InteractionHandler for ChemUse {
     }
 }
 
+/// Раздатчик реагентов: пустая рука открывает окно, мензурка (`FitsInDispenser`) в руке встаёт в слот.
+pub struct DispenserUse;
+
+impl InteractionHandler for DispenserUse {
+    fn interact_hand(
+        &mut self,
+        state: &mut State,
+        _ctx: &mut HookContext<'_>,
+        user: NetworkEntityId,
+        target: &Target,
+    ) -> bool {
+        let Target::Item { id, prototype, .. } = target else {
+            return false;
+        };
+        state.dispenser_tables.contains_key(prototype) && state.open_dispenser(user, *id)
+    }
+
+    fn interact_using(
+        &mut self,
+        state: &mut State,
+        ctx: &mut HookContext<'_>,
+        user: NetworkEntityId,
+        used: &Used,
+        target: &Target,
+    ) -> bool {
+        let Target::Item { id, prototype, .. } = target else {
+            return false;
+        };
+        state.dispenser_tables.contains_key(prototype)
+            && state.insert_beaker(ctx, user, *id, used.hand)
+    }
+}
+
 /// Базовая цепочка: порядок важен — первый обработавший прекращает обход.
 pub fn default_handlers() -> Vec<Box<dyn InteractionHandler>> {
     vec![
@@ -470,6 +503,7 @@ pub fn default_handlers() -> Vec<Box<dyn InteractionHandler>> {
         Box::new(VendingUse),
         Box::new(LockerUse),
         Box::new(IdConsoleUse),
+        Box::new(DispenserUse),
         Box::new(ChemUse),
         Box::new(PryDoor),
         Box::new(StorageClickInsert),

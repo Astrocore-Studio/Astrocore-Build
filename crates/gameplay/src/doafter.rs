@@ -42,6 +42,11 @@ pub(crate) enum Action {
         hand: usize,
         target: astrocore_core::NetworkEntityId,
     },
+    /// Сканирование анализатором здоровья из руки.
+    Scan {
+        hand: usize,
+        target: astrocore_core::NetworkEntityId,
+    },
     /// Съесть или выпить укус из предмета в руке.
     Eat {
         hand: usize,
@@ -65,6 +70,7 @@ impl Action {
             Self::Pry { .. } => "pry",
             Self::Heal { .. } => "heal",
             Self::Inject { .. } => "inject",
+            Self::Scan { .. } => "scan",
             Self::Eat { .. } => "eat",
         }
     }

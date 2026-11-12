@@ -121,7 +121,20 @@ const PROTOS: &str = r#"[
         "Item": (size: "Small"),
         "IdCard": (access: []),
     }),
+    (id: "AnalyzerT", components: {
+        "Item": (size: "Small"),
+        "HealthAnalyzer": (),
+    }),
+    (id: "JugT", components: {
+        "Item": (size: "Large"),
+        "Solution": (maxVol: 240.0, reagents: (Silicon: 240.0)),
+        "Drainable": (),
+    }),
+    (id: "DispT", components: {
+        "ReagentDispenser": (table: (k: "all", children: [(k: "ent", id: "JugT"), (k: "ent", id: "JugT")])),
+    }),
     (id: "BeakerT", components: {
+        "FitsInDispenser": (),
         "Item": (size: "Small"),
         "Solution": (maxVol: 50.0, reagents: ()),
         "SolutionTransfer": (amount: 10.0, max: 50.0),
@@ -2371,5 +2384,91 @@ mod disposal_tests {
         assert!(st.toggle_injector(&syringe));
         assert!(st.chem_use(&syringe, &bottle));
         assert!(st.solution_volume(&syringe) < 1e-3);
+    }
+
+    fn disp_view(h: &Harness, who: ConnId) -> Option<crate::DispenserView> {
+        let net = h.client(who).net_id()?;
+        h.client(who)
+            .component(net, crate::DISPENSER_COMPONENT)
+            .and_then(crate::decode_dispenser)
+    }
+
+    #[test]
+    fn a_reagent_dispenser_pours_the_chosen_amount_into_the_beaker() {
+        let mut h = harness();
+        let a = h.join("a");
+        h.ticks(5);
+        spawn(
+            &mut h,
+            item_at(990, "ss14:disp_t", Vec3::new(3.0, 0.9, 3.0)),
+        );
+        spawn(
+            &mut h,
+            item_at(991, "ss14:beaker_t", Vec3::new(2.6, 0.9, 2.6)),
+        );
+        h.ticks(10);
+        command(&mut h, a, CMD_PICKUP_ANY, pickup_data(oid(991)));
+        h.ticks(3);
+        // Мензурка из руки встаёт в слот, пустая рука открывает окно.
+        command(&mut h, a, CMD_INTERACT, interact_data(oid(990)));
+        h.ticks(3);
+        command(&mut h, a, CMD_INTERACT, interact_data(oid(990)));
+        h.ticks(10);
+        let v = disp_view(&h, a).expect("окно открыто");
+        assert_eq!(v.jugs.len(), 2, "{v:?}");
+        assert_eq!(v.jugs[0].label, "silicon");
+        assert!(v.beaker.is_some());
+        // По умолчанию 10 единиц; выбрали 5 (индекс 1), налили ещё раз.
+        command(&mut h, a, crate::CMD_DISP_DISPENSE, vec![0]);
+        h.ticks(5);
+        assert!((disp_view(&h, a).unwrap().beaker.unwrap().volume - 10.0).abs() < 1e-3);
+        command(&mut h, a, crate::CMD_DISP_AMOUNT, vec![1]);
+        command(&mut h, a, crate::CMD_DISP_DISPENSE, vec![1]);
+        h.ticks(5);
+        let v = disp_view(&h, a).unwrap();
+        assert!(
+            (v.beaker.as_ref().unwrap().volume - 15.0).abs() < 1e-3,
+            "{v:?}"
+        );
+        assert!((v.jugs[0].quantity - 230.0).abs() < 1e-3);
+        // Очистка и возврат мензурки в руку.
+        command(&mut h, a, crate::CMD_DISP_CLEAR, vec![]);
+        h.ticks(5);
+        assert!(disp_view(&h, a).unwrap().beaker.unwrap().volume < 1e-3);
+        command(&mut h, a, crate::CMD_DISP_EJECT, vec![]);
+        h.ticks(5);
+        assert!(disp_view(&h, a).unwrap().beaker.is_none());
+        assert!(hands_of(&h, a, a).unwrap().held().next().is_some());
+    }
+
+    #[test]
+    fn a_health_analyzer_scans_another_player_after_the_delay() {
+        let mut h = harness();
+        let a = h.join("a");
+        let b = h.join("b");
+        h.ticks(5);
+        spawn(
+            &mut h,
+            item_at(995, "ss14:analyzer_t", Vec3::new(2.6, 0.9, 2.6)),
+        );
+        h.ticks(10);
+        command(&mut h, a, CMD_PICKUP_ANY, pickup_data(oid(995)));
+        h.ticks(3);
+        let target = h.client(b).net_id().unwrap();
+        let hand = hands_of(&h, a, a).unwrap().active() as u8;
+        command(&mut h, a, crate::CMD_HEAL, crate::heal_data(hand, target));
+        h.ticks(5);
+        let scan = |h: &Harness| {
+            let net = h.client(a).net_id()?;
+            h.client(a)
+                .component(net, crate::SCAN_COMPONENT)
+                .and_then(crate::decode_scan)
+        };
+        // Пока идёт 0,8 с — окна нет.
+        assert!(scan(&h).is_none());
+        h.ticks(40);
+        let v = scan(&h).expect("сканирование завершено");
+        assert!(v.active && v.state == "Alive", "{v:?}");
+        assert!(v.blood > 0.9 && v.total_damage < 1.0);
     }
 }

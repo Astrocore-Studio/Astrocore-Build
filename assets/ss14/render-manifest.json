@@ -538,6 +538,22 @@
         0.30000001192092896
       ]
     },
+    "ss14:ame_jar": {
+      "image": "Textures/Objects/Power/AME/ame_jar.rsi/jar.png",
+      "layout": "flat",
+      "size": [
+        0.48000001907348633,
+        0.48000001907348633
+      ]
+    },
+    "ss14:ame_part_flatpack": {
+      "image": "Textures/Objects/Devices/flatpack.rsi/ame-part.png",
+      "layout": "flat",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
     "ss14:ammonia_canister": {
       "image": "Textures/Structures/Storage/canister.rsi/greenys.png",
       "layout": "billboard",
@@ -600,6 +616,14 @@
       "size": [
         0.36000001430511475,
         0.36000001430511475
+      ]
+    },
+    "ss14:ash": {
+      "image": "Textures/Objects/Materials/materials.rsi/ash.png",
+      "layout": "flat",
+      "size": [
+        0.30000001192092896,
+        0.30000001192092896
       ]
     },
     "ss14:astro_nav_cartridge": {
@@ -1117,6 +1141,14 @@
     "ss14:books_bag": {
       "image": "Textures/Objects/Specific/Library/Equipment/books_bag.rsi/icon.png",
       "layout": "flat",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:booze_dispenser": {
+      "image": "Textures/Structures/smalldispensers.rsi/booze.png",
+      "layout": "billboard",
       "size": [
         0.6000000238418579,
         0.6000000238418579
@@ -2026,6 +2058,14 @@
         0.6000000238418579
       ]
     },
+    "ss14:chem_dispenser": {
+      "image": "Textures/Structures/dispensers.rsi/industrial-working.png",
+      "layout": "billboard",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
     "ss14:chemist_idcard": {
       "image": "Textures/Objects/Misc/id_cards.rsi/default.png",
       "layout": "flat",
@@ -2244,6 +2284,14 @@
     },
     "ss14:cigarette": {
       "image": "Textures/Objects/Consumable/Smokeables/Cigarettes/cigarette.rsi/unlit-icon.png",
+      "layout": "flat",
+      "size": [
+        0.30000001192092896,
+        0.30000001192092896
+      ]
+    },
+    "ss14:cigarette_spent": {
+      "image": "Textures/Objects/Consumable/Smokeables/Cigarettes/cigarette.rsi/burnt-icon.png",
       "layout": "flat",
       "size": [
         0.30000001192092896,
@@ -7770,6 +7818,14 @@
         0.6000000238418579
       ]
     },
+    "ss14:containment_field_generator_flatpack": {
+      "image": "Textures/Objects/Devices/flatpack.rsi/containment-field-generator.png",
+      "layout": "flat",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
     "ss14:conveyor_belt": {
       "image": "Textures/Structures/conveyor.rsi/conveyor_stopped.png",
       "layout": "billboard",
@@ -8826,6 +8882,14 @@
         0.36000001430511475
       ]
     },
+    "ss14:drill": {
+      "image": "Textures/Objects/Specific/Medical/Surgery/drill.rsi/drill.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
     "ss14:drink_absinthe_bottle_full": {
       "image": "Textures/Objects/Consumable/Drinks/absinthebottle.rsi/icon_empty.png",
       "layout": "flat",
@@ -9162,6 +9226,22 @@
         0.36000001430511475
       ]
     },
+    "ss14:drink_coconut_water_jug": {
+      "image": "Textures/Objects/Consumable/Drinks/generic_jug.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:drink_coffee_jug": {
+      "image": "Textures/Objects/Consumable/Drinks/generic_jug.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
     "ss14:drink_coffee_liqueur_bottle_full": {
       "image": "Textures/Objects/Consumable/Drinks/coffeeliqueurbottle.rsi/icon.png",
       "layout": "flat",
@@ -9216,6 +9296,14 @@
       "size": [
         0.36000001430511475,
         0.36000001430511475
+      ]
+    },
+    "ss14:drink_cream_carton_xl": {
+      "image": "Textures/Objects/Consumable/Drinks/cream.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
       ]
     },
     "ss14:drink_crush_depth_glass": {
@@ -9298,6 +9386,14 @@
         0.36000001430511475
       ]
     },
+    "ss14:drink_dr_gibb_jug": {
+      "image": "Textures/Objects/Consumable/Drinks/generic_jug.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
     "ss14:drink_driest_martini_glass": {
       "image": "Textures/Objects/Consumable/Drinks/glass_clear.rsi/icon.png",
       "layout": "flat",
@@ -9320,6 +9416,14 @@
       "size": [
         0.36000001430511475,
         0.36000001430511475
+      ]
+    },
+    "ss14:drink_energy_drink_jug": {
+      "image": "Textures/Objects/Consumable/Drinks/generic_jug.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
       ]
     },
     "ss14:drink_erika_surprise": {
@@ -9466,6 +9570,14 @@
         0.36000001430511475
       ]
     },
+    "ss14:drink_green_tea_jug": {
+      "image": "Textures/Objects/Consumable/Drinks/generic_jug.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
     "ss14:drink_grenadine_bottle_full": {
       "image": "Textures/Objects/Consumable/Drinks/grenadinebottle.rsi/icon_empty.png",
       "layout": "flat",
@@ -9544,6 +9656,14 @@
       "size": [
         0.36000001430511475,
         0.36000001430511475
+      ]
+    },
+    "ss14:drink_ice_jug": {
+      "image": "Textures/Objects/Consumable/Drinks/generic_jug.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
       ]
     },
     "ss14:drink_iced_beer_glass": {
@@ -9626,12 +9746,28 @@
         0.36000001430511475
       ]
     },
+    "ss14:drink_juice_lemon_jug": {
+      "image": "Textures/Objects/Consumable/Drinks/generic_jug.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
     "ss14:drink_juice_lime_carton": {
       "image": "Textures/Objects/Consumable/Drinks/limejuice.rsi/icon.png",
       "layout": "flat",
       "size": [
         0.36000001430511475,
         0.36000001430511475
+      ]
+    },
+    "ss14:drink_juice_lime_carton_xl": {
+      "image": "Textures/Objects/Consumable/Drinks/limejuice.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
       ]
     },
     "ss14:drink_juice_orange_carton": {
@@ -9642,6 +9778,14 @@
         0.36000001430511475
       ]
     },
+    "ss14:drink_juice_orange_carton_xl": {
+      "image": "Textures/Objects/Consumable/Drinks/orangejuice.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
     "ss14:drink_juice_pineapple_carton": {
       "image": "Textures/Objects/Consumable/Drinks/pineapplejuice.rsi/icon.png",
       "layout": "flat",
@@ -9650,12 +9794,28 @@
         0.36000001430511475
       ]
     },
+    "ss14:drink_juice_pineapple_jug": {
+      "image": "Textures/Objects/Consumable/Drinks/generic_jug.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
     "ss14:drink_juice_tomato_carton": {
       "image": "Textures/Objects/Consumable/Drinks/tomatojuice.rsi/icon.png",
       "layout": "flat",
       "size": [
         0.36000001430511475,
         0.36000001430511475
+      ]
+    },
+    "ss14:drink_juice_tomato_jug": {
+      "image": "Textures/Objects/Consumable/Drinks/generic_jug.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
       ]
     },
     "ss14:drink_jungle_bird_glass": {
@@ -9696,6 +9856,14 @@
       "size": [
         0.36000001430511475,
         0.36000001430511475
+      ]
+    },
+    "ss14:drink_lemon_lime_jug": {
+      "image": "Textures/Objects/Consumable/Drinks/generic_jug.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
       ]
     },
     "ss14:drink_lemonade_glass": {
@@ -9754,6 +9922,14 @@
         0.36000001430511475
       ]
     },
+    "ss14:drink_mead_jug": {
+      "image": "Textures/Objects/Consumable/Drinks/generic_jug.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
     "ss14:drink_melon_liquor_bottle_full": {
       "image": "Textures/Objects/Consumable/Drinks/alco-bottle.rsi/icon_empty.png",
       "layout": "flat",
@@ -9768,6 +9944,14 @@
       "size": [
         0.48000001907348633,
         0.48000001907348633
+      ]
+    },
+    "ss14:drink_milk_jug": {
+      "image": "Textures/Objects/Consumable/Drinks/generic_jug.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
       ]
     },
     "ss14:drink_milkshake": {
@@ -10042,6 +10226,14 @@
         0.36000001430511475
       ]
     },
+    "ss14:drink_root_beer_jug": {
+      "image": "Textures/Objects/Consumable/Drinks/generic_jug.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
     "ss14:drink_roy_rogers_glass": {
       "image": "Textures/Objects/Consumable/Drinks/glass_clear.rsi/icon.png",
       "layout": "flat",
@@ -10178,6 +10370,14 @@
         0.36000001430511475
       ]
     },
+    "ss14:drink_soda_water_bottle_full": {
+      "image": "Textures/Objects/Consumable/Drinks/sodawater-bottle.rsi/icon_empty.png",
+      "layout": "flat",
+      "size": [
+        0.48000001907348633,
+        0.48000001907348633
+      ]
+    },
     "ss14:drink_soda_water_can": {
       "image": "Textures/Objects/Consumable/Drinks/sodawater.rsi/icon.png",
       "layout": "flat",
@@ -10192,6 +10392,14 @@
       "size": [
         0.36000001430511475,
         0.36000001430511475
+      ]
+    },
+    "ss14:drink_sol_dry_jug": {
+      "image": "Textures/Objects/Consumable/Drinks/generic_jug.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
       ]
     },
     "ss14:drink_soy_latte": {
@@ -10266,6 +10474,14 @@
         0.36000001430511475
       ]
     },
+    "ss14:drink_sugar_jug": {
+      "image": "Textures/Objects/Consumable/Drinks/generic_jug.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
     "ss14:drink_sui_dream_glass": {
       "image": "Textures/Objects/Consumable/Drinks/glass_clear.rsi/icon.png",
       "layout": "flat",
@@ -10280,6 +10496,14 @@
       "size": [
         0.36000001430511475,
         0.36000001430511475
+      ]
+    },
+    "ss14:drink_tea_jug": {
+      "image": "Textures/Objects/Consumable/Drinks/generic_jug.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
       ]
     },
     "ss14:drink_teacup": {
@@ -10320,6 +10544,14 @@
       "size": [
         0.36000001430511475,
         0.36000001430511475
+      ]
+    },
+    "ss14:drink_tonic_water_bottle_full": {
+      "image": "Textures/Objects/Consumable/Drinks/tonic-bottle.rsi/icon_empty.png",
+      "layout": "flat",
+      "size": [
+        0.48000001907348633,
+        0.48000001907348633
       ]
     },
     "ss14:drink_tonic_water_can": {
@@ -10424,6 +10656,14 @@
       "size": [
         0.30000001192092896,
         0.30000001192092896
+      ]
+    },
+    "ss14:drink_water_melon_juice_jug": {
+      "image": "Textures/Objects/Consumable/Drinks/generic_jug.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
       ]
     },
     "ss14:drink_watermelon_juice": {
@@ -10962,6 +11202,14 @@
         0.48000001907348633
       ]
     },
+    "ss14:food_bread_moldy_slice": {
+      "image": "Textures/Objects/Consumable/Food/Baked/bread.rsi/moldy-slice.png",
+      "layout": "flat",
+      "size": [
+        0.30000001192092896,
+        0.30000001192092896
+      ]
+    },
     "ss14:food_burger_appendix": {
       "image": "Textures/Objects/Consumable/Food/burger.rsi/appendix.png",
       "layout": "flat",
@@ -11360,6 +11608,14 @@
       "size": [
         0.48000001907348633,
         0.48000001907348633
+      ]
+    },
+    "ss14:food_corn_trash": {
+      "image": "Textures/Objects/Specific/Hydroponics/corn.rsi/cob.png",
+      "layout": "flat",
+      "size": [
+        0.30000001192092896,
+        0.30000001192092896
       ]
     },
     "ss14:food_donkpocket_pizza": {
@@ -11876,6 +12132,14 @@
     },
     "ss14:food_packet_energy_trash": {
       "image": "Textures/Objects/Consumable/Food/snacks.rsi/energybar-trash.png",
+      "layout": "flat",
+      "size": [
+        0.30000001192092896,
+        0.30000001192092896
+      ]
+    },
+    "ss14:food_packet_mretrash": {
+      "image": "Textures/Objects/Consumable/Food/snacks.rsi/mre-wrapper.png",
       "layout": "flat",
       "size": [
         0.30000001192092896,
@@ -12610,12 +12874,36 @@
         0.36000001430511475
       ]
     },
+    "ss14:food_tin_beans_trash": {
+      "image": "Textures/Objects/Consumable/Food/Tins/beans.rsi/trash.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
     "ss14:food_tin_mre": {
       "image": "Textures/Objects/Consumable/Food/Tins/meat.rsi/icon.png",
       "layout": "flat",
       "size": [
         0.30000001192092896,
         0.30000001192092896
+      ]
+    },
+    "ss14:food_tin_mretrash": {
+      "image": "Textures/Objects/Consumable/Food/Tins/meat.rsi/trash.png",
+      "layout": "flat",
+      "size": [
+        0.30000001192092896,
+        0.30000001192092896
+      ]
+    },
+    "ss14:food_tin_peaches_trash": {
+      "image": "Textures/Objects/Consumable/Food/Tins/peaches.rsi/trash.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
       ]
     },
     "ss14:food_watermelon_slice": {
@@ -13072,6 +13360,14 @@
       "size": [
         0.48000001907348633,
         0.48000001907348633
+      ]
+    },
+    "ss14:hemostat": {
+      "image": "Textures/Objects/Specific/Medical/Surgery/scissors.rsi/hemostat.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
       ]
     },
     "ss14:ho_pidcard": {
@@ -13642,8 +13938,24 @@
         0.36000001430511475
       ]
     },
+    "ss14:light_bulb_broken": {
+      "image": "Textures/Objects/Power/light_bulb.rsi/normal.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
     "ss14:light_replacer_filled": {
       "image": "Textures/Objects/Specific/Janitorial/light_replacer.rsi/icon.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
+    "ss14:light_tube_broken": {
+      "image": "Textures/Objects/Power/light_tube.rsi/normal.png",
       "layout": "flat",
       "size": [
         0.36000001430511475,
@@ -16162,6 +16474,14 @@
         0.36000001430511475
       ]
     },
+    "ss14:retractor": {
+      "image": "Textures/Objects/Specific/Medical/Surgery/scissors.rsi/retractor.png",
+      "layout": "flat",
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ]
+    },
     "ss14:revolver_cap_gun": {
       "image": "Textures/Objects/Fun/capgun.rsi/base.png",
       "layout": "flat",
@@ -16418,6 +16738,14 @@
         0.36000001430511475
       ]
     },
+    "ss14:saw": {
+      "image": "Textures/Objects/Specific/Medical/Surgery/saw.rsi/saw.png",
+      "layout": "flat",
+      "size": [
+        0.48000001907348633,
+        0.48000001907348633
+      ]
+    },
     "ss14:saw_electric": {
       "image": "Textures/Objects/Specific/Medical/Surgery/saw.rsi/electric.png",
       "layout": "flat",
@@ -16570,6 +16898,14 @@
         0.30000001192092896
       ]
     },
+    "ss14:shard_glass_plasma": {
+      "image": "Textures/Objects/Materials/Shards/shard.rsi/shard1.png",
+      "layout": "flat",
+      "size": [
+        0.30000001192092896,
+        0.30000001192092896
+      ]
+    },
     "ss14:sheet_glass": {
       "image": "Textures/Objects/Materials/Sheets/glass.rsi/glass_3.png",
       "layout": "flat",
@@ -16698,6 +17034,14 @@
         0.36000001430511475
       ]
     },
+    "ss14:singularity_generator_flatpack": {
+      "image": "Textures/Objects/Devices/flatpack.rsi/singularity-generator.png",
+      "layout": "flat",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
     "ss14:singularity_toy": {
       "image": "Textures/Objects/Fun/toy_singularity.rsi/icon.png",
       "layout": "flat",
@@ -16808,6 +17152,14 @@
       "size": [
         0.36000001430511475,
         0.36000001430511475
+      ]
+    },
+    "ss14:soda_dispenser": {
+      "image": "Textures/Structures/smalldispensers.rsi/soda.png",
+      "layout": "billboard",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
       ]
     },
     "ss14:solar_panel": {
@@ -17152,6 +17504,30 @@
       "size": [
         0.36000001430511475,
         0.36000001430511475
+      ]
+    },
+    "ss14:tesla_coil_flatpack": {
+      "image": "Textures/Objects/Devices/flatpack.rsi/tesla-coil.png",
+      "layout": "flat",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:tesla_generator_flatpack": {
+      "image": "Textures/Objects/Devices/flatpack.rsi/tesla-generator.png",
+      "layout": "flat",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ]
+    },
+    "ss14:tesla_grounding_rod_flatpack": {
+      "image": "Textures/Objects/Devices/flatpack.rsi/grounding-rod.png",
+      "layout": "flat",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
       ]
     },
     "ss14:tesla_toy": {

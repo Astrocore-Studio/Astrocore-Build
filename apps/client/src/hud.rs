@@ -1019,6 +1019,131 @@ pub fn idconsole_window(
     out
 }
 
+fn hex_color(s: &str) -> Color32 {
+    let t = s.trim_start_matches('#');
+    u32::from_str_radix(t, 16).map_or(Color32::WHITE, |v| {
+        Color32::from_rgb((v >> 16) as u8, (v >> 8) as u8, v as u8)
+    })
+}
+
+/// Окно раздатчика реагентов (`ReagentDispenserWindow`): количество, банки, мензурка.
+pub fn dispenser_window(
+    ctx: &egui::Context,
+    view: Option<&gameplay::DispenserView>,
+    active_hand: u8,
+) -> Commands {
+    let mut out: Commands = Vec::new();
+    let Some(v) = view else {
+        return out;
+    };
+    let mut open = true;
+    egui::Window::new("Раздатчик реагентов")
+        .id(egui::Id::new("dispenser"))
+        .default_pos(Pos2::new(160.0, 90.0))
+        .resizable(false)
+        .open(&mut open)
+        .show(ctx, |ui| {
+            ui.horizontal_wrapped(|ui| {
+                ui.label("Количество:");
+                for (i, a) in v.amounts.iter().enumerate() {
+                    if ui
+                        .selectable_label((v.amount - a).abs() < 1e-3, format!("{a}"))
+                        .clicked()
+                    {
+                        out.push((gameplay::CMD_DISP_AMOUNT, vec![i as u8]));
+                    }
+                }
+            });
+            ui.separator();
+            match &v.beaker {
+                Some(b) => {
+                    ui.horizontal(|ui| {
+                        ui.label(format!("Мензурка {:.0}/{:.0}", b.volume, b.max));
+                        if ui.button("Очистить").clicked() {
+                            out.push((gameplay::CMD_DISP_CLEAR, Vec::new()));
+                        }
+                        if ui.button("Вынуть").clicked() {
+                            out.push((gameplay::CMD_DISP_EJECT, Vec::new()));
+                        }
+                    });
+                    for (r, q) in &b.reagents {
+                        ui.label(format!("  {r}: {q:.1}"));
+                    }
+                }
+                None => {
+                    if ui.button("Вставить мензурку из руки").clicked() {
+                        out.push((gameplay::CMD_DISP_INSERT, vec![active_hand]));
+                    }
+                }
+            }
+            ui.separator();
+            egui::ScrollArea::vertical()
+                .max_height(360.0)
+                .show(ui, |ui| {
+                    for j in &v.jugs {
+                        ui.horizontal(|ui| {
+                            let (r, _) = ui.allocate_exact_size(Vec2::splat(14.0), Sense::hover());
+                            ui.painter().rect_filled(r, 2.0, hex_color(&j.color));
+                            let b = egui::Button::new(format!("{} [{:.0}]", j.label, j.quantity));
+                            if ui
+                                .add_enabled(v.beaker.is_some() && j.quantity > 0.0, b)
+                                .clicked()
+                            {
+                                out.push((gameplay::CMD_DISP_DISPENSE, vec![j.index]));
+                            }
+                        });
+                    }
+                });
+        });
+    if !open {
+        out.push((gameplay::CMD_DISP_CLOSE, Vec::new()));
+    }
+    out
+}
+
+/// Окно анализатора здоровья (`HealthAnalyzerWindow`).
+pub fn scan_window(ctx: &egui::Context, view: Option<&gameplay::ScanView>) -> Commands {
+    let mut out: Commands = Vec::new();
+    let Some(v) = view else {
+        return out;
+    };
+    let mut open = true;
+    egui::Window::new("Анализатор здоровья")
+        .id(egui::Id::new("scan"))
+        .default_pos(Pos2::new(900.0, 120.0))
+        .resizable(false)
+        .open(&mut open)
+        .show(ctx, |ui| {
+            if v.active {
+                ui.colored_label(Color32::LIGHT_GREEN, "Сканирование идёт");
+            } else {
+                ui.colored_label(Color32::LIGHT_RED, "Цель вне зоны: данные устарели");
+            }
+            ui.label(format!("Цель: {}", v.target));
+            ui.label(format!("Состояние: {}", v.state));
+            ui.label(format!(
+                "Температура: {:.1} °C ({:.1} K)",
+                v.temperature_k - 273.15,
+                v.temperature_k
+            ));
+            ui.label(format!("Кровь: {:.0}%", v.blood * 100.0));
+            if v.bleeding {
+                ui.colored_label(Color32::LIGHT_RED, "Кровотечение");
+            }
+            ui.label(format!("Суммарный урон: {:.1}", v.total_damage));
+            for (group, total, kinds) in &v.groups {
+                ui.label(format!("{group}: {total:.1}"));
+                for (k, a) in kinds {
+                    ui.label(format!("   · {k}: {a:.1}"));
+                }
+            }
+        });
+    if !open {
+        out.push((gameplay::CMD_SCAN_CLOSE, Vec::new()));
+    }
+    out
+}
+
 pub fn vending_window(
     ctx: &egui::Context,
     icons: &mut Icons,

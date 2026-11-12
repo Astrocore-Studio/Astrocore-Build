@@ -191,6 +191,14 @@ impl InjectorSpec {
     }
 }
 
+/// Раздатчик реагентов в мире: банки, мензурка в слоте и выбранное количество.
+#[derive(Debug, Clone)]
+pub(crate) struct Dispenser {
+    pub(crate) jugs: Vec<HeldItem>,
+    pub(crate) beaker: Option<HeldItem>,
+    pub(crate) amount: f32,
+}
+
 /// Слоты консоли выдачи ID: карта с правами и целевая карта.
 #[derive(Debug, Clone, Default)]
 pub(crate) struct ConsoleSlots {
@@ -327,6 +335,17 @@ pub struct State {
     pub(crate) alarm_sig: Vec<(ObjectId, atmos::Cell, u32)>,
     pub(crate) monitor_state: BTreeMap<ObjectId, crate::monitor::AlarmState>,
     pub(crate) alarm_timer: f32,
+    /// Анализаторы здоровья: прототипы, кто кого сканирует, таймер обновления.
+    pub(crate) analyzers: BTreeSet<PrototypeId>,
+    pub(crate) scans: BTreeMap<NetworkEntityId, NetworkEntityId>,
+    pub(crate) scan_sent: BTreeMap<NetworkEntityId, Vec<u8>>,
+    pub(crate) scan_timer: f32,
+    /// Раздатчики реагентов: таблицы наполнения, состояние, у кого открыто окно, предметы под мензурку.
+    pub(crate) dispenser_tables: BTreeMap<PrototypeId, crate::spawners::Node>,
+    pub(crate) dispensers: BTreeMap<ObjectId, Dispenser>,
+    pub(crate) dispenser_open: BTreeMap<NetworkEntityId, ObjectId>,
+    pub(crate) dispenser_sent: BTreeMap<NetworkEntityId, Vec<u8>>,
+    pub(crate) fits_in_dispenser: BTreeSet<PrototypeId>,
     /// Химия: таблица реагентов и реакций, шприцы и гипоспреи, перелив между ёмкостями.
     pub(crate) chem: std::sync::Arc<crate::chem::ReagentTable>,
     pub(crate) injectors: BTreeMap<PrototypeId, InjectorSpec>,
@@ -411,6 +430,9 @@ impl State {
             .map(|(id, n)| (n.clone(), id.clone()))
             .collect();
         let mut vending_specs = BTreeMap::new();
+        let mut analyzers = BTreeSet::new();
+        let mut dispenser_tables = BTreeMap::new();
+        let mut fits_in_dispenser = BTreeSet::new();
         let mut injectors = BTreeMap::new();
         let mut transfers = BTreeMap::new();
         let mut drainables = BTreeSet::new();
@@ -482,6 +504,19 @@ impl State {
                 }
                 if r.component("Drainable").is_some() {
                     drainables.insert(id.clone());
+                }
+                if let Some(t) = r
+                    .component("ReagentDispenser")
+                    .and_then(|c| c.get("table"))
+                    .and_then(crate::spawners::Node::parse)
+                {
+                    dispenser_tables.insert(id.clone(), t);
+                }
+                if r.component("HealthAnalyzer").is_some() {
+                    analyzers.insert(id.clone());
+                }
+                if r.component("FitsInDispenser").is_some() {
+                    fits_in_dispenser.insert(id.clone());
                 }
                 if let Some(c) = r.component("IdCardConsole") {
                     id_console_levels.insert(
@@ -752,6 +787,15 @@ impl State {
             alarm_sig: Vec::new(),
             monitor_state: BTreeMap::new(),
             alarm_timer: 0.0,
+            analyzers,
+            scans: BTreeMap::new(),
+            scan_sent: BTreeMap::new(),
+            scan_timer: 0.0,
+            dispenser_tables,
+            dispensers: BTreeMap::new(),
+            dispenser_open: BTreeMap::new(),
+            dispenser_sent: BTreeMap::new(),
+            fits_in_dispenser,
             chem: crate::chem::ReagentTable::builtin(),
             injectors,
             injector_state: BTreeMap::new(),
@@ -1560,6 +1604,13 @@ impl State {
                 });
                 alive && ok && self.in_reach(ctx, actor, *target)
             }
+            Action::Scan { hand, target } => {
+                ctx.position_of(*target).is_some()
+                    && a.hands
+                        .get(*hand)
+                        .is_some_and(|i| self.analyzers.contains(&i.prototype))
+                    && self.in_reach(ctx, actor, *target)
+            }
             Action::Pry { element, hand } => {
                 ctx.door_open(*element) == Some(false)
                     && a.hands.get(*hand).is_some_and(|i| {
@@ -1623,6 +1674,7 @@ impl State {
                     Some(t)
                 })
                 .unwrap_or(0.0),
+            Action::Scan { .. } => crate::analyzer::SCAN_DELAY_S,
             Action::Pry { .. } => PRY_TIME_S,
         }
     }
@@ -1634,6 +1686,10 @@ impl State {
             Action::Pry { element, .. } => ctx.request_door(element, DoorAction::Open, true),
             Action::Heal { hand, target } => self.heal(ctx, actor, hand, target),
             Action::Inject { hand, target } => self.inject_body(ctx, actor, hand, target),
+            Action::Scan { target, .. } => {
+                self.scans.insert(actor, target);
+                self.scan_timer = 1.0;
+            }
             Action::Eat { hand, item, target } => self.bite(ctx, actor, hand, item, target),
         }
     }
@@ -1795,6 +1851,8 @@ impl State {
         self.tick_vending(ctx);
         self.tick_lockers(ctx);
         self.tick_id_consoles(ctx);
+        self.tick_dispensers(ctx);
+        self.tick_scans(ctx);
         self.publish_jobs(ctx);
         self.resolve_spawners(ctx);
         self.tick_alarms(ctx, dt);
@@ -2774,6 +2832,240 @@ impl State {
         };
         self.injector_state.insert(item.id, (next, amount));
         true
+    }
+
+    /// Окна анализатора: раз в секунду данные цели, пока она рядом.
+    fn tick_scans(&mut self, ctx: &mut HookContext<'_>) {
+        if self.analyzers.is_empty() {
+            return;
+        }
+        self.scan_timer += self.last_dt;
+        if self.scan_timer < 1.0 {
+            return;
+        }
+        self.scan_timer = 0.0;
+        let pairs: Vec<(NetworkEntityId, NetworkEntityId)> =
+            self.scans.iter().map(|(a, b)| (*a, *b)).collect();
+        for (user, target) in pairs {
+            let (Some(up), Some(tp)) = (ctx.position_of(user), ctx.position_of(target)) else {
+                self.scans.remove(&user);
+                continue;
+            };
+            let in_range = (up - tp).length() <= crate::analyzer::SCAN_RANGE_M;
+            let Some(t) = self.actors.get(&target) else {
+                continue;
+            };
+            let view = t.body.as_ref().map(|b| {
+                let v = b.vitals();
+                let damage = t.health.view().damage;
+                let groups: Vec<crate::analyzer::DamageGroup> = crate::health::GROUPS
+                    .iter()
+                    .filter_map(|(g, kinds)| {
+                        let items: Vec<(String, f32)> = kinds
+                            .iter()
+                            .filter_map(|k| {
+                                let v = damage.get(*k).copied().unwrap_or(0.0);
+                                (v > 0.0).then(|| (k.to_string(), v))
+                            })
+                            .collect();
+                        let total: f32 = items.iter().map(|i| i.1).sum();
+                        (total > 0.0).then(|| (g.to_string(), total, items))
+                    })
+                    .collect();
+                crate::analyzer::ScanView {
+                    active: in_range,
+                    target: format!("Игрок {}", target.0),
+                    state: format!("{:?}", t.health.state()),
+                    temperature_k: v.temperature,
+                    blood: v.blood,
+                    bleeding: v.bleed > 0.0,
+                    total_damage: damage.values().sum(),
+                    groups,
+                }
+            });
+            let bytes = crate::analyzer::encode_scan(view.as_ref());
+            if self.scan_sent.get(&user) != Some(&bytes) {
+                ctx.set_component(user, crate::analyzer::SCAN_COMPONENT, bytes.clone());
+                self.scan_sent.insert(user, bytes);
+            }
+        }
+    }
+
+    /// Раздатчики карты получают банки при первом появлении (`EntityTableContainerFill`).
+    fn sync_dispensers(&mut self, ctx: &HookContext<'_>) {
+        let mut seen = BTreeSet::new();
+        let mut fresh: Vec<(ObjectId, PrototypeId)> = Vec::new();
+        for o in ctx.world.authored() {
+            if let AuthoredKind::Placement { prototype } = &o.kind
+                && self.dispenser_tables.contains_key(prototype)
+            {
+                seen.insert(o.id);
+                if !self.dispensers.contains_key(&o.id) {
+                    fresh.push((o.id, prototype.clone()));
+                }
+            }
+        }
+        self.dispensers.retain(|id, _| seen.contains(id));
+        for (id, proto) in fresh {
+            let names = self
+                .dispenser_tables
+                .get(&proto)
+                .map(|t| t.roll_all(&self.spawner_tables, &mut self.spawn_rng))
+                .unwrap_or_default();
+            let jugs = names.iter().filter_map(|n| self.create_item(n)).collect();
+            self.dispensers.insert(
+                id,
+                Dispenser {
+                    jugs,
+                    beaker: None,
+                    amount: crate::dispenser::DEFAULT_AMOUNT,
+                },
+            );
+        }
+    }
+
+    /// Окно раздатчика открывает пустая рука при наличии тока.
+    pub(crate) fn open_dispenser(&mut self, user: NetworkEntityId, id: ObjectId) -> bool {
+        if !self.dispensers.contains_key(&id) {
+            return false;
+        }
+        if self.power_required && !self.powered_map().get(&id).copied().unwrap_or(false) {
+            return true;
+        }
+        self.dispenser_open.insert(user, id);
+        true
+    }
+
+    /// Мензурка из руки в слот (`beakerSlot`: только `FitsInDispenser`).
+    pub(crate) fn insert_beaker(
+        &mut self,
+        ctx: &mut HookContext<'_>,
+        user: NetworkEntityId,
+        id: ObjectId,
+        hand: usize,
+    ) -> bool {
+        let Some(item) = self
+            .actors
+            .get(&user)
+            .and_then(|a| a.hands.get(hand))
+            .cloned()
+        else {
+            return false;
+        };
+        if !self.fits_in_dispenser.contains(&item.prototype) {
+            return false;
+        }
+        let Some(d) = self.dispensers.get_mut(&id) else {
+            return false;
+        };
+        if d.beaker.is_some() {
+            return false;
+        }
+        d.beaker = Some(item);
+        let _ = self.actor(user).hands.drop_hand(hand);
+        self.publish(ctx, user);
+        true
+    }
+
+    /// Нажатие на банку: перелить выбранное количество в мензурку.
+    pub(crate) fn dispense(&mut self, user: NetworkEntityId, jug: usize) {
+        let Some(id) = self.dispenser_open.get(&user).copied() else {
+            return;
+        };
+        if self.power_required && !self.powered_map().get(&id).copied().unwrap_or(false) {
+            return;
+        }
+        let Some(d) = self.dispensers.get(&id) else {
+            return;
+        };
+        let (Some(beaker), Some(src)) = (d.beaker.clone(), d.jugs.get(jug).cloned()) else {
+            return;
+        };
+        let amount = d.amount;
+        self.pour(&src, &beaker, amount);
+    }
+
+    /// Окна раздатчиков у игроков (по изменению).
+    fn tick_dispensers(&mut self, ctx: &mut HookContext<'_>) {
+        if self.dispenser_tables.is_empty() {
+            return;
+        }
+        self.sync_dispensers(ctx);
+        let mut sends: Vec<(NetworkEntityId, Vec<u8>)> = Vec::new();
+        for p in ctx.players().collect::<Vec<_>>() {
+            let view = self.dispenser_open.get(&p).copied().and_then(|id| {
+                let o = ctx.world.authored_object(id)?;
+                let feet = ctx.position_of(p)?;
+                if (((o.min() + o.max()) * 0.5) - feet).length() > self.range_m + 1.0 {
+                    return None;
+                }
+                let d = self.dispensers.get(&id)?;
+                let info = |item: &HeldItem| -> (f32, Vec<(String, f32)>) {
+                    let s = self
+                        .solutions
+                        .get(&item.id)
+                        .or_else(|| self.solution_templates.get(&item.prototype));
+                    s.map_or((0.0, Vec::new()), |s| {
+                        (
+                            s.volume(),
+                            s.contents.iter().map(|(k, v)| (k.clone(), *v)).collect(),
+                        )
+                    })
+                };
+                Some(crate::dispenser::DispenserView {
+                    machine: id,
+                    beaker: d.beaker.as_ref().map(|b| {
+                        let (volume, reagents) = info(b);
+                        crate::dispenser::BeakerInfo {
+                            name: b.prototype.to_string(),
+                            volume,
+                            max: self
+                                .solutions
+                                .get(&b.id)
+                                .or_else(|| self.solution_templates.get(&b.prototype))
+                                .map_or(0.0, |s| s.max_volume),
+                            reagents,
+                        }
+                    }),
+                    jugs: d
+                        .jugs
+                        .iter()
+                        .enumerate()
+                        .map(|(i, j)| {
+                            let (quantity, reagents) = info(j);
+                            let main = reagents
+                                .iter()
+                                .max_by(|a, b| a.1.total_cmp(&b.1))
+                                .map(|r| r.0.clone());
+                            let def = main.as_ref().and_then(|m| self.chem.reagents.get(m));
+                            crate::dispenser::JugInfo {
+                                index: i as u8,
+                                label: def
+                                    .map(|r| r.name.clone())
+                                    .or(main)
+                                    .unwrap_or_else(|| j.prototype.to_string()),
+                                quantity,
+                                color: def
+                                    .map_or_else(|| "#ffffff".to_string(), |r| r.color.clone()),
+                            }
+                        })
+                        .collect(),
+                    amount: d.amount,
+                    amounts: crate::dispenser::AMOUNTS.to_vec(),
+                })
+            });
+            if view.is_none() {
+                self.dispenser_open.remove(&p);
+            }
+            let bytes = crate::dispenser::encode_dispenser(view.as_ref());
+            if self.dispenser_sent.get(&p) != Some(&bytes) {
+                sends.push((p, bytes));
+            }
+        }
+        for (p, bytes) in sends {
+            ctx.set_component(p, crate::dispenser::DISPENSER_COMPONENT, bytes.clone());
+            self.dispenser_sent.insert(p, bytes);
+        }
     }
 
     /// Это удостоверение или КПК (их слот принимает консоль)?
@@ -4362,6 +4654,55 @@ impl GameModule for GameplayModule {
                         st.write_id(*actor, &req);
                     }
                 }
+                crate::wire::CMD_DISP_DISPENSE => {
+                    if let [i] = data[..] {
+                        st.dispense(*actor, usize::from(i));
+                    }
+                }
+                crate::wire::CMD_DISP_AMOUNT => {
+                    if let [i] = data[..]
+                        && let Some(id) = st.dispenser_open.get(actor).copied()
+                        && let Some(a) = crate::dispenser::AMOUNTS.get(usize::from(i))
+                        && let Some(d) = st.dispensers.get_mut(&id)
+                    {
+                        d.amount = *a;
+                    }
+                }
+                crate::wire::CMD_DISP_INSERT => {
+                    if let [hand] = data[..]
+                        && let Some(id) = st.dispenser_open.get(actor).copied()
+                    {
+                        st.insert_beaker(ctx, *actor, id, usize::from(hand));
+                    }
+                }
+                crate::wire::CMD_DISP_EJECT => {
+                    if let Some(id) = st.dispenser_open.get(actor).copied()
+                        && let Some(b) = st.dispensers.get_mut(&id).and_then(|d| d.beaker.take())
+                    {
+                        if st.actor(*actor).hands.pickup_any(b.clone()).is_err()
+                            && let Some(feet) = ctx.position_of(*actor)
+                        {
+                            State::place(ctx, &b, feet);
+                        }
+                        st.publish(ctx, *actor);
+                    }
+                }
+                crate::wire::CMD_DISP_CLEAR => {
+                    if let Some(id) = st.dispenser_open.get(actor).copied()
+                        && let Some(b) = st.dispensers.get(&id).and_then(|d| d.beaker.clone())
+                        && let Some(s) = st.solution_mut(&b)
+                    {
+                        s.contents.clear();
+                    }
+                }
+                crate::wire::CMD_SCAN_CLOSE => {
+                    st.scans.remove(actor);
+                    ctx.set_component(*actor, crate::analyzer::SCAN_COMPONENT, Vec::new());
+                    st.scan_sent.remove(actor);
+                }
+                crate::wire::CMD_DISP_CLOSE => {
+                    st.dispenser_open.remove(actor);
+                }
                 crate::wire::CMD_LOCK => {
                     if let Some(id) = st.nearest_locker(ctx, *actor) {
                         st.toggle_lock(ctx, *actor, id, false);
@@ -4417,7 +4758,17 @@ impl GameModule for GameplayModule {
                             .get(actor)
                             .and_then(|a| a.hands.get(usize::from(hand)))
                             .is_some_and(|i| st.injectors.contains_key(&i.prototype));
-                        let action = if holds_injector {
+                        let holds_analyzer = st
+                            .actors
+                            .get(actor)
+                            .and_then(|a| a.hands.get(usize::from(hand)))
+                            .is_some_and(|i| st.analyzers.contains(&i.prototype));
+                        let action = if holds_analyzer {
+                            Action::Scan {
+                                hand: usize::from(hand),
+                                target,
+                            }
+                        } else if holds_injector {
                             Action::Inject {
                                 hand: usize::from(hand),
                                 target,

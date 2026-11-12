@@ -3,7 +3,11 @@ pub mod chem;
 mod conveyor;
 pub mod vending;
 pub use vending::{VENDING_COMPONENT, VendingItem, VendingView, decode_vending};
+pub mod dispenser;
 mod disposal;
+pub use dispenser::{DISPENSER_COMPONENT, DispenserView, decode_dispenser};
+pub mod analyzer;
+pub use analyzer::{SCAN_COMPONENT, ScanView, decode_scan};
 mod doafter;
 mod edibles;
 pub mod electric;
@@ -45,16 +49,17 @@ pub use module::State;
 pub use module::{GameplayModule, INTERACTION_RANGE_M, NAMESPACE};
 pub use storage::{Storage, StorageError, StorageSpec};
 pub use wire::{
-    BagView, CMD_ATTACK, CMD_CANCEL, CMD_DROP, CMD_EQUIP, CMD_FEED, CMD_HEAL, CMD_ID_CLOSE,
-    CMD_ID_EJECT, CMD_ID_INSERT, CMD_ID_WRITE, CMD_INTERACT, CMD_JOB, CMD_LOCK, CMD_MOVE_HAND,
-    CMD_MOVE_SLOT, CMD_PICKUP, CMD_PICKUP_ANY, CMD_RESIST, CMD_RESPAWN, CMD_SELECT_HAND, CMD_SPILL,
-    CMD_STORE, CMD_SWAP_HANDS, CMD_TAKE, CMD_TAKE_TO, CMD_UNEQUIP, CMD_UNEQUIP_TO, CMD_USE,
-    CMD_USE_GROUND, CMD_VEND, CMD_VEND_CLOSE, HANDS_COMPONENT, INVENTORY_COMPONENT, InventoryView,
-    WORN_COMPONENT, Worn, attack_data, attack_part_data, decode_hands, decode_inventory,
-    decode_worn, drop_at_data, drop_data, encode_worn, equip_data, feed_data, heal_data,
-    interact_data, move_hand_data, move_slot_data, parse_drop, parse_object_id, pickup_data,
-    register_replication, store_data, take_data, take_to_data, unequip_data, unequip_to_data,
-    use_data,
+    BagView, CMD_ATTACK, CMD_CANCEL, CMD_DISP_AMOUNT, CMD_DISP_CLEAR, CMD_DISP_CLOSE,
+    CMD_DISP_DISPENSE, CMD_DISP_EJECT, CMD_DISP_INSERT, CMD_DROP, CMD_EQUIP, CMD_FEED, CMD_HEAL,
+    CMD_ID_CLOSE, CMD_ID_EJECT, CMD_ID_INSERT, CMD_ID_WRITE, CMD_INTERACT, CMD_JOB, CMD_LOCK,
+    CMD_MOVE_HAND, CMD_MOVE_SLOT, CMD_PICKUP, CMD_PICKUP_ANY, CMD_RESIST, CMD_RESPAWN,
+    CMD_SCAN_CLOSE, CMD_SELECT_HAND, CMD_SPILL, CMD_STORE, CMD_SWAP_HANDS, CMD_TAKE, CMD_TAKE_TO,
+    CMD_UNEQUIP, CMD_UNEQUIP_TO, CMD_USE, CMD_USE_GROUND, CMD_VEND, CMD_VEND_CLOSE,
+    HANDS_COMPONENT, INVENTORY_COMPONENT, InventoryView, WORN_COMPONENT, Worn, attack_data,
+    attack_part_data, decode_hands, decode_inventory, decode_worn, drop_at_data, drop_data,
+    encode_worn, equip_data, feed_data, heal_data, interact_data, move_hand_data, move_slot_data,
+    parse_drop, parse_object_id, pickup_data, register_replication, store_data, take_data,
+    take_to_data, unequip_data, unequip_to_data, use_data,
 };
 
 #[cfg(test)]
