@@ -66,8 +66,11 @@ const MIN_IGNITION_TEMPERATURE: f32 = 373.15;
 /// Температура `IgnitionSource` по умолчанию.
 pub const IGNITION_SOURCE_TEMPERATURE: f32 = 700.0;
 
+use crate::chem::{Cond, Eff, Kind, ReagentTable, TableRef};
+use crate::health::GROUPS;
 use crate::health::{DamageSpec, MobState};
-use crate::reagents::{Effect, SatiationKind, Solution, Stage, gas_to_reagents, reagent};
+use crate::reagents::{SatiationKind, Solution, Stage, gas_to_reagents};
+use std::collections::BTreeMap;
 
 /// Через сколько секунд обновляется дыхание (`UpdateInterval` дыхательной системы).
 pub const RESPIRATION_INTERVAL_S: f32 = 2.0;
@@ -81,6 +84,12 @@ pub const MAX_REAGENTS_PER_STEP: usize = 3;
 pub const LUNG_VOLUME_L: f32 = 6.0;
 pub const LUNG_SOLUTION_MAX: f32 = 100.0;
 pub const STOMACH_SOLUTION_MAX: f32 = 150.0;
+/// Раствор крови с химией (`ChemicalMaxVolume` у `Bloodstream`).
+pub const CHEMICALS_SOLUTION_MAX: f32 = 250.0;
+/// Сколько вещества без метаболизма уходит за шаг (`TransferRate`) и какая доля из желудка попадает в кровь
+/// (`TransferEfficacy` стадии пищеварения).
+pub const TRANSFER_RATE: f32 = 0.25;
+pub const STOMACH_TRANSFER_EFFICACY: f32 = 0.5;
 /// Урон баротравмы в секунду на единицу множителя (`Barotrauma` в `species_base.yml`).
 pub const BAROTRAUMA_BLUNT: f32 = 0.5;
 pub const BAROTRAUMA_HEAT: f32 = 0.1;
@@ -311,6 +320,12 @@ pub struct Body {
     lung_timer: f32,
     pub stomach: Solution,
     stomach_timer: f32,
+    /// Химия в крови: сюда попадает то, что вводят шприцем, и то, что всосалось из желудка.
+    pub chemicals: Solution,
+    chemicals_timer: f32,
+    table: TableRef,
+    /// Текущий урон (по видам): нужен лечению, которое делится только по тем видам, где урон есть.
+    damage_now: BTreeMap<String, f32>,
     pub hunger: f32,
     pub thirst: f32,
     barotrauma_timer: f32,
@@ -336,6 +351,10 @@ pub struct Body {
 
 impl Body {
     pub fn new(seed: u32) -> Self {
+        Self::with_table(seed, ReagentTable::builtin())
+    }
+
+    pub fn with_table(seed: u32, table: std::sync::Arc<ReagentTable>) -> Self {
         let mut lung_air = GasMixture::new(LUNG_VOLUME_L);
         lung_air.set_temperature(NORMAL_BODY_TEMPERATURE + 273.15);
         Self {
@@ -348,6 +367,10 @@ impl Body {
             lung_timer: METABOLISM_INTERVAL_S,
             stomach: Solution::new(STOMACH_SOLUTION_MAX),
             stomach_timer: METABOLISM_INTERVAL_S,
+            chemicals: Solution::new(CHEMICALS_SOLUTION_MAX),
+            chemicals_timer: METABOLISM_INTERVAL_S,
+            table: TableRef(table),
+            damage_now: BTreeMap::new(),
             hunger: HUNGER.start_value(seed),
             thirst: THIRST.start_value(seed ^ 0x9e37_79b9),
             barotrauma_timer: BAROTRAUMA_INTERVAL_S,
@@ -617,6 +640,11 @@ impl Body {
             self.stomach_timer += METABOLISM_INTERVAL_S;
             self.metabolize(Stage::Digestion, mob, &mut out);
         }
+        self.chemicals_timer -= dt;
+        while self.chemicals_timer <= 0.0 {
+            self.chemicals_timer += METABOLISM_INTERVAL_S;
+            self.metabolize(Stage::Bloodstream, mob, &mut out);
+        }
         self.blood_timer -= dt;
         while self.blood_timer <= 0.0 {
             self.blood_timer += BLOOD_UPDATE_S;
@@ -777,12 +805,140 @@ impl Body {
         self.lung.contents.clear();
     }
 
-    /// Метаболизм одной стадии: лёгкие обрабатывают всё сразу, желудок — по скорости реагента.
+    /// Раствор, который метаболизирует стадия.
+    fn solution_of(&self, stage: Stage) -> &Solution {
+        match stage {
+            Stage::Respiration => &self.lung,
+            Stage::Digestion => &self.stomach,
+            Stage::Bloodstream => &self.chemicals,
+        }
+    }
+
+    fn solution_mut(&mut self, stage: Stage) -> &mut Solution {
+        match stage {
+            Stage::Respiration => &mut self.lung,
+            Stage::Digestion => &mut self.stomach,
+            Stage::Bloodstream => &mut self.chemicals,
+        }
+    }
+
+    /// Запомнить текущий урон персонажа (перед шагом тела).
+    pub fn observe_damage(&mut self, damage: &BTreeMap<String, f32>) {
+        self.damage_now = damage.clone();
+    }
+
+    /// Нанести урон или вылечить на `amount` (минус — лечение) и учесть это в снимке урона.
+    fn deal(&mut self, out: &mut Outcome, kind: &str, amount: f32) {
+        out.add(kind, amount);
+        let e = self.damage_now.entry(kind.to_string()).or_insert(0.0);
+        *e = (*e + amount).max(0.0);
+    }
+
+    fn group_types(group: &str) -> &'static [&'static str] {
+        GROUPS
+            .iter()
+            .find(|(g, _)| *g == group)
+            .map_or(&[], |(_, t)| *t)
+    }
+
+    /// `HealEvenly`: лечить группу на `amount` (< 0) поровну по видам, где есть урон.
+    fn heal_evenly(&mut self, group: &str, amount: f32, out: &mut Outcome) {
+        if amount >= 0.0 {
+            return;
+        }
+        let mut dmg: Vec<(&str, f32)> = Self::group_types(group)
+            .iter()
+            .filter_map(|t| {
+                let v = self.damage_now.get(*t).copied().unwrap_or(0.0);
+                (v > 0.0).then_some((*t, v))
+            })
+            .collect();
+        let total: f32 = dmg.iter().map(|d| d.1).sum();
+        if total <= 0.0 {
+            return;
+        }
+        let mut remaining = -amount;
+        if total <= remaining {
+            for (t, v) in dmg {
+                self.deal(out, t, -v);
+            }
+            return;
+        }
+        let mut healed: BTreeMap<&str, f32> = dmg.iter().map(|d| (d.0, 0.0)).collect();
+        while remaining > 1e-6 && !dmg.is_empty() {
+            let share = remaining / dmg.len() as f32;
+            let mut i = dmg.len();
+            while i > 0 && remaining > 1e-6 {
+                i -= 1;
+                let (t, left) = dmg[i];
+                let heal = left.min(share).min(remaining);
+                *healed.entry(t).or_insert(0.0) += heal;
+                remaining -= heal;
+                dmg[i].1 -= heal;
+                if dmg[i].1 <= 1e-6 {
+                    dmg.remove(i);
+                }
+            }
+        }
+        for (t, h) in healed {
+            if h > 0.0 {
+                self.deal(out, t, -h);
+            }
+        }
+    }
+
+    /// `HealDistributed`: лечить группу на `amount` (< 0) пропорционально урону.
+    fn heal_distributed(&mut self, group: &str, amount: f32, out: &mut Outcome) {
+        if amount >= 0.0 {
+            return;
+        }
+        let dmg: Vec<(&str, f32)> = Self::group_types(group)
+            .iter()
+            .filter_map(|t| {
+                let v = self.damage_now.get(*t).copied().unwrap_or(0.0);
+                (v > 0.0).then_some((*t, v))
+            })
+            .collect();
+        let total: f32 = dmg.iter().map(|d| d.1).sum();
+        if total <= 0.0 {
+            return;
+        }
+        let heal = (-amount).min(total);
+        for (t, v) in dmg {
+            self.deal(out, t, -(v / total * heal));
+        }
+    }
+
+    /// Условия эффекта метаболизма (`CanMetabolizeEffect`): реагент — в метаболизируемом растворе,
+    /// вид метаболизма — человек, остальное — по телу.
+    fn conditions_hold(&self, conds: &[Cond], stage: Stage, mob: MobState) -> bool {
+        conds.iter().all(|c| match c {
+            Cond::Reagent { reagent, min, max } => {
+                let have = self.solution_of(stage).amount(reagent);
+                have >= *min && (*max < 0.0 || have <= *max)
+            }
+            Cond::MetabolizerType { types, inverted } => {
+                types.iter().any(|t| t == "Human") != *inverted
+            }
+            Cond::MobState { state, inverted } => {
+                let now = match mob {
+                    MobState::Alive => "Alive",
+                    MobState::Critical => "Critical",
+                    MobState::Dead => "Dead",
+                };
+                (state == now) != *inverted
+            }
+            Cond::Temperature { min, max } => {
+                self.temperature >= *min && (*max < 0.0 || self.temperature <= *max)
+            }
+        })
+    }
+
+    /// Метаболизм одной стадии (`MetabolizerSystem.TryMetabolizeStage`): лёгкие обрабатывают всё сразу,
+    /// желудок и кровь — по скорости реагента, до `maxReagents` за шаг.
     fn metabolize(&mut self, stage: Stage, mob: MobState, out: &mut Outcome) {
-        let mut names: Vec<String> = match stage {
-            Stage::Respiration => self.lung.contents.keys().cloned().collect(),
-            Stage::Digestion => self.stomach.contents.keys().cloned().collect(),
-        };
+        let table = self.table.0.clone();
+        let mut names: Vec<String> = self.solution_of(stage).contents.keys().cloned().collect();
         // Случайный порядок, чтобы не зависеть от алфавита (как в SS14).
         for i in (1..names.len()).rev() {
             let j = (self.random() * (i + 1) as f32) as usize;
@@ -790,15 +946,22 @@ impl Body {
         }
         let mut processed = 0;
         for name in names {
-            let quantity = match stage {
-                Stage::Respiration => self.lung.amount(&name),
-                Stage::Digestion => self.stomach.amount(&name),
-            };
-            let entry =
-                reagent(&name).and_then(|r| r.metabolisms.iter().find(|m| m.stage == stage));
-            let Some(entry) = entry else {
-                // Нет метаболизма на этой стадии: лёгкие всё равно очищаются при выдохе, желудок
-                // держит такое вещество (как и любой нерастворимый остаток).
+            let quantity = self.solution_of(stage).amount(&name);
+            if quantity <= 0.0 {
+                continue;
+            }
+            let Some(entry) = table.metabolism(&name, stage) else {
+                // Нет метаболизма на этой стадии: лёгкие очищаются при выдохе; из желудка вещество
+                // переходит в кровь (`TransferRate`, `TransferEfficacy`), из крови — уходит в метаболиты.
+                let moved = TRANSFER_RATE.clamp(0.0, quantity);
+                match stage {
+                    Stage::Digestion => {
+                        self.stomach.remove(&name, moved);
+                        self.chemicals.add(&name, moved * STOMACH_TRANSFER_EFFICACY);
+                    }
+                    Stage::Bloodstream => self.chemicals.remove(&name, moved),
+                    Stage::Respiration => {}
+                }
                 continue;
             };
             let rate = if stage == Stage::Respiration {
@@ -815,29 +978,35 @@ impl Body {
             } else {
                 to_remove / rate
             };
-            if mob != MobState::Dead {
-                for effect in entry.effects {
-                    self.apply_effect(effect, scale, stage, out);
+            // Мёртвым реагент не действует и не расходуется, если не `worksOnTheDead`.
+            if mob == MobState::Dead && !table.reagents.get(&name).is_some_and(|r| r.works_on_dead)
+            {
+                continue;
+            }
+            for eff in &entry.effects {
+                if scale < eff.min_scale || self.random() >= eff.prob {
+                    continue;
                 }
+                if !self.conditions_hold(&eff.conds, stage, mob) {
+                    continue;
+                }
+                self.apply_effect(eff, stage, scale, out);
             }
             if to_remove > 0.0 {
-                match stage {
-                    Stage::Respiration => self.lung.remove(&name, to_remove),
-                    Stage::Digestion => self.stomach.remove(&name, to_remove),
-                }
+                self.solution_mut(stage).remove(&name, to_remove);
                 processed += 1;
             }
         }
     }
 
-    fn apply_effect(&mut self, effect: &Effect, scale: f32, stage: Stage, out: &mut Outcome) {
-        match effect {
-            Effect::Oxygenate { factor } => {
+    fn apply_effect(&mut self, eff: &Eff, stage: Stage, scale: f32, out: &mut Outcome) {
+        match &eff.kind {
+            Kind::Oxygenate(factor) => {
                 self.saturation =
                     (self.saturation + scale * factor).clamp(SATURATION_MIN, SATURATION_MAX);
             }
-            Effect::ModifyLungGas(ratios) => {
-                for (gas, ratio) in ratios.iter() {
+            Kind::LungGas(ratios) => {
+                for (gas, ratio) in ratios {
                     let mut q = ratio * scale / BREATH_MOLES_TO_REAGENT_MULTIPLIER;
                     if q < 0.0 {
                         q = q.max(-self.lung_air.moles(*gas));
@@ -845,48 +1014,37 @@ impl Body {
                     self.lung_air.adjust_moles(*gas, q);
                 }
             }
-            Effect::HealthChange { damage, min_scale } => {
-                if scale < *min_scale {
-                    return;
-                }
-                for (kind, amount) in *damage {
-                    out.add(kind, amount * scale);
+            Kind::Health(damage) => {
+                for (kind, amount) in damage {
+                    self.deal(out, kind, amount * scale);
                 }
             }
-            Effect::EvenHealthChange {
-                group,
-                amount,
-                probability,
-            } => {
-                if self.random() >= *probability {
-                    return;
-                }
-                let each = amount * scale / group.len() as f32;
-                for kind in *group {
-                    out.add(kind, each);
+            Kind::Even(groups) => {
+                for (group, amount) in groups {
+                    self.heal_evenly(group, amount * scale, out);
                 }
             }
-            Effect::ModifyBleed(amount) => self.modify_bleed(amount * scale),
-            Effect::ModifyBloodLevel(amount) => self.modify_blood(amount * scale),
-            Effect::Satiate {
-                kind,
-                factor,
-                needs,
-            } => {
-                if let Some((reagent, min)) = needs {
-                    let have = match stage {
-                        Stage::Digestion => self.stomach.amount(reagent),
-                        Stage::Respiration => self.lung.amount(reagent),
-                    };
-                    if have < *min {
-                        return;
-                    }
+            Kind::Distributed(groups) => {
+                for (group, amount) in groups {
+                    self.heal_distributed(group, amount * scale, out);
                 }
+            }
+            Kind::Bleed(amount) => self.modify_bleed(amount * scale),
+            Kind::Blood(amount) => self.modify_blood(amount * scale),
+            Kind::Satiate { kind, factor } => {
                 let (value, spec) = match kind {
                     SatiationKind::Hunger => (&mut self.hunger, &HUNGER),
                     SatiationKind::Thirst => (&mut self.thirst, &THIRST),
                 };
                 *value = (*value + factor * scale).clamp(0.0, spec.maximum);
+            }
+            Kind::Adjust { reagent, amount } => {
+                let sol = self.solution_mut(stage);
+                if *amount < 0.0 {
+                    sol.remove(reagent, -amount * scale);
+                } else {
+                    sol.add(reagent, amount * scale);
+                }
             }
         }
     }
@@ -1107,6 +1265,52 @@ mod tests {
             grid.hotspot((0, 0)).is_some(),
             "горящее тело зажигает плазму"
         );
+    }
+
+    #[test]
+    fn injected_medicine_heals_only_the_damaged_group_members_and_runs_out() {
+        let mut grid = sealed(1, 1);
+        let mut body = Body::new(7);
+        // 20 тупого урона и 10 ожогов: бикаридин лечит Brute, ожоги не трогает.
+        body.observe_damage(&BTreeMap::from([
+            ("Blunt".to_string(), 20.0),
+            ("Heat".to_string(), 10.0),
+        ]));
+        body.chemicals.add("Bicaridine", 10.0);
+        let dmg = run(&mut body, &mut grid, 3.0);
+        // Каждую секунду обрабатывается 0,5 ед. (масштаб 1), лечение 1,5: за 3 с — 4,5, весь вид Blunt.
+        let blunt = dmg.get("Blunt").copied().unwrap_or(0.0);
+        assert!((blunt + 4.5).abs() < 0.6, "{blunt}");
+        assert!(dmg.get("Heat").copied().unwrap_or(0.0).abs() < 1e-3);
+        assert!(body.chemicals.amount("Bicaridine") < 10.0);
+    }
+
+    #[test]
+    fn a_pill_in_the_stomach_reaches_the_blood_and_overdose_poisons() {
+        let mut grid = sealed(1, 1);
+        let mut body = Body::new(7);
+        body.stomach.add("Bicaridine", 10.0);
+        run(&mut body, &mut grid, 10.0);
+        // 0,25 ед. в секунду уходит из желудка (в кровь доходит половина).
+        assert!(
+            (body.stomach.amount("Bicaridine") - 7.5).abs() < 0.3,
+            "{}",
+            body.stomach.amount("Bicaridine")
+        );
+        // Передозировка: свыше 15 ед. в крови бикаридин даёт Poison.
+        let mut od = Body::new(7);
+        od.chemicals.add("Bicaridine", 40.0);
+        let dmg = run(&mut od, &mut grid, 2.0);
+        assert!(dmg.get("Poison").copied().unwrap_or(0.0) > 0.0, "{dmg:?}");
+    }
+
+    #[test]
+    fn unmetabolised_chemicals_fade_from_the_blood() {
+        let mut grid = sealed(1, 1);
+        let mut body = Body::new(7);
+        body.chemicals.add("Silicon", 3.0);
+        run(&mut body, &mut grid, 20.0);
+        assert!(body.chemicals.amount("Silicon") < 0.01);
     }
 
     fn sealed(w: i32, h: i32) -> Grid {

@@ -37,6 +37,11 @@ pub(crate) enum Action {
         hand: usize,
         target: astrocore_core::NetworkEntityId,
     },
+    /// Инъекция шприцем или гипоспреем из руки в тело персонажа (в том числе своё).
+    Inject {
+        hand: usize,
+        target: astrocore_core::NetworkEntityId,
+    },
     /// Съесть или выпить укус из предмета в руке.
     Eat {
         hand: usize,
@@ -59,6 +64,7 @@ impl Action {
             Self::Unequip { .. } => "unequip",
             Self::Pry { .. } => "pry",
             Self::Heal { .. } => "heal",
+            Self::Inject { .. } => "inject",
             Self::Eat { .. } => "eat",
         }
     }

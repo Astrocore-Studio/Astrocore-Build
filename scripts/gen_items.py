@@ -114,6 +114,46 @@ def convert(i):
         tags = comps.get('Access', {}).get('tags') or []
         job = comps.get('PresetIdCard', {}).get('job')
         out.append('"IdCard": (access: [%s]%s)' % (', '.join(q(t) for t in tags), ', job: %s' % q(job) if isinstance(job, str) else ''))
+    sol = comps.get('Solution')
+    if sol:
+        s = sol.get('solution') or {}
+        rs = s.get('reagents') or []
+        pairs = {}
+        for r in rs:
+            if isinstance(r, dict) and r.get('ReagentId'):
+                pairs[r['ReagentId']] = pairs.get(r['ReagentId'], 0) + float(r.get('Quantity', 0))
+        vol = s.get('maxVol')
+        total = sum(pairs.values())
+        out.append('"Solution": (maxVol: %s, reagents: (%s))' % (float(vol) if vol is not None else max(total, 30.0), ', '.join('%s: %s' % (k, v) for k, v in sorted(pairs.items()))))
+    ed = comps.get('Edible')
+    if ed and sol:
+        kind = ed.get('edible', 'Food')
+        ta = ed.get('transferAmount')
+        ta = 1000.0 if (kind == 'Pill' or (ta is None and 'transferAmount' in ed)) else float(ta if ta is not None else 5)
+        out.append('"Edible": (transferAmount: %s, delay: %s, forceFeedDelay: %s, destroyOnEmpty: %s)' % (
+            ta, float(ed.get('delay', 1.0)), float(ed.get('forceFeedDelay', 3.0)),
+            'true' if ed.get('destroyOnEmpty', kind != 'Drink') else 'false'))
+    st_ = comps.get('SolutionTransfer')
+    if st_ is not None:
+        out.append('"SolutionTransfer": (amount: %s, max: %s)' % (float(st_.get('transferAmount', 5)), float(st_.get('maxTransferAmount', 1000))))
+    if 'RefillableSolution' in comps:
+        out.append('"Refillable": ()')
+    if 'DrainableSolution' in comps:
+        out.append('"Drainable": ()')
+    inj = comps.get('Injector')
+    if inj:
+        modes = []
+        for mid in inj.get('allowedModes') or []:
+            mm = P.merged_proto('injectorMode', mid)
+            modes.append('(id: %s, behavior: %s, amounts: [%s], mobTime: %s, selfModifier: %s, downedModifier: %s, delayPerVolume: %s, ignoreDelayForVolume: %s, drawTime: %s)' % (
+                q(mid), q(mm.get('behavior', 'Inject')),
+                ', '.join(str(float(a)) for a in mm.get('transferAmounts', [1, 5, 10, 15])),
+                float(mm.get('mobTime', 5.0)), float(mm.get('selfModifier', 0.5)), float(mm.get('downedModifier', 0.5)),
+                float(mm.get('delayPerVolume', 0.1)), float(mm.get('ignoreDelayForVolume', 5)), float(mm.get('containerDrawTime', 0.0))))
+        active = inj.get('activeModeProtoId')
+        idx = (inj.get('allowedModes') or []).index(active) if active in (inj.get('allowedModes') or []) else 0
+        cur = inj.get('currentTransferAmount', 5)
+        out.append('"Injector": (modes: [%s], active: %d, amount: %s)' % (', '.join(modes), idx, float(cur) if cur is not None else -1.0))
     fill = comps.get('StorageFill', {}).get('contents') or []
     ents = []
     for c in fill:

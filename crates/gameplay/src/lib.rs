@@ -1,4 +1,5 @@
 mod body;
+pub mod chem;
 mod conveyor;
 pub mod vending;
 pub use vending::{VENDING_COMPONENT, VendingItem, VendingView, decode_vending};

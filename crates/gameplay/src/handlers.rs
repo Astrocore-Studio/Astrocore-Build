@@ -427,6 +427,40 @@ impl InteractionHandler for IdConsoleUse {
     }
 }
 
+/// Ёмкости с растворами и шприцы: предмет из руки на ёмкость в мире переливает или набирает;
+/// «использовать в руке» переключает режим шприца.
+pub struct ChemUse;
+
+impl InteractionHandler for ChemUse {
+    fn interact_using(
+        &mut self,
+        state: &mut State,
+        _ctx: &mut HookContext<'_>,
+        _user: NetworkEntityId,
+        used: &Used,
+        target: &Target,
+    ) -> bool {
+        let Target::Item { id, prototype, .. } = target else {
+            return false;
+        };
+        let target_item = crate::hands::HeldItem {
+            id: *id,
+            prototype: prototype.clone(),
+        };
+        state.chem_use(&used.item, &target_item)
+    }
+
+    fn use_in_hand(
+        &mut self,
+        state: &mut State,
+        _ctx: &mut HookContext<'_>,
+        _user: NetworkEntityId,
+        used: &Used,
+    ) -> bool {
+        state.toggle_injector(&used.item)
+    }
+}
+
 /// Базовая цепочка: порядок важен — первый обработавший прекращает обход.
 pub fn default_handlers() -> Vec<Box<dyn InteractionHandler>> {
     vec![
@@ -436,6 +470,7 @@ pub fn default_handlers() -> Vec<Box<dyn InteractionHandler>> {
         Box::new(VendingUse),
         Box::new(LockerUse),
         Box::new(IdConsoleUse),
+        Box::new(ChemUse),
         Box::new(PryDoor),
         Box::new(StorageClickInsert),
         Box::new(PickupHandler),

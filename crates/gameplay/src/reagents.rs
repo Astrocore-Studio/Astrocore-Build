@@ -1,20 +1,10 @@
 //! Реагенты и их метаболизм (`Resources/Prototypes/Reagents`, `Content.Shared/Metabolism`).
 //!
-//! Перенесены реагенты дыхания и пищеварения, с которыми работает билд: кислород, плазма,
-//! углекислый газ, азот; вода, питательные вещества, белок, витамины, сахар. Эффекты
-//! (`Satiate`, `Oxygenate`, `ModifyLungGas`, `HealthChange`, `EvenHealthChange`) и их числа взяты
-//! из прототипов SS14 (коммит `910154a7`).
-//!
-//! Не перенесены: метаболиты, химия лекарств и реакции между реагентами.
+//! Здесь раствор (`Solution`) и газ ↔ реагент; сами реагенты, метаболизм и реакции — в `chem.rs`.
 
 use std::collections::BTreeMap;
 
 use atmos::{BREATH_MOLES_TO_REAGENT_MULTIPLIER, Gas};
-
-/// Скорость метаболизма реагента по умолчанию (`MetabolismRate`).
-pub const DEFAULT_METABOLISM_RATE: f32 = 0.5;
-/// Сила `Satiate` по умолчанию (`Factor`).
-pub const DEFAULT_SATIATE_FACTOR: f32 = 1.5;
 
 /// Раствор: количество каждого реагента и предельный объём.
 #[derive(Debug, Clone, PartialEq, Default)]
@@ -122,191 +112,18 @@ impl Solution {
 }
 
 /// Стадии метаболизма.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Stage {
     Respiration,
     Digestion,
+    /// Кровь: метаболизирует печень (`Bloodstream` в SS14).
+    Bloodstream,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SatiationKind {
     Hunger,
     Thirst,
-}
-
-/// Эффекты метаболизма; `scale` — доля обработанного реагента (`quantity` для дыхания, иначе
-/// `removed / rate`).
-#[derive(Debug, Clone, PartialEq)]
-pub enum Effect {
-    /// `Oxygenate`: насыщение кислородом на `factor × scale`.
-    Oxygenate { factor: f32 },
-    /// `ModifyLungGas`: обмен газа в лёгких, `ratio × scale / BreathMolesToReagentMultiplier` молей.
-    ModifyLungGas(&'static [(Gas, f32)]),
-    /// `HealthChange`: урон (в виде «вид, число») на `scale`; `min_scale` — порог срабатывания.
-    HealthChange {
-        damage: &'static [(&'static str, f32)],
-        min_scale: f32,
-    },
-    /// `EvenHealthChange`: урон (отрицательный — лечение) поровну по видам группы, с вероятностью.
-    EvenHealthChange {
-        group: &'static [&'static str],
-        amount: f32,
-        probability: f32,
-    },
-    /// `ModifyBleed`: изменение силы кровотечения на `amount × scale`.
-    ModifyBleed(f32),
-    /// `ModifyBloodLevel`: добавить (или убавить) крови на `amount × scale`, не выше нормы.
-    ModifyBloodLevel(f32),
-    /// `Satiate` с необязательным условием «в растворе есть реагент не меньше `min`».
-    Satiate {
-        kind: SatiationKind,
-        factor: f32,
-        needs: Option<(&'static str, f32)>,
-    },
-}
-
-pub struct Metabolism {
-    pub stage: Stage,
-    pub rate: f32,
-    pub effects: &'static [Effect],
-}
-
-pub struct Reagent {
-    pub id: &'static str,
-    pub metabolisms: &'static [Metabolism],
-}
-
-const BRUTE: &[&str] = &["Blunt", "Slash", "Piercing"];
-const BURN: &[&str] = &["Heat", "Cold", "Shock"];
-
-pub const REAGENTS: &[Reagent] = &[
-    Reagent {
-        id: "Oxygen",
-        metabolisms: &[Metabolism {
-            stage: Stage::Respiration,
-            rate: DEFAULT_METABOLISM_RATE,
-            effects: &[
-                Effect::Oxygenate { factor: 1.0 },
-                Effect::ModifyLungGas(&[(Gas::CarbonDioxide, 1.0), (Gas::Oxygen, -1.0)]),
-            ],
-        }],
-    },
-    Reagent {
-        id: "CarbonDioxide",
-        metabolisms: &[Metabolism {
-            stage: Stage::Respiration,
-            rate: DEFAULT_METABOLISM_RATE,
-            effects: &[
-                Effect::HealthChange {
-                    damage: &[("Poison", 0.8)],
-                    min_scale: 0.5,
-                },
-                // Углекислый газ вытесняет кислород из крови.
-                Effect::Oxygenate { factor: -4.0 },
-            ],
-        }],
-    },
-    Reagent {
-        id: "Plasma",
-        metabolisms: &[Metabolism {
-            stage: Stage::Respiration,
-            rate: DEFAULT_METABOLISM_RATE,
-            effects: &[Effect::HealthChange {
-                damage: &[("Poison", 0.1)],
-                min_scale: 0.0,
-            }],
-        }],
-    },
-    Reagent {
-        id: "Nitrogen",
-        metabolisms: &[],
-    },
-    Reagent {
-        id: "Nutriment",
-        metabolisms: &[Metabolism {
-            stage: Stage::Digestion,
-            rate: 1.0,
-            effects: &[Effect::Satiate {
-                kind: SatiationKind::Hunger,
-                factor: 3.0,
-                needs: None,
-            }],
-        }],
-    },
-    Reagent {
-        id: "Water",
-        metabolisms: &[Metabolism {
-            stage: Stage::Digestion,
-            rate: DEFAULT_METABOLISM_RATE,
-            effects: &[Effect::Satiate {
-                kind: SatiationKind::Thirst,
-                factor: 4.0,
-                needs: None,
-            }],
-        }],
-    },
-    Reagent {
-        id: "Protein",
-        metabolisms: &[Metabolism {
-            stage: Stage::Digestion,
-            rate: DEFAULT_METABOLISM_RATE,
-            effects: &[
-                Effect::EvenHealthChange {
-                    group: BRUTE,
-                    amount: -0.4,
-                    probability: 0.5,
-                },
-                Effect::ModifyBloodLevel(1.0),
-                Effect::Satiate {
-                    kind: SatiationKind::Hunger,
-                    factor: DEFAULT_SATIATE_FACTOR,
-                    needs: None,
-                },
-            ],
-        }],
-    },
-    Reagent {
-        id: "Vitamin",
-        metabolisms: &[Metabolism {
-            stage: Stage::Digestion,
-            rate: DEFAULT_METABOLISM_RATE,
-            effects: &[
-                Effect::EvenHealthChange {
-                    group: BRUTE,
-                    amount: -0.5,
-                    probability: 0.5,
-                },
-                Effect::EvenHealthChange {
-                    group: BURN,
-                    amount: -0.5,
-                    probability: 0.5,
-                },
-                Effect::ModifyBleed(-0.25),
-                Effect::Satiate {
-                    kind: SatiationKind::Hunger,
-                    factor: DEFAULT_SATIATE_FACTOR,
-                    needs: None,
-                },
-            ],
-        }],
-    },
-    Reagent {
-        id: "Sugar",
-        metabolisms: &[Metabolism {
-            stage: Stage::Digestion,
-            rate: DEFAULT_METABOLISM_RATE,
-            effects: &[Effect::Satiate {
-                kind: SatiationKind::Hunger,
-                factor: 1.0,
-                // Насыщает, только если съеден вместе с питательными веществами.
-                needs: Some(("Nutriment", 0.1)),
-            }],
-        }],
-    },
-];
-
-pub fn reagent(id: &str) -> Option<&'static Reagent> {
-    REAGENTS.iter().find(|r| r.id == id)
 }
 
 /// Реагент, в который переходит газ при вдохе (`reagent:` в `gases.yml`).

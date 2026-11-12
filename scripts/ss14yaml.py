@@ -26,6 +26,15 @@ def _tag(loader, suffix, node):
 Loader.add_multi_constructor('!', _tag)
 
 
+def _merge(dst, src):
+    """Поля потомка поверх предка: словари сливаются вглубь, остальное заменяется."""
+    for k, v in src.items():
+        if isinstance(v, dict) and isinstance(dst.get(k), dict):
+            _merge(dst[k], v)
+        else:
+            dst[k] = copy.deepcopy(v)
+
+
 class Protos:
     def __init__(self, root):
         self.root = root
@@ -61,9 +70,15 @@ class Protos:
             for c in e.get('components') or []:
                 t = c['type']
                 cur = merged.setdefault(t, {})
-                for k, v in c.items():
-                    cur[k] = copy.deepcopy(v)
+                _merge(cur, c)
         return merged
+
+    def merged_proto(self, typ, i):
+        """Прототип с унаследованными полями (для `injectorMode` и подобных)."""
+        out = {}
+        for e in self.chain(typ, i):
+            _merge(out, {k: v for k, v in e.items() if k not in ('parent', 'abstract')})
+        return out
 
     def entity_name(self, i):
         name = None

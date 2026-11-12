@@ -121,6 +121,21 @@ const PROTOS: &str = r#"[
         "Item": (size: "Small"),
         "IdCard": (access: []),
     }),
+    (id: "BeakerT", components: {
+        "Item": (size: "Small"),
+        "Solution": (maxVol: 50.0, reagents: ()),
+        "SolutionTransfer": (amount: 10.0, max: 50.0),
+        "Refillable": (),
+        "Drainable": (),
+    }),
+    (id: "SyringeT", components: {
+        "Item": (size: "Tiny"),
+        "Solution": (maxVol: 15.0, reagents: ()),
+        "Injector": (modes: [
+            (id: "Inject", behavior: "Inject", amounts: [5.0, 10.0], mobTime: 0.0, selfModifier: 0.5, downedModifier: 0.5, delayPerVolume: 0.1, ignoreDelayForVolume: 5.0, drawTime: 0.0),
+            (id: "Draw", behavior: "Draw", amounts: [5.0, 10.0], mobTime: 5.0, selfModifier: 0.5, downedModifier: 0.5, delayPerVolume: 0.1, ignoreDelayForVolume: 5.0, drawTime: 0.0),
+        ], active: 1, amount: 5.0),
+    }),
     (id: "Belt", components: {
         "Conveyor": (speed: 2.0),
     }),
@@ -2312,5 +2327,49 @@ mod disposal_tests {
         command(&mut h, a, crate::CMD_ID_EJECT, vec![1]);
         h.ticks(5);
         assert!(idc_view(&h, a).unwrap().target.is_none());
+    }
+
+    fn held(proto: &str, n: u128) -> HeldItem {
+        HeldItem {
+            id: oid(5000 + n),
+            prototype: PrototypeId::new(proto).unwrap(),
+        }
+    }
+
+    #[test]
+    fn pouring_between_beakers_moves_a_set_amount_and_runs_reactions() {
+        let mut st = crate::module::State::new(registry()).unwrap();
+        let (a, b) = (held("ss14:beaker_t", 1), held("ss14:beaker_t", 2));
+        st.solution_mut(&a).unwrap().add("Nitrogen", 10.0);
+        st.solution_mut(&a).unwrap().add("Potassium", 10.0);
+        st.solution_mut(&b).unwrap().add("Silicon", 10.0);
+        // Шаг 10 ед.: из A в B уходит поровну 10 → 5 азота и 5 калия.
+        assert!(st.chem_use(&a, &b));
+        assert!((st.solution_volume(&a) - 10.0).abs() < 1e-3);
+        // B: 10 кремния + 5 азота + 5 калия → реакция Дилоксина (1:1:1 → 3).
+        let s = st.solution_mut(&b).unwrap();
+        assert!(s.amount("Dylovene") > 14.0, "{:?}", s.contents);
+        // Приёмник не переполняется: 50 макс., остальное остаётся у источника.
+        let c = held("ss14:beaker_t", 3);
+        st.solution_mut(&c).unwrap().add("Water", 48.0);
+        let before = st.solution_volume(&a);
+        st.chem_use(&a, &c);
+        assert!((st.solution_volume(&a) - (before - 2.0)).abs() < 1e-3);
+    }
+
+    #[test]
+    fn a_syringe_draws_from_a_container_and_toggles_to_inject() {
+        let mut st = crate::module::State::new(registry()).unwrap();
+        let bottle = held("ss14:beaker_t", 4);
+        let syringe = held("ss14:syringe_t", 5);
+        st.solution_mut(&bottle).unwrap().add("Bicaridine", 30.0);
+        // Режим «Draw» из прототипа, 5 ед. за раз.
+        assert!(st.chem_use(&syringe, &bottle));
+        assert!((st.solution_volume(&syringe) - 5.0).abs() < 1e-3);
+        assert!((st.solution_volume(&bottle) - 25.0).abs() < 1e-3);
+        // Переключили на «Inject»: вливает обратно в ёмкость.
+        assert!(st.toggle_injector(&syringe));
+        assert!(st.chem_use(&syringe, &bottle));
+        assert!(st.solution_volume(&syringe) < 1e-3);
     }
 }

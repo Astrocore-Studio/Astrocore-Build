@@ -109,6 +109,88 @@ pub(crate) struct IdSpec {
     pub(crate) job: Option<String>,
 }
 
+/// Поведение режима шприца (`InjectorBehavior`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Behavior {
+    Inject,
+    Draw,
+    Dynamic,
+}
+
+/// Режим шприца (`InjectorModePrototype`).
+#[derive(Debug, Clone)]
+pub(crate) struct InjectorMode {
+    pub(crate) behavior: Behavior,
+    pub(crate) amounts: Vec<f32>,
+    pub(crate) mob_time: f32,
+    pub(crate) self_modifier: f32,
+    pub(crate) downed_modifier: f32,
+    pub(crate) delay_per_volume: f32,
+    pub(crate) ignore_delay_for_volume: f32,
+}
+
+/// Шприц или гипоспрей по прототипу.
+#[derive(Debug, Clone)]
+pub(crate) struct InjectorSpec {
+    pub(crate) modes: Vec<InjectorMode>,
+    pub(crate) active: usize,
+    /// Сколько переливать за раз; `None` — всё содержимое (автоинжектор).
+    pub(crate) amount: Option<f32>,
+}
+
+impl InjectorSpec {
+    fn parse(c: &prototypes::Data) -> Option<Self> {
+        let modes: Vec<InjectorMode> = c
+            .get("modes")?
+            .as_list()?
+            .iter()
+            .filter_map(|d| {
+                let f = |k: &str, def: f32| {
+                    d.get(k)
+                        .and_then(prototypes::Data::as_f64)
+                        .map_or(def, |v| v as f32)
+                };
+                Some(InjectorMode {
+                    behavior: match d.get("behavior")?.as_str()? {
+                        "Draw" => Behavior::Draw,
+                        "Dynamic" => Behavior::Dynamic,
+                        _ => Behavior::Inject,
+                    },
+                    amounts: d
+                        .get("amounts")
+                        .and_then(prototypes::Data::as_list)
+                        .map(|l| {
+                            l.iter()
+                                .filter_map(|x| x.as_f64().map(|v| v as f32))
+                                .collect()
+                        })
+                        .unwrap_or_default(),
+                    mob_time: f("mobTime", 5.0),
+                    self_modifier: f("selfModifier", 0.5),
+                    downed_modifier: f("downedModifier", 0.5),
+                    delay_per_volume: f("delayPerVolume", 0.1),
+                    ignore_delay_for_volume: f("ignoreDelayForVolume", 5.0),
+                })
+            })
+            .collect();
+        if modes.is_empty() {
+            return None;
+        }
+        let amount = c
+            .get("amount")
+            .and_then(prototypes::Data::as_f64)
+            .map(|v| v as f32);
+        Some(Self {
+            modes,
+            active: c
+                .get("active")
+                .and_then(prototypes::Data::as_int)
+                .unwrap_or(0) as usize,
+            amount: amount.filter(|a| *a > 0.0),
+        })
+    }
+}
+
 /// Слоты консоли выдачи ID: карта с правами и целевая карта.
 #[derive(Debug, Clone, Default)]
 pub(crate) struct ConsoleSlots {
@@ -245,6 +327,12 @@ pub struct State {
     pub(crate) alarm_sig: Vec<(ObjectId, atmos::Cell, u32)>,
     pub(crate) monitor_state: BTreeMap<ObjectId, crate::monitor::AlarmState>,
     pub(crate) alarm_timer: f32,
+    /// Химия: таблица реагентов и реакций, шприцы и гипоспреи, перелив между ёмкостями.
+    pub(crate) chem: std::sync::Arc<crate::chem::ReagentTable>,
+    pub(crate) injectors: BTreeMap<PrototypeId, InjectorSpec>,
+    pub(crate) injector_state: BTreeMap<ObjectId, (usize, f32)>,
+    pub(crate) transfers: BTreeMap<PrototypeId, f32>,
+    pub(crate) drainables: BTreeSet<PrototypeId>,
     /// Консоли выдачи ID: уровни по прототипу, слоты, у кого открыто окно, имена на картах.
     pub(crate) id_console_levels: BTreeMap<PrototypeId, Vec<String>>,
     pub(crate) consoles: BTreeMap<ObjectId, ConsoleSlots>,
@@ -323,6 +411,9 @@ impl State {
             .map(|(id, n)| (n.clone(), id.clone()))
             .collect();
         let mut vending_specs = BTreeMap::new();
+        let mut injectors = BTreeMap::new();
+        let mut transfers = BTreeMap::new();
+        let mut drainables = BTreeSet::new();
         let mut id_console_levels = BTreeMap::new();
         let mut storage_specs = BTreeMap::new();
         let mut storage_open_of: BTreeMap<PrototypeId, PrototypeId> = BTreeMap::new();
@@ -377,6 +468,20 @@ impl State {
                     .and_then(prototypes::Data::as_f64)
                 {
                     heat_protection.insert(id.clone(), c as f32);
+                }
+                if let Some(spec) = r.component("Injector").and_then(InjectorSpec::parse) {
+                    injectors.insert(id.clone(), spec);
+                }
+                if let Some(c) = r.component("SolutionTransfer") {
+                    transfers.insert(
+                        id.clone(),
+                        c.get("amount")
+                            .and_then(prototypes::Data::as_f64)
+                            .unwrap_or(5.0) as f32,
+                    );
+                }
+                if r.component("Drainable").is_some() {
+                    drainables.insert(id.clone());
                 }
                 if let Some(c) = r.component("IdCardConsole") {
                     id_console_levels.insert(
@@ -647,6 +752,11 @@ impl State {
             alarm_sig: Vec::new(),
             monitor_state: BTreeMap::new(),
             alarm_timer: 0.0,
+            chem: crate::chem::ReagentTable::builtin(),
+            injectors,
+            injector_state: BTreeMap::new(),
+            transfers,
+            drainables,
             id_console_levels,
             consoles: BTreeMap::new(),
             console_open: BTreeMap::new(),
@@ -1210,6 +1320,49 @@ impl State {
     }
 
     /// Лечение: применяет предмет к цели и расходует его.
+    /// Инъекция: из шприца в кровь `target` уходит `amount` (сколько есть и сколько влезает).
+    fn inject_body(
+        &mut self,
+        ctx: &mut HookContext<'_>,
+        actor: NetworkEntityId,
+        hand: usize,
+        target: NetworkEntityId,
+    ) {
+        let Some(item) = self
+            .actors
+            .get(&actor)
+            .and_then(|a| a.hands.get(hand))
+            .cloned()
+        else {
+            return;
+        };
+        let Some((_, amount)) = self.injector_of(&item) else {
+            return;
+        };
+        let room = self
+            .actors
+            .get(&target)
+            .and_then(|a| a.body.as_ref())
+            .map_or(0.0, |b| b.chemicals.available());
+        let Some(sol) = self.solution_mut(&item) else {
+            return;
+        };
+        let take = amount
+            .unwrap_or_else(|| sol.volume())
+            .min(sol.volume())
+            .min(room);
+        if take <= 0.0 {
+            return;
+        }
+        let part = sol.split(take);
+        if let Some(body) = self.actor(target).body.as_mut() {
+            for (r, q) in &part.contents {
+                body.chemicals.add(r, *q);
+            }
+        }
+        self.publish(ctx, actor);
+    }
+
     fn heal(
         &mut self,
         ctx: &mut HookContext<'_>,
@@ -1397,6 +1550,16 @@ impl State {
                     .is_some_and(|i| self.healing.contains_key(&i.prototype));
                 healable && item_ok && self.in_reach(ctx, actor, *target)
             }
+            Action::Inject { hand, target } => {
+                let alive = ctx.position_of(*target).is_some()
+                    && self.actors.get(target).is_none_or(|t| t.body.is_some());
+                let ok = a.hands.get(*hand).is_some_and(|i| {
+                    self.injector_of(i)
+                        .is_some_and(|(m, _)| m.behavior != Behavior::Draw)
+                        && self.solution_volume(i) > 0.0
+                });
+                alive && ok && self.in_reach(ctx, actor, *target)
+            }
             Action::Pry { element, hand } => {
                 ctx.door_open(*element) == Some(false)
                     && a.hands.get(*hand).is_some_and(|i| {
@@ -1438,6 +1601,28 @@ impl State {
                 .get(*hand)
                 .and_then(|i| self.healing.get(&i.prototype))
                 .map_or(0.0, |h| h.delay),
+            Action::Inject { hand, target } => a
+                .hands
+                .get(*hand)
+                .and_then(|i| {
+                    let (mode, amount) = self.injector_of(i)?;
+                    let amount = amount
+                        .unwrap_or_else(|| self.solution_volume(i))
+                        .min(self.solution_volume(i));
+                    let mut t = mode.mob_time
+                        + mode.delay_per_volume * (amount - mode.ignore_delay_for_volume).max(0.0);
+                    if *target == actor {
+                        t *= mode.self_modifier;
+                    } else if self
+                        .actors
+                        .get(target)
+                        .is_some_and(|x| x.health.state() != MobState::Alive)
+                    {
+                        t *= mode.downed_modifier;
+                    }
+                    Some(t)
+                })
+                .unwrap_or(0.0),
             Action::Pry { .. } => PRY_TIME_S,
         }
     }
@@ -1448,6 +1633,7 @@ impl State {
             Action::Unequip { slot, hand } => self.unequip(ctx, actor, &slot, hand),
             Action::Pry { element, .. } => ctx.request_door(element, DoorAction::Open, true),
             Action::Heal { hand, target } => self.heal(ctx, actor, hand, target),
+            Action::Inject { hand, target } => self.inject_body(ctx, actor, hand, target),
             Action::Eat { hand, item, target } => self.bite(ctx, actor, hand, item, target),
         }
     }
@@ -1534,13 +1720,15 @@ impl State {
             let Some(mut body) = self.actors.get_mut(&id).and_then(|a| a.body.take()) else {
                 continue;
             };
-            let (mob, barotrauma) = {
+            let (mob, barotrauma, damage_now) = {
                 let a = &self.actors[&id];
                 (
                     a.health.state(),
                     a.health.damage_of("Blunt") + a.health.damage_of("Heat"),
+                    a.health.view().damage,
                 )
             };
+            body.observe_damage(&damage_now);
             let a_ghost = self.actors[&id].ghost;
             let protection: f32 = self.actors[&id]
                 .inventory
@@ -2495,6 +2683,97 @@ impl State {
         }
         self.locker_timer = 0.0;
         self.sync_lockers(ctx);
+    }
+
+    /// Режим и количество шприца (по умолчанию — из прототипа).
+    pub(crate) fn injector_of(&self, item: &HeldItem) -> Option<(InjectorMode, Option<f32>)> {
+        let spec = self.injectors.get(&item.prototype)?;
+        let (active, amount) = self
+            .injector_state
+            .get(&item.id)
+            .copied()
+            .unwrap_or((spec.active, spec.amount.unwrap_or(-1.0)));
+        let mode = spec.modes.get(active)?.clone();
+        Some((mode, (amount > 0.0).then_some(amount)))
+    }
+
+    /// Перелить `amount` из `from` в `to`: сколько есть и сколько влезает; в приёмнике идут реакции.
+    pub(crate) fn pour(&mut self, from: &HeldItem, to: &HeldItem, amount: f32) -> f32 {
+        let room = self.solution_mut(to).map_or(0.0, |s| s.available());
+        let Some(src) = self.solution_mut(from) else {
+            return 0.0;
+        };
+        let take = amount.min(src.volume()).min(room);
+        if take <= 0.0 {
+            return 0.0;
+        }
+        let part = src.split(take);
+        let chem = self.chem.clone();
+        if let Some(dst) = self.solution_mut(to) {
+            dst.merge(&part);
+            chem.react(dst);
+        }
+        take
+    }
+
+    /// Предмет из руки на ёмкость в мире: перелив (`SolutionTransferSystem.OnAfterInteract`) или
+    /// шприц на контейнере (`InjectorSystem`). Сначала то, что держим, наливается в цель; иначе берётся из цели.
+    pub(crate) fn chem_use(&mut self, used: &HeldItem, target: &HeldItem) -> bool {
+        if let Some(amount) = self.transfers.get(&used.prototype).copied() {
+            let send = self.drainables.contains(&used.prototype)
+                && self.refillables.contains(&target.prototype);
+            let recv = self.refillables.contains(&used.prototype)
+                && self.drainables.contains(&target.prototype);
+            return if send {
+                self.pour(used, target, amount) > 0.0 || true
+            } else if recv {
+                self.pour(target, used, amount) > 0.0 || true
+            } else {
+                false
+            };
+        }
+        if let Some((mode, amount)) = self.injector_of(used) {
+            let amount = amount.unwrap_or_else(|| self.solution_volume(used));
+            return match mode.behavior {
+                Behavior::Inject if self.refillables.contains(&target.prototype) => {
+                    self.pour(used, target, amount);
+                    true
+                }
+                Behavior::Draw | Behavior::Dynamic
+                    if self.drainables.contains(&target.prototype) =>
+                {
+                    self.pour(target, used, amount);
+                    true
+                }
+                _ => false,
+            };
+        }
+        false
+    }
+
+    /// Переключить режим шприца (по кругу) — «использовать в руке».
+    pub(crate) fn toggle_injector(&mut self, item: &HeldItem) -> bool {
+        let Some(spec) = self.injectors.get(&item.prototype) else {
+            return false;
+        };
+        if spec.modes.len() < 2 {
+            return true;
+        }
+        let (active, amount) = self
+            .injector_state
+            .get(&item.id)
+            .copied()
+            .unwrap_or((spec.active, spec.amount.unwrap_or(-1.0)));
+        let next = (active + 1) % spec.modes.len();
+        // Количество подгоняется под допустимые значения нового режима.
+        let amounts = &spec.modes[next].amounts;
+        let amount = if amounts.is_empty() || amount <= 0.0 || amounts.contains(&amount) {
+            amount
+        } else {
+            amounts[0]
+        };
+        self.injector_state.insert(item.id, (next, amount));
+        true
     }
 
     /// Это удостоверение или КПК (их слот принимает консоль)?
@@ -4133,14 +4412,23 @@ impl GameModule for GameplayModule {
                 }
                 CMD_HEAL => {
                     if let Some((hand, target)) = parse_heal(data) {
-                        st.begin(
-                            ctx,
-                            *actor,
+                        let holds_injector = st
+                            .actors
+                            .get(actor)
+                            .and_then(|a| a.hands.get(usize::from(hand)))
+                            .is_some_and(|i| st.injectors.contains_key(&i.prototype));
+                        let action = if holds_injector {
+                            Action::Inject {
+                                hand: usize::from(hand),
+                                target,
+                            }
+                        } else {
                             Action::Heal {
                                 hand: usize::from(hand),
                                 target,
-                            },
-                        );
+                            }
+                        };
+                        st.begin(ctx, *actor, action);
                     }
                 }
                 CMD_PICKUP | CMD_PICKUP_ANY => {

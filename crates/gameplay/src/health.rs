@@ -28,12 +28,16 @@ pub const KINDS: &[&str] = &[
     "Poison",
     "Asphyxiation",
     "Bloodloss",
+    "Caustic",
+    "Radiation",
+    "Cellular",
 ];
 pub const GROUPS: &[(&str, &[&str])] = &[
     ("Brute", &["Blunt", "Slash", "Piercing"]),
-    ("Burn", &["Heat", "Cold", "Shock"]),
-    ("Toxin", &["Poison"]),
+    ("Burn", &["Heat", "Cold", "Shock", "Caustic"]),
+    ("Toxin", &["Poison", "Radiation"]),
     ("Airloss", &["Asphyxiation", "Bloodloss"]),
+    ("Genetic", &["Cellular"]),
 ];
 
 /// Части тела: урон оружия приходится на одну из них. В SS14 урон по частям тела не делится —
