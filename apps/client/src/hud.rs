@@ -2206,6 +2206,97 @@ pub fn chemhand_bar(ctx: &egui::Context, view: Option<&gameplay::ChemHandView>) 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn frame(ctx: &egui::Context, f: impl FnOnce(&egui::Context)) -> usize {
+        let mut f = Some(f);
+        let mut out = ctx.run_ui(egui::RawInput::default(), |ui| {
+            if let Some(f) = f.take() {
+                f(ui.ctx());
+            }
+        });
+        out.textures_delta.clear();
+        out.shapes.len()
+    }
+
+    #[test]
+    fn the_examine_window_draws_until_it_is_closed() {
+        let ctx = egui::Context::default();
+        let mut state = HudState::default();
+        let view = gameplay::ExamineView {
+            seq: 3,
+            name: "crowbar".into(),
+            lines: vec!["A multipurpose tool.".into()],
+        };
+        // Первый кадр раскладывает окно, второй рисует его.
+        frame(&ctx, |c| examine_window(c, &mut state, Some(&view)));
+        let drawn = frame(&ctx, |c| examine_window(c, &mut state, Some(&view)));
+        assert!(drawn > 0, "окно осмотра нарисовано");
+        // Без ответа или закрытое на этом ответе окна нет.
+        assert_eq!(frame(&ctx, |c| examine_window(c, &mut state, None)), 0);
+        state.examine_closed = 3;
+        assert_eq!(
+            frame(&ctx, |c| examine_window(c, &mut state, Some(&view))),
+            0
+        );
+        // Новый ответ открывает его снова.
+        let next = gameplay::ExamineView { seq: 4, ..view };
+        frame(&ctx, |c| examine_window(c, &mut state, Some(&next)));
+        assert!(frame(&ctx, |c| examine_window(c, &mut state, Some(&next))) > 0);
+    }
+
+    #[test]
+    fn the_verb_menu_waits_for_the_answer_to_its_own_request() {
+        let ctx = egui::Context::default();
+        let target = gameplay::VerbTarget::Player(astrocore_core::NetworkEntityId(5));
+        let mut state = HudState {
+            menu: Some(VerbMenu {
+                at: Pos2::new(10.0, 10.0),
+                target,
+                after_seq: 7,
+            }),
+            ..HudState::default()
+        };
+        let mut answer = gameplay::VerbsView {
+            seq: 7,
+            target: gameplay::target_data(target, None),
+            verbs: vec![gameplay::Verb {
+                id: "examine".into(),
+                label: "Examine".into(),
+                disabled: None,
+            }],
+        };
+        // Старый ответ (тот же номер) меню не открывает.
+        frame(&ctx, |c| {
+            verb_menu(c, &mut state, Some(&answer));
+        });
+        assert_eq!(
+            frame(&ctx, |c| {
+                verb_menu(c, &mut state, Some(&answer));
+            }),
+            0
+        );
+        // Новый ответ по этой цели — рисует.
+        answer.seq = 8;
+        frame(&ctx, |c| {
+            verb_menu(c, &mut state, Some(&answer));
+        });
+        assert!(
+            frame(&ctx, |c| {
+                verb_menu(c, &mut state, Some(&answer));
+            }) > 0
+        );
+        // Ответ по другой цели — нет.
+        answer.target = gameplay::target_data(
+            gameplay::VerbTarget::Player(astrocore_core::NetworkEntityId(6)),
+            None,
+        );
+        assert_eq!(
+            frame(&ctx, |c| {
+                verb_menu(c, &mut state, Some(&answer));
+            }),
+            0
+        );
+    }
     use gameplay::HeldItem;
 
     fn item(n: u128) -> HeldItem {
