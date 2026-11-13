@@ -125,20 +125,17 @@ fn walls_carry_their_strength_from_the_prototype_table() {
         },
     );
     let (map, _) = import(&room_yaml(7), "room", &known(), &mats).unwrap();
-    let zone = map
-        .zones
+    let meta: Vec<(&String, &String)> = map.zones.iter().flat_map(|z| z.metadata.iter()).collect();
+    let class = meta
         .iter()
-        .find(|z| z.metadata.contains_key("wall_0"))
-        .expect("зона с прочностью стен");
-    let text = &zone.metadata["wall_0"];
-    assert!(
-        text.starts_with("hp=250;coef=Piercing:0.7;flat=Structural:3;cells="),
-        "{text}"
-    );
-    assert!(
-        text.contains("0:-1"),
-        "угловая стена в списке клеток: {text}"
-    );
+        .find(|(k, _)| k.as_str() == "wall_class_0")
+        .expect("класс стены");
+    assert_eq!(class.1, "hp=250;coef=Piercing:0.7;flat=Structural:3");
+    let cells = meta
+        .iter()
+        .find(|(k, _)| k.starts_with("wall_cells_0_"))
+        .expect("клетки стен");
+    assert!(cells.1.contains("0:-1"), "угловая стена: {}", cells.1);
 }
 
 #[test]

@@ -3014,10 +3014,10 @@ mod disposal_tests {
             Vec3::ZERO,
             Vec3::splat(0.1),
         );
-        zone.metadata.insert(
-            "wall_0".into(),
-            "hp=150;coef=;flat=;cells=3:-1 4:-1 5:-1 6:-1 7:-1".into(),
-        );
+        zone.metadata
+            .insert("wall_class_0".into(), "hp=150;coef=;flat=".into());
+        zone.metadata
+            .insert("wall_cells_0_0".into(), "3:-1 4:-1 5:-1 6:-1 7:-1".into());
         spawn(&mut h, zone);
         grab(&mut h, a, 92, near(), "ss14:breach_gun");
         command(&mut h, a, crate::CMD_COMBAT, vec![1]);
@@ -3055,7 +3055,8 @@ mod disposal_tests {
             Vec3::splat(0.1),
         );
         zone.metadata
-            .insert("wall_0".into(), "hp=40;coef=;flat=;cells=5:-1".into());
+            .insert("wall_class_0".into(), "hp=40;coef=;flat=".into());
+        zone.metadata.insert("wall_cells_0_0".into(), "5:-1".into());
         spawn(&mut h, zone);
         grab(&mut h, a, 71, near(), "ss14:grenade");
         assert!(wall_edge_present(&h, a, 5, 0), "стена на месте");

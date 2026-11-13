@@ -134,31 +134,44 @@ fn table(text: &str) -> std::collections::BTreeMap<String, f32> {
         .collect()
 }
 
-/// Стены из метаданных зоны карты (`wall_<n>` = `hp=…;coef=…;flat=…;cells=x:z x:z`): клетка → стена.
+/// Стены из метаданных зон карты: класс `wall_class_<n>` = `hp=…;coef=…;flat=…`, клетки
+/// `wall_cells_<n>_<k>` = `x:z x:z …`. Результат: клетка → стена.
 pub fn parse_walls<'a>(
     meta: impl Iterator<Item = (&'a String, &'a String)>,
 ) -> std::collections::BTreeMap<(i32, i32), Wall> {
-    let mut out = std::collections::BTreeMap::new();
+    let mut classes: std::collections::BTreeMap<String, Wall> = Default::default();
+    let mut cells: Vec<(String, &str)> = Vec::new();
     for (key, value) in meta {
-        if !key.starts_with("wall_") {
-            continue;
+        if let Some(n) = key.strip_prefix("wall_class_") {
+            let field = |name: &str| {
+                value
+                    .split(';')
+                    .find_map(|f| f.strip_prefix(name).and_then(|r| r.strip_prefix('=')))
+                    .unwrap_or("")
+            };
+            if let Ok(hp) = field("hp").parse::<f32>() {
+                classes.insert(
+                    n.to_string(),
+                    Wall {
+                        hp,
+                        coefficients: table(field("coef")),
+                        flat: table(field("flat")),
+                        damage: 0.0,
+                    },
+                );
+            }
+        } else if let Some(rest) = key.strip_prefix("wall_cells_")
+            && let Some((n, _)) = rest.split_once('_')
+        {
+            cells.push((n.to_string(), value));
         }
-        let field = |name: &str| {
-            value
-                .split(';')
-                .find_map(|f| f.strip_prefix(name).and_then(|r| r.strip_prefix('=')))
-                .unwrap_or("")
-        };
-        let Ok(hp) = field("hp").parse::<f32>() else {
+    }
+    let mut out = std::collections::BTreeMap::new();
+    for (n, list) in cells {
+        let Some(wall) = classes.get(&n) else {
             continue;
         };
-        let wall = Wall {
-            hp,
-            coefficients: table(field("coef")),
-            flat: table(field("flat")),
-            damage: 0.0,
-        };
-        for cell in field("cells").split(' ') {
+        for cell in list.split(' ') {
             if let Some((x, z)) = cell.split_once(':')
                 && let (Ok(x), Ok(z)) = (x.parse(), z.parse())
             {
@@ -220,10 +233,13 @@ mod tests {
 
     #[test]
     fn walls_parse_and_take_blast_damage_through_their_protection() {
-        let meta: std::collections::BTreeMap<String, String> = [(
-            "wall_0".to_string(),
-            "hp=250;coef=Piercing:0.7;flat=Blunt:10,Structural:3;cells=1:2 3:4".to_string(),
-        )]
+        let meta: std::collections::BTreeMap<String, String> = [
+            (
+                "wall_class_0".to_string(),
+                "hp=250;coef=Piercing:0.7;flat=Blunt:10,Structural:3".to_string(),
+            ),
+            ("wall_cells_0_0".to_string(), "1:2 3:4".to_string()),
+        ]
         .into();
         let walls = parse_walls(meta.iter());
         assert_eq!(walls.len(), 2);

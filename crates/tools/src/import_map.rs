@@ -866,22 +866,21 @@ pub fn import(
                 .push(format!("{}:{}", c.0, c.1));
         }
     }
-    if !classes.is_empty() {
-        let metadata = classes
-            .iter()
-            .enumerate()
-            .map(|(n, (p, cells))| {
-                (
-                    format!("wall_{n}"),
-                    format!("{};cells={}", mats.wall_hp[*p].encode(), cells.join(" ")),
-                )
-            })
-            .collect();
+    // Значение метаданных ограничено 256 знаками: класс — одна запись (`wall_class_<n>`), клетки —
+    // записи по 24 клетки (`wall_cells_<n>_<k>`); в зоне не больше 32 записей.
+    let mut entries: Vec<(String, String)> = Vec::new();
+    for (n, (p, cells)) in classes.iter().enumerate() {
+        entries.push((format!("wall_class_{n}"), mats.wall_hp[*p].encode()));
+        for (k, chunk) in cells.chunks(24).enumerate() {
+            entries.push((format!("wall_cells_{n}_{k}"), chunk.join(" ")));
+        }
+    }
+    for chunk in entries.chunks(30) {
         zones.push(MapZone {
             min: [0.0, 0.0, 0.0],
             max: [0.1, 0.1, 0.1],
             floor: 0,
-            metadata,
+            metadata: chunk.iter().cloned().collect(),
         });
     }
     for e in &door_edges {
