@@ -4723,11 +4723,14 @@ impl State {
     fn verb_do(&mut self, ctx: &mut HookContext<'_>, actor: NetworkEntityId, data: &[u8]) {
         use crate::verbs::{ExamineView, VerbTarget};
         let Some((target, verb)) = crate::verbs::parse_target(data) else {
+            eprintln!("VERB_DO: данные не разобрались ({} байт)", data.len());
             return;
         };
         let Some(spot) = self.verb_target_spot(ctx, target) else {
+            eprintln!("VERB_DO: цель {target:?} не найдена");
             return;
         };
+        eprintln!("VERB_DO {verb} {target:?} spot={spot:?}");
         let Some(dist) = self.examine_distance(ctx, actor, spot, Self::verb_slack(target)) else {
             self.popup(actor, "You can't make out whatever that is.");
             return;
