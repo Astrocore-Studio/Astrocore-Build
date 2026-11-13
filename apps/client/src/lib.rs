@@ -436,6 +436,18 @@ fn autoplay(
             l.pitch = 0.9;
         }
     }
+    // Отладка: ASTRO_LOOK_AT_ID=<hex id> наводит взгляд на объект карты (для снимков вблизи).
+    if let Ok(h) = std::env::var("ASTRO_LOOK_AT_ID")
+        && let Some(id) = u128::from_str_radix(&h, 16).ok().map(ObjectId::from_u128)
+        && let Some(world) = net.core.world()
+        && let Some(object) = world.authored_object(id)
+        && let Some(look) = look.as_mut()
+    {
+        let at = (object.min() + object.max()) * 0.5 + MVec3::Y * 0.3;
+        let delta = at - net.core.position() - MVec3::Y * 1.6;
+        look.yaw = (-delta.x).atan2(-delta.z);
+        look.pitch = (-delta.y).atan2(delta.x.hypot(delta.z));
+    }
     // Отладка: сразу взять должность (для снимков).
     if let Ok(job) = std::env::var("ASTRO_AUTOPLAY_JOB")
         && state.frame == 60
