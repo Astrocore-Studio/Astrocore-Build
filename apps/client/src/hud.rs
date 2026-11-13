@@ -496,122 +496,122 @@ fn doll_color(damage: f32, limit: f32) -> Color32 {
 /// THROW и кукла здоровья с процентом. REST и THROW пока не перенесены: кнопки неактивны.
 fn edge_panel(ctx: &egui::Context, state: &mut HudState, out: &mut Commands) {
     let health = state.health.clone();
-    egui::Area::new(egui::Id::new("edge_panel"))
+    egui::Area::new(egui::Id::new("edge_buttons"))
+        .anchor(egui::Align2::RIGHT_BOTTOM, Vec2::new(-84.0, -10.0))
+        .show(ctx, |ui| {
+            let mode = |on: bool| {
+                if on {
+                    Color32::from_rgb(150, 50, 50)
+                } else {
+                    Color32::from_rgb(40, 46, 60)
+                }
+            };
+            let size = Vec2::new(86.0, 24.0);
+            let btn = |label: &str, fill: Color32| {
+                egui::Button::new(egui::RichText::new(label).size(12.0).strong())
+                    .fill(fill)
+                    .min_size(size)
+            };
+            if ui
+                .add(btn("COMBAT", mode(state.combat)))
+                .on_hover_text("Боевой режим: бить можно только в нём")
+                .clicked()
+            {
+                state.combat = !state.combat;
+                out.push((gameplay::CMD_COMBAT, vec![u8::from(state.combat)]));
+            }
+            let run = if state.walk { "WALK" } else { "RUN" };
+            if ui
+                .add(btn(run, mode(state.walk)))
+                .on_hover_text("Бег / шаг")
+                .clicked()
+            {
+                state.walk = !state.walk;
+                out.push((gameplay::CMD_WALK, vec![u8::from(state.walk)]));
+            }
+            if ui
+                .add(btn("RESIST", mode(false)))
+                .on_hover_text("Сопротивляться: потушить огонь, выбраться из капсулы")
+                .clicked()
+            {
+                out.push((gameplay::CMD_RESIST, Vec::new()));
+            }
+            ui.add_enabled(false, btn("REST", mode(false)))
+                .on_disabled_hover_text("Лечь — пока не перенесено");
+            ui.add_enabled(false, btn("THROW", mode(false)))
+                .on_disabled_hover_text("Бросок — пока не перенесён");
+        });
+    egui::Area::new(egui::Id::new("edge_doll"))
         .anchor(egui::Align2::RIGHT_BOTTOM, Vec2::new(-10.0, -10.0))
         .show(ctx, |ui| {
-            ui.with_layout(egui::Layout::left_to_right(egui::Align::Max), |ui| {
-                ui.vertical(|ui| {
-                    let mode = |on: bool| {
-                        if on {
-                            Color32::from_rgb(150, 50, 50)
-                        } else {
-                            Color32::from_rgb(40, 46, 60)
-                        }
-                    };
-                    let size = Vec2::new(86.0, 24.0);
-                    let btn = |label: &str, fill: Color32| {
-                        egui::Button::new(egui::RichText::new(label).size(12.0).strong())
-                            .fill(fill)
-                            .min_size(size)
-                    };
-                    if ui
-                        .add(btn("COMBAT", mode(state.combat)))
-                        .on_hover_text("Боевой режим: бить можно только в нём")
-                        .clicked()
-                    {
-                        state.combat = !state.combat;
-                        out.push((gameplay::CMD_COMBAT, vec![u8::from(state.combat)]));
-                    }
-                    let run = if state.walk { "WALK" } else { "RUN" };
-                    if ui
-                        .add(btn(run, mode(state.walk)))
-                        .on_hover_text("Бег / шаг")
-                        .clicked()
-                    {
-                        state.walk = !state.walk;
-                        out.push((gameplay::CMD_WALK, vec![u8::from(state.walk)]));
-                    }
-                    if ui
-                        .add(btn("RESIST", mode(false)))
-                        .on_hover_text("Сопротивляться: потушить огонь, выбраться из капсулы")
-                        .clicked()
-                    {
-                        out.push((gameplay::CMD_RESIST, Vec::new()));
-                    }
-                    ui.add_enabled(false, btn("REST", mode(false)))
-                        .on_disabled_hover_text("Лечь — пока не перенесено");
-                    ui.add_enabled(false, btn("THROW", mode(false)))
-                        .on_disabled_hover_text("Бросок — пока не перенесён");
-                });
-                // Кукла здоровья и процент (`total / CRITICAL_AT`).
-                let (area, _) = ui.allocate_exact_size(Vec2::new(64.0, 118.0), Sense::hover());
-                let total: f32 = health.as_ref().map_or(0.0, |h| h.damage.values().sum());
-                let pct = (100.0 - total / gameplay::CRITICAL_AT * 100.0).clamp(0.0, 100.0);
-                let dmg = |part: &str| {
-                    health
-                        .as_ref()
-                        .and_then(|h| h.parts.get(part))
-                        .copied()
-                        .unwrap_or(0.0)
-                };
-                let p = ui.painter();
-                let o = area.min;
-                let part = |p: &egui::Painter, name: &str, limit: f32, r: Rect| {
-                    p.rect_filled(r, 3.0, doll_color(dmg(name), limit));
-                    p.rect_stroke(
-                        r,
-                        3.0,
-                        egui::Stroke::new(1.0, Color32::from_black_alpha(160)),
-                        egui::StrokeKind::Inside,
-                    );
-                };
-                let at = |x: f32, y: f32, w: f32, h: f32| {
-                    Rect::from_min_size(o + Vec2::new(x, y), Vec2::new(w, h))
-                };
-                part(
-                    p,
-                    "Head",
-                    gameplay::HEAD_FATAL_AT,
-                    at(23.0, 0.0, 18.0, 18.0),
+            // Кукла здоровья и процент (`total / CRITICAL_AT`).
+            let (area, _) = ui.allocate_exact_size(Vec2::new(64.0, 118.0), Sense::hover());
+            let total: f32 = health.as_ref().map_or(0.0, |h| h.damage.values().sum());
+            let pct = (100.0 - total / gameplay::CRITICAL_AT * 100.0).clamp(0.0, 100.0);
+            let dmg = |part: &str| {
+                health
+                    .as_ref()
+                    .and_then(|h| h.parts.get(part))
+                    .copied()
+                    .unwrap_or(0.0)
+            };
+            let p = ui.painter();
+            let o = area.min;
+            let part = |p: &egui::Painter, name: &str, limit: f32, r: Rect| {
+                p.rect_filled(r, 3.0, doll_color(dmg(name), limit));
+                p.rect_stroke(
+                    r,
+                    3.0,
+                    egui::Stroke::new(1.0, Color32::from_black_alpha(160)),
+                    egui::StrokeKind::Inside,
                 );
-                part(
-                    p,
-                    "Torso",
-                    gameplay::TORSO_FATAL_AT,
-                    at(17.0, 20.0, 30.0, 38.0),
-                );
-                part(
-                    p,
-                    "LeftArm",
-                    gameplay::LIMB_DISABLED_AT,
-                    at(5.0, 20.0, 10.0, 36.0),
-                );
-                part(
-                    p,
-                    "RightArm",
-                    gameplay::LIMB_DISABLED_AT,
-                    at(49.0, 20.0, 10.0, 36.0),
-                );
-                part(
-                    p,
-                    "LeftLeg",
-                    gameplay::LIMB_DISABLED_AT,
-                    at(17.0, 60.0, 14.0, 40.0),
-                );
-                part(
-                    p,
-                    "RightLeg",
-                    gameplay::LIMB_DISABLED_AT,
-                    at(33.0, 60.0, 14.0, 40.0),
-                );
-                p.text(
-                    o + Vec2::new(32.0, 109.0),
-                    egui::Align2::CENTER_CENTER,
-                    format!("{pct:.0}%"),
-                    egui::FontId::proportional(15.0),
-                    Color32::WHITE,
-                );
-            });
+            };
+            let at = |x: f32, y: f32, w: f32, h: f32| {
+                Rect::from_min_size(o + Vec2::new(x, y), Vec2::new(w, h))
+            };
+            part(
+                p,
+                "Head",
+                gameplay::HEAD_FATAL_AT,
+                at(23.0, 0.0, 18.0, 18.0),
+            );
+            part(
+                p,
+                "Torso",
+                gameplay::TORSO_FATAL_AT,
+                at(17.0, 20.0, 30.0, 38.0),
+            );
+            part(
+                p,
+                "LeftArm",
+                gameplay::LIMB_DISABLED_AT,
+                at(5.0, 20.0, 10.0, 36.0),
+            );
+            part(
+                p,
+                "RightArm",
+                gameplay::LIMB_DISABLED_AT,
+                at(49.0, 20.0, 10.0, 36.0),
+            );
+            part(
+                p,
+                "LeftLeg",
+                gameplay::LIMB_DISABLED_AT,
+                at(17.0, 60.0, 14.0, 40.0),
+            );
+            part(
+                p,
+                "RightLeg",
+                gameplay::LIMB_DISABLED_AT,
+                at(33.0, 60.0, 14.0, 40.0),
+            );
+            p.text(
+                o + Vec2::new(32.0, 109.0),
+                egui::Align2::CENTER_CENTER,
+                format!("{pct:.0}%"),
+                egui::FontId::proportional(15.0),
+                Color32::WHITE,
+            );
         });
 }
 

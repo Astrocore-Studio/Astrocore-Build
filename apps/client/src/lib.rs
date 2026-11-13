@@ -301,7 +301,9 @@ fn aim_target(
         let Some(name) = hud.icons.name(prototype.as_str()) else {
             continue;
         };
-        let (min, max) = (o.min().to_array(), o.max().to_array());
+        // Допуск в 25 см: границы объекта — его след на полу, целиться в центр спрайта трудно.
+        let pad = MVec3::splat(0.25);
+        let (min, max) = ((o.min() - pad).to_array(), (o.max() + pad).to_array());
         let Some(t) = ray_box(origin, dir, min, max) else {
             continue;
         };
