@@ -317,6 +317,30 @@ fn aim_target(
     }
     if std::env::var_os("ASTRO_AIM_DEBUG").is_some() {
         let n = world.authored().count();
+        let mut near: Vec<(f32, String)> = world
+            .authored()
+            .filter_map(|o| {
+                let astrocore_world::AuthoredKind::Placement { prototype } = &o.kind else {
+                    return None;
+                };
+                let c = (o.min() + o.max()) * 0.5;
+                Some((
+                    c.distance(me),
+                    format!(
+                        "{} min={:?} max={:?} named={}",
+                        prototype.as_str(),
+                        o.min(),
+                        o.max(),
+                        hud.icons.name(prototype.as_str()).is_some()
+                    ),
+                ))
+            })
+            .collect();
+        near.sort_by(|a, b| a.0.total_cmp(&b.0));
+        eprintln!("AIMPLACE total={} me={me:?}", near.len());
+        for (d, t) in near.iter().take(3) {
+            eprintln!("AIMNEAR {d:.2} {t}");
+        }
         eprintln!(
             "AIM first_person={first_person} dir={dir:?} origin={origin:?} authored={n} hit={best:?}"
         );
