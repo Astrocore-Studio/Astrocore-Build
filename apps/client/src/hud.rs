@@ -950,6 +950,55 @@ pub fn lobby_screen(ctx: &egui::Context, v: &gameplay::LobbyView) -> Commands {
     out
 }
 
+/// Сводка конца раунда (`RoundEndSummaryWindow`): причина, длительность, экипаж и таймер до
+/// нового раунда.
+pub fn roundend_panel(ctx: &egui::Context, v: &gameplay::RoundEndView) {
+    let screen = ctx.content_rect();
+    egui::Area::new(egui::Id::new("roundend"))
+        .order(egui::Order::Foreground)
+        .fixed_pos(egui::pos2(screen.center().x - 200.0, screen.min.y + 60.0))
+        .show(ctx, |ui| {
+            egui::Frame::popup(ui.style())
+                .fill(Color32::from_rgba_unmultiplied(12, 14, 20, 235))
+                .show(ui, |ui| {
+                    ui.set_width(400.0);
+                    ui.vertical_centered(|ui| {
+                        ui.label(
+                            egui::RichText::new("РАУНД ОКОНЧЕН")
+                                .size(30.0)
+                                .strong()
+                                .color(Color32::from_rgb(255, 170, 120)),
+                        );
+                        ui.label(egui::RichText::new(&v.reason).size(18.0));
+                        ui.label(format!(
+                            "Раунд {} · длился {}:{:02}",
+                            v.round,
+                            v.duration / 60,
+                            v.duration % 60
+                        ));
+                    });
+                    ui.separator();
+                    let alive = v.crew.iter().filter(|c| c.alive).count();
+                    ui.label(format!("Экипаж: {} · выжили: {alive}", v.crew.len()));
+                    for c in &v.crew {
+                        let (mark, color) = if c.alive {
+                            ("жив", Color32::from_rgb(120, 220, 140))
+                        } else {
+                            ("погиб", Color32::from_rgb(230, 100, 100))
+                        };
+                        ui.horizontal(|ui| {
+                            ui.label(&c.job);
+                            ui.colored_label(color, mark);
+                        });
+                    }
+                    ui.separator();
+                    ui.vertical_centered(|ui| {
+                        ui.label(format!("Новый раунд через {} с", v.restart_in));
+                    });
+                });
+        });
+}
+
 /// Окно выбора должности (`LateJoinGui`): список со свободными местами; пока должности нет.
 pub fn jobs_window(
     ctx: &egui::Context,

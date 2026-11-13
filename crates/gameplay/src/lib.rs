@@ -32,8 +32,13 @@ pub use idconsole::{
 };
 pub mod jobs;
 pub mod lobby;
+pub mod round_end;
 pub use jobs::{JOBS_COMPONENT, JobEntry, JobsView, decode_jobs};
 pub use lobby::{LOBBY_COMPONENT, LobbyView, decode_lobby};
+pub use round_end::{
+    CrewEntry, EndReason, RESTART_DELAY_S, ROUNDEND_COMPONENT, RoundEndView, RoundSignal,
+    decode_end,
+};
 pub mod interact;
 pub mod inventory;
 pub mod items;

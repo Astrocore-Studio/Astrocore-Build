@@ -2300,6 +2300,51 @@ mod disposal_tests {
         assert_eq!(jobs_view(&h, b).unwrap().current.as_deref(), Some("Free"));
     }
 
+    fn roundend_view(h: &Harness, who: ConnId) -> Option<crate::RoundEndView> {
+        let net = h.client(who).net_id()?;
+        h.client(who)
+            .component(net, crate::ROUNDEND_COMPONENT)
+            .and_then(crate::decode_end)
+    }
+
+    #[test]
+    fn the_round_ends_when_the_crew_is_dead_and_asks_for_a_restart() {
+        use super::combat::kill;
+        let signal = crate::RoundSignal::new();
+        let s = signal.clone();
+        let mut h = harness_with(move |m| m.with_round_end(s, None));
+        let (a, b) = (h.join("a"), h.join("b"));
+        h.ticks(5);
+        grab(&mut h, a, 10, near(), "ss14:cudgel");
+        command(&mut h, b, crate::CMD_JOB, b"Free".to_vec());
+        h.ticks(5);
+        assert!(
+            roundend_view(&h, a).is_none(),
+            "пока экипаж жив, раунд идёт"
+        );
+        kill(&mut h, a, b);
+        h.ticks(10);
+        let v = roundend_view(&h, a).expect("сводка конца раунда");
+        assert_eq!(v.crew.len(), 1);
+        assert!(!v.crew[0].alive);
+        assert!(v.restart_in > 0 && v.restart_in <= 20);
+        assert!(!signal.take(), "сначала сводка, перезапуск позже");
+        h.ticks(30 * 21);
+        assert!(signal.take(), "время сводки вышло — просим новый раунд");
+    }
+
+    #[test]
+    fn the_round_ends_when_the_time_is_up() {
+        let signal = crate::RoundSignal::new();
+        let s = signal.clone();
+        let mut h = harness_with(move |m| m.with_round_end(s, Some(2.0)));
+        let a = h.join("a");
+        h.ticks(100);
+        let v = roundend_view(&h, a).expect("сводка");
+        assert_eq!(v.reason, "Время раунда вышло");
+        assert!(v.crew.is_empty());
+    }
+
     #[test]
     fn a_vending_machine_with_a_reader_refuses_without_access() {
         let mut h = harness();

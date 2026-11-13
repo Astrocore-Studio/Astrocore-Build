@@ -26,6 +26,7 @@ use crate::inventory::Inventory;
 use crate::items::{ItemInfo, item_info};
 use crate::lobby::Lobby;
 use crate::reagents::Solution;
+use crate::round_end::RoundState;
 use crate::storage::Storage;
 use crate::wire::{
     BagView, CMD_ATTACK, CMD_CANCEL, CMD_DROP, CMD_EQUIP, CMD_FEED, CMD_HEAL, CMD_INTERACT,
@@ -446,6 +447,8 @@ pub struct State {
     pub(crate) placed: BTreeSet<NetworkEntityId>,
     /// Лобби: `None` — выключено (игроки сразу выходят на станцию).
     pub(crate) lobby: Option<Lobby>,
+    /// Конец раунда: сигнал серверу, предел времени, часы раунда, экипаж, итог.
+    pub(crate) round: RoundState,
     pub(crate) spawn_next: usize,
     /// Огнезапоры: клетки по обе стороны проёма и что они удерживают (давление, температура).
     pub(crate) firelock_cells: BTreeMap<ObjectId, (atmos::Cell, atmos::Cell)>,
@@ -936,6 +939,7 @@ impl State {
             disposal_timer: 0.0,
             placed: BTreeSet::new(),
             lobby: None,
+            round: RoundState::default(),
             spawn_next: 0,
             firelock_cells: BTreeMap::new(),
             firelock_hold: BTreeMap::new(),
@@ -2228,6 +2232,7 @@ impl State {
         self.sync_pipes(ctx);
         self.sync_power(ctx);
         self.tick_lobby(ctx);
+        self.tick_round(ctx);
         self.place_joiners(ctx);
         self.tick_disposal(ctx, dt);
         self.tick_conveyors(ctx, dt);
@@ -3012,6 +3017,7 @@ impl State {
         }
         *self.job_taken.entry(job.to_string()).or_default() += 1;
         self.player_job.insert(actor, job.to_string());
+        self.round.crew.insert(actor, job.to_string());
         // Слоты по порядку шаблона: сначала то, от чего зависят другие (комбинезон, верхняя одежда).
         for slot in crate::inventory::human_template() {
             let Some(name) = spec.equipment.get(&slot.name) else {
@@ -4395,6 +4401,74 @@ impl State {
         }
     }
 
+    /// Конец раунда: весь экипаж погиб или вышло время; затем сводка и сигнал перезапуска.
+    fn tick_round(&mut self, ctx: &mut HookContext<'_>) {
+        use crate::round_end::{CrewEntry, EndReason, RESTART_DELAY_S, RoundEndView};
+        let dt = self.last_dt;
+        if self.lobby.as_ref().is_some_and(|l| !l.started) {
+            return;
+        }
+        self.round.clock += dt;
+        if self.round.ended.is_none() {
+            let alive = |a: &NetworkEntityId| {
+                self.actors.get(a).is_some_and(|x| {
+                    !x.ghost && !matches!(x.health.state(), crate::health::MobState::Dead)
+                })
+            };
+            let wiped = !self.round.crew.is_empty()
+                && !self
+                    .round
+                    .crew
+                    .keys()
+                    .any(|a| alive(a) && self.player_job.contains_key(a));
+            let reason = if wiped {
+                Some(EndReason::CrewDead)
+            } else if self.round.limit_s.is_some_and(|t| self.round.clock >= t) {
+                Some(EndReason::TimeLimit)
+            } else {
+                None
+            };
+            let Some(reason) = reason else {
+                return;
+            };
+            let crew = self
+                .round
+                .crew
+                .iter()
+                .map(|(a, job)| CrewEntry {
+                    job: job.clone(),
+                    alive: alive(a),
+                })
+                .collect();
+            self.round.ended = Some((reason, self.round.clock, crew));
+        }
+        let Some((reason, at, crew)) = self.round.ended.clone() else {
+            return;
+        };
+        let left = RESTART_DELAY_S - (self.round.clock - at);
+        if left <= 0.0 {
+            if let Some(s) = &self.round.signal {
+                s.request_restart();
+            }
+            return;
+        }
+        let number = self.lobby.as_ref().map_or(0, |l| l.round);
+        let view = RoundEndView {
+            reason: reason.text().into(),
+            duration: at as u32,
+            restart_in: left.ceil() as u32,
+            round: number,
+            crew,
+        };
+        let bytes = crate::round_end::encode_end(&view);
+        for p in ctx.players().collect::<Vec<_>>() {
+            if self.round.sent.get(&p) != Some(&bytes) {
+                ctx.set_component(p, crate::round_end::ROUNDEND_COMPONENT, bytes.clone());
+                self.round.sent.insert(p, bytes.clone());
+            }
+        }
+    }
+
     /// «Готов»/«Не готов» до старта, «Присоединиться» после.
     fn lobby_ready(&mut self, _ctx: &mut HookContext<'_>, actor: NetworkEntityId) {
         let Some(l) = self.lobby.as_mut() else {
@@ -5248,6 +5322,14 @@ impl GameplayModule {
     #[must_use]
     pub fn with_lobby(mut self, secs: f32, round: u32) -> Self {
         self.state.lobby = Some(Lobby::new(secs, round));
+        self
+    }
+
+    /// Сигнал серверу о конце раунда и предел времени раунда, с.
+    #[must_use]
+    pub fn with_round_end(mut self, signal: crate::RoundSignal, limit_s: Option<f32>) -> Self {
+        self.state.round.signal = Some(signal);
+        self.state.round.limit_s = limit_s;
         self
     }
 

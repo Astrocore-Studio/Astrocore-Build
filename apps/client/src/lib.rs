@@ -40,6 +40,8 @@ pub struct Loadout {
     pub jobs: Option<gameplay::JobsView>,
     /// Лобби перед раундом.
     pub lobby: Option<gameplay::LobbyView>,
+    /// Сводка конца раунда.
+    pub roundend: Option<gameplay::RoundEndView>,
     /// Открытая консоль выдачи ID.
     pub idconsole: Option<gameplay::IdConsoleView>,
     /// Раздатчик реагентов и анализатор здоровья.
@@ -327,6 +329,10 @@ fn refresh_loadout(net: Option<NonSend<Net>>, time: Res<Time>, mut loadout: ResM
         .core
         .component(me, gameplay::IDCONSOLE_COMPONENT)
         .and_then(gameplay::decode_view);
+    loadout.roundend = net
+        .core
+        .component(me, gameplay::ROUNDEND_COMPONENT)
+        .and_then(gameplay::decode_end);
     loadout.lobby = net
         .core
         .component(me, gameplay::LOBBY_COMPONENT)
@@ -780,6 +786,9 @@ fn loadout_window(
         loadout.idconsole.as_ref(),
         hand,
     ));
+    if let Some(v) = loadout.roundend.as_ref() {
+        hud::roundend_panel(&ctx, v);
+    }
     hud::toasts(&ctx, &mut loadout.toasts, time.elapsed_secs());
     commands.extend(hud::dispenser_window(
         &ctx,

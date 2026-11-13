@@ -6,7 +6,7 @@ use round::{Round, RoundConfig};
 const USAGE: &str = "\
 server — сервер Astrocore Build (раунд на нейтральном полигоне)
 
-  server --listen 127.0.0.1:7779 --key <hex32> [--tick-hz 20] [--ticks N] [--map карта.ron] [--lobby секунд, 0 = без лобби]
+  server --listen 127.0.0.1:7779 --key <hex32> [--tick-hz 20] [--ticks N] [--map карта.ron] [--lobby секунд, 0 = без лобби] [--round-secs секунд]
   server --write-manifest <файл.json>   записать манифест рендера для клиента и выйти
 ";
 
@@ -61,8 +61,13 @@ fn run(args: &[String]) -> Result<(), String> {
     let lobby_secs: f32 = arg(args, "--lobby")
         .map_or(Ok(round::DEFAULT_LOBBY_SECS), |v| v.parse())
         .map_err(|e| format!("--lobby: {e}"))?;
+    // Предел времени раунда: `--round-secs <секунд>` (без флага раунд кончается гибелью экипажа).
+    let round_secs: Option<f32> = arg(args, "--round-secs")
+        .map(|v| v.parse().map_err(|e| format!("--round-secs: {e}")))
+        .transpose()?;
     let config = RoundConfig {
         tick_hz,
+        round_secs,
         lobby_secs: (lobby_secs > 0.0).then_some(lobby_secs),
         ..RoundConfig::default()
     };
@@ -73,11 +78,21 @@ fn run(args: &[String]) -> Result<(), String> {
     println!("подготовка систем карты…");
     let _ = round.server.tick();
     println!("раунд {} начат; слушаю {addr}", round.number);
+    let (mut number, mut signal) = (round.number, round.signal);
     let mut host = astrocore_lightyear::LyGameHost::start(addr, key, round.server, tick_hz);
     println!("Lightyear: {}", host.local_addr());
     let mut steps = 0u64;
     while max_ticks.is_none_or(|m| steps < m) {
         host.step();
+        if signal.take() {
+            // Раунд окончен и сводка показана: новый раунд с нуля, клиенты входят заново.
+            number += 1;
+            let mut next = Round::start(number, &content, &config).map_err(|e| e.to_string())?;
+            let _ = next.server.tick();
+            println!("раунд {number} начат");
+            signal = next.signal;
+            host.replace_game(next.server);
+        }
         steps += 1;
         std::thread::sleep(Duration::from_millis(2));
     }

@@ -281,6 +281,12 @@ pub fn register_replication(reg: &mut ReplicationRegistry) -> Result<(), Replica
         max_bytes: crate::jobs::JOBS_MAX_BYTES,
     })?;
     reg.register(ReplicatedKind {
+        name: crate::round_end::ROUNDEND_COMPONENT.into(),
+        channel: ReplicationChannel::ReliableOrdered,
+        interest: Interest::Owner,
+        max_bytes: crate::round_end::ROUNDEND_MAX_BYTES,
+    })?;
+    reg.register(ReplicatedKind {
         name: crate::lobby::LOBBY_COMPONENT.into(),
         channel: ReplicationChannel::ReliableOrdered,
         interest: Interest::Owner,

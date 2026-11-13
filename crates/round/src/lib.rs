@@ -23,6 +23,8 @@ pub struct RoundConfig {
     pub allow_edit: bool,
     /// Секунд лобби до старта раунда; `None` — без лобби (игроки сразу на станции).
     pub lobby_secs: Option<f32>,
+    /// Предел времени раунда, с; `None` — раунд заканчивается только гибелью экипажа.
+    pub round_secs: Option<f32>,
 }
 
 impl Default for RoundConfig {
@@ -31,6 +33,7 @@ impl Default for RoundConfig {
             tick_hz: 20,
             allow_edit: false,
             lobby_secs: None,
+            round_secs: None,
         }
     }
 }
@@ -40,6 +43,8 @@ impl Default for RoundConfig {
 pub struct Round {
     pub number: u32,
     pub server: GameServer,
+    /// Модуль просит новый раунд (экипаж погиб или вышло время, сводка показана).
+    pub signal: gameplay::RoundSignal,
 }
 
 impl Round {
@@ -65,6 +70,8 @@ impl Round {
             .map_err(|e| RoundError::Module(e.to_string()))?
             .with_spawn(astrocore_math::glam::Vec3::from_array(polygon::spawn()))
             .with_station_name(polygon::map().name);
+        let signal = gameplay::RoundSignal::new();
+        let module = module.with_round_end(signal.clone(), config.round_secs);
         let module = match config.lobby_secs {
             Some(secs) => module.with_lobby(secs, number),
             None => module,
@@ -93,7 +100,11 @@ impl Round {
         )
         .with_modules(modules)
         .with_replication(replication);
-        Ok(Self { number, server })
+        Ok(Self {
+            number,
+            server,
+            signal,
+        })
     }
 
     /// Следующий раунд с нуля: прежний сервер отбрасывается вместе со всем состоянием.
