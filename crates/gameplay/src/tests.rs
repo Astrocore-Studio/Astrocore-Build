@@ -16,6 +16,7 @@ const PROTOS: &str = r#"[
     (id: "Crowbar", name: Some("crowbar"), parents: ["BaseItem"], components: {"Tool": (qualities: ["Prying"])}),
     (id: "Boulder", components: {"Sprite": (state: "boulder")}),
     (id: "Pen", components: {"Item": (size: "Tiny")}),
+    (id: "Chair", components: {"Sprite": (state: "chair"), "Strap": (buckleDoafterTime: 1.0)}),
     (id: "Toolbox", components: {"Item": (size: "Large")}),
     (id: "Jumpsuit", components: {"Item": (size: "Normal"), "Clothing": (slots: ["InnerClothing"])}),
     (id: "Cudgel", components: {
@@ -2770,6 +2771,50 @@ mod disposal_tests {
             h.ticks(8);
         }
         assert!(lying(&h, a, b), "усталость уронила");
+    }
+
+    #[test]
+    fn a_buckled_player_stays_in_the_seat_until_unbuckling() {
+        let mut h = harness();
+        let (a, b) = (h.join("a"), h.join("b"));
+        h.ticks(5);
+        spawn(&mut h, item_at(66, "ss14:chair", Vec3::new(2.5, 0.2, 2.5)));
+        let chair = crate::VerbTarget::Object(oid(66));
+        assert!(verb_ids(&mut h, a, chair).contains(&"buckle".to_string()));
+        command(
+            &mut h,
+            a,
+            crate::CMD_VERB_DO,
+            crate::target_data(chair, Some("buckle")),
+        );
+        // Пристёгивание длится секунду.
+        h.ticks(10);
+        assert!(
+            !verb_ids(&mut h, a, chair).contains(&"unbuckle".to_string()),
+            "ещё идёт"
+        );
+        h.ticks(20);
+        assert!(verb_ids(&mut h, a, chair).contains(&"unbuckle".to_string()));
+        // Занятое сиденье другому не предлагают.
+        assert!(!verb_ids(&mut h, b, chair).contains(&"buckle".to_string()));
+        // Пристёгнутый не ходит.
+        let at = feet(&h, a);
+        for _ in 0..30 {
+            h.input(a, 0, 1, 0.0);
+        }
+        assert!(feet(&h, a).distance(at) < 0.1, "остался на сиденье");
+        command(
+            &mut h,
+            a,
+            crate::CMD_VERB_DO,
+            crate::target_data(chair, Some("unbuckle")),
+        );
+        h.ticks(5);
+        for _ in 0..30 {
+            h.input(a, 0, 1, 0.0);
+        }
+        assert!(feet(&h, a).distance(at) > 1.0, "отстегнулся и пошёл");
+        assert!(verb_ids(&mut h, b, chair).contains(&"buckle".to_string()));
     }
 
     #[test]

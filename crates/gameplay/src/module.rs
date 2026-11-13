@@ -103,6 +103,8 @@ pub(crate) struct Actor {
     pub(crate) stam_crit: bool,
     pub(crate) stam_after: bool,
     pub(crate) stun_until: f32,
+    /// Сиденье, к которому пристёгнут персонаж (`BuckleComponent.BuckledTo`).
+    pub(crate) buckled: Option<ObjectId>,
     /// Когда в следующий раз разослать здоровье из-за кровотечения или удушья, с.
     pub(crate) next_health_publish: f32,
     /// Здоровье изменилось сидящими внутри процессами, а разослать ещё не успели.
@@ -146,6 +148,7 @@ impl Actor {
             stam_crit: false,
             stam_after: false,
             stun_until: 0.0,
+            buckled: None,
             next_health_publish: 0.0,
             health_dirty: false,
             ghost: false,
@@ -508,6 +511,8 @@ pub struct State {
     pub(crate) descriptions: BTreeMap<String, String>,
     pub(crate) verb_seq: u32,
     /// Кто кого тащит: тащащий → (цель, длина связи, м). Цель тащат не более одного.
+    /// Сиденья: время пристёгивания, с (`StrapComponent.BuckleDoafterTime`).
+    pub(crate) straps: BTreeMap<PrototypeId, f32>,
     pub(crate) pulls: BTreeMap<NetworkEntityId, (crate::verbs::VerbTarget, f32)>,
     /// Брошенные предметы в полёте: когда упадут, предмет и место падения.
     pub(crate) thrown: Vec<(f32, crate::hands::HeldItem, Vec3)>,
@@ -571,6 +576,7 @@ impl State {
         let mut refillables = BTreeSet::new();
         let mut tank_templates = BTreeMap::new();
         let mut display_names: BTreeMap<PrototypeId, String> = BTreeMap::new();
+        let mut straps: BTreeMap<PrototypeId, f32> = BTreeMap::new();
         let mut ss14_names: BTreeMap<PrototypeId, String> = BTreeMap::new();
         for (id, name) in names {
             let resolved = registry.spawnable(&name).ok();
@@ -578,6 +584,14 @@ impl State {
                 display_names.insert(id.clone(), n);
             }
             ss14_names.insert(id.clone(), name.clone());
+            if let Some(c) = resolved.as_ref().and_then(|r| r.component("Strap")) {
+                straps.insert(
+                    id.clone(),
+                    c.get("buckleDoafterTime")
+                        .and_then(prototypes::Data::as_f64)
+                        .map_or(2.0, |v| v.max(0.0) as f32),
+                );
+            }
             if let Some(info) = resolved.as_ref().and_then(item_info) {
                 infos.insert(id.clone(), info);
             }
@@ -1018,6 +1032,7 @@ impl State {
             descriptions: BTreeMap::new(),
             verb_seq: 0,
             pulls: BTreeMap::new(),
+            straps,
             thrown: Vec::new(),
             spawn_next: 0,
             firelock_cells: BTreeMap::new(),
@@ -1849,7 +1864,7 @@ impl State {
         let legs = a.health.part_disabled("LeftLeg") && a.health.part_disabled("RightLeg");
         let died = now == MobState::Dead && before != MobState::Dead;
         let resisting = a.body.as_ref().is_some_and(Body::resisting);
-        let slipped = a.slip_until > self.clock || a.stun_until > self.clock;
+        let slipped = a.slip_until > self.clock || a.stun_until > self.clock || a.buckled.is_some();
         let in_cryo = a.cryo.is_some();
         let status_down = a.body.as_ref().is_some_and(Body::disabled_by_status);
         let freeze = (!now.can_act() || legs || resisting || slipped || in_cryo || status_down)
@@ -1966,6 +1981,7 @@ impl State {
                     .is_some_and(|info| a.inventory.can_equip(slot, info).is_ok())
             }),
             Action::Unequip { slot, .. } => a.inventory.get(slot).is_some(),
+            Action::Buckle { strap } => self.can_buckle(ctx, actor, *strap),
             Action::Eat { hand, item, target } => {
                 if target.is_some_and(|t| !self.in_reach(ctx, actor, t)) {
                     return false;
@@ -2093,6 +2109,8 @@ impl State {
                 .and_then(|i| self.healing.get(&i.prototype))
                 .map_or(0.0, |h| h.delay),
             Action::Mix { hand, shake, .. } => self.mix_delay(actor, *hand, *shake),
+            // Время пристёгивания одинаково у сидений билда (`BuckleDoafterTime` 2 с).
+            Action::Buckle { .. } => self.straps.values().next().copied().unwrap_or(2.0),
             Action::CryoPut { .. } => self
                 .cryo_specs
                 .values()
@@ -2139,6 +2157,7 @@ impl State {
             Action::Inject { hand, target } => self.inject_body(ctx, actor, hand, target),
             Action::Defib { hand, target } => self.zap(ctx, actor, hand, target),
             Action::CryoPut { pod, target } => self.cryo_put(ctx, pod, target),
+            Action::Buckle { strap } => self.buckle(ctx, actor, strap),
             Action::Mix {
                 hand,
                 target,
@@ -5001,6 +5020,84 @@ impl State {
         });
     }
 
+    /// Глагол «Buckle» / «Unbuckle» для сиденья (`SharedBuckleSystem.OnGetInteractionVerbs`).
+    fn buckle_verb(
+        &self,
+        ctx: &HookContext<'_>,
+        actor: NetworkEntityId,
+        target: crate::verbs::VerbTarget,
+    ) -> Option<crate::verbs::Verb> {
+        use crate::verbs::{Verb, VerbTarget};
+        let VerbTarget::Object(strap) = target else {
+            return None;
+        };
+        if !self.is_strap(ctx, strap) {
+            return None;
+        }
+        let mine = self.actors.get(&actor).and_then(|a| a.buckled);
+        if mine == Some(strap) {
+            return Some(Verb {
+                id: "unbuckle".into(),
+                label: "Unbuckle".into(),
+                disabled: None,
+            });
+        }
+        self.can_buckle(ctx, actor, strap).then(|| Verb {
+            id: "buckle".into(),
+            label: "Buckle".into(),
+            disabled: None,
+        })
+    }
+
+    /// Сиденье ли объект (прототип с компонентом `Strap`).
+    fn is_strap(&self, ctx: &HookContext<'_>, strap: ObjectId) -> bool {
+        ctx.world.authored_object(strap).is_some_and(
+            |o| matches!(&o.kind, AuthoredKind::Placement { prototype } if self.straps.contains_key(prototype)),
+        )
+    }
+
+    /// `CanBuckle`: не пристёгнут, живой и в сознании, сиденье свободно и в досягаемости.
+    fn can_buckle(&self, ctx: &HookContext<'_>, actor: NetworkEntityId, strap: ObjectId) -> bool {
+        let Some(a) = self.actors.get(&actor) else {
+            return false;
+        };
+        if a.buckled.is_some()
+            || a.ghost
+            || !a.health.state().can_act()
+            || a.stun_until > self.clock
+            || !self.is_strap(ctx, strap)
+            || self.actors.values().any(|o| o.buckled == Some(strap))
+        {
+            return false;
+        }
+        let (Some(feet), Some(obj)) = (ctx.position_of(actor), ctx.world.authored_object(strap))
+        else {
+            return false;
+        };
+        self.reachable(ctx, feet, obj)
+    }
+
+    /// Пристегнуть: игрок встаёт на место сиденья и не может ходить, пока не отстегнётся.
+    fn buckle(&mut self, ctx: &mut HookContext<'_>, actor: NetworkEntityId, strap: ObjectId) {
+        let Some(obj) = ctx.world.authored_object(strap) else {
+            return;
+        };
+        let centre = (obj.min() + obj.max()) * 0.5;
+        let at = Vec3::new(centre.x, obj.min().y, centre.z);
+        self.actor(actor).buckled = Some(strap);
+        self.pulls.remove(&actor);
+        ctx.teleport(actor, at);
+        self.after_health_change(ctx, actor);
+    }
+
+    /// Отстегнуться (`TryUnbuckle`): сразу, остаётся на месте.
+    fn unbuckle(&mut self, ctx: &mut HookContext<'_>, actor: NetworkEntityId) {
+        if self.actors.get(&actor).is_some_and(|a| a.buckled.is_some()) {
+            self.actor(actor).buckled = None;
+            self.after_health_change(ctx, actor);
+        }
+    }
+
     /// Допуск на размер цели при проверке прямой видимости, м: объект — крупнее игрока.
     fn verb_slack(target: crate::verbs::VerbTarget) -> f32 {
         match target {
@@ -5069,6 +5166,9 @@ impl State {
         if let Some(v) = self.pull_verb(ctx, actor, target) {
             verbs.push(v);
         }
+        if let Some(v) = self.buckle_verb(ctx, actor, target) {
+            verbs.push(v);
+        }
         self.verb_seq += 1;
         let view = VerbsView {
             seq: self.verb_seq,
@@ -5085,6 +5185,7 @@ impl State {
     /// Выполнить глагол: пока осмотр и осмотр здоровья.
     fn verb_do(&mut self, ctx: &mut HookContext<'_>, actor: NetworkEntityId, data: &[u8]) {
         use crate::verbs::{ExamineView, VerbTarget};
+        eprintln!("VERB_DO_ENTRY actor={actor:?} bytes={}", data.len());
         let Some((target, verb)) = crate::verbs::parse_target(data) else {
             return;
         };
@@ -5092,6 +5193,14 @@ impl State {
             return;
         };
         // Таскание не требует осмотра: свои правила дальности внутри `start_pull`.
+        if matches!(verb, "buckle" | "unbuckle") {
+            if let (VerbTarget::Object(strap), "buckle") = (target, verb) {
+                self.begin(ctx, actor, Action::Buckle { strap });
+            } else {
+                self.unbuckle(ctx, actor);
+            }
+            return;
+        }
         if matches!(verb, "pull" | "stop_pull") {
             if verb == "pull" {
                 self.start_pull(ctx, actor, target);
@@ -5131,6 +5240,14 @@ impl State {
         match (verb, target) {
             ("pull", _) => {
                 self.start_pull(ctx, actor, target);
+                return;
+            }
+            ("buckle", VerbTarget::Object(strap)) => {
+                self.begin(ctx, actor, Action::Buckle { strap });
+                return;
+            }
+            ("unbuckle", _) => {
+                self.unbuckle(ctx, actor);
                 return;
             }
             ("stop_pull", _) => {

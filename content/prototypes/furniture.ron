@@ -3,12 +3,15 @@
 [
     (id: "Chair", name: Some("chair"), components: {
         "Sprite": (sprite: "Structures/Furniture/chairs.rsi", state: "chair"),
+        "Strap": (buckleDoafterTime: 2.0),
     }),
     (id: "ChairOffice", name: Some("office chair"), components: {
         "Sprite": (sprite: "Structures/Furniture/chairs.rsi", state: "office-dark"),
+        "Strap": (buckleDoafterTime: 2.0),
     }),
     (id: "ChairComfy", name: Some("comfy chair"), components: {
         "Sprite": (sprite: "Structures/Furniture/chairs.rsi", state: "comfy"),
+        "Strap": (buckleDoafterTime: 2.0),
     }),
     (id: "ChairWooden", name: Some("wooden chair"), components: {
         "Sprite": (sprite: "Structures/Furniture/chairs.rsi", state: "wooden"),

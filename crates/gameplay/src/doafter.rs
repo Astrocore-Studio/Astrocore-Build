@@ -63,6 +63,10 @@ pub(crate) enum Action {
         pod: ObjectId,
         target: astrocore_core::NetworkEntityId,
     },
+    /// Пристегнуться к сиденью (`BuckleDoAfterEvent`).
+    Buckle {
+        strap: ObjectId,
+    },
     /// Съесть или выпить укус из предмета в руке.
     Eat {
         hand: usize,
@@ -93,6 +97,7 @@ impl Action {
             Self::Mix { shake: true, .. } => "shake",
             Self::Mix { .. } => "mix",
             Self::Eat { .. } => "eat",
+            Self::Buckle { .. } => "buckle",
         }
     }
 }

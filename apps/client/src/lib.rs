@@ -642,6 +642,7 @@ fn autoplay(
         && state.frame == 100
         && let Ok(n) = u128::from_str_radix(hex.trim_start_matches("0x"), 16)
     {
+        eprintln!("EXAMINE_SEND {n:x}");
         net.send_command(
             gameplay::CMD_VERB_DO,
             gameplay::target_data(
@@ -936,6 +937,7 @@ fn loadout_window(
             "pry" => "Вскрываем…",
             "heal" => "Лечим…",
             "eat" => "Едим…",
+            "buckle" => "Пристёгиваемся…",
             _ => "Действие…",
         };
         (
