@@ -60,8 +60,9 @@ impl Sounds {
         assets: &mut Assets<AudioSource>,
         path: &str,
         distance: f32,
+        volume_db: f32,
     ) {
-        let v = attenuation(distance) * 0.8;
+        let v = attenuation(distance) * 0.8 * 10.0_f32.powf(volume_db / 20.0);
         if v <= 0.0 {
             return;
         }
@@ -74,7 +75,10 @@ impl Sounds {
             })
         });
         if let Some(h) = handle {
-            play(commands, h, v);
+            let entity = play(commands, h, v);
+            if path == "Machines/alarm.ogg" && std::env::var_os("ASTRO_SMOKE_EXIT").is_some() {
+                commands.entity(entity).insert(AlarmPlaybackProbe);
+            }
         }
     }
 
@@ -112,11 +116,32 @@ impl Sounds {
     }
 }
 
-fn play(commands: &mut Commands, handle: &Handle<AudioSource>, volume: f32) {
-    commands.spawn((
-        AudioPlayer::new(handle.clone()),
-        PlaybackSettings::DESPAWN.with_volume(Volume::Linear(volume)),
-    ));
+fn play(commands: &mut Commands, handle: &Handle<AudioSource>, volume: f32) -> Entity {
+    commands
+        .spawn((
+            AudioPlayer::new(handle.clone()),
+            PlaybackSettings::DESPAWN.with_volume(Volume::Linear(volume)),
+        ))
+        .id()
+}
+
+#[derive(Component)]
+pub(crate) struct AlarmPlaybackProbe;
+
+/// Smoke checks the actual audio decoder/device instead of only a queued event.
+pub fn trace_alarm_playback(
+    sinks: Query<(Entity, &bevy::audio::AudioSink), With<AlarmPlaybackProbe>>,
+    mut commands: Commands,
+) {
+    use bevy::audio::AudioSinkPlayback;
+    for (entity, sink) in &sinks {
+        eprintln!(
+            "ASTRO_ALARM_AUDIO: decoded=true paused={} empty={}",
+            sink.is_paused(),
+            sink.empty()
+        );
+        commands.entity(entity).remove::<AlarmPlaybackProbe>();
+    }
 }
 
 /// Двери: звук при смене состояния любой двери, о которой знает клиент.

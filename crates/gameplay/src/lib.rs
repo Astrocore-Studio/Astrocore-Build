@@ -17,6 +17,7 @@ mod defib;
 pub use analyzer::{SCAN_COMPONENT, ScanView, decode_scan};
 pub use chemhand::{CHEMHAND_COMPONENT, ChemHandView, decode_chemhand};
 pub use chemlab::{LAB_COMPONENT, LabView, decode_lab};
+pub mod alerts;
 mod doafter;
 mod edibles;
 pub mod electric;

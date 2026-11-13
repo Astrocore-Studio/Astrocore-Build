@@ -36,6 +36,8 @@ pub enum ImportError {
 /// Материалы движка для конструкций импортируемой карты.
 #[derive(Debug, Clone)]
 pub struct Materials {
+    /// WallMount prototypes from the source-derived metadata, projected onto 3D wall faces.
+    pub wallmounts: BTreeSet<String>,
     pub wall: PrototypeId,
     pub floor: PrototypeId,
     pub door: PrototypeId,
@@ -50,6 +52,7 @@ impl Default for Materials {
     fn default() -> Self {
         let id = |s: &str| PrototypeId::new(s).expect("встроенный идентификатор валиден");
         Self {
+            wallmounts: BTreeSet::new(),
             wall: id("ss14:wall_solid"),
             floor: id("ss14:floor_dark"),
             door: id("ss14:airlock"),
@@ -462,6 +465,7 @@ pub fn import(
         }
     }
     let mut fire_cells: BTreeSet<(i32, i32)> = BTreeSet::new();
+    let mut fire_uids: BTreeMap<(i32, i32), Vec<i64>> = BTreeMap::new();
     let mut door_lists: BTreeMap<(i32, i32), Vec<Vec<String>>> = BTreeMap::new();
     let mut edge_access: BTreeMap<GridEdge, Vec<Vec<String>>> = BTreeMap::new();
     let mut cables_seen: BTreeSet<((i32, i32), &str)> = BTreeSet::new();
@@ -500,6 +504,9 @@ pub fn import(
                 }
                 Kind::Firelock => {
                     fire_cells.insert(cell);
+                    if let Some(uid) = entity.get("uid").and_then(Value::as_i64) {
+                        fire_uids.entry(cell).or_default().push(uid);
+                    }
                 }
                 Kind::Spawn => {
                     report.spawns += 1;
@@ -600,6 +607,28 @@ pub fn import(
                         proto.to_string()
                     };
                     let mut meta = BTreeMap::new();
+                    if let Some(uid) = entity.get("uid").and_then(Value::as_i64) {
+                        meta.insert("ss14_uid".into(), uid.to_string());
+                    }
+                    // DeviceList references entities, not cells. Retain exact links as well
+                    // as the old cell list used by firelocks and piping.
+                    let device_ids = device_list(entity);
+                    if !device_ids.is_empty() {
+                        meta.insert(
+                            "device_ids".into(),
+                            device_ids
+                                .iter()
+                                .map(i64::to_string)
+                                .collect::<Vec<_>>()
+                                .join(";"),
+                        );
+                    }
+                    if let Some(name) = component_text(entity, "MetaData", "name") {
+                        meta.insert("name".into(), name);
+                    }
+                    if let Some(address) = component_text(entity, "DeviceNetwork", "address") {
+                        meta.insert("device_address".into(), address);
+                    }
                     if let Some(locked) = component_bool(entity, "Lock", "locked") {
                         meta.insert("locked".to_string(), u8::from(locked).to_string());
                     }
@@ -638,6 +667,24 @@ pub fn import(
     if walk.is_empty() {
         return Err(ImportError::NoFloor);
     }
+    // SS14 stores wall-mounted entities at the centre of a solid tile. In a 3D
+    // edge-wall world that puts both the sprite and its interaction point behind
+    // the wall. Keep the source anchor, and place the default 0.3 m object against
+    // the source-facing face: half tile + half 0.2 m wall + half object extent.
+    for item in items
+        .iter_mut()
+        .filter(|item| mats.wallmounts.contains(&item.prototype))
+    {
+        let cell = (item.x.floor() as i32, item.z.floor() as i32);
+        let (dx, dz) = [(0, 1), (1, 0), (0, -1), (-1, 0)][item.rot as usize % 4];
+        if solid.contains(&cell) && walk.contains(&(cell.0 + dx, cell.1 + dz)) {
+            item.meta
+                .insert("wallmount_origin".into(), format!("{},{}", item.x, item.z));
+            let offset = 0.5 + 0.2 * 0.5 + 0.3 * 0.5;
+            item.x = cell.0 as f32 + 0.5 + dx as f32 * offset;
+            item.z = cell.1 as f32 + 0.5 + dz as f32 * offset;
+        }
+    }
     report.floor_tiles = walk.len();
     report.wall_cells = solid.len();
     report.items = items.len();
@@ -658,6 +705,7 @@ pub fn import(
     let dirs = [(1, 0), (-1, 0), (0, 1), (0, -1)];
     let mut door_edges: BTreeSet<GridEdge> = BTreeSet::new();
     let mut fire_edges: BTreeSet<GridEdge> = BTreeSet::new();
+    let mut fire_sources: BTreeMap<GridEdge, Vec<i64>> = BTreeMap::new();
     // Огнезапоры стоят в проходах и перекрывают его вместе со стенами и соседними огнезапорами.
     let mut barrier = solid.clone();
     barrier.extend(fire_cells.iter().copied());
@@ -702,6 +750,10 @@ pub fn import(
             }
             (Some(e), true) if !door_edges.contains(&e) => {
                 fire_edges.insert(e);
+                fire_sources
+                    .entry(e)
+                    .or_default()
+                    .extend(fire_uids.get(&d).into_iter().flatten().copied());
             }
             (_, true) => report.firelocks_unplaced += 1,
             (None, false) => report.doors_unplaced += 1,
@@ -735,12 +787,28 @@ pub fn import(
         ));
     }
     for e in &fire_edges {
-        elements.push(element(
+        let door = element(
             StructureKind::Opening(OpeningKind::Door),
             Placement::Edge(*e),
             &mats.firelock,
             0.1,
-        ));
+        );
+        for uid in fire_sources.get(e).into_iter().flatten() {
+            zones.push(MapZone {
+                min: [e.x as f32 + 0.45, 0.0, e.z as f32 + 0.45],
+                max: [e.x as f32 + 0.55, 3.0, e.z as f32 + 0.55],
+                floor: 0,
+                metadata: [
+                    ("ss14_uid".into(), uid.to_string()),
+                    (
+                        "alarm_firelock".into(),
+                        format!("{:x}", door.id.as_uuid().as_u128()),
+                    ),
+                ]
+                .into(),
+            });
+        }
+        elements.push(door);
     }
     report.firelocks = fire_edges.len();
     // Плитка каждой клетки: имя SS14 → материал (в наших координатах z = −y − 1).

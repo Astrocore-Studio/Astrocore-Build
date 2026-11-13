@@ -202,6 +202,8 @@ pub fn register_replication(reg: &mut ReplicationRegistry) -> Result<(), Replica
         crate::power_monitor::COMPONENT,
         crate::power_monitor::MAP_COMPONENT,
         crate::power_monitor::CABLE_COMPONENT,
+        crate::alerts::COMPONENT,
+        crate::alerts::VISUAL_COMPONENT,
     ] {
         reg.register(ReplicatedKind {
             name: name.into(),

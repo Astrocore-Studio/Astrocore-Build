@@ -12,6 +12,8 @@ param(
     [string]$GraphicsBackend = 'Auto',
     [switch]$LocalEngine,
     [string]$EngineRoot,
+    [ValidatePattern('^[a-zA-Z0-9_-]+$')]
+    [string]$LogName = 'saltern',
     [Parameter(ValueFromRemainingArguments = $true)]
     [string[]]$ClientArguments
 )
@@ -85,7 +87,7 @@ $AstroPreviousShot = $env:ASTRO_SHOT
 $AstroPreviousBackend = $env:WGPU_BACKEND
 if ($GraphicsBackend -ne 'Auto') { $env:WGPU_BACKEND = $GraphicsBackend.ToLowerInvariant() }
 if ($Mode -eq 'Smoke') {
-    $env:ASTRO_SMOKE_EXIT = '1'
+    if (-not $env:ASTRO_SMOKE_EXIT) { $env:ASTRO_SMOKE_EXIT = '1' }
     $AstroCaptureRoot = Join-Path $AstroLocalRoot 'screenshots'
     New-Item -ItemType Directory -Force -Path $AstroCaptureRoot | Out-Null
     if (-not $env:ASTRO_SHOT) { $env:ASTRO_SHOT = $AstroCaptureRoot }
@@ -101,13 +103,13 @@ try {
         $AstroSpawnArgs = @('--listen', $AstroAddress, '--key', $AstroKey, '--map', ('"' + $MapPath + '"'))
         $AstroServerProcess = Start-Process -FilePath $AstroServerExe -ArgumentList $AstroSpawnArgs `
             -WorkingDirectory $AstroBuildRoot -WindowStyle Hidden -PassThru `
-            -RedirectStandardOutput (Join-Path $AstroLogRoot 'saltern-server.stdout.log') `
-            -RedirectStandardError (Join-Path $AstroLogRoot 'saltern-server.stderr.log')
+            -RedirectStandardOutput (Join-Path $AstroLogRoot "$LogName-server.stdout.log") `
+            -RedirectStandardError (Join-Path $AstroLogRoot "$LogName-server.stderr.log")
         $AstroReadyDeadline = [DateTime]::UtcNow.AddSeconds(30)
         $AstroServerReady = $false
         while ([DateTime]::UtcNow -lt $AstroReadyDeadline) {
             if ($AstroServerProcess.HasExited) { throw 'Server exited; see .local/logs/saltern-server.stderr.log.' }
-            $AstroServerOutput = Get-Content -LiteralPath (Join-Path $AstroLogRoot 'saltern-server.stdout.log') -Raw -ErrorAction SilentlyContinue
+            $AstroServerOutput = Get-Content -LiteralPath (Join-Path $AstroLogRoot "$LogName-server.stdout.log") -Raw -ErrorAction SilentlyContinue
             if ($AstroServerOutput -match '(?m)^Lightyear: ') { $AstroServerReady = $true; break }
             Start-Sleep -Milliseconds 100
         }
@@ -120,10 +122,13 @@ try {
     $AstroClientProcess = Start-Process -FilePath (Join-Path $AstroDebugRoot 'client.exe') `
         -ArgumentList $AstroQuotedClientArgs -WorkingDirectory $AstroBuildRoot `
         -WindowStyle Normal -PassThru -Wait `
-        -RedirectStandardOutput (Join-Path $AstroLogRoot 'saltern-client.stdout.log') `
-        -RedirectStandardError (Join-Path $AstroLogRoot 'saltern-client.stderr.log')
+        -RedirectStandardOutput (Join-Path $AstroLogRoot "$LogName-client.stdout.log") `
+        -RedirectStandardError (Join-Path $AstroLogRoot "$LogName-client.stderr.log")
     $AstroClientExitCode = $AstroClientProcess.ExitCode
     if ($Mode -eq 'Smoke') {
+        $AstroFailure = Select-String -LiteralPath (Join-Path $AstroLogRoot "$LogName-client.stderr.log") `
+            -Pattern 'ConnectTokenExpired|ConnectionTimedOut|Invalid surface' -ErrorAction SilentlyContinue
+        if ($AstroFailure) { throw "Client connection or renderer failed; see .local/logs/$LogName-client.stderr.log." }
         $AstroLastCapture = Get-Item -LiteralPath (Join-Path $env:ASTRO_SHOT 'frame340.png') -ErrorAction SilentlyContinue
         if (-not $AstroLastCapture -or $AstroLastCapture.LastWriteTimeUtc -lt $AstroCaptureStarted) {
             throw 'The client exited without a capture of the loaded world; see .local/logs/saltern-client.stderr.log.'

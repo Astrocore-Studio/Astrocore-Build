@@ -237,6 +237,8 @@ fn registry() -> Arc<PrototypeRegistry> {
     r.load_ron_str(PROTOS, "test").unwrap();
     r.load_ron_str(power_monitoring::PROTOS, "power monitor test")
         .unwrap();
+    r.load_ron_str(atmos_alerts::PROTOS, "atmos alerts test")
+        .unwrap();
     r.validate().unwrap();
     Arc::new(r)
 }
@@ -2998,7 +3000,7 @@ mod power_monitoring {
         )
     }
 
-    fn setup() -> Harness {
+    pub(super) fn setup() -> Harness {
         let mut h = super::harness();
         for (n, group) in [(10, "hv"), (11, "mv"), (12, "apc")] {
             let mut zone = AuthoredObject::new(
@@ -3125,5 +3127,245 @@ mod power_monitoring {
         command(&mut h, a, CMD_INTERACT, interact_data(id(1)));
         h.ticks(2);
         assert!(view(&h, a).is_none(), "unpowered console stays closed");
+    }
+}
+
+mod atmos_alerts {
+    use super::*;
+    use crate::alerts::{self as alerts, Level, View, Visuals};
+    pub(super) const PROTOS: &str = r#"[
+        (id:"AlertsConsole",components:{"ApcPowerReceiver":(load:50.0)}),
+        (id:"AlertAir",components:{"ApcPowerReceiver":(load:0.0)}),
+        (id:"AlertFire",components:{"ApcPowerReceiver":(load:0.0)}),
+        (id:"AlertSensor",components:{"ApcPowerReceiver":(load:0.0)}),
+        (id:"AtmosAlertsData",abstract:true,components:{"AtmosAlerts":(devices:[
+            (prototype:"AlertsConsole",role:"Console",name:"alerts console"),
+            (prototype:"AlertAir",role:"AirAlarm",name:"air alarm",tags:["AirAlarm"],syncWith:["AirAlarm","AirSensor"]),
+            (prototype:"AlertFire",role:"FireAlarm",name:"fire alarm",tags:["FireAlarm"],syncWith:["FireAlarm","AirSensor"],monitorAlertTypes:["Temperature"]),
+            (prototype:"AlertSensor",role:"Sensor",name:"sensor",tags:["AirSensor"],
+                temperature:(upperBound:393.15,lowerBound:193.15,upperWarnAround:0.8,lowerWarnAround:1.1),
+                pressure:(upperBound:550.0,lowerBound:85.0,upperWarnAround:0.7,lowerWarnAround:1.05),
+                gases:[(gas:"Oxygen",lowerBound:0.1,upperBound:0.3,lowerWarnAround:1.5,upperWarnAround:0.8),
+                       (gas:"CarbonDioxide",upperBound:0.006,upperWarnAround:0.5)])
+        ])}),
+    ]"#;
+    fn id(n: u128) -> ObjectId {
+        oid(2000 + n)
+    }
+    fn place(h: &mut Harness, n: u128, proto: &str, links: &str, at: Vec3) {
+        let mut object = item_at(2000 + n, &format!("ss14:{proto}"), at);
+        object.metadata.insert("ss14_uid".into(), n.to_string());
+        object.metadata.insert("device_ids".into(), links.into());
+        spawn(h, object);
+    }
+    fn setup() -> Harness {
+        let mut h = power_monitoring::setup();
+        // The existing power fixture covers x/z in [3,4]. All controls are in reach.
+        for (n, proto, links, at) in [
+            (1, "alerts_console", "", Vec3::new(3.0, 0.9, 3.0)),
+            (2, "alerts_console", "", Vec3::new(3.1, 0.9, 3.0)),
+            (3, "alert_air", "10", Vec3::new(3.2, 0.9, 3.0)),
+            (4, "alert_fire", "5;10", Vec3::new(3.3, 0.9, 3.0)),
+            (5, "alert_fire", "4;10", Vec3::new(3.4, 0.9, 3.0)),
+            (10, "alert_sensor", "", Vec3::new(3.6, 0.9, 3.6)),
+        ] {
+            place(&mut h, n, proto, links, at);
+        }
+        h
+    }
+    fn view(h: &Harness, who: ConnId) -> Option<View> {
+        alerts::decode(
+            h.client(who)
+                .component(h.client(who).net_id()?, alerts::COMPONENT)?,
+        )
+    }
+    fn visuals(h: &Harness, who: ConnId) -> Visuals {
+        alerts::decode(
+            h.client(who)
+                .component(h.client(who).net_id().unwrap(), alerts::VISUAL_COMPONENT)
+                .unwrap(),
+        )
+        .unwrap()
+    }
+    fn open(h: &mut Harness, who: ConnId, n: u128) {
+        command(h, who, CMD_INTERACT, interact_data(id(n)));
+        h.ticks(3);
+    }
+    #[test]
+    fn alerts_use_linked_sensor_readings_and_filter_non_temperature_fire_packets() {
+        let mut h = setup();
+        let mut zone = AuthoredObject::new(
+            id(20),
+            AuthoredKind::Zone,
+            FloorId(0),
+            Vec3::ZERO,
+            Vec3::new(8.0, 3.0, 8.0),
+        );
+        zone.metadata.insert("atmosphere".into(), "co2".into());
+        spawn(&mut h, zone);
+        let a = h.join("a");
+        let b = h.join("b");
+        h.ticks(120);
+        open(&mut h, a, 1);
+        assert_eq!(
+            view(&h, a)
+                .unwrap_or_else(|| panic!("console did not open: {:?}", visuals(&h, a)))
+                .entries
+                .len(),
+            3
+        );
+        assert!(view(&h, b).is_none());
+        command(
+            &mut h,
+            a,
+            alerts::CMD_FOCUS,
+            alerts::focus_data(Some(id(3))),
+        );
+        h.ticks(3);
+        let initial = view(&h, a).unwrap().reading.unwrap();
+        assert!((initial.temperature.0 - 293.15).abs() < 0.1);
+        assert!(initial.pressure.0 > 101.325);
+        assert_eq!(initial.temperature.1, Level::Normal);
+        let changed = view(&h, a).unwrap();
+        assert_eq!(
+            changed
+                .entries
+                .iter()
+                .find(|e| e.id == id(3))
+                .unwrap()
+                .level,
+            Level::Danger
+        );
+        assert_eq!(
+            changed
+                .entries
+                .iter()
+                .find(|e| e.id == id(4))
+                .unwrap()
+                .level,
+            Level::Normal,
+            "FireAlarm accepts only temperature monitor alerts"
+        );
+        assert!(
+            changed
+                .reading
+                .unwrap()
+                .gases
+                .iter()
+                .any(|g| g.0 == 2 && g.3 == Level::Danger)
+        );
+        command(
+            &mut h,
+            a,
+            alerts::CMD_FOCUS,
+            alerts::focus_data(Some(id(999))),
+        );
+        h.ticks(3);
+        assert_eq!(
+            view(&h, a).unwrap().focus,
+            Some(id(3)),
+            "unknown target rejected"
+        );
+        let owner = h.client(a).net_id().unwrap();
+        assert!(h.client(b).component(owner, alerts::COMPONENT).is_none());
+        for kind in [alerts::COMPONENT, alerts::VISUAL_COMPONENT] {
+            assert!(h.client(a).component(owner, kind).unwrap().len() <= alerts::MAX_BYTES);
+        }
+    }
+    #[test]
+    fn manual_fire_alarm_network_reset_console_silencing_and_power_loss() {
+        let mut h = setup();
+        let a = h.join("a");
+        let b = h.join("b");
+        h.ticks(120);
+        open(&mut h, a, 1);
+        open(&mut h, b, 1);
+        assert!(view(&h, b).is_none(), "singleUser");
+        open(&mut h, b, 2);
+        open(&mut h, a, 4);
+        h.ticks(30);
+        let entries = view(&h, a).unwrap().entries;
+        assert_eq!(
+            entries.iter().find(|e| e.id == id(4)).unwrap().level,
+            Level::Danger
+        );
+        assert_eq!(
+            entries.iter().find(|e| e.id == id(5)).unwrap().level,
+            Level::Danger,
+            "linked fire alarm synchronizes"
+        );
+        assert_eq!(
+            entries.iter().find(|e| e.id == id(3)).unwrap().level,
+            Level::Normal,
+            "fire tags do not alarm AirAlarm"
+        );
+        command(
+            &mut h,
+            a,
+            alerts::CMD_SILENCE,
+            alerts::silence_data(id(4), true),
+        );
+        command(
+            &mut h,
+            a,
+            alerts::CMD_SILENCE,
+            alerts::silence_data(id(5), true),
+        );
+        h.ticks(30);
+        assert!(
+            view(&h, a)
+                .unwrap()
+                .entries
+                .iter()
+                .filter(|e| e.level == Level::Danger)
+                .all(|e| e.silenced)
+        );
+        assert!(
+            view(&h, b).unwrap().entries.iter().all(|e| !e.silenced),
+            "console-local silencing"
+        );
+        let states = visuals(&h, a).states;
+        assert!(states.contains(&(id(1), Level::Normal)));
+        assert!(states.contains(&(id(2), Level::Danger)));
+        assert!(
+            states.contains(&(id(4), Level::Danger)),
+            "silence does not reset the physical alarm"
+        );
+        let fx = decode_fx(
+            h.client(a)
+                .component(h.client(a).net_id().unwrap(), FX_COMPONENT)
+                .unwrap(),
+        )
+        .unwrap();
+        assert!(
+            fx.sounds
+                .iter()
+                .any(|s| s.path == "Machines/alarm.ogg" && s.volume_db == -10.0)
+        );
+        open(&mut h, a, 4);
+        h.ticks(30);
+        assert!(
+            view(&h, a)
+                .unwrap()
+                .entries
+                .iter()
+                .all(|e| e.level == Level::Normal),
+            "manual reset propagates"
+        );
+        command(&mut h, a, alerts::CMD_CLOSE, Vec::new());
+        h.ticks(3);
+        assert!(view(&h, a).is_none());
+        open(&mut h, b, 1);
+        assert!(view(&h, b).is_some());
+        let outs = h
+            .server
+            .apply_world_command(WorldCommand::RemoveAuthored {
+                id: ObjectId::from_u128(0xF000_0000 + 12),
+            })
+            .unwrap();
+        h.deliver(outs);
+        h.ticks(2);
+        assert!(view(&h, b).is_none(), "unpowered console closes");
+        assert!(visuals(&h, b).states.contains(&(id(4), Level::Invalid)));
     }
 }

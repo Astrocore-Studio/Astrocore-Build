@@ -26,6 +26,8 @@ def toml(value):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--engine', type=Path)
+    parser.add_argument('--refresh-lock', action='store_true',
+                        help='Reseed only the generated local lock from Build after dependency changes.')
     args = parser.parse_args()
     build = Path(__file__).resolve().parent.parent
     engine = (args.engine or build.parent / 'Astrocore-Engine').resolve()
@@ -68,7 +70,11 @@ def main():
     text = '\n'.join(lines) + '\n'
     if not manifest.exists() or manifest.read_text(encoding='utf-8') != text:
         manifest.write_text(text, encoding='utf-8', newline='\n')
-    if not (destination / 'Cargo.lock').exists():
+    if args.refresh_lock and (destination / 'Cargo.lock').exists():
+        backup = destination / 'Cargo.lock.before-refresh'
+        if not backup.exists():
+            shutil.copyfile(destination / 'Cargo.lock', backup)
+    if args.refresh_lock or not (destination / 'Cargo.lock').exists():
         shutil.copyfile(build / 'Cargo.lock', destination / 'Cargo.lock')
     print(manifest)
 

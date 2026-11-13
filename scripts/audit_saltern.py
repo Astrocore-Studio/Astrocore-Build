@@ -69,7 +69,7 @@ def main():
             'count': counts[ident],
             'name': protos.entity_name(ident),
             'build_status': 'implemented; see docs/saltern-computers.md for verification'
-                            if ident in ('ComputerId', 'ComputerPowerMonitoring')
+                            if ident in ('ComputerId', 'ComputerPowerMonitoring', 'ComputerAlert')
                             else 'visual and power only',
             'ss14_components': sorted(components),
             'ss14_ui': components.get('UserInterface', {}).get('interfaces', {}),

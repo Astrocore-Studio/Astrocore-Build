@@ -475,7 +475,7 @@
       ]
     },
     "ss14:air_alarm": {
-      "image": "Textures/Structures/Wallmounts/air-alarm.rsi/alarm0.png",
+      "image": "Textures/Structures/AtmosAlerts_generated/AirAlarm.rsi/normal_0_0.png",
       "layout": "billboard",
       "size": [
         0.6000000238418579,
@@ -507,7 +507,7 @@
       ]
     },
     "ss14:air_sensor": {
-      "image": "Textures/Structures/Specific/Atmospherics/sensor.rsi/gsensor0.png",
+      "image": "Textures/Structures/AtmosAlerts_generated/AirSensor.rsi/normal_0_0.png",
       "layout": "billboard",
       "size": [
         0.6000000238418579,
@@ -11048,6 +11048,14 @@
       "size": [
         0.36000001430511475,
         0.36000001430511475
+      ]
+    },
+    "ss14:fire_alarm": {
+      "image": "Textures/Structures/AtmosAlerts_generated/FireAlarm.rsi/normal_0_0.png",
+      "layout": "billboard",
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
       ]
     },
     "ss14:fire_alarm_electronics": {

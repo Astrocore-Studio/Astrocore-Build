@@ -2886,11 +2886,13 @@ dependencies = [
  "astrocore-core",
  "astrocore-math",
  "astrocore-render",
+ "astrocore-sprites",
  "astrocore-world",
  "bevy",
  "bevy_egui",
  "gameplay",
  "image",
+ "prototypes",
  "serde_json",
 ]
 

@@ -254,6 +254,7 @@ pub(crate) struct DisposalSlot {
 /// Группа сигнализации: сама сигнализация, её датчики, вентили, скрубберы и огнезапоры из списка.
 #[derive(Debug, Clone, Default)]
 pub(crate) struct AlarmGroup {
+    pub(crate) owner: Option<ObjectId>,
     pub(crate) monitors: Vec<(ObjectId, atmos::Cell)>,
     pub(crate) devices: Vec<ObjectId>,
     pub(crate) firelocks: Vec<ObjectId>,
@@ -329,6 +330,7 @@ pub struct State {
     pub(crate) power_suppliers: Vec<(ObjectId, usize)>,
     pub(crate) power_cables: Vec<(power::CableGroup, atmos::Cell, usize)>,
     pub(crate) power_monitor: crate::power_monitor::Monitoring,
+    pub(crate) alerts: crate::alerts::Alerts,
     pub(crate) power_sig: Vec<(ObjectId, atmos::Cell, u8)>,
     pub(crate) power_batteries: Vec<(ObjectId, usize)>,
     pub(crate) power_receivers: Vec<(ObjectId, usize, f32)>,
@@ -341,7 +343,7 @@ pub struct State {
     /// Мониторы воздуха (сигнализации и датчики), группы сигнализаций и их состояние.
     pub(crate) monitor_kinds: BTreeMap<PrototypeId, bool>,
     pub(crate) alarm_groups: Vec<AlarmGroup>,
-    pub(crate) alarm_sig: Vec<(ObjectId, atmos::Cell, u32)>,
+    pub(crate) alarm_sig: Vec<(ObjectId, atmos::Cell, String)>,
     pub(crate) monitor_state: BTreeMap<ObjectId, crate::monitor::AlarmState>,
     pub(crate) alarm_timer: f32,
     pub(crate) transfer_amount: BTreeMap<ObjectId, f32>,
@@ -349,7 +351,7 @@ pub struct State {
     pub(crate) transfer_max: BTreeMap<PrototypeId, f32>,
     /// Очередь подсказок игрокам и звуков в мире за тик, номера пачек.
     pub(crate) fx_popups: Vec<(NetworkEntityId, String)>,
-    pub(crate) fx_sounds: Vec<(String, Vec3)>,
+    pub(crate) fx_sounds: Vec<(String, Vec3, f32)>,
     pub(crate) fx_seq: BTreeMap<NetworkEntityId, u32>,
     /// Анализаторы здоровья: прототипы, кто кого сканирует, таймер обновления.
     pub(crate) analyzers: BTreeSet<PrototypeId>,
@@ -791,6 +793,7 @@ impl State {
         }
         Ok(Self {
             power_monitor: crate::power_monitor::Monitoring::load(&registry),
+            alerts: crate::alerts::Alerts::load(&registry),
             power_suppliers: Vec::new(),
             power_cables: Vec::new(),
             infos,
@@ -2240,6 +2243,7 @@ impl State {
         self.tick_firelocks(ctx, dt);
         self.tick_power(dt);
         self.tick_power_monitors(ctx);
+        self.publish_atmos_alerts(ctx);
         self.publish_lights(ctx, dt);
         self.atmos.advance(dt);
         self.tick_devices(ctx, dt);
@@ -3416,7 +3420,11 @@ impl State {
 
     /// Звук в точке мира (путь внутри `Audio`).
     pub(crate) fn sound(&mut self, path: &str, at: Vec3) {
-        self.fx_sounds.push((path.to_string(), at));
+        self.sound_volume(path, at, 0.0);
+    }
+
+    pub(crate) fn sound_volume(&mut self, path: &str, at: Vec3, volume_db: f32) {
+        self.fx_sounds.push((path.to_string(), at, volume_db));
     }
 
     /// В конце тика: каждому игроку — его подсказки и звуки поблизости.
@@ -3437,10 +3445,11 @@ impl State {
                 .collect();
             let near: Vec<crate::fx::FxSound> = sounds
                 .iter()
-                .filter(|(_, at)| (*at - pos).length() <= crate::fx::HEARING_M)
-                .map(|(path, at)| crate::fx::FxSound {
+                .filter(|(_, at, _)| (*at - pos).length() <= crate::fx::HEARING_M)
+                .map(|(path, at, volume_db)| crate::fx::FxSound {
                     path: path.clone(),
                     at: at.to_array(),
+                    volume_db: *volume_db,
                 })
                 .collect();
             if mine.is_empty() && near.is_empty() {
@@ -4370,7 +4379,7 @@ impl State {
     /// Группы сигнализаций из карты: монитор, его список связей (клетки) → датчики, устройства труб,
     /// огнезапоры (двери с материалом `ss14:firelock`, касающиеся клетки).
     fn sync_alarms(&mut self, ctx: &mut HookContext<'_>) {
-        let mut sig: Vec<(ObjectId, atmos::Cell, u32)> = Vec::new();
+        let mut sig: Vec<(ObjectId, atmos::Cell, String)> = Vec::new();
         let mut firelock_doors = 0u32;
         for e in ctx.world.elements() {
             if matches!(e.kind, StructureKind::Opening(OpeningKind::Door))
@@ -4381,16 +4390,26 @@ impl State {
         }
         for o in ctx.world.authored() {
             if let AuthoredKind::Placement { prototype } = &o.kind
-                && self.monitor_kinds.contains_key(prototype)
+                && (self.monitor_kinds.contains_key(prototype) || self.alerts.is_alarm(prototype))
             {
                 sig.push((
                     o.id,
                     crate::piping::cell_at(o.floor.0, (o.min() + o.max()) * 0.5),
-                    o.metadata.get("links").map_or(0, |l| l.len() as u32),
+                    format!(
+                        "{}|{}",
+                        o.metadata
+                            .get("links")
+                            .map(String::as_str)
+                            .unwrap_or_default(),
+                        o.metadata
+                            .get("device_ids")
+                            .map(String::as_str)
+                            .unwrap_or_default()
+                    ),
                 ));
             }
         }
-        sig.push((ObjectId::from_u128(0), (0, 0), firelock_doors));
+        sig.push((ObjectId::from_u128(0), (0, 0), firelock_doors.to_string()));
         sig.sort();
         if sig == self.alarm_sig {
             return;
@@ -4442,11 +4461,13 @@ impl State {
             let AuthoredKind::Placement { prototype } = &o.kind else {
                 continue;
             };
-            if self.monitor_kinds.get(prototype) != Some(&true) {
+            if self.monitor_kinds.get(prototype) != Some(&true) && !self.alerts.is_alarm(prototype)
+            {
                 continue;
             }
             let here = crate::piping::cell_at(o.floor.0, (o.min() + o.max()) * 0.5);
             let mut group = AlarmGroup {
+                owner: Some(o.id),
                 monitors: vec![(o.id, here)],
                 ..AlarmGroup::default()
             };
@@ -4469,6 +4490,43 @@ impl State {
                 group
                     .firelocks
                     .extend(doors_at.get(&cell).into_iter().flatten().copied());
+            }
+            if let Some(ids) = o.metadata.get("device_ids") {
+                // New maps preserve DeviceList UID identity, including firelocks
+                // represented by structure elements. Do not infer links by co-location.
+                group.monitors.clear();
+                group.devices.clear();
+                group.firelocks.clear();
+                for uid in ids.split(';') {
+                    let Some(target) = ctx
+                        .world
+                        .authored()
+                        .find(|target| target.metadata.get("ss14_uid").is_some_and(|id| id == uid))
+                    else {
+                        continue;
+                    };
+                    if let Some(id) = target
+                        .metadata
+                        .get("alarm_firelock")
+                        .and_then(|id| u128::from_str_radix(id, 16).ok())
+                    {
+                        group.firelocks.push(ObjectId::from_u128(id));
+                    }
+                    if let AuthoredKind::Placement { prototype } = &target.kind {
+                        if self.monitor_kinds.get(prototype) == Some(&false) {
+                            group.monitors.push((
+                                target.id,
+                                crate::piping::cell_at(
+                                    target.floor.0,
+                                    (target.min() + target.max()) * 0.5,
+                                ),
+                            ));
+                        }
+                        if self.pipe_parts.contains_key(prototype) {
+                            group.devices.push(target.id);
+                        }
+                    }
+                }
             }
             group.firelocks.sort();
             group.firelocks.dedup();
@@ -4541,6 +4599,7 @@ impl State {
         }
         self.alarm_timer = 0.0;
         self.sync_alarms(ctx);
+        self.sample_atmos_alerts(ctx);
         let powered = self.powered_map();
         let mut groups = std::mem::take(&mut self.alarm_groups);
         for g in &mut groups {
@@ -4564,16 +4623,21 @@ impl State {
                 }
             }
             let state = g
-                .monitors
-                .iter()
-                .map(|(id, _)| {
-                    self.monitor_state
-                        .get(id)
-                        .copied()
+                .owner
+                .and_then(|id| self.alerts.level(id))
+                .map(|level| level.alarm_state())
+                .unwrap_or_else(|| {
+                    g.monitors
+                        .iter()
+                        .map(|(id, _)| {
+                            self.monitor_state
+                                .get(id)
+                                .copied()
+                                .unwrap_or(AlarmState::Normal)
+                        })
+                        .max()
                         .unwrap_or(AlarmState::Normal)
-                })
-                .max()
-                .unwrap_or(AlarmState::Normal);
+                });
             if state == g.state && g.applied {
                 continue;
             }
@@ -5107,7 +5171,8 @@ impl GameplayModule {
 
     #[must_use]
     pub fn with_station_name(mut self, name: String) -> Self {
-        self.state.power_monitor.station = name;
+        self.state.power_monitor.station = name.clone();
+        self.state.alerts.station = name;
         self
     }
 
@@ -5173,6 +5238,15 @@ impl GameplayModule {
             }
             Target::Item { .. } => ctx.is_unobstructed(chest, at),
         };
+        if std::env::var_os("ASTRO_AUTOPLAY_OPEN").is_some() {
+            eprintln!(
+                "ASTRO_INTERACT: id={id} feet={feet:?} at={at:?} distance={} limit={} visible={visible} ray={} powered={:?}",
+                (at - chest).length(),
+                self.state.range_m,
+                ctx.unobstructed_distance(chest, at),
+                self.state.powered_map().get(&id)
+            );
+        }
         if (at - chest).length() > self.state.range_m || !visible {
             return;
         }
@@ -5235,6 +5309,11 @@ impl GameModule for GameplayModule {
                 }
                 crate::power_monitor::CMD_CLOSE => {
                     st.close_power_monitor(*actor);
+                }
+                crate::alerts::CMD_FOCUS
+                | crate::alerts::CMD_SILENCE
+                | crate::alerts::CMD_CLOSE => {
+                    st.alerts_command(ctx, *actor, kind, data);
                 }
                 CMD_USE_GROUND => {
                     if let Some((hand, Some([x, y, z]))) = crate::wire::parse_drop(data) {
@@ -5646,6 +5725,7 @@ impl GameModule for GameplayModule {
             HookEvent::Tick { dt, .. } => st.tick(ctx, *dt),
             HookEvent::PlayerLeft { actor, pos } => {
                 st.power_monitor.forget(*actor);
+                st.alerts.forget(*actor);
                 // Всё, что игрок держал и носил, остаётся лежать там, где он стоял (DropAll);
                 // содержимое сумок остаётся в сумках.
                 st.release_job(*actor);

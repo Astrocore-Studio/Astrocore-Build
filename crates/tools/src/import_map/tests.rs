@@ -47,6 +47,57 @@ fn known() -> BTreeSet<String> {
 }
 
 #[test]
+fn device_links_preserve_uids_and_names_for_colocated_entities() {
+    let yaml=room_yaml(7).replacen("  - uid: 4\n    components:\n", "  - uid: 4\n    components:\n    - type: DeviceList\n      devices: [5]\n    - type: MetaData\n      name: Room control\n",1);
+    let known = ["Crowbar".into(), "Lamp".into()].into();
+    let (map, _) = import(&yaml, "room", &known, &Materials::default()).unwrap();
+    let control = map.items.iter().find(|i| i.prototype == "Crowbar").unwrap();
+    let linked = map.items.iter().find(|i| i.prototype == "Lamp").unwrap();
+    assert_eq!(control.meta["ss14_uid"], "4");
+    assert_eq!(control.meta["device_ids"], "5");
+    assert_eq!(control.meta["name"], "Room control");
+    assert_eq!(linked.meta["ss14_uid"], "5");
+    assert_eq!((control.x, control.z), (linked.x, linked.z));
+}
+
+#[test]
+fn wall_mount_uses_the_source_facing_and_retains_its_map_anchor() {
+    let yaml = room_yaml(7)
+        + "- proto: FireAlarm\n  entities:\n  - uid: 6\n    components:\n    - type: Transform\n      pos: 3.5,4.5\n";
+    let mut known = known();
+    known.insert("FireAlarm".into());
+    let mut mats = Materials::default();
+    mats.wallmounts.insert("FireAlarm".into());
+    let (map, _) = import(&yaml, "room", &known, &mats).unwrap();
+    let alarm = map
+        .items
+        .iter()
+        .find(|i| i.prototype == "FireAlarm")
+        .unwrap();
+    assert_eq!((alarm.x, alarm.z), (3.5, -3.75));
+    assert_eq!(alarm.meta["wallmount_origin"], "3.5,-4.5");
+}
+
+#[test]
+fn firelock_uid_resolves_to_the_imported_structure_element() {
+    let yaml = room_yaml(7).replace("proto: AirlockGlass", "proto: Firelock");
+    let (map, report) = import(&yaml, "room", &known(), &Materials::default()).unwrap();
+    assert_eq!(report.firelocks, 1);
+    let link = map
+        .zones
+        .iter()
+        .find(|z| z.metadata.get("ss14_uid").is_some_and(|uid| uid == "2"))
+        .unwrap();
+    let id = u128::from_str_radix(&link.metadata["alarm_firelock"], 16).unwrap();
+    assert!(
+        map.elements
+            .iter()
+            .any(|element| element.id == ObjectId::from_u128(id)
+                && element.material.as_str() == "ss14:firelock")
+    );
+}
+
+#[test]
 fn a_room_with_a_door_becomes_walls_floor_and_a_door_edge() {
     let (map, r) = import(&room_yaml(7), "room", &known(), &Materials::default()).unwrap();
     assert_eq!(r.floor_tiles, 16, "комната 5×3 и клетка двери");

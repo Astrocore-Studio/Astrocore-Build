@@ -1,0 +1,501 @@
+{
+  "source_revision": "31f782a809851c674bd8f86c3aca7c381118c539",
+  "devices": {
+    "ComputerAlert": {
+      "Invalid": {
+        "directions": [
+          {
+            "images": [
+              "Textures/Structures/AtmosAlerts_generated/ComputerAlert.rsi/invalid_0_0.png"
+            ],
+            "delays": [
+              1.0
+            ]
+          },
+          {
+            "images": [
+              "Textures/Structures/AtmosAlerts_generated/ComputerAlert.rsi/invalid_1_0.png"
+            ],
+            "delays": [
+              1.0
+            ]
+          },
+          {
+            "images": [
+              "Textures/Structures/AtmosAlerts_generated/ComputerAlert.rsi/invalid_2_0.png"
+            ],
+            "delays": [
+              1.0
+            ]
+          },
+          {
+            "images": [
+              "Textures/Structures/AtmosAlerts_generated/ComputerAlert.rsi/invalid_3_0.png"
+            ],
+            "delays": [
+              1.0
+            ]
+          }
+        ]
+      },
+      "Normal": {
+        "directions": [
+          {
+            "images": [
+              "Textures/Structures/AtmosAlerts_generated/ComputerAlert.rsi/normal_0_0.png"
+            ],
+            "delays": [
+              1.0
+            ]
+          },
+          {
+            "images": [
+              "Textures/Structures/AtmosAlerts_generated/ComputerAlert.rsi/normal_1_0.png"
+            ],
+            "delays": [
+              1.0
+            ]
+          },
+          {
+            "images": [
+              "Textures/Structures/AtmosAlerts_generated/ComputerAlert.rsi/normal_2_0.png"
+            ],
+            "delays": [
+              1.0
+            ]
+          },
+          {
+            "images": [
+              "Textures/Structures/AtmosAlerts_generated/ComputerAlert.rsi/normal_3_0.png"
+            ],
+            "delays": [
+              1.0
+            ]
+          }
+        ]
+      },
+      "Warning": {
+        "directions": [
+          {
+            "images": [
+              "Textures/Structures/AtmosAlerts_generated/ComputerAlert.rsi/warning_0_0.png"
+            ],
+            "delays": [
+              1.0
+            ]
+          },
+          {
+            "images": [
+              "Textures/Structures/AtmosAlerts_generated/ComputerAlert.rsi/warning_1_0.png"
+            ],
+            "delays": [
+              1.0
+            ]
+          },
+          {
+            "images": [
+              "Textures/Structures/AtmosAlerts_generated/ComputerAlert.rsi/warning_2_0.png"
+            ],
+            "delays": [
+              1.0
+            ]
+          },
+          {
+            "images": [
+              "Textures/Structures/AtmosAlerts_generated/ComputerAlert.rsi/warning_3_0.png"
+            ],
+            "delays": [
+              1.0
+            ]
+          }
+        ]
+      },
+      "Danger": {
+        "directions": [
+          {
+            "images": [
+              "Textures/Structures/AtmosAlerts_generated/ComputerAlert.rsi/danger_0_0.png",
+              "Textures/Structures/AtmosAlerts_generated/ComputerAlert.rsi/danger_0_1.png"
+            ],
+            "delays": [
+              0.1,
+              0.1
+            ]
+          },
+          {
+            "images": [
+              "Textures/Structures/AtmosAlerts_generated/ComputerAlert.rsi/danger_1_0.png",
+              "Textures/Structures/AtmosAlerts_generated/ComputerAlert.rsi/danger_1_1.png"
+            ],
+            "delays": [
+              0.1,
+              0.1
+            ]
+          },
+          {
+            "images": [
+              "Textures/Structures/AtmosAlerts_generated/ComputerAlert.rsi/danger_2_0.png",
+              "Textures/Structures/AtmosAlerts_generated/ComputerAlert.rsi/danger_2_1.png"
+            ],
+            "delays": [
+              0.1,
+              0.1
+            ]
+          },
+          {
+            "images": [
+              "Textures/Structures/AtmosAlerts_generated/ComputerAlert.rsi/danger_3_0.png",
+              "Textures/Structures/AtmosAlerts_generated/ComputerAlert.rsi/danger_3_1.png"
+            ],
+            "delays": [
+              0.1,
+              0.1
+            ]
+          }
+        ]
+      }
+    },
+    "AirAlarm": {
+      "Invalid": {
+        "directions": [
+          {
+            "images": [
+              "Textures/Structures/AtmosAlerts_generated/AirAlarm.rsi/invalid_0_0.png"
+            ],
+            "delays": [
+              1.0
+            ]
+          },
+          {
+            "images": [
+              "Textures/Structures/AtmosAlerts_generated/AirAlarm.rsi/invalid_1_0.png"
+            ],
+            "delays": [
+              1.0
+            ]
+          },
+          {
+            "images": [
+              "Textures/Structures/AtmosAlerts_generated/AirAlarm.rsi/invalid_2_0.png"
+            ],
+            "delays": [
+              1.0
+            ]
+          },
+          {
+            "images": [
+              "Textures/Structures/AtmosAlerts_generated/AirAlarm.rsi/invalid_3_0.png"
+            ],
+            "delays": [
+              1.0
+            ]
+          }
+        ]
+      },
+      "Normal": {
+        "directions": [
+          {
+            "images": [
+              "Textures/Structures/AtmosAlerts_generated/AirAlarm.rsi/normal_0_0.png"
+            ],
+            "delays": [
+              1.0
+            ]
+          },
+          {
+            "images": [
+              "Textures/Structures/AtmosAlerts_generated/AirAlarm.rsi/normal_1_0.png"
+            ],
+            "delays": [
+              1.0
+            ]
+          },
+          {
+            "images": [
+              "Textures/Structures/AtmosAlerts_generated/AirAlarm.rsi/normal_2_0.png"
+            ],
+            "delays": [
+              1.0
+            ]
+          },
+          {
+            "images": [
+              "Textures/Structures/AtmosAlerts_generated/AirAlarm.rsi/normal_3_0.png"
+            ],
+            "delays": [
+              1.0
+            ]
+          }
+        ]
+      },
+      "Warning": {
+        "directions": [
+          {
+            "images": [
+              "Textures/Structures/AtmosAlerts_generated/AirAlarm.rsi/warning_0_0.png",
+              "Textures/Structures/AtmosAlerts_generated/AirAlarm.rsi/warning_0_1.png"
+            ],
+            "delays": [
+              0.5,
+              0.5
+            ]
+          },
+          {
+            "images": [
+              "Textures/Structures/AtmosAlerts_generated/AirAlarm.rsi/warning_1_0.png",
+              "Textures/Structures/AtmosAlerts_generated/AirAlarm.rsi/warning_1_1.png"
+            ],
+            "delays": [
+              0.5,
+              0.5
+            ]
+          },
+          {
+            "images": [
+              "Textures/Structures/AtmosAlerts_generated/AirAlarm.rsi/warning_2_0.png",
+              "Textures/Structures/AtmosAlerts_generated/AirAlarm.rsi/warning_2_1.png"
+            ],
+            "delays": [
+              0.5,
+              0.5
+            ]
+          },
+          {
+            "images": [
+              "Textures/Structures/AtmosAlerts_generated/AirAlarm.rsi/warning_3_0.png",
+              "Textures/Structures/AtmosAlerts_generated/AirAlarm.rsi/warning_3_1.png"
+            ],
+            "delays": [
+              0.5,
+              0.5
+            ]
+          }
+        ]
+      },
+      "Danger": {
+        "directions": [
+          {
+            "images": [
+              "Textures/Structures/AtmosAlerts_generated/AirAlarm.rsi/danger_0_0.png",
+              "Textures/Structures/AtmosAlerts_generated/AirAlarm.rsi/danger_0_1.png"
+            ],
+            "delays": [
+              0.5,
+              0.5
+            ]
+          },
+          {
+            "images": [
+              "Textures/Structures/AtmosAlerts_generated/AirAlarm.rsi/danger_1_0.png",
+              "Textures/Structures/AtmosAlerts_generated/AirAlarm.rsi/danger_1_1.png"
+            ],
+            "delays": [
+              0.5,
+              0.5
+            ]
+          },
+          {
+            "images": [
+              "Textures/Structures/AtmosAlerts_generated/AirAlarm.rsi/danger_2_0.png",
+              "Textures/Structures/AtmosAlerts_generated/AirAlarm.rsi/danger_2_1.png"
+            ],
+            "delays": [
+              0.5,
+              0.5
+            ]
+          },
+          {
+            "images": [
+              "Textures/Structures/AtmosAlerts_generated/AirAlarm.rsi/danger_3_0.png",
+              "Textures/Structures/AtmosAlerts_generated/AirAlarm.rsi/danger_3_1.png"
+            ],
+            "delays": [
+              0.5,
+              0.5
+            ]
+          }
+        ]
+      }
+    },
+    "FireAlarm": {
+      "Invalid": {
+        "directions": [
+          {
+            "images": [
+              "Textures/Structures/AtmosAlerts_generated/FireAlarm.rsi/invalid_0_0.png"
+            ],
+            "delays": [
+              1.0
+            ]
+          },
+          {
+            "images": [
+              "Textures/Structures/AtmosAlerts_generated/FireAlarm.rsi/invalid_1_0.png"
+            ],
+            "delays": [
+              1.0
+            ]
+          },
+          {
+            "images": [
+              "Textures/Structures/AtmosAlerts_generated/FireAlarm.rsi/invalid_2_0.png"
+            ],
+            "delays": [
+              1.0
+            ]
+          },
+          {
+            "images": [
+              "Textures/Structures/AtmosAlerts_generated/FireAlarm.rsi/invalid_3_0.png"
+            ],
+            "delays": [
+              1.0
+            ]
+          }
+        ]
+      },
+      "Normal": {
+        "directions": [
+          {
+            "images": [
+              "Textures/Structures/AtmosAlerts_generated/FireAlarm.rsi/normal_0_0.png"
+            ],
+            "delays": [
+              1.0
+            ]
+          },
+          {
+            "images": [
+              "Textures/Structures/AtmosAlerts_generated/FireAlarm.rsi/normal_1_0.png"
+            ],
+            "delays": [
+              1.0
+            ]
+          },
+          {
+            "images": [
+              "Textures/Structures/AtmosAlerts_generated/FireAlarm.rsi/normal_2_0.png"
+            ],
+            "delays": [
+              1.0
+            ]
+          },
+          {
+            "images": [
+              "Textures/Structures/AtmosAlerts_generated/FireAlarm.rsi/normal_3_0.png"
+            ],
+            "delays": [
+              1.0
+            ]
+          }
+        ]
+      },
+      "Warning": {
+        "directions": [
+          {
+            "images": [
+              "Textures/Structures/AtmosAlerts_generated/FireAlarm.rsi/warning_0_0.png"
+            ],
+            "delays": [
+              1.0
+            ]
+          },
+          {
+            "images": [
+              "Textures/Structures/AtmosAlerts_generated/FireAlarm.rsi/warning_1_0.png"
+            ],
+            "delays": [
+              1.0
+            ]
+          },
+          {
+            "images": [
+              "Textures/Structures/AtmosAlerts_generated/FireAlarm.rsi/warning_2_0.png"
+            ],
+            "delays": [
+              1.0
+            ]
+          },
+          {
+            "images": [
+              "Textures/Structures/AtmosAlerts_generated/FireAlarm.rsi/warning_3_0.png"
+            ],
+            "delays": [
+              1.0
+            ]
+          }
+        ]
+      },
+      "Danger": {
+        "directions": [
+          {
+            "images": [
+              "Textures/Structures/AtmosAlerts_generated/FireAlarm.rsi/danger_0_0.png",
+              "Textures/Structures/AtmosAlerts_generated/FireAlarm.rsi/danger_0_1.png"
+            ],
+            "delays": [
+              0.25,
+              0.25
+            ]
+          },
+          {
+            "images": [
+              "Textures/Structures/AtmosAlerts_generated/FireAlarm.rsi/danger_1_0.png",
+              "Textures/Structures/AtmosAlerts_generated/FireAlarm.rsi/danger_1_1.png"
+            ],
+            "delays": [
+              0.25,
+              0.25
+            ]
+          },
+          {
+            "images": [
+              "Textures/Structures/AtmosAlerts_generated/FireAlarm.rsi/danger_2_0.png",
+              "Textures/Structures/AtmosAlerts_generated/FireAlarm.rsi/danger_2_1.png"
+            ],
+            "delays": [
+              0.25,
+              0.25
+            ]
+          },
+          {
+            "images": [
+              "Textures/Structures/AtmosAlerts_generated/FireAlarm.rsi/danger_3_0.png",
+              "Textures/Structures/AtmosAlerts_generated/FireAlarm.rsi/danger_3_1.png"
+            ],
+            "delays": [
+              0.25,
+              0.25
+            ]
+          }
+        ]
+      }
+    },
+    "AirSensor": {
+      "Invalid": {
+        "directions": [
+          {
+            "images": [
+              "Textures/Structures/AtmosAlerts_generated/AirSensor.rsi/invalid_0_0.png"
+            ],
+            "delays": [
+              1.0
+            ]
+          }
+        ]
+      },
+      "Normal": {
+        "directions": [
+          {
+            "images": [
+              "Textures/Structures/AtmosAlerts_generated/AirSensor.rsi/normal_0_0.png"
+            ],
+            "delays": [
+              1.0
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

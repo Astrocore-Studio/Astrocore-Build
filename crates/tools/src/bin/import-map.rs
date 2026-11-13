@@ -20,10 +20,28 @@ fn main() {
         eprintln!("{}: {e}", args[0]);
         std::process::exit(1);
     });
-    let known: BTreeSet<String> = polygon::load_registry(&polygon::content_dir())
+    let registry = polygon::load_registry(&polygon::content_dir()).ok();
+    let known: BTreeSet<String> = registry
+        .as_ref()
         .map(|r| r.ids().map(str::to_string).collect())
         .unwrap_or_default();
     let mut materials = tools::import_map::Materials::default();
+    if let Some(registry) = &registry
+        && let Ok(data) = registry.resolve("AtmosAlertsData")
+        && let Some(data) = data.component("AtmosAlerts")
+    {
+        for row in data
+            .get("devices")
+            .and_then(prototypes::Data::as_list)
+            .unwrap_or_default()
+        {
+            if row.get("wallMount").and_then(prototypes::Data::as_bool) == Some(true)
+                && let Some(name) = row.get("prototype").and_then(prototypes::Data::as_str)
+            {
+                materials.wallmounts.insert(name.into());
+            }
+        }
+    }
     for t in polygon::load_tiles(&polygon::content_dir()).unwrap_or_default() {
         if let Ok(id) = astrocore_core::PrototypeId::new(polygon::tile_material_id(&t.tile)) {
             materials.tiles.insert(t.tile, id);

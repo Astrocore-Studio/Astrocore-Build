@@ -3,6 +3,8 @@ use astrocore_core::ObjectId;
 use astrocore_math::glam::Vec3 as MVec3;
 use bevy::prelude::*;
 use bevy_egui::{EguiContexts, EguiPlugin, EguiPrimaryContextPass, egui};
+mod alarm_visuals;
+mod alerts_ui;
 mod body;
 mod combat;
 mod fire;
@@ -21,6 +23,8 @@ use gameplay::{
 /// Что игрок сейчас держит и носит, как это видит клиент (копия серверных реплик).
 #[derive(Resource, Default)]
 pub struct Loadout {
+    pub atmos_alerts: Option<gameplay::alerts::View>,
+    pub alarm_visuals: Option<gameplay::alerts::Visuals>,
     pub power_monitor: Option<gameplay::power_monitor::View>,
     pub power_map: Option<gameplay::power_monitor::MapView>,
     pub power_cables: Option<gameplay::power_monitor::CableView>,
@@ -72,6 +76,7 @@ impl Plugin for BuildClientPlugin {
                 icons: hud::Icons::from_manifest(self.manifest.as_deref().unwrap_or("".as_ref())),
                 state: hud::HudState::default(),
                 power: power_ui::UiState::default(),
+                alerts: alerts_ui::UiState::default(),
             })
             .insert_resource(Autoplay {
                 enabled: self.autoplay,
@@ -79,6 +84,8 @@ impl Plugin for BuildClientPlugin {
             })
             .init_resource::<fire::FxAssets>()
             .add_systems(Startup, (install_body, install_sounds))
+            .add_systems(Last, alarm_visuals::sync)
+            .add_systems(PreUpdate, smoke_inputs.after(bevy::input::InputSystems))
             .add_systems(
                 Update,
                 (
@@ -98,6 +105,7 @@ impl Plugin for BuildClientPlugin {
                     players::tint_ghosts,
                     sounds::door_sounds,
                     sounds::item_sounds,
+                    sounds::trace_alarm_playback,
                     fx_events,
                     combat::attack_and_heal,
                     fire::sync_fx,
@@ -149,7 +157,7 @@ fn fx_events(
         let here = net.core.position();
         for s in batch.sounds {
             let d = here.distance(Vec3::from_array(s.at));
-            sounds.play_path(&mut commands, &mut audio, &s.path, d);
+            sounds.play_path(&mut commands, &mut audio, &s.path, d, s.volume_db);
         }
     }
     loadout.toasts.retain(|(_, t)| now - t < 4.0);
@@ -172,6 +180,7 @@ fn install_body(
 ) {
     if let Some(root) = root {
         body::install(&root.0, root.1.as_deref(), &mut images, &mut commands);
+        alarm_visuals::install(&root.0, &mut images, &mut commands);
     }
 }
 
@@ -215,6 +224,7 @@ pub(crate) struct Hud {
     pub(crate) icons: hud::Icons,
     state: hud::HudState,
     power: power_ui::UiState,
+    alerts: alerts_ui::UiState,
 }
 
 #[derive(Resource)]
@@ -223,10 +233,31 @@ struct Autoplay {
     frame: u32,
 }
 
+fn smoke_inputs(
+    autoplay: Res<Autoplay>,
+    mut keys: ResMut<ButtonInput<KeyCode>>,
+    mut mouse: ResMut<ButtonInput<MouseButton>>,
+    mut motion: ResMut<bevy::input::mouse::AccumulatedMouseMotion>,
+) {
+    if autoplay.enabled && std::env::var_os("ASTRO_SMOKE_EXIT").is_some() {
+        keys.reset_all();
+        mouse.reset_all();
+        motion.delta = Vec2::ZERO;
+    }
+}
+
 /// Обновить копию состояния из реплик сервера.
 fn refresh_loadout(net: Option<NonSend<Net>>, time: Res<Time>, mut loadout: ResMut<Loadout>) {
     let Some(net) = net else { return };
     let Some(me) = net.core.net_id() else { return };
+    loadout.atmos_alerts = net
+        .core
+        .component(me, gameplay::alerts::COMPONENT)
+        .and_then(gameplay::alerts::decode);
+    loadout.alarm_visuals = net
+        .core
+        .component(me, gameplay::alerts::VISUAL_COMPONENT)
+        .and_then(gameplay::alerts::decode);
     loadout.power_monitor = net
         .core
         .component(me, gameplay::power_monitor::COMPONENT)
@@ -358,7 +389,7 @@ fn autoplay(
     loadout: Res<Loadout>,
     remote: Res<astrocore_client::RemoteSprites>,
     net: Option<NonSendMut<Net>>,
-    look: Option<ResMut<astrocore_client::Look>>,
+    mut look: Option<ResMut<astrocore_client::Look>>,
 ) {
     if !state.enabled {
         return;
@@ -371,8 +402,14 @@ fn autoplay(
     if net.core.world().is_none() {
         return;
     }
+    if loadout.hands.is_none() || loadout.health.is_none() {
+        return;
+    }
     state.frame += 1;
-    if std::env::var_os("ASTRO_SMOKE_EXIT").is_some() && state.frame >= 380 {
+    let exit_frame = std::env::var("ASTRO_SMOKE_EXIT")
+        .ok()
+        .map(|value| value.parse::<u32>().unwrap_or(380).max(380));
+    if exit_frame.is_some_and(|frame| state.frame >= frame) {
         commands.queue(|world: &mut World| {
             world.write_message(bevy::app::AppExit::Success);
         });
@@ -389,7 +426,7 @@ fn autoplay(
     }
     // Взгляд вниз для снимков пола (лужи, огонь).
     if std::env::var_os("ASTRO_LOOK_DOWN").is_some()
-        && let Some(mut l) = look
+        && let Some(l) = look.as_mut()
     {
         l.pitch = 0.9;
     }
@@ -458,6 +495,71 @@ fn autoplay(
                 } else {
                     eprintln!("ASTRO_POWER: console did not open");
                 }
+            }
+        }
+        if want == "ComputerAlert" {
+            use gameplay::alerts::{self as alerts, Group};
+            if (200..320).contains(&state.frame)
+                && state.frame.is_multiple_of(15)
+                && let Some(view) = loadout.atmos_alerts.as_ref().filter(|v| v.focus.is_none())
+                && let Some(entry) = view
+                    .entries
+                    .iter()
+                    .filter(|e| e.group == Group::AirAlarm && !e.seeds.is_empty())
+                    .max_by_key(|e| e.level)
+            {
+                net.send_command(alerts::CMD_FOCUS, alerts::focus_data(Some(entry.id)));
+            }
+            if state.frame == 340 {
+                if let Some(view) = &loadout.atmos_alerts {
+                    eprintln!(
+                        "ASTRO_ALERTS: air={} fire={} focus={:?} reading={:?}",
+                        view.entries
+                            .iter()
+                            .filter(|e| e.group == Group::AirAlarm)
+                            .count(),
+                        view.entries
+                            .iter()
+                            .filter(|e| e.group == Group::FireAlarm)
+                            .count(),
+                        view.focus,
+                        view.reading
+                    );
+                } else {
+                    eprintln!("ASTRO_ALERTS: console did not open");
+                }
+            }
+        }
+        if want == "FireAlarm" {
+            let alarm = std::env::var("ASTRO_OPEN_ID")
+                .ok()
+                .and_then(|h| u128::from_str_radix(&h, 16).ok())
+                .map(ObjectId::from_u128);
+            if let Some(id) = alarm
+                && let Some(world) = net.core.world()
+                && let Some(object) = world.authored_object(id)
+                && let Some(look) = look.as_mut()
+            {
+                let at = (object.min() + object.max()) * 0.5 + MVec3::Y * 0.45;
+                let delta = at - net.core.position() - MVec3::Y * 1.6;
+                look.yaw = (-delta.x).atan2(-delta.z);
+                look.pitch = (-delta.y).atan2(delta.x.hypot(delta.z));
+            }
+            if state.frame == 300
+                && let Some(id) = alarm
+            {
+                net.send_command(gameplay::CMD_INTERACT, gameplay::interact_data(id));
+            }
+            if matches!(state.frame, 260 | 340) {
+                let level = loadout
+                    .alarm_visuals
+                    .as_ref()
+                    .and_then(|v| v.states.iter().find(|(id, _)| Some(*id) == alarm))
+                    .map(|(_, level)| level);
+                eprintln!(
+                    "ASTRO_ALARMS: frame={} id={alarm:?} level={level:?}",
+                    state.frame
+                );
             }
         }
         return;
@@ -598,6 +700,7 @@ fn loadout_window(
         icons,
         state,
         power,
+        alerts,
     } = &mut *hud;
     state.health = loadout.health.clone();
     state.vitals = loadout.vitals.clone();
@@ -622,6 +725,12 @@ fn loadout_window(
         loadout.power_monitor.as_ref(),
         loadout.power_map.as_ref(),
         loadout.power_cables.as_ref(),
+        net.core.world(),
+    ));
+    commands.extend(alerts_ui::draw(
+        &ctx,
+        alerts,
+        loadout.atmos_alerts.as_ref(),
         net.core.world(),
     ));
     commands.extend(hud::vending_window(&ctx, icons, loadout.vending.as_ref()));

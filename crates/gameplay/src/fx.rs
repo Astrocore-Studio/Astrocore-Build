@@ -15,6 +15,8 @@ pub const HEARING_M: f32 = 14.0;
 pub struct FxSound {
     pub path: String,
     pub at: [f32; 3],
+    #[serde(default)]
+    pub volume_db: f32,
 }
 
 #[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
@@ -47,6 +49,7 @@ mod tests {
             sounds: vec![FxSound {
                 path: "Machines/buzz-sigh.ogg".into(),
                 at: [1.0, 0.0, 2.0],
+                volume_db: 0.0,
             }],
         };
         assert_eq!(decode_fx(&encode_fx(&b)), Some(b));

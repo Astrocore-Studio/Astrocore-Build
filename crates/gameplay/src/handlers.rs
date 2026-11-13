@@ -734,6 +734,7 @@ impl InteractionHandler for PowerMonitorUse {
 
 pub fn default_handlers() -> Vec<Box<dyn InteractionHandler>> {
     vec![
+        Box::new(AtmosAlertsUse),
         Box::new(PowerMonitorUse),
         Box::new(GasDeviceUse),
         Box::new(DisposalUnitUse),
@@ -756,4 +757,20 @@ pub fn default_handlers() -> Vec<Box<dyn InteractionHandler>> {
         Box::new(OpenableUse),
         Box::new(EdibleUse),
     ]
+}
+
+pub struct AtmosAlertsUse;
+impl InteractionHandler for AtmosAlertsUse {
+    fn interact_hand(
+        &mut self,
+        state: &mut State,
+        ctx: &mut HookContext<'_>,
+        user: NetworkEntityId,
+        target: &Target,
+    ) -> bool {
+        let Target::Item { id, prototype, .. } = target else {
+            return false;
+        };
+        state.use_atmos_alerts(ctx, user, *id, prototype)
+    }
 }
