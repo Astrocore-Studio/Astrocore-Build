@@ -5257,6 +5257,31 @@ impl State {
         self.ss14_names.get(proto).cloned()
     }
 
+    /// Взрыв лопнувшего баллона или баллончика: общая интенсивность — корень из энергии газа
+    /// (`sqrt(GetOverPressure)`), тип, спад и предел — по `Explosive` прототипа (иначе обычный).
+    fn burst_explosion(
+        &mut self,
+        ctx: &mut HookContext<'_>,
+        proto: Option<&PrototypeId>,
+        at: Vec3,
+        energy: f32,
+    ) {
+        let total = energy.max(0.0).sqrt();
+        if total <= 0.0 {
+            return;
+        }
+        let base = proto.and_then(|p| self.explosives.get(p)).cloned();
+        let spec = Explosive {
+            kind: base
+                .as_ref()
+                .map_or_else(|| "Default".to_string(), |b| b.kind.clone()),
+            total,
+            slope: base.as_ref().map_or(1.0, |b| b.slope),
+            max: base.as_ref().map_or(4.0, |b| b.max),
+        };
+        self.explode(ctx, at, &spec);
+    }
+
     /// Горящие запалы: сработавшая граната взрывается там, где лежит, летит или где её держат.
     fn tick_primed(&mut self, ctx: &mut HookContext<'_>) {
         let clock = self.clock;
@@ -6743,15 +6768,25 @@ impl State {
             self.tick_tanks(ctx, step);
         }
         for event in self.atmos.take_device_events() {
-            let atmos::DeviceEvent::Ruptured { key, .. } = event;
-            // Лопнувший баллон исчезает из мира.
+            let atmos::DeviceEvent::Ruptured { key, energy, .. } = event;
+            // Лопнувший баллон исчезает из мира и взрывается (`GasMaxPressureSystem.CheckStatus`).
             let victim = self
                 .pipe_keys
                 .keys_iter()
                 .find(|(_, k)| *k == key)
                 .map(|(id, _)| id);
             if let Some(id) = victim {
+                let blast = ctx.world.authored_object(id).map(|o| {
+                    let proto = match &o.kind {
+                        AuthoredKind::Placement { prototype } => Some(prototype.clone()),
+                        _ => None,
+                    };
+                    (proto, (o.min() + o.max()) * 0.5)
+                });
                 ctx.request(WorldCommand::RemoveAuthored { id });
+                if let Some((proto, at)) = blast {
+                    self.burst_explosion(ctx, proto.as_ref(), at, energy);
+                }
             }
         }
     }
@@ -6789,14 +6824,30 @@ impl State {
                 .with_air(cell, |air| tank.update(dt, Some(air)))
                 .unwrap_or_else(|| tank.update(dt, None));
             if status == atmos::PressureStatus::Ruptured {
+                let energy = tank.burst_energy;
+                let mut proto = None;
+                let mut at = None;
                 match holder {
                     Some((who, hand)) => {
                         if let Some(a) = self.actors.get_mut(&who) {
+                            proto = a.hands.get(hand).map(|i| i.prototype.clone());
                             let _ = a.hands.drop_hand(hand);
                         }
+                        at = ctx.position_of(who).map(|f| f + Vec3::Y * CHEST_M);
                         self.publish(ctx, who);
                     }
-                    None => ctx.request(WorldCommand::RemoveAuthored { id }),
+                    None => {
+                        if let Some(o) = ctx.world.authored_object(id) {
+                            if let AuthoredKind::Placement { prototype } = &o.kind {
+                                proto = Some(prototype.clone());
+                            }
+                            at = Some((o.min() + o.max()) * 0.5);
+                        }
+                        ctx.request(WorldCommand::RemoveAuthored { id });
+                    }
+                }
+                if let Some(at) = at {
+                    self.burst_explosion(ctx, proto.as_ref(), at, energy);
                 }
                 continue;
             }

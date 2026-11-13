@@ -253,6 +253,8 @@ pub struct Canister {
     pub release_open: bool,
     pub safety_open: bool,
     pub limits: MaxPressure,
+    /// Энергия газа в момент разрыва, давление × объём (`GetOverPressure`).
+    pub burst_energy: f32,
 }
 
 impl Canister {
@@ -264,6 +266,7 @@ impl Canister {
             release_open: false,
             safety_open: false,
             limits: MaxPressure::canister(),
+            burst_energy: 0.0,
         }
     }
 }
@@ -275,6 +278,8 @@ pub struct Tank {
     pub release_pressure: f32,
     pub release_open: bool,
     pub limits: MaxPressure,
+    /// Энергия газа в момент разрыва, давление × объём.
+    pub burst_energy: f32,
 }
 
 impl Tank {
@@ -284,6 +289,7 @@ impl Tank {
             release_pressure: 21.3,
             release_open: false,
             limits: MaxPressure::tank(),
+            burst_energy: 0.0,
         }
     }
 
@@ -291,6 +297,7 @@ impl Tank {
     pub fn update(&mut self, dt: f32, env: Option<&mut GasMixture>) -> PressureStatus {
         let status = self.limits.check(self.air.pressure(), dt);
         if status == PressureStatus::Ruptured {
+            self.burst_energy = self.air.pressure() * self.air.volume;
             if let Some(e) = env {
                 e.merge(&self.air);
             }
@@ -633,6 +640,7 @@ impl Pipes {
                         events.push(DeviceEvent::Ruptured {
                             key: *key,
                             cell: *cell,
+                            energy: c.burst_energy,
                         });
                     }
                 }
@@ -867,6 +875,7 @@ impl Pipes {
     ) -> PressureStatus {
         let status = c.limits.check(c.air.pressure(), dt);
         if status == PressureStatus::Ruptured {
+            c.burst_energy = c.air.pressure() * c.air.volume;
             if let Some(t) = env.air(cell) {
                 t.merge(&c.air);
             }
@@ -908,7 +917,7 @@ impl Pipes {
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum DeviceEvent {
     /// Баллон лопнул.
-    Ruptured { key: u64, cell: Cell },
+    Ruptured { key: u64, cell: Cell, energy: f32 },
 }
 
 /// Доступ устройств к воздуху клеток.

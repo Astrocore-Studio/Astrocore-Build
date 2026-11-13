@@ -41,6 +41,10 @@ const PROTOS: &str = r#"[
         "Item": (size: "Small"),
         "Gun": (fireRate: 10.0, minAngle: 0.0, maxAngle: 0.0, sound: "", magazine: "", cartridge: "", capacity: 0, auto: false, shot: "Zap", fireCost: 25.0, charge: 75.0),
     }),
+    (id: "OverTank", components: {
+        "Item": (size: "Normal"),
+        "GasTank": (moles: (Oxygen: 800.0)),
+    }),
     (id: "Truncheon", components: {
         "Item": (size: "Normal"),
         "MeleeWeapon": (damage: (Blunt: 10.0), attackRate: 3.0, bluntStaminaDamageFactor: 1.5),
@@ -3013,6 +3017,28 @@ mod disposal_tests {
             ammo_of(&h, a).ammo,
             3,
             "новый магазин (в патронник ушёл один из трёх)+1"
+        );
+    }
+
+    #[test]
+    fn an_overfilled_tank_bursts_and_the_blast_hurts_those_next_to_it() {
+        let mut h = harness();
+        let (a, b) = (h.join("a"), h.join("b"));
+        h.ticks(5);
+        grab(&mut h, a, 98, near(), "ss14:over_tank");
+        assert_eq!(damage_of(&h, b), 0.0);
+        // Баллончик под наблюдением появляется при первом обращении (выпуск газа).
+        let hand = hands_of(&h, a, a).unwrap().active() as u8;
+        command(&mut h, a, crate::CMD_USE, vec![hand]);
+        h.ticks(400);
+        assert!(
+            hands_of(&h, a, a).unwrap().held().next().is_none(),
+            "баллончик лопнул"
+        );
+        assert!(
+            damage_of(&h, b) > 0.0,
+            "взрыв задел соседа: {}",
+            damage_of(&h, b)
         );
     }
 
