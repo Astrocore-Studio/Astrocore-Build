@@ -532,6 +532,8 @@ pub struct State {
     pub(crate) primed: BTreeMap<ObjectId, f32>,
     /// Стрелковое оружие: описания, магазины, патроны → снаряд, урон снарядов и разброс дроби,
     /// заряд экземпляров оружия и число патронов в магазинах-предметах.
+    /// Броня: множители урона по видам у надетой вещи (`ArmorComponent.Modifiers.Coefficients`).
+    pub(crate) armor: BTreeMap<PrototypeId, DamageSpec>,
     pub(crate) guns: BTreeMap<PrototypeId, crate::gun::GunSpec>,
     pub(crate) magazines: BTreeMap<PrototypeId, crate::gun::MagSpec>,
     pub(crate) cartridge_shot: BTreeMap<String, String>,
@@ -608,6 +610,7 @@ impl State {
         let mut straps: BTreeMap<PrototypeId, f32> = BTreeMap::new();
         let mut explosives: BTreeMap<PrototypeId, Explosive> = BTreeMap::new();
         let mut guns: BTreeMap<PrototypeId, crate::gun::GunSpec> = BTreeMap::new();
+        let mut armor: BTreeMap<PrototypeId, DamageSpec> = BTreeMap::new();
         let mut magazines: BTreeMap<PrototypeId, crate::gun::MagSpec> = BTreeMap::new();
         let mut cartridge_shot: BTreeMap<String, String> = BTreeMap::new();
         let mut projectiles: BTreeMap<String, (DamageSpec, f32)> = BTreeMap::new();
@@ -632,6 +635,9 @@ impl State {
                     .unwrap_or_default()
                     .to_string()
             };
+            if let Some(c) = resolved.as_ref().and_then(|r| r.component("Armor")) {
+                armor.insert(id.clone(), damage_spec(c.get("coefficients")));
+            }
             if let Some(c) = resolved.as_ref().and_then(|r| r.component("Gun")) {
                 guns.insert(
                     id.clone(),
@@ -1161,6 +1167,7 @@ impl State {
             pulls: BTreeMap::new(),
             pull_hands: BTreeMap::new(),
             strip_view_for: BTreeMap::new(),
+            armor,
             guns,
             magazines,
             cartridge_shot,
@@ -2508,8 +2515,17 @@ impl State {
             for sol in &outcome.vomit {
                 self.puddles.spill(self.atmos.layout(), cell, sol);
             }
+            // Броня умножает урон вместе со статусами (`DamageModifierSet` надетых вещей).
+            let mut mods: BTreeMap<String, f32> = body.damage_modifiers().into_iter().collect();
+            if let Some(worn) = self.actors.get(&id) {
+                for item in worn.inventory.worn() {
+                    for (k, v) in self.armor.get(&item.prototype).into_iter().flatten() {
+                        *mods.entry(k.clone()).or_insert(1.0) *= v;
+                    }
+                }
+            }
             let a = self.actor(id);
-            a.health.set_modifiers(body.damage_modifiers());
+            a.health.set_modifiers(mods);
             let dealt = a.health.apply(&outcome.damage);
             body.on_damage(&dealt);
             let vitals = body.vitals();

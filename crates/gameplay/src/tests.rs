@@ -72,6 +72,7 @@ const PROTOS: &str = r#"[
     (id: "HeavyCoat", components: {
         "Item": (size: "Normal"),
         "Clothing": (slots: ["OuterClothing"], equipDelay: 1.0, unequipDelay: 0.5),
+        "Armor": (coefficients: (Blunt: 0.5)),
     }),
     (id: "Backpack", components: {
         "Item": (size: "Large"),
@@ -3012,6 +3013,48 @@ mod disposal_tests {
             ammo_of(&h, a).ammo,
             3,
             "новый магазин (в патронник ушёл один из трёх)+1"
+        );
+    }
+
+    #[test]
+    fn armor_halves_the_damage_it_covers() {
+        let mut h = harness();
+        let (a, b) = (h.join("a"), h.join("b"));
+        h.ticks(5);
+        grab(&mut h, a, 96, near(), "ss14:cudgel");
+        command(&mut h, a, crate::CMD_COMBAT, vec![1]);
+        let nb = h.client(b).net_id().unwrap();
+        let torso = crate::PARTS.iter().position(|p| *p == "Torso").unwrap() as u8;
+        // Удар без брони: полные 60 тупого урона.
+        command(
+            &mut h,
+            a,
+            crate::CMD_ATTACK,
+            crate::attack_part_data(nb, torso),
+        );
+        h.ticks(5);
+        let bare = damage_of(&h, b);
+        // Броня на цели: следующий такой же удар вдвое слабее.
+        grab(&mut h, b, 97, near(), "ss14:heavy_coat");
+        command(
+            &mut h,
+            b,
+            crate::CMD_EQUIP,
+            crate::equip_data(0, "outerClothing"),
+        );
+        h.ticks(40);
+        command(
+            &mut h,
+            a,
+            crate::CMD_ATTACK,
+            crate::attack_part_data(nb, torso),
+        );
+        h.ticks(5);
+        let second = damage_of(&h, b) - bare;
+        assert!(bare > 40.0, "{bare}");
+        assert!(
+            (second - bare * 0.5).abs() < 3.0,
+            "без брони {bare}, в броне {second}"
         );
     }
 

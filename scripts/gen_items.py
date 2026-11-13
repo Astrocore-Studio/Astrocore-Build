@@ -219,6 +219,12 @@ def convert(i):
     ca = comps.get('CartridgeAmmo')
     if ca is not None and ca.get('proto'):
         out.append('"Cartridge": (projectile: %s)' % q(ca['proto']))
+    ar = comps.get('Armor')
+    if ar is not None:
+        co = ((ar.get('modifiers') or {}).get('coefficients') or {})
+        co = {k: float(v) for k, v in co.items() if isinstance(v, (int, float))}
+        if co:
+            out.append('"Armor": (coefficients: (%s))' % ', '.join('%s: %s' % (k, v) for k, v in sorted(co.items())))
     ex = comps.get('Explosive')
     if ex is not None:
         out.append('"Explosive": (explosionType: %s, totalIntensity: %s, intensitySlope: %s, maxIntensity: %s)' % (
