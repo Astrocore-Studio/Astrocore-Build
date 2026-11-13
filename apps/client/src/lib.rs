@@ -387,11 +387,17 @@ fn autoplay(
             .spawn(bevy::render::view::screenshot::Screenshot::primary_window())
             .observe(bevy::render::view::screenshot::save_to_disk(path));
     }
-    // Взгляд вниз для снимков пола (лужи, огонь).
-    if std::env::var_os("ASTRO_LOOK_DOWN").is_some()
-        && let Some(mut l) = look
-    {
-        l.pitch = 0.9;
+    // Отладка: ASTRO_LOOK=yaw,pitch держит взгляд (yaw 0 — на север, к −Z); ASTRO_LOOK_DOWN — вниз.
+    if let Some(mut l) = look {
+        if let Ok(v) = std::env::var("ASTRO_LOOK") {
+            let p: Vec<f32> = v.split(',').filter_map(|x| x.trim().parse().ok()).collect();
+            if let [yaw, pitch] = p[..] {
+                l.yaw = yaw;
+                l.pitch = pitch;
+            }
+        } else if std::env::var_os("ASTRO_LOOK_DOWN").is_some() {
+            l.pitch = 0.9;
+        }
     }
     // Отладка: сразу взять должность (для снимков).
     if let Ok(job) = std::env::var("ASTRO_AUTOPLAY_JOB")
