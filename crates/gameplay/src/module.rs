@@ -535,7 +535,7 @@ pub struct State {
     pub(crate) guns: BTreeMap<PrototypeId, crate::gun::GunSpec>,
     pub(crate) magazines: BTreeMap<PrototypeId, crate::gun::MagSpec>,
     pub(crate) cartridge_shot: BTreeMap<String, String>,
-    pub(crate) projectiles: BTreeMap<String, DamageSpec>,
+    pub(crate) projectiles: BTreeMap<String, (DamageSpec, f32)>,
     pub(crate) spreads: BTreeMap<String, (String, u32, f32)>,
     pub(crate) gun_state: BTreeMap<ObjectId, crate::gun::GunState>,
     pub(crate) mag_state: BTreeMap<ObjectId, u32>,
@@ -610,7 +610,7 @@ impl State {
         let mut guns: BTreeMap<PrototypeId, crate::gun::GunSpec> = BTreeMap::new();
         let mut magazines: BTreeMap<PrototypeId, crate::gun::MagSpec> = BTreeMap::new();
         let mut cartridge_shot: BTreeMap<String, String> = BTreeMap::new();
-        let mut projectiles: BTreeMap<String, DamageSpec> = BTreeMap::new();
+        let mut projectiles: BTreeMap<String, (DamageSpec, f32)> = BTreeMap::new();
         let mut spreads: BTreeMap<String, (String, u32, f32)> = BTreeMap::new();
         let mut fuses: BTreeMap<PrototypeId, f32> = BTreeMap::new();
         let mut explosion_types: BTreeMap<String, DamageSpec> = BTreeMap::new();
@@ -647,6 +647,9 @@ impl State {
                             .get("auto")
                             .and_then(prototypes::Data::as_bool)
                             .unwrap_or(false),
+                        shot: text(c, "shot"),
+                        fire_cost: num(c, "fireCost", 0.0),
+                        charge: num(c, "charge", 0.0),
                     },
                 );
             }
@@ -666,7 +669,10 @@ impl State {
                 .as_ref()
                 .and_then(|r| r.component("ProjectileDamage"))
             {
-                projectiles.insert(name.clone(), damage_spec(c.get("damage")));
+                projectiles.insert(
+                    name.clone(),
+                    (damage_spec(c.get("damage")), num(c, "stamina", 0.0)),
+                );
             }
             if let Some(c) = resolved
                 .as_ref()
@@ -4927,6 +4933,7 @@ impl State {
             mag: None,
             chamber: None,
             internal: (spec.cartridge.clone(), spec.capacity),
+            charge: spec.charge,
             next_shot: 0.0,
         };
         if !spec.magazine.is_empty()
@@ -4963,6 +4970,15 @@ impl State {
             .get(&item.id)
             .cloned()
             .unwrap_or_else(|| self.fresh_gun(&spec));
+        // Энергооружие: выстрелов в батарее и на полной.
+        if spec.fire_cost > 0.0 {
+            return crate::gun::AmmoView {
+                gun: true,
+                ammo: (st.charge / spec.fire_cost).floor() as u32,
+                capacity: (spec.charge / spec.fire_cost).floor() as u32,
+                auto: spec.auto,
+            };
+        }
         let capacity = match &st.mag {
             Some((p, _, _)) => self.magazines.get(p).map_or(0, |m| m.capacity) + 1,
             None => spec.capacity,
@@ -4999,7 +5015,16 @@ impl State {
         if clock < st.next_shot {
             return;
         }
-        let Some(round) = st.take_round() else {
+        let energy = spec.fire_cost > 0.0;
+        let taken = if energy {
+            (st.charge + 1e-3 >= spec.fire_cost).then(|| {
+                st.charge -= spec.fire_cost;
+                spec.shot.clone()
+            })
+        } else {
+            st.take_round()
+        };
+        let Some(round) = taken else {
             // Пусто: щелчок (`soundEmpty`).
             st.next_shot = clock + 0.5;
             self.gun_state.insert(item.id, st);
@@ -5015,12 +5040,16 @@ impl State {
             return;
         }
         // Снаряды патрона: одиночный или дробь (`ProjectileSpread`).
-        let shot = self.cartridge_shot.get(&round).cloned().unwrap_or_default();
+        let shot = if energy {
+            round.clone()
+        } else {
+            self.cartridge_shot.get(&round).cloned().unwrap_or_default()
+        };
         let (projectile, count, pellet_spread) = match self.spreads.get(&shot) {
             Some((p, n, sp)) => (p.clone(), (*n).max(1), *sp),
             None => (shot, 1, 0.0),
         };
-        let damage = self
+        let (damage, stamina) = self
             .projectiles
             .get(&projectile)
             .cloned()
@@ -5037,7 +5066,7 @@ impl State {
                 aim.x * sy + aim.z * cy,
             )
             .normalize_or_zero();
-            self.fire_ray(ctx, actor, muzzle, rotated, &damage);
+            self.fire_ray(ctx, actor, muzzle, rotated, &damage, stamina);
         }
         if !spec.sound.is_empty() {
             self.sound(&spec.sound, muzzle);
@@ -5053,6 +5082,7 @@ impl State {
         muzzle: Vec3,
         dir: Vec3,
         damage: &DamageSpec,
+        stamina: f32,
     ) {
         let wall = ctx
             .unobstructed_distance(muzzle, muzzle + dir * crate::gun::RANGE_M)
@@ -5091,6 +5121,10 @@ impl State {
             body.on_damage(&dealt);
         }
         self.after_health_change(ctx, who);
+        // Шокер и подобные: снаряд ещё и утомляет (`StaminaDamageOnCollide`).
+        if stamina > 0.0 {
+            self.take_stamina(ctx, who, stamina);
+        }
     }
 
     /// Перезарядка из другой руки: магазин в магазинное оружие или патрон во встроенное хранилище.

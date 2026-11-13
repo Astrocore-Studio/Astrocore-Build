@@ -37,6 +37,10 @@ pub struct GunSpec {
     pub capacity: u32,
     /// Автоматический огонь (`selectedMode: FullAuto`).
     pub auto: bool,
+    /// Энергооружие: снаряд, цена выстрела и ёмкость батареи (`BatteryAmmoProvider`, `Battery`).
+    pub shot: String,
+    pub fire_cost: f32,
+    pub charge: f32,
 }
 
 /// Магазин: патрон и вместимость (`BallisticAmmoProvider` предмета-магазина).
@@ -55,6 +59,8 @@ pub struct GunState {
     pub chamber: Option<String>,
     /// Встроенное хранилище: патрон и число.
     pub internal: (String, u32),
+    /// Заряд батареи энергооружия.
+    pub charge: f32,
     /// Когда можно стрелять снова, с (по часам модуля).
     pub next_shot: f32,
 }
@@ -175,6 +181,7 @@ mod tests {
             )),
             chamber: Some("CartridgePistol".into()),
             internal: (String::new(), 0),
+            charge: 0.0,
             next_shot: 0.0,
         }
     }
@@ -197,6 +204,7 @@ mod tests {
             mag: None,
             chamber: None,
             internal: ("ShellShotgun".into(), 2),
+            charge: 0.0,
             next_shot: 0.0,
         };
         assert_eq!(g.take_round().as_deref(), Some("ShellShotgun"));

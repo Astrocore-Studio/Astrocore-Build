@@ -36,6 +36,11 @@ const PROTOS: &str = r#"[
         "Item": (size: "Small"),
         "Gun": (fireRate: 10.0, minAngle: 0.0, maxAngle: 0.0, sound: "", magazine: "PistolMag", cartridge: "", capacity: 0, auto: false),
     }),
+    (id: "Zap", components: {"ProjectileDamage": (damage: (Heat: 5.0), stamina: 40.0)}),
+    (id: "Taser", components: {
+        "Item": (size: "Small"),
+        "Gun": (fireRate: 10.0, minAngle: 0.0, maxAngle: 0.0, sound: "", magazine: "", cartridge: "", capacity: 0, auto: false, shot: "Zap", fireCost: 25.0, charge: 75.0),
+    }),
     (id: "Truncheon", components: {
         "Item": (size: "Normal"),
         "MeleeWeapon": (damage: (Blunt: 10.0), attackRate: 3.0, bluntStaminaDamageFactor: 1.5),
@@ -3008,6 +3013,37 @@ mod disposal_tests {
             3,
             "новый магазин (в патронник ушёл один из трёх)+1"
         );
+    }
+
+    #[test]
+    fn an_energy_gun_spends_its_battery_and_its_shots_tire_the_target() {
+        let mut h = harness();
+        let (a, b) = (h.join("a"), h.join("b"));
+        h.ticks(5);
+        grab(&mut h, a, 91, near(), "ss14:taser");
+        let v = ammo_of(&h, a);
+        assert_eq!((v.ammo, v.capacity), (3, 3), "75 заряда по 25 за выстрел");
+        for _ in 0..40 {
+            h.input(b, 0, 1, 0.0);
+        }
+        h.ticks(5);
+        let target = h.server.player_position(b).unwrap() + Vec3::Y * 0.5;
+        command(&mut h, a, crate::CMD_COMBAT, vec![1]);
+        let fire = |h: &mut Harness| {
+            command(h, a, crate::CMD_SHOOT, crate::throw_data(target.to_array()));
+            h.ticks(6);
+        };
+        fire(&mut h);
+        assert_eq!(ammo_of(&h, a).ammo, 2);
+        assert!(damage_of(&h, b) > 0.0);
+        // Два выстрела по 40 выносливости — порог 100 пройден: цель лежит.
+        fire(&mut h);
+        fire(&mut h);
+        assert_eq!(ammo_of(&h, a).ammo, 0);
+        assert!(lying(&h, a, b), "шокер свалил");
+        let spent = damage_of(&h, b);
+        fire(&mut h);
+        assert_eq!(damage_of(&h, b), spent, "батарея пуста");
     }
 
     #[test]

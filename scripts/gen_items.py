@@ -200,10 +200,16 @@ def convert(i):
         if 'ChamberMagazineAmmoProvider' in comps or 'MagazineAmmoProvider' in comps:
             mag = slot.get('startingItem') or ''
         prov = comps.get('BallisticAmmoProvider') or comps.get('RevolverAmmoProvider') or {}
-        out.append('"Gun": (fireRate: %s, minAngle: %s, maxAngle: %s, sound: %s, magazine: %s, cartridge: %s, capacity: %d, auto: %s)' % (
+        # Энергооружие: собственная батарея и стоимость выстрела (`BatteryAmmoProvider`).
+        bat = comps.get('BatteryAmmoProvider') or {}
+        cell = comps.get('Battery') or {}
+        out.append('"Gun": (fireRate: %s, minAngle: %s, maxAngle: %s, sound: %s, magazine: %s, cartridge: %s, capacity: %d, auto: %s, shot: %s, fireCost: %s, charge: %s)' % (
             float(gun.get('fireRate', 1.0)), float(gun.get('minAngle', 2.0)), float(gun.get('maxAngle', 10.0)),
             q(sound), q(mag), q(prov.get('proto') or ''), int(prov.get('capacity', 0)),
-            'true' if gun.get('selectedMode') == 'FullAuto' else 'false'))
+            'true' if gun.get('selectedMode') == 'FullAuto' else 'false',
+            q(bat.get('proto') or ''), float(bat.get('fireCost', 0)), float(cell.get('maxCharge', 0))))
+        if bat.get('proto'):
+            PROJECTILES.add(bat['proto'])
         if sound:
             GUN_SOUNDS.add(sound)
     elif 'BallisticAmmoProvider' in comps:
@@ -297,11 +303,13 @@ def write_guns():
                 q(i), q(sp.get('proto', '')), int(sp.get('count', 1)), float(sp.get('spread', 0))))
             if sp.get('proto'):
                 todo.append(sp['proto'])
-        elif pr:
-            types = ((pr.get('damage') or {}).get('types') or {})
+        elif pr or c.get('HitscanBasicDamage'):
+            src = pr or c.get('HitscanBasicDamage')
+            types = ((src.get('damage') or {}).get('types') or {})
             types = {k: float(v) for k, v in types.items() if isinstance(v, (int, float))}
-            out.append('    (id: %s, components: {"ProjectileDamage": (damage: (%s))}),' % (
-                q(i), ', '.join('%s: %s' % (k, v) for k, v in sorted(types.items()))))
+            stam = float((c.get('StaminaDamageOnCollide') or {}).get('damage', 0) or 0)
+            out.append('    (id: %s, components: {"ProjectileDamage": (damage: (%s), stamina: %s)}),' % (
+                q(i), ', '.join('%s: %s' % (k, v) for k, v in sorted(types.items())), stam))
     out.append(']')
     open('content/prototypes/guns.ron', 'w', encoding='utf-8').write('\n'.join(sorted(set(out[:2])) and out) + '\n')
     open('content/prototypes/gun_sounds.txt', 'w').write('\n'.join(sorted(GUN_SOUNDS)) + '\n')

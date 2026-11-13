@@ -683,6 +683,25 @@ fn autoplay(
             ),
         );
     }
+    // Отладка: достать оружие из кармана, включить боевой режим и выстрелить (ASTRO_AUTOPLAY_GUN).
+    if std::env::var_os("ASTRO_AUTOPLAY_GUN").is_some() {
+        match state.frame {
+            100 => {
+                net.send_command(gameplay::CMD_UNEQUIP, gameplay::unequip_data("pocket1"));
+            }
+            120 => {
+                net.send_command(gameplay::CMD_COMBAT, vec![1]);
+            }
+            140 | 150 => {
+                let p = net.core.position();
+                net.send_command(
+                    gameplay::CMD_SHOOT,
+                    gameplay::throw_data([p.x + 6.0, p.y + 0.6, p.z]),
+                );
+            }
+            _ => {}
+        }
+    }
     // Отладка: лечь (ASTRO_AUTOPLAY_REST) и бросить предмет из руки вперёд (ASTRO_AUTOPLAY_THROW).
     if std::env::var_os("ASTRO_AUTOPLAY_REST").is_some() && state.frame == 100 {
         net.send_command(gameplay::CMD_REST, Vec::new());
