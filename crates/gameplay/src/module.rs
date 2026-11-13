@@ -47,6 +47,12 @@ const CHEST_M: f32 = 0.55;
 const WALK_FACTOR: f32 = 2.5 / 4.5;
 /// Скорость ползком (`CrawlerComponent.SpeedModifier`) и время вставания, с (`StandTime`).
 const CRAWL_FACTOR: f32 = 0.4;
+/// Скорость того, кто тащит (`PullerComponent`), и запас связи сверх начального расстояния, м
+/// (`MaxLength = Length + 0.15`).
+const PULL_SPEED_FACTOR: f32 = 0.95;
+const PULL_SLACK_M: f32 = 0.15;
+/// Дальше этого от того, кто тащит, цель срывается (застряла, телепорт, стена).
+const PULL_BREAK_M: f32 = 2.5;
 const STAND_UP_S: f32 = 2.0;
 /// Урон за время вставания, прерывающий его (`DamageThreshold` доафтера).
 const STAND_BREAK_DAMAGE: f32 = 5.0;
@@ -479,6 +485,8 @@ pub struct State {
     pub(crate) ss14_names: BTreeMap<PrototypeId, String>,
     pub(crate) descriptions: BTreeMap<String, String>,
     pub(crate) verb_seq: u32,
+    /// Кто кого тащит: тащащий → (цель, длина связи, м). Цель тащат не более одного.
+    pub(crate) pulls: BTreeMap<NetworkEntityId, (crate::verbs::VerbTarget, f32)>,
     /// Брошенные предметы в полёте: когда упадут, предмет и место падения.
     pub(crate) thrown: Vec<(f32, crate::hands::HeldItem, Vec3)>,
     pub(crate) spawn_next: usize,
@@ -983,6 +991,7 @@ impl State {
             ss14_names,
             descriptions: BTreeMap::new(),
             verb_seq: 0,
+            pulls: BTreeMap::new(),
             thrown: Vec::new(),
             spawn_next: 0,
             firelock_cells: BTreeMap::new(),
@@ -2231,10 +2240,16 @@ impl State {
             } else {
                 1.0
             };
+            // Тащащий идёт на 5% медленнее (`PullerComponent.WalkSpeedModifier`).
+            let pulling = if self.pulls.contains_key(&id) {
+                PULL_SPEED_FACTOR
+            } else {
+                1.0
+            };
             let speed = if a_ghost {
                 1.0
             } else {
-                vitals.speed * walk * crawl
+                vitals.speed * walk * crawl * pulling
             };
             if (speed - self.speed_sent.get(&id).copied().unwrap_or(1.0)).abs() > 1e-4 {
                 self.speed_sent.insert(id, speed);
@@ -2296,6 +2311,7 @@ impl State {
         self.tick_round(ctx);
         self.tick_chat(ctx);
         self.tick_rest_and_thrown(ctx);
+        self.tick_pulls(ctx);
         self.place_joiners(ctx);
         self.tick_disposal(ctx, dt);
         self.tick_conveyors(ctx, dt);
@@ -4642,6 +4658,158 @@ impl State {
         }
     }
 
+    /// Глагол «Pull» / «Stop pulling» для цели (`PullingSystem.OnGetInteractionVerbs`).
+    fn pull_verb(
+        &self,
+        ctx: &HookContext<'_>,
+        actor: NetworkEntityId,
+        target: crate::verbs::VerbTarget,
+    ) -> Option<crate::verbs::Verb> {
+        use crate::verbs::Verb;
+        if self.pulls.get(&actor).is_some_and(|(t, _)| *t == target) {
+            return Some(Verb {
+                id: "stop_pull".into(),
+                label: "Stop pulling".into(),
+                disabled: None,
+            });
+        }
+        self.can_pull(ctx, actor, target).then(|| Verb {
+            id: "pull".into(),
+            label: "Pull".into(),
+            disabled: None,
+        })
+    }
+
+    /// `CanPull`: сам не цель, живой и действующий, есть свободная рука (или уже тащит), цель
+    /// рядом, свободна и подвижна (игрок или предмет на земле), её никто не тащит.
+    fn can_pull(
+        &self,
+        ctx: &HookContext<'_>,
+        actor: NetworkEntityId,
+        target: crate::verbs::VerbTarget,
+    ) -> bool {
+        use crate::verbs::VerbTarget;
+        let Some(a) = self.actors.get(&actor) else {
+            return false;
+        };
+        if a.ghost || !a.health.state().can_act() || target == VerbTarget::Player(actor) {
+            return false;
+        }
+        let free_hand = a.hands.order().any(|h| a.hands.get(h).is_none());
+        if !free_hand && !self.pulls.contains_key(&actor) {
+            return false;
+        }
+        if self.pulls.values().any(|(t, _)| *t == target) {
+            return false;
+        }
+        let movable = match target {
+            VerbTarget::Player(p) => self.actors.contains_key(&p),
+            VerbTarget::Object(id) => ctx.world.authored_object(id).is_some_and(|o| {
+                matches!(&o.kind, AuthoredKind::Placement { prototype } if self.info(prototype).is_some())
+            }),
+        };
+        if !movable {
+            return false;
+        }
+        let (Some(feet), Some(spot)) = (ctx.position_of(actor), self.verb_target_spot(ctx, target))
+        else {
+            return false;
+        };
+        let chest = feet + Vec3::Y * CHEST_M;
+        let near = (spot - chest).length() <= self.range_m + 0.5;
+        near && ctx.unobstructed_distance(chest, spot) + 0.7 >= (spot - chest).length()
+    }
+
+    /// Начать тащить цель (`TryStartPull`): прежняя цель отпускается, связь — текущее расстояние.
+    fn start_pull(
+        &mut self,
+        ctx: &mut HookContext<'_>,
+        actor: NetworkEntityId,
+        target: crate::verbs::VerbTarget,
+    ) {
+        use crate::verbs::VerbTarget;
+        if !self.can_pull(ctx, actor, target) {
+            return;
+        }
+        let (Some(feet), Some(spot)) = (ctx.position_of(actor), self.verb_target_spot(ctx, target))
+        else {
+            return;
+        };
+        let len = match target {
+            VerbTarget::Player(_) => Vec3::new(spot.x - feet.x, 0.0, spot.z - feet.z).length(),
+            VerbTarget::Object(_) => Vec3::new(spot.x - feet.x, 0.0, spot.z - feet.z).length(),
+        };
+        self.pulls.insert(actor, (target, len.max(0.5)));
+        if let VerbTarget::Player(p) = target {
+            let name = self.speaker_name(actor);
+            self.popup(p, format!("{name} is pulling you."));
+        }
+    }
+
+    /// Отпустить цель (`TryStopPull`).
+    fn stop_pull(&mut self, _ctx: &mut HookContext<'_>, actor: NetworkEntityId) {
+        self.pulls.remove(&actor);
+    }
+
+    /// Тяга: цель следует за тащащим на длине связи; срывается, если тащащий выбыл или цель
+    /// слишком далеко (`MaxLength = Length + 0.15`, `PullableComponent` без физического соединения).
+    fn tick_pulls(&mut self, ctx: &mut HookContext<'_>) {
+        use crate::verbs::VerbTarget;
+        let pulls: Vec<(NetworkEntityId, VerbTarget, f32)> =
+            self.pulls.iter().map(|(a, (t, l))| (*a, *t, *l)).collect();
+        for (actor, target, len) in pulls {
+            let alive = self
+                .actors
+                .get(&actor)
+                .is_some_and(|a| !a.ghost && a.health.state().can_act());
+            let (Some(feet), Some(spot)) =
+                (ctx.position_of(actor), self.verb_target_spot(ctx, target))
+            else {
+                self.pulls.remove(&actor);
+                continue;
+            };
+            let flat = Vec3::new(spot.x - feet.x, 0.0, spot.z - feet.z);
+            if !alive || flat.length() > PULL_BREAK_M + len {
+                self.pulls.remove(&actor);
+                continue;
+            }
+            if flat.length() <= len + PULL_SLACK_M {
+                continue;
+            }
+            let dir = flat.normalize_or_zero();
+            let want = Vec3::new(feet.x + dir.x * len, 0.0, feet.z + dir.z * len);
+            match target {
+                VerbTarget::Player(p) => {
+                    if let Some(pos) = ctx.position_of(p) {
+                        ctx.teleport(p, Vec3::new(want.x, pos.y, want.z));
+                    }
+                }
+                VerbTarget::Object(id) => {
+                    let Some(obj) = ctx.world.authored_object(id).cloned() else {
+                        self.pulls.remove(&actor);
+                        continue;
+                    };
+                    let centre = (obj.min() + obj.max()) * 0.5;
+                    let delta = Vec3::new(want.x - centre.x, 0.0, want.z - centre.z);
+                    let moved = AuthoredObject::new(
+                        obj.id,
+                        obj.kind.clone(),
+                        obj.floor,
+                        obj.min() + delta,
+                        obj.max() + delta,
+                    );
+                    ctx.request(WorldCommand::RemoveAuthored { id });
+                    ctx.request(WorldCommand::PlaceAuthored(moved));
+                }
+            }
+        }
+        // Игрок вышел: связи с ним и от него снимаются.
+        let present: Vec<NetworkEntityId> = ctx.players().collect();
+        self.pulls.retain(|a, (t, _)| {
+            present.contains(a) && !matches!(t, VerbTarget::Player(p) if !present.contains(p))
+        });
+    }
+
     /// Допуск на размер цели при проверке прямой видимости, м: объект — крупнее игрока.
     fn verb_slack(target: crate::verbs::VerbTarget) -> f32 {
         match target {
@@ -4670,7 +4838,6 @@ impl State {
         // Преграда между глазами и целью (`InRangeUnOccluded`): допуск `slack` на собственный
         // объём цели (луч идёт в её центр и упирается в её же коробку).
         let free = ctx.unobstructed_distance(eye, spot);
-        eprintln!("EXAMINE_DIST eye={eye:?} spot={spot:?} d={d} free={free} slack={slack}");
         // Если глаза внутри коробки (`free` ≈ 0), преграду не считаем: игрок встал в предмет.
         (free < 0.05 || free >= d - slack).then_some(d)
     }
@@ -4708,6 +4875,9 @@ impl State {
                 disabled: Some("You can't make out whatever that is.".into()),
             }),
         }
+        if let Some(v) = self.pull_verb(ctx, actor, target) {
+            verbs.push(v);
+        }
         self.verb_seq += 1;
         let view = VerbsView {
             seq: self.verb_seq,
@@ -4730,6 +4900,15 @@ impl State {
         let Some(spot) = self.verb_target_spot(ctx, target) else {
             return;
         };
+        // Таскание не требует осмотра: свои правила дальности внутри `start_pull`.
+        if matches!(verb, "pull" | "stop_pull") {
+            if verb == "pull" {
+                self.start_pull(ctx, actor, target);
+            } else {
+                self.stop_pull(ctx, actor);
+            }
+            return;
+        }
         let Some(dist) = self.examine_distance(ctx, actor, spot, Self::verb_slack(target)) else {
             self.popup(actor, "You can't make out whatever that is.");
             return;
@@ -4759,6 +4938,14 @@ impl State {
             }
         };
         match (verb, target) {
+            ("pull", _) => {
+                self.start_pull(ctx, actor, target);
+                return;
+            }
+            ("stop_pull", _) => {
+                self.stop_pull(ctx, actor);
+                return;
+            }
             ("examine", _) => {}
             ("examine_health", VerbTarget::Player(p)) => {
                 if dist > crate::verbs::EXAMINE_DETAILS_RANGE_M {

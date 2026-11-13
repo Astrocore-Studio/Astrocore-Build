@@ -2588,6 +2588,123 @@ mod disposal_tests {
         h.ticks(2);
     }
 
+    fn verb_ids(h: &mut Harness, who: ConnId, target: crate::VerbTarget) -> Vec<String> {
+        command(
+            h,
+            who,
+            crate::CMD_VERB_LIST,
+            crate::target_data(target, None),
+        );
+        h.ticks(3);
+        verbs_of(h, who)
+            .unwrap()
+            .verbs
+            .iter()
+            .map(|v| v.id.clone())
+            .collect()
+    }
+
+    fn feet(h: &Harness, who: ConnId) -> Vec3 {
+        h.server.player_position(who).unwrap()
+    }
+
+    #[test]
+    fn a_pulled_player_follows_until_released() {
+        let mut h = harness();
+        let (a, b) = (h.join("a"), h.join("b"));
+        h.ticks(5);
+        let nb = h.client(b).net_id().unwrap();
+        let who = crate::VerbTarget::Player(nb);
+        assert!(verb_ids(&mut h, a, who).contains(&"pull".to_string()));
+        command(
+            &mut h,
+            a,
+            crate::CMD_VERB_DO,
+            crate::target_data(who, Some("pull")),
+        );
+        h.ticks(3);
+        assert_eq!(
+            verb_ids(&mut h, a, who).last().map(String::as_str),
+            Some("stop_pull")
+        );
+        // Тащащий идёт вперёд: цель следует за ним на длине связи.
+        for _ in 0..40 {
+            h.input(a, 0, 1, 0.0);
+        }
+        h.ticks(5);
+        let gap = Vec3::new(
+            feet(&h, a).x - feet(&h, b).x,
+            0.0,
+            feet(&h, a).z - feet(&h, b).z,
+        )
+        .length();
+        assert!(
+            feet(&h, a).distance(Vec3::new(2.5, 0.2, 2.5)) > 1.0,
+            "ушёл вперёд"
+        );
+        assert!(gap < 0.9, "цель тянется следом: разрыв {gap}");
+        // Отпущена — остаётся на месте.
+        command(
+            &mut h,
+            a,
+            crate::CMD_VERB_DO,
+            crate::target_data(who, Some("stop_pull")),
+        );
+        h.ticks(3);
+        let stay = feet(&h, b);
+        for _ in 0..20 {
+            h.input(a, 0, 1, 0.0);
+        }
+        assert!(feet(&h, b).distance(stay) < 0.05, "отпущенный не движется");
+        // Себя тащить нельзя.
+        let me = crate::VerbTarget::Player(h.client(a).net_id().unwrap());
+        assert!(!verb_ids(&mut h, a, me).contains(&"pull".to_string()));
+    }
+
+    #[test]
+    fn an_item_on_the_floor_can_be_pulled_along() {
+        let mut h = harness();
+        let a = h.join("a");
+        h.ticks(5);
+        spawn(
+            &mut h,
+            item_at(88, "ss14:crowbar", Vec3::new(2.5, 0.2, 2.2)),
+        );
+        let item = crate::VerbTarget::Object(oid(88));
+        assert!(verb_ids(&mut h, a, item).contains(&"pull".to_string()));
+        command(
+            &mut h,
+            a,
+            crate::CMD_VERB_DO,
+            crate::target_data(item, Some("pull")),
+        );
+        h.ticks(3);
+        let z0 = h
+            .client(a)
+            .world()
+            .unwrap()
+            .authored_object(oid(88))
+            .unwrap()
+            .min()
+            .z;
+        for _ in 0..40 {
+            h.input(a, 0, 1, 0.0);
+        }
+        h.ticks(5);
+        let z1 = h
+            .client(a)
+            .world()
+            .unwrap()
+            .authored_object(oid(88))
+            .unwrap()
+            .min()
+            .z;
+        assert!(
+            (z1 - z0).abs() > 0.5,
+            "предмет уехал за игроком: {z0} → {z1}"
+        );
+    }
+
     #[test]
     fn a_vending_machine_with_a_reader_refuses_without_access() {
         let mut h = harness();
