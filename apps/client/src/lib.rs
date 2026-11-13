@@ -314,7 +314,8 @@ fn aim_target(
         let Some(t) = ray_box(origin, dir, min, max) else {
             continue;
         };
-        if t <= AIM_RANGE_M && best.as_ref().is_none_or(|(b, _)| t < *b) {
+        // Объект, внутри объёма которого стоит камера, целью не бывает (луч начинается в нём).
+        if t > 0.05 && t <= AIM_RANGE_M && best.as_ref().is_none_or(|(b, _)| t < *b) {
             best = Some((t, info.name.clone()));
         }
     }
