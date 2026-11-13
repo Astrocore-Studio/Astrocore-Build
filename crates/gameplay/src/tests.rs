@@ -2553,7 +2553,7 @@ mod disposal_tests {
             .iter()
             .map(|v| v.id.clone())
             .collect();
-        assert_eq!(ids, ["examine", "examine_health", "pull"]);
+        assert_eq!(ids, ["examine", "examine_health", "pull", "strip"]);
         command(
             &mut h,
             a,
@@ -2630,10 +2630,7 @@ mod disposal_tests {
             crate::target_data(who, Some("pull")),
         );
         h.ticks(3);
-        assert_eq!(
-            verb_ids(&mut h, a, who).last().map(String::as_str),
-            Some("stop_pull")
-        );
+        assert!(verb_ids(&mut h, a, who).contains(&"stop_pull".to_string()));
         // Тащащий идёт вперёд: цель следует за ним на длине связи.
         for _ in 0..40 {
             h.input(a, 0, 1, 0.0);
