@@ -218,11 +218,13 @@ fn entity_rot(entity: &Value) -> u8 {
 
 /// Толщина ребра-стены: рёбра нужны логике, а видимый объём даёт блок на всю клетку.
 const WALL_EDGE_THICKNESS_M: f32 = 0.02;
-/// Высота блока стены над полом, мм: стена — один тайл. Блок упирается в потолок.
-const WALL_HEIGHT_MM: u32 = 1050;
-/// Высота этажа (от основания до верха потолочной плиты), м, и толщина потолка. Потолок над
-/// головой игрока (1 м) с запасом 5 см; стены-блоки доходят до его нижней грани.
-const STOREY_M: f32 = 1.35;
+/// Стена — два куба 1×1×1 м друг на друге: этаж в два тайла высотой, человек ростом в тайл.
+/// Два квадратных куба вместо одного высокого — чтобы текстура стены не растягивалась.
+const WALL_BLOCK_MM: u32 = 1000;
+const WALL_LEVELS: i32 = 2;
+/// Высота этажа (от основания до верха потолочной плиты), м, и толщина потолка. Нижняя грань
+/// потолка совпадает с верхом стен: пол 0,2 м + два тайла.
+const STOREY_M: f32 = 2.3;
 const CEILING_THICKNESS_M: f32 = 0.1;
 
 /// Стороны трубы SS14 без поворота (`pipeDirection` прототипа): N, S, E, W битами 1, 2, 4, 8.
@@ -800,20 +802,22 @@ pub fn import(
         if !touches_floor {
             continue;
         }
-        elements.push(element(
-            StructureKind::Freeform,
-            Placement::Free(astrocore_world::FreePlacement {
-                cell: GridCell::new(c.0, c.1),
-                x_mm: 500,
-                z_mm: 500,
-                y_mm: (FLOOR_TOP_M * 1000.0) as i32,
-                yaw_cdeg: 0,
-                half_mm: [500, WALL_HEIGHT_MM, 500],
-            }),
-            &mats.wall,
-            0.1,
-        ));
-        wall_blocks += 1;
+        for level in 0..WALL_LEVELS {
+            elements.push(element(
+                StructureKind::Freeform,
+                Placement::Free(astrocore_world::FreePlacement {
+                    cell: GridCell::new(c.0, c.1),
+                    x_mm: 500,
+                    z_mm: 500,
+                    y_mm: (FLOOR_TOP_M * 1000.0) as i32 + level * WALL_BLOCK_MM as i32,
+                    yaw_cdeg: 0,
+                    half_mm: [500, WALL_BLOCK_MM, 500],
+                }),
+                &mats.wall,
+                0.1,
+            ));
+            wall_blocks += 1;
+        }
     }
     report.wall_blocks = wall_blocks;
     for e in &door_edges {
