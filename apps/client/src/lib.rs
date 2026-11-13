@@ -686,6 +686,11 @@ fn autoplay(
     // Отладка: достать оружие из кармана, включить боевой режим и выстрелить (ASTRO_AUTOPLAY_GUN).
     if std::env::var_os("ASTRO_AUTOPLAY_GUN").is_some() {
         match state.frame {
+            60 => {
+                let job = std::env::var("ASTRO_AUTOPLAY_JOB").unwrap_or_default();
+                net.send_command(gameplay::CMD_LOBBY_READY, Vec::new());
+                net.send_command(gameplay::CMD_JOB, job.into_bytes());
+            }
             100 => {
                 net.send_command(gameplay::CMD_UNEQUIP, gameplay::unequip_data("pocket1"));
             }
