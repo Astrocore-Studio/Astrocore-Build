@@ -318,6 +318,12 @@ fn aim_target(
             best = Some((t, info.name.clone()));
         }
     }
+    if std::env::var_os("ASTRO_AIM_DEBUG").is_some() {
+        eprintln!(
+            "AIM origin={origin:?} dir={dir:?} best={best:?} feet={:?}",
+            net.core.position()
+        );
+    }
     // Стены, пол и потолок закрывают цель: если до объекта луч упирается в плиту или куб
     // раньше, подсказки нет.
     if let Some((t, _)) = &best {
@@ -354,7 +360,11 @@ fn aim_target(
             if centre.iter().map(|v| v * v).sum::<f32>() > (AIM_RANGE_M + 2.0).powi(2) {
                 return false;
             }
-            ray_box(origin, dir, min, max).is_some_and(|h| h < *t - 0.05)
+            let hit = ray_box(origin, dir, min, max);
+            if std::env::var_os("ASTRO_AIM_DEBUG").is_some() && hit.is_some_and(|h| h < *t) {
+                eprintln!("AIMBLOCK {:?} {:?} {:?} t={:?}", e.kind, min, max, hit);
+            }
+            hit.is_some_and(|h| h < *t - 0.05)
         });
         if blocked {
             best = None;
