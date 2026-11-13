@@ -292,58 +292,31 @@ fn aim_target(
         return;
     };
     let (origin, dir) = (ray.origin.to_array(), ray.direction.as_vec3().to_array());
-    let me = net.core.position();
     let mut best: Option<(f32, String)> = None;
     for o in world.authored() {
         let astrocore_world::AuthoredKind::Placement { prototype } = &o.kind else {
             continue;
         };
-        let Some(name) = hud.icons.name(prototype.as_str()) else {
+        let Some(info) = hud.icons.aim_info(prototype.as_str()) else {
             continue;
         };
-        // Допуск в 25 см: границы объекта — его след на полу, целиться в центр спрайта трудно.
-        let pad = MVec3::splat(0.25);
-        let (min, max) = ((o.min() - pad).to_array(), (o.max() + pad).to_array());
+        // Границы на карте — след предмета на полу; цель — видимый объём спрайта: ширина и
+        // высота из манифеста (плоские предметы — тонкая плитка у пола).
+        let centre = (o.min() + o.max()) * 0.5;
+        let half = (info.size[0] * 0.5).max((o.max().x - o.min().x) * 0.5) + 0.05;
+        let height = if info.flat {
+            0.15
+        } else {
+            info.size[1].max(0.3)
+        };
+        let min = [centre.x - half, o.min().y, centre.z - half];
+        let max = [centre.x + half, o.min().y + height, centre.z + half];
         let Some(t) = ray_box(origin, dir, min, max) else {
             continue;
         };
-        let centre = (o.min() + o.max()) * 0.5;
-        if t <= AIM_RANGE_M + 4.0
-            && centre.distance(me) <= AIM_RANGE_M
-            && best.as_ref().is_none_or(|(b, _)| t < *b)
-        {
-            best = Some((t, name.to_string()));
+        if t <= AIM_RANGE_M && best.as_ref().is_none_or(|(b, _)| t < *b) {
+            best = Some((t, info.name.clone()));
         }
-    }
-    if std::env::var_os("ASTRO_AIM_DEBUG").is_some() {
-        let n = world.authored().count();
-        let mut near: Vec<(f32, String)> = world
-            .authored()
-            .filter_map(|o| {
-                let astrocore_world::AuthoredKind::Placement { prototype } = &o.kind else {
-                    return None;
-                };
-                let c = (o.min() + o.max()) * 0.5;
-                Some((
-                    c.distance(me),
-                    format!(
-                        "{} min={:?} max={:?} named={}",
-                        prototype.as_str(),
-                        o.min(),
-                        o.max(),
-                        hud.icons.name(prototype.as_str()).is_some()
-                    ),
-                ))
-            })
-            .collect();
-        near.sort_by(|a, b| a.0.total_cmp(&b.0));
-        eprintln!("AIMPLACE total={} me={me:?}", near.len());
-        for (d, t) in near.iter().take(3) {
-            eprintln!("AIMNEAR {d:.2} {t}");
-        }
-        eprintln!(
-            "AIM first_person={first_person} dir={dir:?} origin={origin:?} authored={n} hit={best:?}"
-        );
     }
     hud.state.aim = best.map(|(_, n)| n);
 }

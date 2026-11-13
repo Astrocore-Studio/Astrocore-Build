@@ -66,7 +66,17 @@ pub struct Icons {
     sizes: HashMap<String, (u32, u32)>,
     first_frames: HashMap<String, Rect>,
     /// Названия прототипов для подсказки под прицелом.
-    names: HashMap<String, String>,
+    names: HashMap<String, AimInfo>,
+}
+
+/// Название и размер спрайта прототипа: по ним выбирается объект под прицелом.
+#[derive(Clone, Debug)]
+pub struct AimInfo {
+    pub name: String,
+    /// Ширина и высота спрайта, м.
+    pub size: [f32; 2],
+    /// Лежит на полу плашмя.
+    pub flat: bool,
 }
 
 impl Icons {
@@ -85,8 +95,8 @@ impl Icons {
     }
 
     /// Название прототипа (`EntityPrototype.name`).
-    pub fn name(&self, proto: &str) -> Option<&str> {
-        self.names.get(proto).map(String::as_str)
+    pub fn aim_info(&self, proto: &str) -> Option<&AimInfo> {
+        self.names.get(proto)
     }
 
     /// Каталог с текстурами (`assets/ss14`).
@@ -122,7 +132,18 @@ impl Icons {
                 v.get("sprites")?.as_object().map(|m| {
                     m.iter()
                         .filter_map(|(k, e)| {
-                            Some((k.clone(), e.get("name")?.as_str()?.to_string()))
+                            let size = e.get("size")?.as_array()?;
+                            Some((
+                                k.clone(),
+                                AimInfo {
+                                    name: e.get("name")?.as_str()?.to_string(),
+                                    size: [
+                                        size.first()?.as_f64()? as f32,
+                                        size.get(1)?.as_f64()? as f32,
+                                    ],
+                                    flat: e.get("layout").and_then(|l| l.as_str()) == Some("flat"),
+                                },
+                            ))
                         })
                         .collect()
                 })
