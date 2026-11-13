@@ -41,6 +41,11 @@ pub struct GunSpec {
     pub shot: String,
     pub fire_cost: f32,
     pub charge: f32,
+    /// Рост разброса за выстрел и его спад в секунду, градусы (`AngleIncrease`, `AngleDecay`).
+    pub angle_increase: f32,
+    pub angle_decay: f32,
+    /// Скорость снаряда, м/с (`ProjectileSpeed`, по умолчанию 40).
+    pub speed: f32,
 }
 
 /// Магазин: патрон и вместимость (`BallisticAmmoProvider` предмета-магазина).
@@ -63,9 +68,26 @@ pub struct GunState {
     pub charge: f32,
     /// Когда можно стрелять снова, с (по часам модуля).
     pub next_shot: f32,
+    /// Текущий угол разброса, радианы (`CurrentAngle`), и время прошлого выстрела.
+    pub angle: f32,
+    pub last_fire: f32,
 }
 
 impl GunState {
+    /// Угол разброса для выстрела в момент `now` (`GetRecoilAngle`): прежний угол растёт на
+    /// `angle_increase`, спадает на `angle_decay` в секунду и зажат между минимумом и максимумом.
+    pub fn recoil(&mut self, spec: &GunSpec, now: f32) -> f32 {
+        let since = (now - self.last_fire).max(0.0);
+        let theta =
+            self.angle + spec.angle_increase.to_radians() - spec.angle_decay.to_radians() * since;
+        self.angle = theta.clamp(
+            spec.min_angle.to_radians(),
+            spec.max_angle.max(spec.min_angle).to_radians(),
+        );
+        self.last_fire = now;
+        self.angle
+    }
+
     /// Всего патронов, готовых к выстрелу: патронник, магазин и встроенное хранилище.
     pub fn ammo(&self) -> u32 {
         u32::from(self.chamber.is_some()) + self.mag.as_ref().map_or(0, |m| m.2) + self.internal.1
@@ -92,6 +114,19 @@ impl GunState {
             m.1.clone()
         })
     }
+}
+
+/// Снаряд в полёте (`ProjectileComponent`): летит прямо с постоянной скоростью.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Bullet {
+    pub owner: astrocore_core::NetworkEntityId,
+    pub pos: Vec3,
+    pub dir: Vec3,
+    pub speed: f32,
+    /// Сколько ещё пролететь, м.
+    pub left: f32,
+    pub damage: crate::health::DamageSpec,
+    pub stamina: f32,
 }
 
 /// Для клиента: заряд оружия в активной руке.
@@ -183,6 +218,8 @@ mod tests {
             internal: (String::new(), 0),
             charge: 0.0,
             next_shot: 0.0,
+            angle: 0.0,
+            last_fire: 0.0,
         }
     }
 
@@ -199,6 +236,50 @@ mod tests {
     }
 
     #[test]
+    fn spread_grows_with_each_shot_and_decays_with_rest() {
+        let spec = GunSpec {
+            fire_rate: 10.0,
+            min_angle: 1.0,
+            max_angle: 5.0,
+            sound: String::new(),
+            magazine: String::new(),
+            cartridge: String::new(),
+            capacity: 0,
+            auto: true,
+            shot: String::new(),
+            fire_cost: 0.0,
+            charge: 0.0,
+            angle_increase: 2.0,
+            angle_decay: 10.0,
+            speed: 40.0,
+        };
+        let mut g = state(1);
+        let first = g.recoil(&spec, 10.0);
+        assert!(
+            (first - 1f32.to_radians()).abs() < 1e-5,
+            "после покоя — минимум"
+        );
+        let a = g.recoil(&spec, 10.05);
+        let b = g.recoil(&spec, 10.10);
+        assert!(
+            b > a && a > first,
+            "очередь расширяет разброс: {first} {a} {b}"
+        );
+        for i in 0..20 {
+            g.recoil(&spec, 10.10 + 0.01 * i as f32);
+        }
+        assert!(
+            (g.angle - 5f32.to_radians()).abs() < 1e-5,
+            "зажат максимумом"
+        );
+        let rested = g.recoil(&spec, 20.0);
+        assert!(
+            (rested - 1f32.to_radians()).abs() < 1e-5,
+            "после паузы снова минимум"
+        );
+    }
+
+    #[test]
     fn an_internal_store_is_spent_round_by_round() {
         let mut g = GunState {
             mag: None,
@@ -206,6 +287,8 @@ mod tests {
             internal: ("ShellShotgun".into(), 2),
             charge: 0.0,
             next_shot: 0.0,
+            angle: 0.0,
+            last_fire: 0.0,
         };
         assert_eq!(g.take_round().as_deref(), Some("ShellShotgun"));
         assert_eq!(g.ammo(), 1);

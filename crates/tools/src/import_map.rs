@@ -46,6 +46,34 @@ pub struct Materials {
     pub tiles: BTreeMap<String, PrototypeId>,
     /// Списки доступа считывателей по имени прототипа SS14 (`door_access.ron`).
     pub door_access: BTreeMap<String, Vec<Vec<String>>>,
+    /// Прочность стен по имени прототипа SS14 (`wall_hp.ron`).
+    pub wall_hp: BTreeMap<String, WallClass>,
+}
+
+/// Прочность стены: порог разрушения, множители и вычеты урона по видам.
+#[derive(Debug, Clone, PartialEq)]
+pub struct WallClass {
+    pub hp: f32,
+    pub coefficients: BTreeMap<String, f32>,
+    pub flat: BTreeMap<String, f32>,
+}
+
+impl WallClass {
+    /// Запись для метаданных зоны карты: `hp=250;coef=Piercing:0.7;flat=Blunt:10`.
+    fn encode(&self) -> String {
+        let table = |m: &BTreeMap<String, f32>| {
+            m.iter()
+                .map(|(k, v)| format!("{k}:{v}"))
+                .collect::<Vec<_>>()
+                .join(",")
+        };
+        format!(
+            "hp={};coef={};flat={}",
+            self.hp,
+            table(&self.coefficients),
+            table(&self.flat)
+        )
+    }
 }
 
 impl Default for Materials {
@@ -59,6 +87,7 @@ impl Default for Materials {
             firelock: id("ss14:firelock"),
             tiles: BTreeMap::new(),
             door_access: BTreeMap::new(),
+            wall_hp: BTreeMap::new(),
         }
     }
 }
@@ -478,6 +507,7 @@ pub fn import(
             }
         }
     }
+    let mut wall_protos: BTreeMap<(i32, i32), &str> = BTreeMap::new();
     let mut fire_cells: BTreeSet<(i32, i32)> = BTreeSet::new();
     let mut fire_uids: BTreeMap<(i32, i32), Vec<i64>> = BTreeMap::new();
     let mut door_lists: BTreeMap<(i32, i32), Vec<Vec<String>>> = BTreeMap::new();
@@ -506,6 +536,9 @@ pub fn import(
             match kind {
                 Kind::Wall => {
                     solid.insert(cell);
+                    if mats.wall_hp.contains_key(proto) {
+                        wall_protos.entry(cell).or_insert(proto);
+                    }
                 }
                 Kind::Door => {
                     doors.insert(cell);
@@ -820,6 +853,37 @@ pub fn import(
         }
     }
     report.wall_blocks = wall_blocks;
+    // Прочность стен: клетки группируются по классу; одна зона несёт все группы (`wall_<n>`).
+    let mut classes: BTreeMap<&str, Vec<String>> = BTreeMap::new();
+    for (c, p) in &wall_protos {
+        let touches_floor = (-1..=1).any(|dx| {
+            (-1..=1).any(|dz| (dx, dz) != (0, 0) && walk.contains(&(c.0 + dx, c.1 + dz)))
+        });
+        if touches_floor {
+            classes
+                .entry(p)
+                .or_default()
+                .push(format!("{}:{}", c.0, c.1));
+        }
+    }
+    if !classes.is_empty() {
+        let metadata = classes
+            .iter()
+            .enumerate()
+            .map(|(n, (p, cells))| {
+                (
+                    format!("wall_{n}"),
+                    format!("{};cells={}", mats.wall_hp[*p].encode(), cells.join(" ")),
+                )
+            })
+            .collect();
+        zones.push(MapZone {
+            min: [0.0, 0.0, 0.0],
+            max: [0.1, 0.1, 0.1],
+            floor: 0,
+            metadata,
+        });
+    }
     for e in &door_edges {
         elements.push(element(
             StructureKind::Opening(OpeningKind::Door),

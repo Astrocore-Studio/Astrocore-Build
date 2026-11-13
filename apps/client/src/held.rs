@@ -22,6 +22,7 @@ const OFFSET: Vec3 = Vec3::new(0.2, -0.17, -0.42);
 /// Доворот вокруг вертикали сверх «дулом вперёд», рад: видна боковая грань.
 const TURN: f32 = 0.35;
 
+#[allow(clippy::too_many_arguments)]
 pub fn sync_held(
     mut commands: Commands,
     loadout: Res<Loadout>,

@@ -68,6 +68,8 @@ pub fn fill(layout: &Layout, start: Cell, total: f32, slope: f32, max_intensity:
         let previous = remaining;
         // Сначала растёт интенсивность уже открытых колец.
         let mut broke = false;
+        // Как в SS14: начало диапазона берётся один раз, `max_index` растёт по ходу цикла.
+        #[allow(clippy::mut_range_bound)]
         for i in max_index..iteration {
             let inc = step.min(max_intensity - intensity[i]);
             let n = rings[i].len() as f32;
@@ -114,6 +116,93 @@ pub fn fill(layout: &Layout, start: Cell, total: f32, slope: f32, max_intensity:
     Blast { rings, intensity }
 }
 
+/// Стена, окно или решётка карты: порог разрушения, защита и накопленный урон.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Wall {
+    pub hp: f32,
+    pub coefficients: std::collections::BTreeMap<String, f32>,
+    pub flat: std::collections::BTreeMap<String, f32>,
+    pub damage: f32,
+}
+
+fn table(text: &str) -> std::collections::BTreeMap<String, f32> {
+    text.split(',')
+        .filter_map(|p| {
+            let (k, v) = p.split_once(':')?;
+            Some((k.to_string(), v.parse().ok()?))
+        })
+        .collect()
+}
+
+/// Стены из метаданных зоны карты (`wall_<n>` = `hp=…;coef=…;flat=…;cells=x:z x:z`): клетка → стена.
+pub fn parse_walls<'a>(
+    meta: impl Iterator<Item = (&'a String, &'a String)>,
+) -> std::collections::BTreeMap<(i32, i32), Wall> {
+    let mut out = std::collections::BTreeMap::new();
+    for (key, value) in meta {
+        if !key.starts_with("wall_") {
+            continue;
+        }
+        let field = |name: &str| {
+            value
+                .split(';')
+                .find_map(|f| f.strip_prefix(name).and_then(|r| r.strip_prefix('=')))
+                .unwrap_or("")
+        };
+        let Ok(hp) = field("hp").parse::<f32>() else {
+            continue;
+        };
+        let wall = Wall {
+            hp,
+            coefficients: table(field("coef")),
+            flat: table(field("flat")),
+            damage: 0.0,
+        };
+        for cell in field("cells").split(' ') {
+            if let Some((x, z)) = cell.split_once(':')
+                && let (Ok(x), Ok(z)) = (x.parse(), z.parse())
+            {
+                out.insert((x, z), wall.clone());
+            }
+        }
+    }
+    out
+}
+
+impl Wall {
+    /// Урон взрыва интенсивности `intensity` по стене (`DamageSpecifier.ApplyModifierSet`):
+    /// на каждый вид — множитель, затем вычет, не ниже нуля.
+    pub fn blast_damage(
+        &self,
+        per_intensity: &std::collections::BTreeMap<String, f32>,
+        intensity: f32,
+    ) -> f32 {
+        per_intensity
+            .iter()
+            .map(|(kind, v)| {
+                let coef = self.coefficients.get(kind).copied().unwrap_or(1.0);
+                let flat = self.flat.get(kind).copied().unwrap_or(0.0);
+                (v * intensity * coef - flat).max(0.0)
+            })
+            .sum()
+    }
+}
+
+/// Клетка стены разрушена: на её месте теперь воздух, рёбра к полу открыты, к целым стенам
+/// рядом — закрыты (взрыв и газ идут дальше через пролом).
+pub fn open_cell(layout: &mut Layout, cell: Cell, is_wall: &dyn Fn(Cell) -> bool) {
+    layout.cells.insert(cell, atmos::CellKind::Air);
+    for (dx, dz) in [(1, 0), (-1, 0), (0, 1), (0, -1)] {
+        let n = (cell.0 + dx, cell.1 + dz);
+        let e = edge(cell, n);
+        if is_wall(n) {
+            layout.blocked.insert(e);
+        } else {
+            layout.blocked.remove(&e);
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -127,6 +216,45 @@ mod tests {
             }
         }
         l
+    }
+
+    #[test]
+    fn walls_parse_and_take_blast_damage_through_their_protection() {
+        let meta: std::collections::BTreeMap<String, String> = [(
+            "wall_0".to_string(),
+            "hp=250;coef=Piercing:0.7;flat=Blunt:10,Structural:3;cells=1:2 3:4".to_string(),
+        )]
+        .into();
+        let walls = parse_walls(meta.iter());
+        assert_eq!(walls.len(), 2);
+        let w = &walls[&(3, 4)];
+        assert_eq!(w.hp, 250.0);
+        let per: std::collections::BTreeMap<String, f32> = [
+            ("Blunt".to_string(), 5.0),
+            ("Structural".to_string(), 50.0),
+            ("Piercing".to_string(), 10.0),
+        ]
+        .into();
+        // Blunt 5×4−10 = 10; Structural 50×4−3 = 197; Piercing 10×4×0.7 = 28.
+        assert!((w.blast_damage(&per, 4.0) - 235.0).abs() < 1e-3);
+        assert_eq!(w.blast_damage(&per, 0.0), 0.0);
+    }
+
+    #[test]
+    fn a_broken_wall_lets_the_blast_through_and_seals_against_its_neighbours() {
+        let mut l = Layout::default();
+        for x in 0..5 {
+            l.cells.insert((x, 0), atmos::CellKind::Air);
+        }
+        l.cells.remove(&(2, 0));
+        l.blocked.insert(edge((1, 0), (2, 0)));
+        l.blocked.insert(edge((2, 0), (3, 0)));
+        let before = fill(&l, (0, 0), 40.0, 2.0, 10.0);
+        assert_eq!(before.at((4, 0)), 0.0, "стена держит");
+        open_cell(&mut l, (2, 0), &|n| n == (2, 1));
+        let after = fill(&l, (0, 0), 40.0, 2.0, 10.0);
+        assert!(after.at((4, 0)) > 0.0, "пролом пропустил взрыв");
+        assert!(l.blocked.contains(&edge((2, 0), (2, 1))));
     }
 
     #[test]

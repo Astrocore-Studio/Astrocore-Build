@@ -41,6 +41,23 @@ const PROTOS: &str = r#"[
         "Item": (size: "Small"),
         "Gun": (fireRate: 10.0, minAngle: 0.0, maxAngle: 0.0, sound: "", magazine: "", cartridge: "", capacity: 0, auto: false, shot: "Zap", fireCost: 25.0, charge: 75.0),
     }),
+    (id: "ImpactGrenade", components: {
+        "Item": (size: "Small"),
+        "Explosive": (explosionType: "Default", totalIntensity: 120.0, intensitySlope: 3.0, maxIntensity: 10.0),
+        "TriggerOnLand": (),
+    }),
+    (id: "VolatileGrenade", components: {
+        "Item": (size: "Small"),
+        "Explosive": (explosionType: "Default", totalIntensity: 120.0, intensitySlope: 3.0, maxIntensity: 10.0),
+        "TimerTrigger": (delay: 1.0),
+        "Volatile": (start: 10.0, explode: 45.0),
+    }),
+    (id: "BreachBolt", components: {"ProjectileDamage": (damage: (Structural: 100.0))}),
+    (id: "BreachGun", components: {
+        "Item": (size: "Small"),
+        "Gun": (fireRate: 10.0, minAngle: 0.0, maxAngle: 0.0, sound: "", magazine: "", cartridge: "", capacity: 0, auto: false, shot: "BreachBolt", fireCost: 25.0, charge: 75.0),
+    }),
+    (id: "Recharger", components: {"Item": (size: "Ginormous"), "Charger": (rate: 20.0)}),
     (id: "OverTank", components: {
         "Item": (size: "Normal"),
         "GasTank": (moles: (Oxygen: 800.0)),
@@ -2956,6 +2973,140 @@ mod disposal_tests {
         assert!(!on_ground(&h, a, 71), "граната сгорела");
     }
 
+    #[test]
+    fn an_impact_grenade_goes_off_when_it_lands_and_a_volatile_one_is_set_off_by_the_blast() {
+        let mut h = harness();
+        let (a, b) = (h.join("a"), h.join("b"));
+        h.ticks(5);
+        grab(&mut h, a, 72, near(), "ss14:impact_grenade");
+        spawn(
+            &mut h,
+            item_at(973, "ss14:volatile_grenade", Vec3::new(2.3, 0.0, 5.3)),
+        );
+        h.ticks(3);
+        command(
+            &mut h,
+            a,
+            crate::CMD_THROW,
+            crate::throw_data([2.5, 0.2, 5.0]),
+        );
+        h.ticks(40);
+        assert!(
+            !on_ground(&h, a, 72),
+            "ударная граната сработала при падении"
+        );
+        assert!(
+            !on_ground(&h, a, 973),
+            "взрыв подорвал соседнюю летучую гранату"
+        );
+        let _ = b;
+    }
+
+    #[test]
+    fn a_shot_with_structural_damage_wears_a_wall_down_and_breaks_it() {
+        let mut h = harness();
+        let a = h.join("a");
+        h.ticks(5);
+        let mut zone = AuthoredObject::new(
+            oid(991),
+            AuthoredKind::Zone,
+            FloorId(0),
+            Vec3::ZERO,
+            Vec3::splat(0.1),
+        );
+        zone.metadata.insert(
+            "wall_0".into(),
+            "hp=150;coef=;flat=;cells=3:-1 4:-1 5:-1 6:-1 7:-1".into(),
+        );
+        spawn(&mut h, zone);
+        grab(&mut h, a, 92, near(), "ss14:breach_gun");
+        command(&mut h, a, crate::CMD_COMBAT, vec![1]);
+        let aim = crate::throw_data([5.8, 1.0, -0.5]);
+        command(&mut h, a, crate::CMD_SHOOT, aim.clone());
+        h.ticks(20);
+        let all = |h: &Harness| (3..8).all(|x| wall_edge_present(h, a, x, 0));
+        assert!(all(&h), "один выстрел стену не берёт");
+        command(&mut h, a, crate::CMD_SHOOT, aim);
+        h.ticks(20);
+        assert!(!all(&h), "второй пробил");
+    }
+
+    fn wall_edge_present(h: &Harness, who: ConnId, x: i32, z: i32) -> bool {
+        use astrocore_math::GridEdge;
+        use astrocore_world::SlotKey;
+        h.client(who).world().is_some_and(|w| {
+            w.element_at(FloorId(0), SlotKey::Edge(GridEdge::along_x(x, z)))
+                .is_some()
+        })
+    }
+
+    #[test]
+    fn an_explosion_breaks_a_weak_wall_and_leaves_floor_in_the_gap() {
+        use astrocore_world::SlotKey;
+        let mut h = harness();
+        let a = h.join("a");
+        h.ticks(5);
+        // Стена-клетка (5, −1) за ребром z = 0: прочность 40, защиты нет.
+        let mut zone = AuthoredObject::new(
+            oid(990),
+            AuthoredKind::Zone,
+            FloorId(0),
+            Vec3::ZERO,
+            Vec3::splat(0.1),
+        );
+        zone.metadata
+            .insert("wall_0".into(), "hp=40;coef=;flat=;cells=5:-1".into());
+        spawn(&mut h, zone);
+        grab(&mut h, a, 71, near(), "ss14:grenade");
+        assert!(wall_edge_present(&h, a, 5, 0), "стена на месте");
+        let hand = hands_of(&h, a, a).unwrap().active() as u8;
+        command(&mut h, a, crate::CMD_USE, vec![hand]);
+        h.ticks(2);
+        command(
+            &mut h,
+            a,
+            crate::CMD_THROW,
+            crate::throw_data([5.5, 0.2, 0.6]),
+        );
+        h.ticks(90);
+        assert!(!wall_edge_present(&h, a, 5, 0), "стена рухнула");
+        let floor_there = h.client(a).world().is_some_and(|w| {
+            w.element_at(
+                FloorId(0),
+                SlotKey::FloorSlab(astrocore_math::GridCell::new(5, -1)),
+            )
+            .is_some()
+        });
+        assert!(floor_there, "под стеной остался пол");
+        assert!(wall_edge_present(&h, a, 6, 0), "соседняя стена цела");
+    }
+
+    #[test]
+    fn a_blast_throws_light_items_away_and_sets_off_volatile_grenades() {
+        let mut h = harness();
+        let a = h.join("a");
+        h.ticks(5);
+        spawn(&mut h, item_at(980, "ss14:pen", Vec3::new(6.5, 0.0, 3.5)));
+        grab(&mut h, a, 71, near(), "ss14:grenade");
+        h.ticks(3);
+        let hand = hands_of(&h, a, a).unwrap().active() as u8;
+        command(&mut h, a, crate::CMD_USE, vec![hand]);
+        h.ticks(2);
+        command(
+            &mut h,
+            a,
+            crate::CMD_THROW,
+            crate::throw_data([7.5, 0.2, 3.5]),
+        );
+        h.ticks(120);
+        let at = h.client(a).world().and_then(|w| {
+            w.authored_object(oid(980))
+                .map(|o| (o.min() + o.max()) * 0.5)
+        });
+        let moved = at.is_some_and(|p| (p - Vec3::new(6.65, 0.15, 3.65)).length() > 1.0);
+        assert!(moved, "ручка отброшена взрывом: {at:?}");
+    }
+
     fn ammo_of(h: &Harness, who: ConnId) -> crate::AmmoView {
         let net = h.client(who).net_id().unwrap();
         h.client(who)
@@ -3082,6 +3233,67 @@ mod disposal_tests {
             (second - bare * 0.5).abs() < 3.0,
             "без брони {bare}, в броне {second}"
         );
+    }
+
+    #[test]
+    fn a_charger_refills_an_energy_gun_left_in_its_slot() {
+        let mut h = harness();
+        let (a, b) = (h.join("a"), h.join("b"));
+        h.ticks(5);
+        spawn(
+            &mut h,
+            item_at(970, "ss14:recharger", Vec3::new(3.5, 0.9, 3.0)),
+        );
+        grab(&mut h, a, 91, near(), "ss14:taser");
+        for _ in 0..40 {
+            h.input(b, 0, 1, 0.0);
+        }
+        h.ticks(5);
+        let target = h.server.player_position(b).unwrap() + Vec3::Y * 0.5;
+        command(&mut h, a, crate::CMD_COMBAT, vec![1]);
+        command(
+            &mut h,
+            a,
+            crate::CMD_SHOOT,
+            crate::throw_data(target.to_array()),
+        );
+        h.ticks(6);
+        assert_eq!(ammo_of(&h, a).ammo, 2);
+        // Оружие в станцию: руки пусты, заряд растёт — 25 единиц при 20 в секунду.
+        command(&mut h, a, CMD_INTERACT, interact_data(oid(970)));
+        h.ticks(3);
+        assert!(!ammo_of(&h, a).gun, "оружие ушло в станцию");
+        h.ticks(60 * 2);
+        // Пустой рукой по станции — достать.
+        command(&mut h, a, CMD_INTERACT, interact_data(oid(970)));
+        h.ticks(3);
+        assert_eq!(ammo_of(&h, a).ammo, 3, "заряжено до полной");
+    }
+
+    #[test]
+    fn a_bullet_flies_and_does_not_hit_instantly() {
+        let mut h = harness();
+        let (a, b) = (h.join("a"), h.join("b"));
+        h.ticks(5);
+        grab(&mut h, a, 81, near(), "ss14:pistol");
+        for _ in 0..40 {
+            h.input(b, 0, 1, 0.0);
+        }
+        h.ticks(5);
+        let target = h.server.player_position(b).unwrap() + Vec3::Y * 0.5;
+        let from = h.server.player_position(a).unwrap();
+        let dist = (target - from).length();
+        command(&mut h, a, crate::CMD_COMBAT, vec![1]);
+        command(
+            &mut h,
+            a,
+            crate::CMD_SHOOT,
+            crate::throw_data(target.to_array()),
+        );
+        h.ticks(1);
+        assert_eq!(damage_of(&h, b), 0.0, "через тик пуля ещё летит ({dist} м)");
+        h.ticks(((dist / 40.0) * 60.0) as usize + 8);
+        assert!(damage_of(&h, b) > 0.0, "долетела");
     }
 
     #[test]

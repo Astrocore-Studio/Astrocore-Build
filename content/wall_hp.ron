@@ -1,0 +1,15 @@
+// Прочность стен, окон и решёток по прототипам. Создано scripts/gen_walls.py.
+[
+    (proto: "Grille", hp: 80.0, coefficients: {"Piercing": 0.7, "Slash": 1.5}, flat: {"Blunt": 5.0, "Caustic": 15.0, "Cold": 15.0, "Heat": 10.0, "Piercing": 10.0, "Shock": 15.0, "Slash": 5.0, "Structural": 3.0}),
+    (proto: "GrilleBroken", hp: 5.0, coefficients: {"Piercing": 0.7, "Slash": 1.5}, flat: {"Blunt": 5.0, "Caustic": 15.0, "Cold": 15.0, "Heat": 10.0, "Piercing": 10.0, "Shock": 15.0, "Slash": 5.0, "Structural": 3.0}),
+    (proto: "ReinforcedPlasmaWindow", hp: 120.0, coefficients: {"Blunt": 1.3, "Cold": 1.3, "Heat": 0.8, "Piercing": 1.2, "Shock": 1.3}, flat: {"Blunt": 8.0, "Caustic": 20.0, "Cold": 20.0, "Heat": 30.0, "Piercing": 10.0, "Shock": 20.0, "Slash": 8.0, "Structural": 3.0}),
+    (proto: "ReinforcedWindow", hp: 120.0, coefficients: {"Blunt": 1.3, "Piercing": 0.8}, flat: {"Blunt": 5.0, "Caustic": 20.0, "Cold": 20.0, "Heat": 20.0, "Piercing": 10.0, "Shock": 20.0, "Slash": 5.0, "Structural": 3.0}),
+    (proto: "TintedWindow", hp: 80.0, coefficients: {"Blunt": 1.5, "Cold": 0.7, "Heat": 0.7, "Shock": 0.7}, flat: {"Caustic": 20.0, "Cold": 20.0, "Heat": 20.0, "Shock": 20.0}),
+    (proto: "WallReinforced", hp: 350.0, coefficients: {"Piercing": 0.7}, flat: {"Blunt": 15.0, "Caustic": 15.0, "Cold": 15.0, "Heat": 15.0, "Piercing": 15.0, "Shock": 15.0, "Slash": 15.0, "Structural": 6.0}),
+    (proto: "WallSolid", hp: 250.0, coefficients: {"Piercing": 0.7}, flat: {"Blunt": 10.0, "Caustic": 15.0, "Cold": 15.0, "Heat": 10.0, "Piercing": 10.0, "Shock": 15.0, "Slash": 10.0, "Structural": 3.0}),
+    (proto: "WallSolidRust", hp: 250.0, coefficients: {"Piercing": 0.7}, flat: {"Blunt": 10.0, "Caustic": 15.0, "Cold": 15.0, "Heat": 10.0, "Piercing": 10.0, "Shock": 15.0, "Slash": 10.0, "Structural": 3.0}),
+    (proto: "WallmountTelescreen", hp: 100.0, coefficients: {"Blunt": 1.5, "Cold": 0.7, "Heat": 0.7, "Shock": 0.7}, flat: {"Caustic": 20.0, "Cold": 20.0, "Heat": 20.0, "Shock": 20.0}),
+    (proto: "Window", hp: 80.0, coefficients: {"Blunt": 1.5, "Cold": 0.7, "Heat": 0.7, "Shock": 0.7}, flat: {"Caustic": 20.0, "Cold": 20.0, "Heat": 20.0, "Shock": 20.0}),
+    (proto: "WindowDirectional", hp: 30.0, coefficients: {"Blunt": 1.5, "Cold": 0.7, "Heat": 0.7, "Shock": 0.7}, flat: {"Caustic": 20.0, "Cold": 20.0, "Heat": 20.0, "Shock": 20.0}),
+    (proto: "WindowReinforcedDirectional", hp: 80.0, coefficients: {"Blunt": 1.3, "Piercing": 0.8}, flat: {"Blunt": 5.0, "Caustic": 20.0, "Cold": 20.0, "Heat": 20.0, "Piercing": 10.0, "Shock": 20.0, "Slash": 5.0, "Structural": 3.0}),
+]

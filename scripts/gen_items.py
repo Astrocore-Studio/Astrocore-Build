@@ -50,6 +50,10 @@ def seeds():
     for i in P.by_type['entity']:
         if not P.is_abstract(i) and 'ReactionMixer' in P.entity_components(i):
             out.add(i)
+        # Гранаты: ударные (`TriggerOnLand`) и с запалом (`TimerTrigger` + `Explosive`).
+        c = P.entity_components(i) if not P.is_abstract(i) else {}
+        if 'Explosive' in c and ('TriggerOnLand' in c or 'TimerTrigger' in c) and 'Item' in c:
+            out.add(i)
     return out
 
 
@@ -190,6 +194,11 @@ def convert(i):
         out.append('"Shakeable": (duration: %s, requireInHand: %s)' % (float(_secs(sk.get('shakeDuration'), 1.0)), 'true' if sk.get('requireInHand') else 'false'))
     if 'Pill' in comps:
         out.append('"Pill": ()')
+    chg = comps.get('Charger')
+    if chg is not None:
+        # Зарядная станция (`ChargerComponent`): заряд в секунду и пассивная нагрузка на сеть.
+        out.append('"Charger": (rate: %s)' % float(chg.get('chargeRate', 20.0)))
+        out.append('"ApcPowerReceiver": (load: %s)' % float((comps.get('ApcPowerReceiver') or {}).get('powerLoad', 1.0)))
     gun = comps.get('Gun')
     if gun is not None:
         sg = gun.get('soundGunshot')
@@ -203,11 +212,12 @@ def convert(i):
         # Энергооружие: собственная батарея и стоимость выстрела (`BatteryAmmoProvider`).
         bat = comps.get('BatteryAmmoProvider') or {}
         cell = comps.get('Battery') or {}
-        out.append('"Gun": (fireRate: %s, minAngle: %s, maxAngle: %s, sound: %s, magazine: %s, cartridge: %s, capacity: %d, auto: %s, shot: %s, fireCost: %s, charge: %s)' % (
+        out.append('"Gun": (fireRate: %s, minAngle: %s, maxAngle: %s, sound: %s, magazine: %s, cartridge: %s, capacity: %d, auto: %s, shot: %s, fireCost: %s, charge: %s, angleIncrease: %s, angleDecay: %s, projectileSpeed: %s)' % (
             float(gun.get('fireRate', 1.0)), float(gun.get('minAngle', 2.0)), float(gun.get('maxAngle', 10.0)),
             q(sound), q(mag), q(prov.get('proto') or ''), int(prov.get('capacity', 0)),
             'true' if gun.get('selectedMode') == 'FullAuto' else 'false',
-            q(bat.get('proto') or ''), float(bat.get('fireCost', 0)), float(cell.get('maxCharge', 0))))
+            q(bat.get('proto') or ''), float(bat.get('fireCost', 0)), float(cell.get('maxCharge', 0)),
+            float(gun.get('angleIncrease', 0.5)), float(gun.get('angleDecay', 4.0)), float(gun.get('projectileSpeed', 40.0))))
         if bat.get('proto'):
             PROJECTILES.add(bat['proto'])
         if sound:
@@ -230,6 +240,23 @@ def convert(i):
         out.append('"Explosive": (explosionType: %s, totalIntensity: %s, intensitySlope: %s, maxIntensity: %s)' % (
             q(ex.get('explosionType', 'Default')), float(ex.get('totalIntensity', 10)),
             float(ex.get('intensitySlope', 1)), float(ex.get('maxIntensity', 4))))
+    if ex is not None:
+        # Падение и удар (`TriggerOnLand`, `TriggerOnCollide`) и пороги урона запала и подрыва
+        # (`Destructible`: `TimerStartBehavior`, `TriggerBehavior`).
+        if 'TriggerOnLand' in comps or 'TriggerOnCollide' in comps:
+            out.append('"TriggerOnLand": ()')
+        start = boom = None
+        for t in (comps.get('Destructible') or {}).get('thresholds') or []:
+            d = (t.get('trigger') or {}).get('damage')
+            tags = {b.get('__tag') for b in t.get('behaviors') or []}
+            if not isinstance(d, (int, float)):
+                continue
+            if 'TimerStartBehavior' in tags:
+                start = float(d)
+            if 'TriggerBehavior' in tags:
+                boom = float(d)
+        if start is not None or boom is not None:
+            out.append('"Volatile": (start: %s, explode: %s)' % (start if start is not None else -1.0, boom if boom is not None else -1.0))
     tt = comps.get('TimerTrigger')
     if tt is not None and 'TriggerOnUse' in comps:
         out.append('"TimerTrigger": (delay: %s)' % float(_secs(tt.get('delay'), 3.0)))

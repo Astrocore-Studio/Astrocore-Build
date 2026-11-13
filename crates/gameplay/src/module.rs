@@ -74,6 +74,8 @@ const PULL_SPEED_FACTOR: f32 = 0.95;
 const PULL_SLACK_M: f32 = 0.15;
 /// Дальше этого от того, кто тащит, цель срывается (застряла, телепорт, стена).
 const PULL_BREAK_M: f32 = 2.5;
+/// Дальность броска на единицу скорости: 8 м при 10 м/с (как у броска игрока).
+const THROW_RANGE_PER_SPEED: f32 = 0.8;
 const STAND_UP_S: f32 = 2.0;
 /// Урон за время вставания, прерывающий его (`DamageThreshold` доафтера).
 const STAND_BREAK_DAMAGE: f32 = 5.0;
@@ -528,6 +530,17 @@ pub struct State {
     /// Взрывчатка предметов, запалы гранат, типы взрывов (урон на интенсивность) и горящие запалы.
     pub(crate) explosives: BTreeMap<PrototypeId, Explosive>,
     pub(crate) fuses: BTreeMap<PrototypeId, f32>,
+    /// Зарядные станции: скорость заряда в секунду; оружие в гнезде станции.
+    pub(crate) chargers: BTreeMap<PrototypeId, f32>,
+    /// Взрывчатка с запалом от урона (`start`, `explode`; −1 — нет) и ударные гранаты.
+    pub(crate) volatile: BTreeMap<PrototypeId, (f32, f32)>,
+    pub(crate) impact: BTreeSet<PrototypeId>,
+    /// Стены карты: клетка → прочность; `None` до первого взрыва.
+    pub(crate) walls: Option<BTreeMap<(i32, i32), crate::explosion::Wall>>,
+    pub(crate) wall_serial: u128,
+    /// Предметы, убранные с земли в этом тике (мир применит запрос позже).
+    pub(crate) gone: BTreeSet<ObjectId>,
+    pub(crate) charger_slot: BTreeMap<ObjectId, (f32, HeldItem)>,
     pub(crate) explosion_types: BTreeMap<String, DamageSpec>,
     pub(crate) primed: BTreeMap<ObjectId, f32>,
     /// Стрелковое оружие: описания, магазины, патроны → снаряд, урон снарядов и разброс дроби,
@@ -547,6 +560,8 @@ pub struct State {
     pub(crate) pull_hands: BTreeMap<NetworkEntityId, usize>,
     /// Брошенные предметы в полёте: когда упадут, предмет и место падения.
     pub(crate) thrown: Vec<(f32, crate::hands::HeldItem, Vec3)>,
+    /// Снаряды в полёте.
+    pub(crate) bullets: Vec<crate::gun::Bullet>,
     pub(crate) spawn_next: usize,
     /// Огнезапоры: клетки по обе стороны проёма и что они удерживают (давление, температура).
     pub(crate) firelock_cells: BTreeMap<ObjectId, (atmos::Cell, atmos::Cell)>,
@@ -616,6 +631,9 @@ impl State {
         let mut projectiles: BTreeMap<String, (DamageSpec, f32)> = BTreeMap::new();
         let mut spreads: BTreeMap<String, (String, u32, f32)> = BTreeMap::new();
         let mut fuses: BTreeMap<PrototypeId, f32> = BTreeMap::new();
+        let mut chargers: BTreeMap<PrototypeId, f32> = BTreeMap::new();
+        let mut volatile: BTreeMap<PrototypeId, (f32, f32)> = BTreeMap::new();
+        let mut impact: BTreeSet<PrototypeId> = BTreeSet::new();
         let mut explosion_types: BTreeMap<String, DamageSpec> = BTreeMap::new();
         let mut ss14_names: BTreeMap<PrototypeId, String> = BTreeMap::new();
         for (id, name) in names {
@@ -656,6 +674,9 @@ impl State {
                         shot: text(c, "shot"),
                         fire_cost: num(c, "fireCost", 0.0),
                         charge: num(c, "charge", 0.0),
+                        angle_increase: num(c, "angleIncrease", 0.5),
+                        angle_decay: num(c, "angleDecay", 4.0),
+                        speed: num(c, "projectileSpeed", 40.0),
                     },
                 );
             }
@@ -707,6 +728,19 @@ impl State {
                         max: num(c, "maxIntensity", 4.0),
                     },
                 );
+            }
+            if let Some(c) = resolved.as_ref().and_then(|r| r.component("Volatile")) {
+                volatile.insert(id.clone(), (num(c, "start", -1.0), num(c, "explode", -1.0)));
+            }
+            if resolved
+                .as_ref()
+                .and_then(|r| r.component("TriggerOnLand"))
+                .is_some()
+            {
+                impact.insert(id.clone());
+            }
+            if let Some(c) = resolved.as_ref().and_then(|r| r.component("Charger")) {
+                chargers.insert(id.clone(), num(c, "rate", 20.0));
             }
             if let Some(c) = resolved.as_ref().and_then(|r| r.component("TimerTrigger")) {
                 fuses.insert(id.clone(), num(c, "delay", 3.0).max(0.0));
@@ -1177,10 +1211,18 @@ impl State {
             mag_state: BTreeMap::new(),
             explosives,
             fuses,
+            chargers,
+            volatile,
+            impact,
+            walls: None,
+            wall_serial: 0,
+            gone: BTreeSet::new(),
+            charger_slot: BTreeMap::new(),
             explosion_types,
             primed: BTreeMap::new(),
             straps,
             thrown: Vec::new(),
+            bullets: Vec::new(),
             spawn_next: 0,
             firelock_cells: BTreeMap::new(),
             firelock_hold: BTreeMap::new(),
@@ -2567,6 +2609,8 @@ impl State {
         self.tick_pulls(ctx);
         self.tick_stamina(ctx);
         self.tick_primed(ctx);
+        self.tick_bullets(ctx, dt);
+        self.tick_chargers(dt);
         self.place_joiners(ctx);
         self.tick_disposal(ctx, dt);
         self.tick_conveyors(ctx, dt);
@@ -4951,6 +4995,8 @@ impl State {
             internal: (spec.cartridge.clone(), spec.capacity),
             charge: spec.charge,
             next_shot: 0.0,
+            angle: 0.0,
+            last_fire: 0.0,
         };
         if !spec.magazine.is_empty()
             && let Some(proto) = self.proto_by_name.get(&spec.magazine)
@@ -5070,7 +5116,17 @@ impl State {
             .get(&projectile)
             .cloned()
             .unwrap_or_default();
-        let cone = spec.min_angle.to_radians();
+        // Разброс оружия растёт от стрельбы (`GetRecoilAngle`), дробь добавляет свой конус.
+        let cone = {
+            let mut st = self
+                .gun_state
+                .get(&item.id)
+                .cloned()
+                .unwrap_or_else(|| self.fresh_gun(&spec));
+            let angle = st.recoil(&spec, clock);
+            self.gun_state.insert(item.id, st);
+            angle
+        };
         for _ in 0..count {
             let r = |s: &mut Self| s.spawn_rng.next_f32() * 2.0 - 1.0;
             let yaw = r(self) * (cone + pellet_spread.to_radians()) * 0.5;
@@ -5082,7 +5138,15 @@ impl State {
                 aim.x * sy + aim.z * cy,
             )
             .normalize_or_zero();
-            self.fire_ray(ctx, actor, muzzle, rotated, &damage, stamina);
+            self.bullets.push(crate::gun::Bullet {
+                owner: actor,
+                pos: muzzle,
+                dir: rotated,
+                speed: spec.speed,
+                left: crate::gun::RANGE_M,
+                damage: damage.clone(),
+                stamina,
+            });
         }
         if !spec.sound.is_empty() {
             self.sound(&spec.sound, muzzle);
@@ -5090,57 +5154,145 @@ impl State {
         self.publish(ctx, actor);
     }
 
-    /// Луч снаряда: до первой преграды; попавшему человеку урон по части тела.
-    fn fire_ray(
-        &mut self,
-        ctx: &mut HookContext<'_>,
-        shooter: NetworkEntityId,
-        muzzle: Vec3,
-        dir: Vec3,
-        damage: &DamageSpec,
-        stamina: f32,
-    ) {
-        let wall = ctx
-            .unobstructed_distance(muzzle, muzzle + dir * crate::gun::RANGE_M)
-            .min(crate::gun::RANGE_M);
+    /// Зарядка оружия в гнёздах станций: пока станция запитана, заряд растёт на `rate` в секунду.
+    fn tick_chargers(&mut self, dt: f32) {
+        if self.charger_slot.is_empty() {
+            return;
+        }
+        let powered = self.powered_map();
+        let ids: Vec<ObjectId> = self.charger_slot.keys().copied().collect();
+        for id in ids {
+            let on = !self.power_required
+                || !self.power_gated.contains(&id)
+                || powered.get(&id).copied().unwrap_or(false);
+            if !on {
+                continue;
+            }
+            let Some((rate, item)) = self.charger_slot.get(&id).cloned() else {
+                continue;
+            };
+            let Some(spec) = self.guns.get(&item.prototype).cloned() else {
+                continue;
+            };
+            let mut st = self
+                .gun_state
+                .get(&item.id)
+                .cloned()
+                .unwrap_or_else(|| self.fresh_gun(&spec));
+            st.charge = (st.charge + rate * dt).min(spec.charge);
+            self.gun_state.insert(item.id, st);
+        }
+    }
+
+    /// Полёт снарядов (`ProjectileSystem`): за тик каждый проходит `скорость × dt` по прямой;
+    /// стена останавливает, первый человек на пути получает урон по части тела.
+    fn tick_bullets(&mut self, ctx: &mut HookContext<'_>, dt: f32) {
+        if self.bullets.is_empty() {
+            return;
+        }
+        let mut flying = std::mem::take(&mut self.bullets);
+        flying.retain_mut(|b| {
+            let step = (b.speed * dt).min(b.left);
+            let wall = ctx
+                .unobstructed_distance(b.pos, b.pos + b.dir * step)
+                .min(step);
+            if let Some((t, who, base)) = self.first_person_hit(ctx, b, wall) {
+                self.bullet_hit(ctx, b, t, who, base);
+                return false;
+            }
+            if wall < step - 1e-3 {
+                self.bullet_wall(ctx, b, wall);
+                return false;
+            }
+            b.pos += b.dir * step;
+            b.left -= step;
+            b.left > 0.0
+        });
+        flying.append(&mut self.bullets);
+        self.bullets = flying;
+    }
+
+    /// Первый человек на отрезке полёта снаряда: расстояние, кто и где стоит.
+    fn first_person_hit(
+        &self,
+        ctx: &HookContext<'_>,
+        b: &crate::gun::Bullet,
+        reach: f32,
+    ) -> Option<(f32, NetworkEntityId, Vec3)> {
         let mut best: Option<(f32, NetworkEntityId, Vec3)> = None;
         for (&who, a) in &self.actors {
-            if who == shooter || a.ghost {
+            if who == b.owner || a.ghost {
                 continue;
             }
             let Some(base) = ctx.position_of(who) else {
                 continue;
             };
             if let Some(t) = crate::gun::ray_cylinder(
-                muzzle,
-                dir,
+                b.pos,
+                b.dir,
                 base,
                 crate::gun::HIT_RADIUS_M,
                 crate::gun::BODY_HEIGHT_M,
-            ) && t <= wall
-                && best.as_ref().is_none_or(|(b, _, _)| t < *b)
+            ) && t <= reach
+                && best.as_ref().is_none_or(|(d, _, _)| t < *d)
             {
                 best = Some((t, who, base));
             }
         }
-        let Some((t, who, base)) = best else {
-            return;
-        };
-        let at = muzzle + dir * t;
+        best
+    }
+
+    fn bullet_hit(
+        &mut self,
+        ctx: &mut HookContext<'_>,
+        b: &crate::gun::Bullet,
+        t: f32,
+        who: NetworkEntityId,
+        base: Vec3,
+    ) {
+        let at = b.pos + b.dir * t;
         let frac = (at.y - base.y) / crate::gun::BODY_HEIGHT_M;
         // Сторона по знаку проекции вектора «стрелок → цель» на правую руку стрелка.
-        let left = (at - muzzle).cross(Vec3::Y).dot(base - muzzle) < 0.0;
+        let left = (at - b.pos).cross(Vec3::Y).dot(base - b.pos) < 0.0;
         let part = crate::gun::hit_part(frac, left);
         let victim = self.actor(who);
-        let dealt = victim.health.apply_to(Some(part), damage);
+        let dealt = victim.health.apply_to(Some(part), &b.damage);
         if let Some(body) = victim.body.as_mut() {
             body.on_damage(&dealt);
         }
         self.after_health_change(ctx, who);
         // Шокер и подобные: снаряд ещё и утомляет (`StaminaDamageOnCollide`).
-        if stamina > 0.0 {
-            self.take_stamina(ctx, who, stamina);
+        if b.stamina > 0.0 {
+            self.take_stamina(ctx, who, b.stamina);
         }
+    }
+
+    /// Снаряд упёрся в стену или закрытую дверь: его урон по строению (`Structural`, как у дроби)
+    /// копится в стене, и по порогу она рушится.
+    fn bullet_wall(&mut self, ctx: &mut HookContext<'_>, b: &crate::gun::Bullet, t: f32) {
+        let Some(floor) = floor_at(ctx, b.pos.y) else {
+            return;
+        };
+        let mut walls = self.take_walls(ctx);
+        // Грань стены тонкая, а клетка стены за ней: идём вглубь, пока не попадём в клетку стены.
+        let cell = [0.1, 0.25, 0.4, 0.6, 0.8, 1.0].iter().find_map(|d| {
+            let p = b.pos + b.dir * (t + d);
+            let c = (p.x.floor() as i32, p.z.floor() as i32);
+            walls.contains_key(&c).then_some(c)
+        });
+        let Some(cell) = cell else {
+            self.walls = Some(walls);
+            return;
+        };
+        let broke = walls.get_mut(&cell).is_some_and(|w| {
+            w.damage += w.blast_damage(&b.damage, 1.0);
+            w.damage >= w.hp
+        });
+        if broke {
+            self.break_wall(ctx, floor, cell, &walls);
+            walls.remove(&cell);
+        }
+        self.walls = Some(walls);
     }
 
     /// Перезарядка из другой руки: магазин в магазинное оружие или патрон во встроенное хранилище.
@@ -5325,6 +5477,7 @@ impl State {
                 };
                 let centre = (o.min() + o.max()) * 0.5;
                 ctx.request(WorldCommand::RemoveAuthored { id });
+                self.gone.insert(id);
                 centre
             } else {
                 continue;
@@ -5335,25 +5488,84 @@ impl State {
         }
     }
 
-    /// Взрыв в точке (`ExplosionSystem.TriggerExplosive`): заливка клеток и урон людям в них.
+    /// Взрыв в точке (`ExplosionSystem.TriggerExplosive`): заливка клеток, урон людям, стенам и
+    /// взрывчатке, отбрасывание предметов. Разрушенная стена пускает взрыв дальше: заливка
+    /// повторяется по новой раскладке, пока рушатся новые стены.
     pub(crate) fn explode(&mut self, ctx: &mut HookContext<'_>, at: Vec3, spec: &Explosive) {
         let Some(floor) = floor_at(ctx, at.y) else {
             return;
         };
-        let cell = crate::piping::cell_at(floor.0 as i32, at);
-        let blast =
-            crate::explosion::fill(self.atmos.layout(), cell, spec.total, spec.slope, spec.max);
+        let f = floor.0;
+        let cell = crate::piping::cell_at(f, at);
         let per_intensity = self
             .explosion_types
             .get(&spec.kind)
             .cloned()
             .unwrap_or_default();
+        let mut walls = self.take_walls(ctx);
+        let mut layout = self.atmos.layout().clone();
+        let mut broken: BTreeSet<(i32, i32)> = BTreeSet::new();
+        let mut hit: BTreeMap<(i32, i32), f32> = BTreeMap::new();
+        let mut blast = crate::explosion::fill(&layout, cell, spec.total, spec.slope, spec.max);
+        for _ in 0..8 {
+            let strength: BTreeMap<atmos::Cell, f32> = blast
+                .rings
+                .iter()
+                .zip(&blast.intensity)
+                .flat_map(|(ring, i)| ring.iter().map(move |c| (*c, *i)))
+                .collect();
+            let mut fresh = Vec::new();
+            for (&w, wall) in &walls {
+                if broken.contains(&w) {
+                    continue;
+                }
+                let i = [(1, 0), (-1, 0), (0, 1), (0, -1)]
+                    .into_iter()
+                    .filter_map(|(dx, dz)| {
+                        strength
+                            .get(&atmos::floor_cell(f, w.0 + dx, w.1 + dz))
+                            .copied()
+                    })
+                    .fold(0.0, f32::max);
+                if i <= 0.0 {
+                    continue;
+                }
+                let d = hit.entry(w).or_insert(0.0);
+                *d = d.max(wall.blast_damage(&per_intensity, i));
+                if wall.damage + *d >= wall.hp {
+                    fresh.push(w);
+                }
+            }
+            if fresh.is_empty() {
+                break;
+            }
+            for w in fresh {
+                broken.insert(w);
+                let intact = |n: atmos::Cell| {
+                    let z = n.1 - f * atmos::grid::FLOOR_STRIDE;
+                    walls.contains_key(&(n.0, z)) && !broken.contains(&(n.0, z))
+                };
+                crate::explosion::open_cell(&mut layout, atmos::floor_cell(f, w.0, w.1), &intact);
+            }
+            blast = crate::explosion::fill(&layout, cell, spec.total, spec.slope, spec.max);
+        }
+        for (w, d) in &hit {
+            if let Some(wall) = walls.get_mut(w) {
+                wall.damage += d;
+            }
+        }
+        for w in &broken {
+            self.break_wall(ctx, floor, *w, &walls);
+            walls.remove(w);
+        }
+        self.walls = Some(walls);
+        self.blast_items(ctx, floor, at, &blast, &per_intensity);
         let hurt: Vec<(NetworkEntityId, f32)> = self
             .actors
             .keys()
             .filter_map(|who| {
                 let pos = ctx.position_of(*who)?;
-                let i = blast.at(crate::piping::cell_at(floor.0 as i32, pos));
+                let i = blast.at(crate::piping::cell_at(f, pos));
                 (i > 0.0).then_some((*who, i))
             })
             .collect();
@@ -5369,6 +5581,175 @@ impl State {
             }
             self.after_health_change(ctx, who);
             self.popup(who, "You are caught in an explosion!");
+        }
+    }
+
+    /// Таблица стен карты; читается из зон карты при первом обращении.
+    fn take_walls(
+        &mut self,
+        ctx: &HookContext<'_>,
+    ) -> BTreeMap<(i32, i32), crate::explosion::Wall> {
+        self.walls.take().unwrap_or_else(|| {
+            crate::explosion::parse_walls(
+                ctx.world
+                    .authored()
+                    .filter(|o| matches!(o.kind, AuthoredKind::Zone))
+                    .flat_map(|o| o.metadata.iter()),
+            )
+        })
+    }
+
+    /// Разрушить клетку стены: убрать рёбра и блоки, положить пол и потолок, закрыть рёбра к целым
+    /// стенам рядом (как пролом в SS14: остаётся плитка под стеной).
+    fn break_wall(
+        &mut self,
+        ctx: &mut HookContext<'_>,
+        floor: FloorId,
+        wall: (i32, i32),
+        walls: &BTreeMap<(i32, i32), crate::explosion::Wall>,
+    ) {
+        use astrocore_math::{GridCell, GridEdge};
+        use astrocore_world::{SlotKey, StructureElement};
+        let here = GridCell::new(wall.0, wall.1);
+        let around: Vec<(GridCell, GridEdge)> = [(1, 0), (-1, 0), (0, 1), (0, -1)]
+            .into_iter()
+            .filter_map(|(dx, dz)| {
+                let n = GridCell::new(wall.0 + dx, wall.1 + dz);
+                Some((n, GridEdge::between(here, n)?))
+            })
+            .collect();
+        let mut remove: Vec<ObjectId> = Vec::new();
+        let mut material = None;
+        for e in ctx.world.elements().filter(|e| e.floor == floor) {
+            match (&e.kind, &e.placement) {
+                (StructureKind::Freeform, Placement::Free(p)) if p.cell == here => {
+                    remove.push(e.id);
+                }
+                (
+                    StructureKind::Wall | StructureKind::Opening(OpeningKind::Window),
+                    Placement::Edge(g),
+                ) if around.iter().any(|(_, a)| a == g) => remove.push(e.id),
+                _ => {}
+            }
+        }
+        let slab = |key: SlotKey| ctx.world.element_at(floor, key).cloned();
+        let mut floor_slab = None;
+        let mut ceiling_slab = None;
+        for (n, _) in &around {
+            floor_slab = floor_slab.or_else(|| slab(SlotKey::FloorSlab(*n)));
+            ceiling_slab = ceiling_slab.or_else(|| slab(SlotKey::CeilingSlab(*n)));
+        }
+        for id in remove {
+            ctx.request(WorldCommand::RemoveElement { id });
+        }
+        for template in [floor_slab, ceiling_slab].into_iter().flatten() {
+            material.get_or_insert(template.material.clone());
+            self.wall_serial += 1;
+            ctx.request(WorldCommand::PlaceElement(StructureElement {
+                id: ObjectId::from_u128(0xB1A5_7000_0000 + self.wall_serial),
+                placement: Placement::Cell(here),
+                ..template
+            }));
+        }
+        // Рёбра к уцелевшим стенам: иначе в стене остаётся дыра.
+        let template = ctx
+            .world
+            .elements()
+            .find(|e| matches!(e.kind, StructureKind::Wall) && e.floor == floor)
+            .cloned();
+        if let Some(template) = template {
+            for (n, g) in &around {
+                if walls.contains_key(&(n.x, n.z))
+                    && ctx.world.element_at(floor, SlotKey::Edge(*g)).is_none()
+                {
+                    self.wall_serial += 1;
+                    ctx.request(WorldCommand::PlaceElement(StructureElement {
+                        id: ObjectId::from_u128(0xB1A5_7000_0000 + self.wall_serial),
+                        placement: Placement::Edge(*g),
+                        ..template.clone()
+                    }));
+                }
+            }
+        }
+        self.sound(
+            "Audio/Effects/metalbreak.ogg",
+            Vec3::new(wall.0 as f32 + 0.5, 1.0, wall.1 as f32 + 0.5),
+        );
+    }
+
+    /// Предметы на земле в зоне взрыва: взрывчатка получает урон (запал от `start`, подрыв от
+    /// `explode`), остальное отбрасывает от центра со скоростью `10·√интенсивности`
+    /// (`ProcessEntity`: бросок, пока площадь меньше `ThrowLimit` или у края).
+    fn blast_items(
+        &mut self,
+        ctx: &mut HookContext<'_>,
+        floor: FloorId,
+        at: Vec3,
+        blast: &crate::explosion::Blast,
+        per_intensity: &DamageSpec,
+    ) {
+        const THROW_LIMIT_TILES: usize = 400;
+        let f = floor.0;
+        let clock = self.clock;
+        let throwing = blast.tiles() < THROW_LIMIT_TILES;
+        let mut flung = Vec::new();
+        let mut set_off = Vec::new();
+        for o in ctx.world.authored() {
+            let AuthoredKind::Placement { prototype } = &o.kind else {
+                continue;
+            };
+            if o.floor != floor || self.gone.contains(&o.id) {
+                continue;
+            }
+            let pos = (o.min() + o.max()) * 0.5;
+            let i = blast.at(crate::piping::cell_at(f, pos));
+            if i <= 0.0 {
+                continue;
+            }
+            if let Some(&(start, boom)) = self.volatile.get(prototype) {
+                let damage: f32 = per_intensity.values().map(|v| v * i).sum();
+                if boom >= 0.0 && damage >= boom {
+                    set_off.push((o.id, clock));
+                } else if start >= 0.0 && damage >= start {
+                    set_off.push((
+                        o.id,
+                        clock + self.fuses.get(prototype).copied().unwrap_or(3.0),
+                    ));
+                }
+                continue;
+            }
+            let Some(info) = self.infos.get(prototype) else {
+                continue;
+            };
+            if !throwing
+                || info.size >= crate::items::ItemSize::Huge
+                || self.chargers.contains_key(prototype)
+            {
+                continue;
+            }
+            flung.push((o.id, prototype.clone(), pos, i));
+        }
+        for (id, due) in set_off {
+            self.primed.entry(id).or_insert(due);
+        }
+        for (id, prototype, pos, i) in flung {
+            let mut away = Vec3::new(pos.x - at.x, 0.0, pos.z - at.z);
+            if away.length_squared() < 1e-6 {
+                let a = self.spawn_rng.next_f32() * std::f32::consts::TAU;
+                away = Vec3::new(a.cos(), 0.0, a.sin());
+            }
+            let dir = away.normalize();
+            let speed = 10.0 * i.sqrt();
+            let eye = pos + Vec3::Y * 0.5;
+            let free = ctx.unobstructed_distance(eye, eye + dir * 30.0) - DROP_CLEARANCE_M;
+            let reach = (speed * THROW_RANGE_PER_SPEED).min(free).max(0.0);
+            ctx.request(WorldCommand::RemoveAuthored { id });
+            self.gone.insert(id);
+            self.thrown.push((
+                clock + reach / speed.max(0.1),
+                crate::hands::HeldItem { id, prototype },
+                pos + dir * reach,
+            ));
         }
     }
 
@@ -5457,6 +5838,13 @@ impl State {
             due
         };
         for (_, item, at) in landed {
+            // Ударная граната взрывается при падении (`TriggerOnLand`).
+            if self.impact.contains(&item.prototype)
+                && let Some(spec) = self.explosives.get(&item.prototype).cloned()
+            {
+                self.explode(ctx, at + Vec3::Y * 0.1, &spec);
+                continue;
+            }
             Self::place(ctx, &item, at);
         }
     }
@@ -5949,10 +6337,10 @@ impl State {
                     .unwrap_or_default(),
             };
             let mut taken = taken.into_iter();
-            if let Some(first) = taken.next() {
-                if self.actor(actor).hands.pickup_any(first.clone()).is_err() {
-                    to_floor.push(first);
-                }
+            if let Some(first) = taken.next()
+                && self.actor(actor).hands.pickup_any(first.clone()).is_err()
+            {
+                to_floor.push(first);
             }
             to_floor.extend(taken);
         } else {
@@ -6919,6 +7307,7 @@ impl State {
     pub(crate) fn tick(&mut self, ctx: &mut HookContext<'_>, dt: f32) {
         self.clock += dt;
         self.last_dt = dt;
+        self.gone.clear();
         self.tick_health(ctx, dt);
         let waiting: Vec<NetworkEntityId> = self
             .actors

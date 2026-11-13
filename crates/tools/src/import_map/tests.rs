@@ -114,6 +114,34 @@ fn a_room_with_a_door_becomes_walls_floor_and_a_door_edge() {
 }
 
 #[test]
+fn walls_carry_their_strength_from_the_prototype_table() {
+    let mut mats = Materials::default();
+    mats.wall_hp.insert(
+        "WallSolid".into(),
+        WallClass {
+            hp: 250.0,
+            coefficients: [("Piercing".to_string(), 0.7)].into(),
+            flat: [("Structural".to_string(), 3.0)].into(),
+        },
+    );
+    let (map, _) = import(&room_yaml(7), "room", &known(), &mats).unwrap();
+    let zone = map
+        .zones
+        .iter()
+        .find(|z| z.metadata.contains_key("wall_0"))
+        .expect("зона с прочностью стен");
+    let text = &zone.metadata["wall_0"];
+    assert!(
+        text.starts_with("hp=250;coef=Piercing:0.7;flat=Structural:3;cells="),
+        "{text}"
+    );
+    assert!(
+        text.contains("0:-1"),
+        "угловая стена в списке клеток: {text}"
+    );
+}
+
+#[test]
 fn the_imported_map_builds_a_valid_world() {
     let (map, _) = import(&room_yaml(7), "room", &known(), &Materials::default()).unwrap();
     let world = map.build_world("room").unwrap();

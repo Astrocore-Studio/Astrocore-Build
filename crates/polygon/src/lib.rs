@@ -224,6 +224,22 @@ pub fn load_door_access(content: &Path) -> Result<Vec<DoorAccess>, PolygonError>
     ron::from_str(&text).map_err(|e| PolygonError::Ron(path, e.to_string()))
 }
 
+/// Прочность стены, окна или решётки из `content/wall_hp.ron`: порог разрушения и защита
+/// (`Destructible` и `damageModifierSet`).
+#[derive(Debug, Clone, serde::Deserialize)]
+pub struct WallHp {
+    pub proto: String,
+    pub hp: f32,
+    pub coefficients: std::collections::BTreeMap<String, f32>,
+    pub flat: std::collections::BTreeMap<String, f32>,
+}
+
+pub fn load_wall_hp(content: &Path) -> Result<Vec<WallHp>, PolygonError> {
+    let path = content.join("wall_hp.ron");
+    let text = std::fs::read_to_string(&path).map_err(|e| PolygonError::Io(path.clone(), e))?;
+    ron::from_str(&text).map_err(|e| PolygonError::Ron(path, e.to_string()))
+}
+
 /// Спрайты предметов: у каждого прототипа с `Sprite` (набор и состояние) и `Item`.
 pub fn sprites_of(registry: &PrototypeRegistry) -> Result<Vec<SpriteSource>, PolygonError> {
     let mut out = Vec::new();

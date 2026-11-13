@@ -50,6 +50,16 @@ fn main() {
     for a in polygon::load_door_access(&polygon::content_dir()).unwrap_or_default() {
         materials.door_access.insert(a.proto, a.access);
     }
+    for w in polygon::load_wall_hp(&polygon::content_dir()).unwrap_or_default() {
+        materials.wall_hp.insert(
+            w.proto,
+            tools::import_map::WallClass {
+                hp: w.hp,
+                coefficients: w.coefficients,
+                flat: w.flat,
+            },
+        );
+    }
     match tools::import_map::import(&yaml, &name, &known, &materials) {
         Ok((map, r)) => {
             if let Err(e) = map.save(Path::new(&args[1])) {

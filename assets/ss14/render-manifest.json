@@ -3202,6 +3202,22 @@
       ],
       "thickness": 0.0625
     },
+    "ss14:c4": {
+      "frames": 1,
+      "grid": [
+        1,
+        1
+      ],
+      "image": "Textures/Objects/Weapons/Bombs/c4.rsi/icon.png",
+      "layout": "flat",
+      "name": "composition C-4",
+      "oriented": false,
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ],
+      "thickness": 0.0625
+    },
     "ss14:cabbage_seeds": {
       "frames": 1,
       "grid": [
@@ -21858,6 +21874,22 @@
       ],
       "thickness": 0.0625
     },
+    "ss14:ex_grenade": {
+      "frames": 1,
+      "grid": [
+        1,
+        1
+      ],
+      "image": "Textures/Objects/Weapons/Grenades/grenade.rsi/icon.png",
+      "layout": "flat",
+      "name": "explosive grenade",
+      "oriented": false,
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ],
+      "thickness": 0.0625
+    },
     "ss14:extended_emergency_oxygen_tank": {
       "frames": 1,
       "grid": [
@@ -21899,6 +21931,22 @@
       "image": "Textures/Objects/Misc/module.rsi/airalarm_electronics.png",
       "layout": "flat",
       "name": "fire alarm electronics",
+      "oriented": false,
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ],
+      "thickness": 0.0625
+    },
+    "ss14:fire_bomb": {
+      "frames": 1,
+      "grid": [
+        1,
+        1
+      ],
+      "image": "Textures/Objects/Weapons/Bombs/ied.rsi/base.png",
+      "layout": "flat",
+      "name": "fire bomb",
       "oriented": false,
       "size": [
         0.36000001430511475,
@@ -27010,6 +27058,38 @@
       ],
       "thickness": 0.0625
     },
+    "ss14:holy_hand_grenade": {
+      "frames": 1,
+      "grid": [
+        1,
+        1
+      ],
+      "image": "Textures/Objects/Weapons/Grenades/holyhandgrenade.rsi/icon.png",
+      "layout": "flat",
+      "name": "holy hand grenade",
+      "oriented": false,
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ],
+      "thickness": 0.0625
+    },
+    "ss14:hot_potato": {
+      "frames": 1,
+      "grid": [
+        1,
+        1
+      ],
+      "image": "Textures/Objects/Weapons/Bombs/hot_potato.rsi/icon.png",
+      "layout": "flat",
+      "name": "hot potato",
+      "oriented": false,
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ],
+      "thickness": 0.0625
+    },
     "ss14:hydroponics_tool_clippers": {
       "frames": 1,
       "grid": [
@@ -30066,6 +30146,22 @@
       ],
       "thickness": 0.0625
     },
+    "ss14:nuclear_grenade": {
+      "frames": 1,
+      "grid": [
+        1,
+        1
+      ],
+      "image": "Textures/Objects/Weapons/Grenades/nukenade.rsi/icon.png",
+      "layout": "flat",
+      "name": "the nuclear option",
+      "oriented": false,
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ],
+      "thickness": 0.0625
+    },
     "ss14:nuke_disk": {
       "frames": 2,
       "grid": [
@@ -30546,6 +30642,22 @@
       ],
       "thickness": 0.0625
     },
+    "ss14:pen_exploding": {
+      "frames": 1,
+      "grid": [
+        1,
+        1
+      ],
+      "image": "Textures/Objects/Misc/pens.rsi/pen.png",
+      "layout": "flat",
+      "name": "pen",
+      "oriented": false,
+      "size": [
+        0.30000001192092896,
+        0.30000001192092896
+      ],
+      "thickness": 0.0625
+    },
     "ss14:pest_spray": {
       "frames": 1,
       "grid": [
@@ -30747,6 +30859,22 @@
       "image": "Textures/Objects/Devices/pinpointer.rsi/pinpointer.png",
       "layout": "flat",
       "name": "pinpointer",
+      "oriented": false,
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ],
+      "thickness": 0.0625
+    },
+    "ss14:pipe_bomb": {
+      "frames": 1,
+      "grid": [
+        1,
+        1
+      ],
+      "image": "Textures/Objects/Weapons/Bombs/pipebomb.rsi/base.png",
+      "layout": "flat",
+      "name": "pipe bomb",
       "oriented": false,
       "size": [
         0.36000001430511475,
@@ -33954,6 +34082,38 @@
       ],
       "thickness": 0.0625
     },
+    "ss14:seismic_charge": {
+      "frames": 1,
+      "grid": [
+        1,
+        1
+      ],
+      "image": "Textures/Objects/Weapons/Bombs/seismic.rsi/icon.png",
+      "layout": "flat",
+      "name": "seismic charge",
+      "oriented": false,
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ],
+      "thickness": 0.0625
+    },
+    "ss14:self_destruct_seq": {
+      "frames": 1,
+      "grid": [
+        1,
+        1
+      ],
+      "image": "Textures/Objects/Weapons/Grenades/grenade.rsi/icon.png",
+      "layout": "flat",
+      "name": "self destruct",
+      "oriented": false,
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ],
+      "thickness": 0.0625
+    },
     "ss14:service_worker_idcard": {
       "frames": 1,
       "grid": [
@@ -34738,6 +34898,22 @@
       ],
       "thickness": 0.0625
     },
+    "ss14:spider_charge": {
+      "frames": 1,
+      "grid": [
+        1,
+        1
+      ],
+      "image": "Textures/Objects/Weapons/Bombs/spidercharge.rsi/icon.png",
+      "layout": "flat",
+      "name": "spider clan charge",
+      "oriented": false,
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ],
+      "thickness": 0.0625
+    },
     "ss14:spoon": {
       "frames": 1,
       "grid": [
@@ -35119,6 +35295,22 @@
       "size": [
         0.30000001192092896,
         0.30000001192092896
+      ],
+      "thickness": 0.0625
+    },
+    "ss14:syndie_mini_bomb": {
+      "frames": 1,
+      "grid": [
+        1,
+        1
+      ],
+      "image": "Textures/Objects/Weapons/Grenades/syndgrenade.rsi/icon.png",
+      "layout": "flat",
+      "name": "syndicate minibomb",
+      "oriented": false,
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
       ],
       "thickness": 0.0625
     },
@@ -38931,6 +39123,22 @@
       "thickness": 0.0625
     },
     "ss14:wet_floor_sign": {
+      "frames": 1,
+      "grid": [
+        1,
+        1
+      ],
+      "image": "Textures/Objects/Specific/Janitorial/wet_floor_sign.rsi/icon.png",
+      "layout": "flat",
+      "name": "wet floor sign",
+      "oriented": false,
+      "size": [
+        0.48000001907348633,
+        0.48000001907348633
+      ],
+      "thickness": 0.0625
+    },
+    "ss14:wet_floor_sign_mine_explosive": {
       "frames": 1,
       "grid": [
         1,

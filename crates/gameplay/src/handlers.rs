@@ -183,6 +183,70 @@ impl InteractionHandler for IgniterUse {
     }
 }
 
+/// Зарядная станция (`ChargerSystem`): энергооружие в руке по станции — вставить в гнездо;
+/// пустой рукой по станции с оружием — достать (`ejectOnInteract`).
+pub struct ChargerUse;
+
+impl InteractionHandler for ChargerUse {
+    fn interact_using(
+        &mut self,
+        state: &mut State,
+        ctx: &mut HookContext<'_>,
+        user: NetworkEntityId,
+        used: &Used,
+        target: &Target,
+    ) -> bool {
+        let Target::Item { id, prototype, .. } = target else {
+            return false;
+        };
+        let Some(&rate) = state.chargers.get(prototype) else {
+            return false;
+        };
+        if !state
+            .guns
+            .get(&used.item.prototype)
+            .is_some_and(|g| g.fire_cost > 0.0)
+        {
+            state.popup(user, "It doesn't fit.");
+            return true;
+        }
+        if state.charger_slot.contains_key(id) {
+            return true;
+        }
+        if let Ok(item) = state.actor(user).hands.drop_hand(used.hand) {
+            state.charger_slot.insert(*id, (rate, item));
+            state.publish(ctx, user);
+        }
+        true
+    }
+
+    fn interact_hand(
+        &mut self,
+        state: &mut State,
+        ctx: &mut HookContext<'_>,
+        user: NetworkEntityId,
+        target: &Target,
+    ) -> bool {
+        let Target::Item { id, prototype, .. } = target else {
+            return false;
+        };
+        if !state.chargers.contains_key(prototype) {
+            return false;
+        }
+        if let Some((rate, item)) = state.charger_slot.remove(id) {
+            let hands = &mut state.actor(user).hands;
+            let hand = hands.active();
+            // Рука занята — оружие остаётся в гнезде.
+            if hands.pickup_to(hand, item.clone()).is_err() {
+                state.charger_slot.insert(*id, (rate, item));
+            } else {
+                state.publish(ctx, user);
+            }
+        }
+        true
+    }
+}
+
 /// Использовать в руке гранату с таймером — запустить запал (`TriggerOnUse` + `TimerTrigger`).
 pub struct ExplosiveUse;
 
@@ -774,6 +838,7 @@ pub fn default_handlers() -> Vec<Box<dyn InteractionHandler>> {
         Box::new(MixUse),
         Box::new(DefibUse),
         Box::new(ChemUse),
+        Box::new(ChargerUse),
         Box::new(PryDoor),
         Box::new(StorageClickInsert),
         Box::new(PickupHandler),
