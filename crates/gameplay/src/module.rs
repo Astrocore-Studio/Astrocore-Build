@@ -474,6 +474,11 @@ pub struct State {
     pub(crate) round: RoundState,
     /// Чат: журнал строк по получателям.
     pub(crate) chat: ChatState,
+    /// Осмотр: названия и описания прототипов, счётчик ответов.
+    pub(crate) display_names: BTreeMap<PrototypeId, String>,
+    pub(crate) ss14_names: BTreeMap<PrototypeId, String>,
+    pub(crate) descriptions: BTreeMap<String, String>,
+    pub(crate) verb_seq: u32,
     /// Брошенные предметы в полёте: когда упадут, предмет и место падения.
     pub(crate) thrown: Vec<(f32, crate::hands::HeldItem, Vec3)>,
     pub(crate) spawn_next: usize,
@@ -535,8 +540,14 @@ impl State {
         let mut switch_protos = BTreeSet::new();
         let mut refillables = BTreeSet::new();
         let mut tank_templates = BTreeMap::new();
+        let mut display_names: BTreeMap<PrototypeId, String> = BTreeMap::new();
+        let mut ss14_names: BTreeMap<PrototypeId, String> = BTreeMap::new();
         for (id, name) in names {
             let resolved = registry.spawnable(&name).ok();
+            if let Some(n) = resolved.as_ref().and_then(|r| r.name.clone()) {
+                display_names.insert(id.clone(), n);
+            }
+            ss14_names.insert(id.clone(), name.clone());
             if let Some(info) = resolved.as_ref().and_then(item_info) {
                 infos.insert(id.clone(), info);
             }
@@ -968,6 +979,10 @@ impl State {
             lobby: None,
             round: RoundState::default(),
             chat: ChatState::default(),
+            display_names,
+            ss14_names,
+            descriptions: BTreeMap::new(),
+            verb_seq: 0,
             thrown: Vec::new(),
             spawn_next: 0,
             firelock_cells: BTreeMap::new(),
@@ -4610,6 +4625,162 @@ impl State {
         }
     }
 
+    /// Где находится цель глагола и чем она является: (точка, объект?, игрок?).
+    fn verb_target_spot(
+        &self,
+        ctx: &HookContext<'_>,
+        target: crate::verbs::VerbTarget,
+    ) -> Option<Vec3> {
+        match target {
+            crate::verbs::VerbTarget::Object(id) => ctx
+                .world
+                .authored_object(id)
+                .map(|o| (o.min() + o.max()) * 0.5),
+            crate::verbs::VerbTarget::Player(p) => {
+                ctx.position_of(p).map(|f| f + Vec3::Y * CHEST_M)
+            }
+        }
+    }
+
+    /// Достаёт ли взгляд игрока до цели: расстояние по состоянию смотрящего и без преград.
+    fn examine_distance(
+        &self,
+        ctx: &HookContext<'_>,
+        actor: NetworkEntityId,
+        spot: Vec3,
+    ) -> Option<f32> {
+        let feet = ctx.position_of(actor)?;
+        let a = self.actors.get(&actor)?;
+        let dead = a.ghost || a.health.state() == MobState::Dead;
+        let range = crate::verbs::examine_range(a.health.state().can_act(), dead);
+        let eye = feet + Vec3::Y * CHEST_M;
+        let d = eye.distance(spot);
+        if d > range {
+            return None;
+        }
+        // Преграда между глазами и целью (`InRangeUnOccluded`): допуск на толщину самой цели.
+        let free = ctx.unobstructed_distance(eye, spot);
+        (free >= d - 0.4).then_some(d)
+    }
+
+    /// Меню глаголов для цели (`GetVerbsEvent`): осмотр всегда, остальное — по обстоятельствам.
+    fn verb_list(&mut self, ctx: &mut HookContext<'_>, actor: NetworkEntityId, data: &[u8]) {
+        use crate::verbs::{Verb, VerbTarget, VerbsView};
+        let Some((target, _)) = crate::verbs::parse_target(data) else {
+            return;
+        };
+        let Some(spot) = self.verb_target_spot(ctx, target) else {
+            return;
+        };
+        let mut verbs = Vec::new();
+        match self.examine_distance(ctx, actor, spot) {
+            Some(d) => {
+                verbs.push(Verb {
+                    id: "examine".into(),
+                    label: "Examine".into(),
+                    disabled: None,
+                });
+                if matches!(target, VerbTarget::Player(_)) {
+                    verbs.push(Verb {
+                        id: "examine_health".into(),
+                        label: "Health".into(),
+                        disabled: (d > crate::verbs::EXAMINE_DETAILS_RANGE_M).then(|| {
+                            "Perform a basic health examination in close range.".to_string()
+                        }),
+                    });
+                }
+            }
+            None => verbs.push(Verb {
+                id: "examine".into(),
+                label: "Examine".into(),
+                disabled: Some("You can't make out whatever that is.".into()),
+            }),
+        }
+        self.verb_seq += 1;
+        let view = VerbsView {
+            seq: self.verb_seq,
+            target: data.to_vec(),
+            verbs,
+        };
+        ctx.set_component(
+            actor,
+            crate::verbs::VERBS_COMPONENT,
+            crate::verbs::encode_verbs(&view),
+        );
+    }
+
+    /// Выполнить глагол: пока осмотр и осмотр здоровья.
+    fn verb_do(&mut self, ctx: &mut HookContext<'_>, actor: NetworkEntityId, data: &[u8]) {
+        use crate::verbs::{ExamineView, VerbTarget};
+        let Some((target, verb)) = crate::verbs::parse_target(data) else {
+            return;
+        };
+        let Some(spot) = self.verb_target_spot(ctx, target) else {
+            return;
+        };
+        let Some(dist) = self.examine_distance(ctx, actor, spot) else {
+            self.popup(actor, "You can't make out whatever that is.");
+            return;
+        };
+        let (name, mut lines) = match target {
+            VerbTarget::Object(id) => {
+                let Some(AuthoredKind::Placement { prototype }) =
+                    ctx.world.authored_object(id).map(|o| o.kind.clone())
+                else {
+                    return;
+                };
+                let name = self
+                    .display_names
+                    .get(&prototype)
+                    .cloned()
+                    .unwrap_or_else(|| prototype.to_string());
+                let desc = self
+                    .ss14_names
+                    .get(&prototype)
+                    .and_then(|n| self.descriptions.get(n))
+                    .cloned();
+                (name, desc.into_iter().collect::<Vec<_>>())
+            }
+            VerbTarget::Player(p) => {
+                let name = self.speaker_name(p);
+                (name, Vec::new())
+            }
+        };
+        match (verb, target) {
+            ("examine", _) => {}
+            ("examine_health", VerbTarget::Player(p)) => {
+                if dist > crate::verbs::EXAMINE_DETAILS_RANGE_M {
+                    self.popup(actor, "Perform a basic health examination in close range.");
+                    return;
+                }
+                let health = self.actors.get(&p).map(|a| &a.health);
+                let mut found = false;
+                for kind in crate::health::KINDS {
+                    let dmg = health.map_or(0.0, |h| h.damage_of(kind));
+                    if let Some(line) = crate::verbs::health_line(kind, dmg) {
+                        lines.push(line.to_string());
+                        found = true;
+                    }
+                }
+                if !found {
+                    lines.push("There are no obvious wounds to be seen.".into());
+                }
+            }
+            _ => return,
+        }
+        self.verb_seq += 1;
+        let view = ExamineView {
+            seq: self.verb_seq,
+            name,
+            lines,
+        };
+        ctx.set_component(
+            actor,
+            crate::verbs::EXAMINE_COMPONENT,
+            crate::verbs::encode_examine(&view),
+        );
+    }
+
     /// Название должности или «Игрок N» — вместо имени персонажа.
     fn speaker_name(&self, who: NetworkEntityId) -> String {
         self.player_job
@@ -5595,6 +5766,13 @@ impl GameplayModule {
         self
     }
 
+    /// Описания прототипов для осмотра: id SS14 → текст (`content/descriptions.ron`).
+    #[must_use]
+    pub fn with_descriptions(mut self, descriptions: BTreeMap<String, String>) -> Self {
+        self.state.descriptions = descriptions;
+        self
+    }
+
     #[must_use]
     pub fn with_station_name(mut self, name: String) -> Self {
         self.state.power_monitor.station = name.clone();
@@ -5721,6 +5899,12 @@ impl GameModule for GameplayModule {
     fn handle(&mut self, ctx: &mut HookContext<'_>, event: &HookEvent) {
         let st = &mut self.state;
         match event {
+            HookEvent::Command { actor, kind, data } if kind == crate::wire::CMD_VERB_LIST => {
+                st.verb_list(ctx, *actor, data);
+            }
+            HookEvent::Command { actor, kind, data } if kind == crate::wire::CMD_VERB_DO => {
+                st.verb_do(ctx, *actor, data);
+            }
             HookEvent::Command { actor, kind, data } if kind == crate::wire::CMD_CHAT => {
                 st.chat_say(ctx, *actor, data);
             }

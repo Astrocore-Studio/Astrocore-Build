@@ -51,6 +51,16 @@ pub fn load_registry(content: &Path) -> Result<PrototypeRegistry, PolygonError> 
     Ok(r)
 }
 
+/// Описания прототипов для осмотра: `content/descriptions.ron` (список пар «id SS14, текст»).
+/// Нет файла или он испорчен — осмотр просто без описаний.
+pub fn load_descriptions(content: &Path) -> std::collections::BTreeMap<String, String> {
+    std::fs::read_to_string(content.join("descriptions.ron"))
+        .ok()
+        .and_then(|t| ron::from_str::<Vec<(String, String)>>(&t).ok())
+        .map(|v| v.into_iter().collect())
+        .unwrap_or_default()
+}
+
 const POLYGON_MAP: &str = include_str!("../../../content/maps/polygon.ron");
 
 /// Карта полигона из `content/maps/polygon.ron`: две комнаты, дверь между ними, лестница на второй

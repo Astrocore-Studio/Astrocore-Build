@@ -109,6 +109,10 @@ pub const CMD_LOCK: &str = "lock.toggle";
 pub const CMD_JOB: &str = "job.pick";
 /// Чат: байт канала и текст UTF-8 (`chat_data`).
 pub const CMD_CHAT: &str = "chat";
+/// Меню глаголов: данные — `verbs::target_data(цель, None)`; ответ — компонент `build.verbs`.
+pub const CMD_VERB_LIST: &str = "verb.list";
+/// Выполнить глагол: `verbs::target_data(цель, Some(глагол))`.
+pub const CMD_VERB_DO: &str = "verb.do";
 /// Лобби: «Готов» / «Не готов», а после старта раунда — «Присоединиться».
 pub const CMD_LOBBY_READY: &str = "lobby.ready";
 pub const CMD_RESIST: &str = "fire.resist";
@@ -297,6 +301,18 @@ pub fn register_replication(reg: &mut ReplicationRegistry) -> Result<(), Replica
         channel: ReplicationChannel::ReliableOrdered,
         interest: Interest::Owner,
         max_bytes: crate::round_end::ROUNDEND_MAX_BYTES,
+    })?;
+    reg.register(ReplicatedKind {
+        name: crate::verbs::VERBS_COMPONENT.into(),
+        channel: ReplicationChannel::ReliableOrdered,
+        interest: Interest::Owner,
+        max_bytes: crate::verbs::VERBS_MAX_BYTES,
+    })?;
+    reg.register(ReplicatedKind {
+        name: crate::verbs::EXAMINE_COMPONENT.into(),
+        channel: ReplicationChannel::ReliableOrdered,
+        interest: Interest::Owner,
+        max_bytes: crate::verbs::EXAMINE_MAX_BYTES,
     })?;
     reg.register(ReplicatedKind {
         name: crate::chat::CHAT_COMPONENT.into(),

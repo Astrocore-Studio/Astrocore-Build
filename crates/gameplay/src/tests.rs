@@ -13,7 +13,7 @@ use crate::*;
 
 const PROTOS: &str = r#"[
     (id: "BaseItem", abstract: true, components: {"Item": (size: "Small")}),
-    (id: "Crowbar", parents: ["BaseItem"], components: {"Tool": (qualities: ["Prying"])}),
+    (id: "Crowbar", name: Some("crowbar"), parents: ["BaseItem"], components: {"Tool": (qualities: ["Prying"])}),
     (id: "Boulder", components: {"Sprite": (state: "boulder")}),
     (id: "Pen", components: {"Item": (size: "Tiny")}),
     (id: "Toolbox", components: {"Item": (size: "Large")}),
@@ -2479,6 +2479,113 @@ mod disposal_tests {
         command(&mut h, a, crate::CMD_THROW, crate::throw_data(spot));
         command(&mut h, a, crate::CMD_THROW, vec![1, 2, 3]);
         h.ticks(5);
+    }
+
+    fn verbs_of(h: &Harness, who: ConnId) -> Option<crate::VerbsView> {
+        let net = h.client(who).net_id()?;
+        h.client(who)
+            .component(net, crate::VERBS_COMPONENT)
+            .and_then(crate::decode_verbs)
+    }
+
+    fn examined(h: &Harness, who: ConnId) -> Option<crate::ExamineView> {
+        let net = h.client(who).net_id()?;
+        h.client(who)
+            .component(net, crate::EXAMINE_COMPONENT)
+            .and_then(crate::decode_examine)
+    }
+
+    #[test]
+    fn right_click_verbs_and_examine_describe_objects_and_wounds() {
+        let descriptions = std::collections::BTreeMap::from([(
+            "Crowbar".to_string(),
+            "A multipurpose tool.".to_string(),
+        )]);
+        let mut h = harness_with(move |m| m.with_descriptions(descriptions));
+        let (a, b) = (h.join("a"), h.join("b"));
+        h.ticks(5);
+        // Предмет на земле: глагол «Examine», осмотр даёт имя и описание.
+        spawn(&mut h, item_at(77, "ss14:crowbar", near()));
+        let target = crate::VerbTarget::Object(oid(77));
+        command(
+            &mut h,
+            a,
+            crate::CMD_VERB_LIST,
+            crate::target_data(target, None),
+        );
+        h.ticks(3);
+        let v = verbs_of(&h, a).expect("глаголы");
+        assert_eq!(v.verbs.len(), 1);
+        assert_eq!(
+            (v.verbs[0].id.as_str(), v.verbs[0].disabled.as_deref()),
+            ("examine", None)
+        );
+        command(
+            &mut h,
+            a,
+            crate::CMD_VERB_DO,
+            crate::target_data(target, Some("examine")),
+        );
+        h.ticks(3);
+        let e = examined(&h, a).expect("осмотр");
+        assert_eq!(e.name, "crowbar");
+        assert_eq!(e.lines, vec!["A multipurpose tool.".to_string()]);
+        // Игрок: осмотр и осмотр здоровья; без ран — «нет заметных ран», после ударов — раны.
+        let nb = h.client(b).net_id().unwrap();
+        let who = crate::VerbTarget::Player(nb);
+        command(
+            &mut h,
+            a,
+            crate::CMD_VERB_LIST,
+            crate::target_data(who, None),
+        );
+        h.ticks(3);
+        let ids: Vec<_> = verbs_of(&h, a)
+            .unwrap()
+            .verbs
+            .iter()
+            .map(|v| v.id.clone())
+            .collect();
+        assert_eq!(ids, ["examine", "examine_health"]);
+        command(
+            &mut h,
+            a,
+            crate::CMD_VERB_DO,
+            crate::target_data(who, Some("examine_health")),
+        );
+        h.ticks(3);
+        assert_eq!(
+            examined(&h, a).unwrap().lines,
+            vec!["There are no obvious wounds to be seen.".to_string()]
+        );
+        grab(&mut h, a, 10, near(), "ss14:cudgel");
+        command(&mut h, a, crate::CMD_COMBAT, vec![1]);
+        let head = crate::PARTS.iter().position(|p| *p == "Torso").unwrap() as u8;
+        command(
+            &mut h,
+            a,
+            crate::CMD_ATTACK,
+            crate::attack_part_data(nb, head),
+        );
+        h.ticks(3);
+        command(
+            &mut h,
+            a,
+            crate::CMD_VERB_DO,
+            crate::target_data(who, Some("examine_health")),
+        );
+        h.ticks(3);
+        let lines = examined(&h, a).unwrap().lines;
+        assert!(lines.iter().any(|l| l.contains("beaten up")), "{lines:?}");
+        // Несуществующая цель молча игнорируется.
+        let ghost = crate::VerbTarget::Object(oid(999));
+        command(
+            &mut h,
+            a,
+            crate::CMD_VERB_LIST,
+            crate::target_data(ghost, None),
+        );
+        h.ticks(2);
     }
 
     #[test]

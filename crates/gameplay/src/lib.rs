@@ -31,6 +31,11 @@ pub use idconsole::{
     IDCONSOLE_COMPONENT, IdConsoleView, TargetView, WriteRequest, decode_view, write_data,
 };
 pub mod chat;
+pub mod verbs;
+pub use verbs::{
+    EXAMINE_COMPONENT, ExamineView, VERBS_COMPONENT, Verb, VerbTarget, VerbsView, decode_examine,
+    decode_verbs, target_data,
+};
 pub mod jobs;
 pub use chat::{CHAT_COMPONENT, Channel, ChatLine, ChatView, chat_data, decode_chat};
 pub mod lobby;
@@ -79,12 +84,12 @@ pub use wire::{
     CMD_LAB_START, CMD_LOBBY_READY, CMD_LOCK, CMD_MOVE_HAND, CMD_MOVE_SLOT, CMD_PICKUP,
     CMD_PICKUP_ANY, CMD_RESIST, CMD_RESPAWN, CMD_REST, CMD_SCAN_CLOSE, CMD_SELECT_HAND, CMD_SHAKE,
     CMD_SPILL, CMD_STORE, CMD_SWAP_HANDS, CMD_TAKE, CMD_TAKE_TO, CMD_THROW, CMD_UNEQUIP,
-    CMD_UNEQUIP_TO, CMD_USE, CMD_USE_GROUND, CMD_VEND, CMD_VEND_CLOSE, CMD_WALK, HANDS_COMPONENT,
-    INVENTORY_COMPONENT, InventoryView, LYING_COMPONENT, WORN_COMPONENT, Worn, attack_data,
-    attack_part_data, decode_hands, decode_inventory, decode_worn, drop_at_data, drop_data,
-    encode_worn, equip_data, feed_data, heal_data, interact_data, move_hand_data, move_slot_data,
-    parse_drop, parse_object_id, parse_point, pickup_data, register_replication, store_data,
-    take_data, take_to_data, throw_data, unequip_data, unequip_to_data, use_data,
+    CMD_UNEQUIP_TO, CMD_USE, CMD_USE_GROUND, CMD_VEND, CMD_VEND_CLOSE, CMD_VERB_DO, CMD_VERB_LIST,
+    CMD_WALK, HANDS_COMPONENT, INVENTORY_COMPONENT, InventoryView, LYING_COMPONENT, WORN_COMPONENT,
+    Worn, attack_data, attack_part_data, decode_hands, decode_inventory, decode_worn, drop_at_data,
+    drop_data, encode_worn, equip_data, feed_data, heal_data, interact_data, move_hand_data,
+    move_slot_data, parse_drop, parse_object_id, parse_point, pickup_data, register_replication,
+    store_data, take_data, take_to_data, throw_data, unequip_data, unequip_to_data, use_data,
 };
 
 #[cfg(test)]
