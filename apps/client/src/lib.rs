@@ -95,6 +95,7 @@ impl Plugin for BuildClientPlugin {
         .insert_resource(Autoplay {
             enabled: self.autoplay,
             frame: 0,
+            examined: None,
         })
         .init_resource::<fire::FxAssets>()
         .init_resource::<lights::FlashlightOn>()
@@ -391,6 +392,8 @@ pub(crate) struct Hud {
 struct Autoplay {
     enabled: bool,
     frame: u32,
+    /// Отладка: объект, уже отправленный на осмотр.
+    examined: Option<ObjectId>,
 }
 
 fn smoke_inputs(
@@ -637,12 +640,30 @@ fn autoplay(
             gameplay::chat_data(gameplay::Channel::Say, &text),
         );
     }
+    // Отладка: ASTRO_AUTOPLAY_EXAMINE=aim — осмотреть первый объект, на который попадёт прицел,
+    // а при ASTRO_SPIN камера медленно крутится, пока что-нибудь не попадёт под прицел.
+    if std::env::var("ASTRO_AUTOPLAY_EXAMINE").as_deref() == Ok("aim") && state.frame > 80 {
+        if std::env::var_os("ASTRO_SPIN").is_some()
+            && hud.state.aim_id.is_none()
+            && let Some(l) = look.as_mut()
+        {
+            l.yaw += 0.03;
+        }
+        if let Some(id) = hud.state.aim_id
+            && state.examined.is_none()
+        {
+            state.examined = Some(id);
+            net.send_command(
+                gameplay::CMD_VERB_DO,
+                gameplay::target_data(gameplay::VerbTarget::Object(id), Some("examine")),
+            );
+        }
+    }
     // Отладка: осмотреть объект с номером из ASTRO_AUTOPLAY_EXAMINE (hex, как ASTRO_OPEN_ID).
     if let Ok(hex) = std::env::var("ASTRO_AUTOPLAY_EXAMINE")
         && state.frame == 100
         && let Ok(n) = u128::from_str_radix(hex.trim_start_matches("0x"), 16)
     {
-        eprintln!("EXAMINE_SEND {n:x}");
         net.send_command(
             gameplay::CMD_VERB_DO,
             gameplay::target_data(

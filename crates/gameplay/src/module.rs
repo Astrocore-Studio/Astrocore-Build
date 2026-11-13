@@ -5185,7 +5185,6 @@ impl State {
     /// Выполнить глагол: пока осмотр и осмотр здоровья.
     fn verb_do(&mut self, ctx: &mut HookContext<'_>, actor: NetworkEntityId, data: &[u8]) {
         use crate::verbs::{ExamineView, VerbTarget};
-        eprintln!("VERB_DO_ENTRY actor={actor:?} bytes={}", data.len());
         let Some((target, verb)) = crate::verbs::parse_target(data) else {
             return;
         };
