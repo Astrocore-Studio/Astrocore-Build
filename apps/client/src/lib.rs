@@ -83,6 +83,7 @@ impl Plugin for BuildClientPlugin {
                 frame: 0,
             })
             .init_resource::<fire::FxAssets>()
+            .init_resource::<lights::FlashlightOn>()
             .add_systems(Startup, (install_body, install_sounds))
             .add_systems(Last, alarm_visuals::sync)
             .add_systems(PreUpdate, smoke_inputs.after(bevy::input::InputSystems))
@@ -111,6 +112,7 @@ impl Plugin for BuildClientPlugin {
                     fire::sync_fx,
                     fire::animate_flames,
                     lights::sync_lights,
+                    lights::flashlight,
                 ),
             )
             .add_systems(
@@ -119,7 +121,12 @@ impl Plugin for BuildClientPlugin {
             )
             .add_systems(
                 EguiPrimaryContextPass,
-                (loadout_window, players::other_bars, statusfx::overlay),
+                (
+                    loadout_window,
+                    players::other_bars,
+                    statusfx::overlay,
+                    lights::vignette,
+                ),
             );
     }
 }
