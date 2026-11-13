@@ -69,6 +69,8 @@ pub struct Report {
     pub floor_tiles: usize,
     pub wall_cells: usize,
     pub wall_edges: usize,
+    /// Сплошные блоки стен на клетку.
+    pub wall_blocks: usize,
     pub doors: usize,
     pub doors_unplaced: usize,
     /// Огнезапоры поставлены / не поставлены.
@@ -213,6 +215,11 @@ fn entity_rot(entity: &Value) -> u8 {
     };
     ((rad / std::f64::consts::FRAC_PI_2).round() as i64).rem_euclid(4) as u8
 }
+
+/// Толщина ребра-стены: рёбра нужны логике, а видимый объём даёт блок на всю клетку.
+const WALL_EDGE_THICKNESS_M: f32 = 0.02;
+/// Высота блока стены над полом, мм.
+const WALL_HEIGHT_MM: u32 = 3000;
 
 /// Стороны трубы SS14 без поворота (`pipeDirection` прототипа): N, S, E, W битами 1, 2, 4, 8.
 fn pipe_base_dirs(proto: &str) -> Option<u8> {
@@ -770,14 +777,40 @@ pub fn import(
             }
         }
     }
+    // Стена на карте SS14 занимает всю клетку. Рёбра остаются для логики (воздух, проходимость,
+    // двери), но тонкие, а вид и объём даёт сплошной блок на клетку (`Freeform`).
     for e in &wall_edges {
         elements.push(element(
             StructureKind::Wall,
             Placement::Edge(*e),
             &mats.wall,
-            0.2,
+            WALL_EDGE_THICKNESS_M,
         ));
     }
+    let mut wall_blocks = 0usize;
+    for &c in &solid {
+        let touches_floor = (-1..=1).any(|dx| {
+            (-1..=1).any(|dz| (dx, dz) != (0, 0) && walk.contains(&(c.0 + dx, c.1 + dz)))
+        });
+        if !touches_floor {
+            continue;
+        }
+        elements.push(element(
+            StructureKind::Freeform,
+            Placement::Free(astrocore_world::FreePlacement {
+                cell: GridCell::new(c.0, c.1),
+                x_mm: 500,
+                z_mm: 500,
+                y_mm: (FLOOR_TOP_M * 1000.0) as i32,
+                yaw_cdeg: 0,
+                half_mm: [500, WALL_HEIGHT_MM, 500],
+            }),
+            &mats.wall,
+            0.1,
+        ));
+        wall_blocks += 1;
+    }
+    report.wall_blocks = wall_blocks;
     for e in &door_edges {
         elements.push(element(
             StructureKind::Opening(OpeningKind::Door),
