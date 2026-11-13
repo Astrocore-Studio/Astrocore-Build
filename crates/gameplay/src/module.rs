@@ -4670,7 +4670,8 @@ impl State {
         // Преграда между глазами и целью (`InRangeUnOccluded`): допуск `slack` на собственный
         // объём цели (луч идёт в её центр и упирается в её же коробку).
         let free = ctx.unobstructed_distance(eye, spot);
-        (free >= d - slack).then_some(d)
+        // Если глаза внутри коробки (`free` ≈ 0), преграду не считаем: игрок встал в предмет.
+        (free < 0.05 || free >= d - slack).then_some(d)
     }
 
     /// Меню глаголов для цели (`GetVerbsEvent`): осмотр всегда, остальное — по обстоятельствам.
@@ -4723,14 +4724,11 @@ impl State {
     fn verb_do(&mut self, ctx: &mut HookContext<'_>, actor: NetworkEntityId, data: &[u8]) {
         use crate::verbs::{ExamineView, VerbTarget};
         let Some((target, verb)) = crate::verbs::parse_target(data) else {
-            eprintln!("VERB_DO: данные не разобрались ({} байт)", data.len());
             return;
         };
         let Some(spot) = self.verb_target_spot(ctx, target) else {
-            eprintln!("VERB_DO: цель {target:?} не найдена");
             return;
         };
-        eprintln!("VERB_DO {verb} {target:?} spot={spot:?}");
         let Some(dist) = self.examine_distance(ctx, actor, spot, Self::verb_slack(target)) else {
             self.popup(actor, "You can't make out whatever that is.");
             return;
