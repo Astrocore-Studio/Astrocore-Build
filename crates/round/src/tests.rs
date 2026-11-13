@@ -222,6 +222,35 @@ mod doors {
     }
 
     #[test]
+    fn an_officer_draws_the_pistol_and_keeps_it_after_shooting() {
+        let (mut h, a, _b) = setup();
+        let send = |h: &mut Harness, kind: &str, data: Vec<u8>| {
+            let p = h.client(a).command_packet(kind, data).unwrap();
+            h.send(a, p);
+        };
+        send(&mut h, gameplay::CMD_JOB, b"SecurityOfficer".to_vec());
+        h.ticks(10);
+        send(&mut h, gameplay::CMD_UNEQUIP, gameplay::unequip_data("pocket1"));
+        h.ticks(60);
+        let net = h.client(a).net_id().unwrap();
+        let held = |h: &Harness| {
+            h.client(a)
+                .component(net, gameplay::HANDS_COMPONENT)
+                .and_then(gameplay::decode_hands)
+                .map(|hs| hs.held().map(|i| i.prototype.to_string()).collect::<Vec<_>>())
+                .unwrap_or_default()
+        };
+        assert_eq!(held(&h), vec!["ss14:weapon_pistol_mk58".to_string()]);
+        send(&mut h, gameplay::CMD_COMBAT, vec![1]);
+        h.ticks(5);
+        for _ in 0..2 {
+            send(&mut h, gameplay::CMD_SHOOT, gameplay::throw_data([8.0, 1.0, 2.0]));
+            h.ticks(15);
+        }
+        assert_eq!(held(&h), vec!["ss14:weapon_pistol_mk58".to_string()], "оружие осталось в руке");
+    }
+
+    #[test]
     fn a_hand_opens_and_closes_the_door_for_everyone() {
         let (mut h, a, b) = setup();
         let door = door_element(&h);
