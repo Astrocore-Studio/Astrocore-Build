@@ -4670,6 +4670,7 @@ impl State {
         // Преграда между глазами и целью (`InRangeUnOccluded`): допуск `slack` на собственный
         // объём цели (луч идёт в её центр и упирается в её же коробку).
         let free = ctx.unobstructed_distance(eye, spot);
+        eprintln!("EXAMINE_DIST eye={eye:?} spot={spot:?} d={d} free={free} slack={slack}");
         // Если глаза внутри коробки (`free` ≈ 0), преграду не считаем: игрок встал в предмет.
         (free < 0.05 || free >= d - slack).then_some(d)
     }
