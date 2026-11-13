@@ -188,6 +188,14 @@ def convert(i):
         out.append('"Shakeable": (duration: %s, requireInHand: %s)' % (float(_secs(sk.get('shakeDuration'), 1.0)), 'true' if sk.get('requireInHand') else 'false'))
     if 'Pill' in comps:
         out.append('"Pill": ()')
+    ex = comps.get('Explosive')
+    if ex is not None:
+        out.append('"Explosive": (explosionType: %s, totalIntensity: %s, intensitySlope: %s, maxIntensity: %s)' % (
+            q(ex.get('explosionType', 'Default')), float(ex.get('totalIntensity', 10)),
+            float(ex.get('intensitySlope', 1)), float(ex.get('maxIntensity', 4))))
+    tt = comps.get('TimerTrigger')
+    if tt is not None and 'TriggerOnUse' in comps:
+        out.append('"TimerTrigger": (delay: %s)' % float(_secs(tt.get('delay'), 3.0)))
     mw = comps.get('MeleeWeapon')
     if mw is not None:
         # Урон по видам (`damage.types`); группы и режимы без прямого урона не переносятся.

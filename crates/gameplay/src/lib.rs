@@ -31,6 +31,7 @@ pub use idconsole::{
     IDCONSOLE_COMPONENT, IdConsoleView, TargetView, WriteRequest, decode_view, write_data,
 };
 pub mod chat;
+pub mod explosion;
 pub mod verbs;
 pub use verbs::{
     EXAMINE_COMPONENT, ExamineView, STRIP_COMPONENT, StripView, VERBS_COMPONENT, Verb, VerbTarget,

@@ -183,6 +183,32 @@ impl InteractionHandler for IgniterUse {
     }
 }
 
+/// Использовать в руке гранату с таймером — запустить запал (`TriggerOnUse` + `TimerTrigger`).
+pub struct ExplosiveUse;
+
+impl InteractionHandler for ExplosiveUse {
+    fn use_in_hand(
+        &mut self,
+        state: &mut State,
+        _ctx: &mut HookContext<'_>,
+        user: NetworkEntityId,
+        used: &Used,
+    ) -> bool {
+        let (Some(fuse), true) = (
+            state.fuses.get(&used.item.prototype).copied(),
+            state.explosives.contains_key(&used.item.prototype),
+        ) else {
+            return false;
+        };
+        // Запал уже горит — повторное использование ничего не меняет.
+        if !state.primed.contains_key(&used.item.id) {
+            state.primed.insert(used.item.id, state.clock + fuse);
+            state.popup(user, "The timer has started!");
+        }
+        true
+    }
+}
+
 /// F по переносному баллончику в руке — открыть или закрыть выпуск газа (`ToggleValve`).
 pub struct TankUse;
 
@@ -753,6 +779,7 @@ pub fn default_handlers() -> Vec<Box<dyn InteractionHandler>> {
         Box::new(PickupHandler),
         Box::new(DoorActivate),
         Box::new(IgniterUse),
+        Box::new(ExplosiveUse),
         Box::new(TankUse),
         Box::new(OpenableUse),
         Box::new(EdibleUse),

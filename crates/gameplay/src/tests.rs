@@ -23,6 +23,12 @@ const PROTOS: &str = r#"[
         "Item": (size: "Normal"),
         "MeleeWeapon": (damage: (Blunt: 60.0), attackRate: 1.0),
     }),
+    (id: "ExplosionDefault", components: {"ExplosionType": (damage: (Blunt: 5.0, Heat: 5.0))}),
+    (id: "Grenade", components: {
+        "Item": (size: "Small"),
+        "Explosive": (explosionType: "Default", totalIntensity: 120.0, intensitySlope: 3.0, maxIntensity: 10.0),
+        "TimerTrigger": (delay: 1.0),
+    }),
     (id: "Truncheon", components: {
         "Item": (size: "Normal"),
         "MeleeWeapon": (damage: (Blunt: 10.0), attackRate: 3.0, bluntStaminaDamageFactor: 1.5),
@@ -2900,6 +2906,37 @@ mod disposal_tests {
         // Себя обыскивать нельзя.
         let me = crate::VerbTarget::Player(h.client(a).net_id().unwrap());
         assert!(!verb_ids(&mut h, a, me).contains(&"strip".to_string()));
+    }
+
+    #[test]
+    fn a_primed_grenade_explodes_when_its_fuse_runs_out_and_hurts_those_nearby() {
+        let mut h = harness();
+        let (a, b) = (h.join("a"), h.join("b"));
+        h.ticks(5);
+        grab(&mut h, a, 71, near(), "ss14:grenade");
+        let dmg = |h: &Harness| -> f32 {
+            let net = h.client(b).net_id().unwrap();
+            h.client(b)
+                .component(net, crate::HEALTH_COMPONENT)
+                .and_then(crate::decode_health)
+                .map_or(0.0, |v| v.damage.values().sum())
+        };
+        assert_eq!(dmg(&h), 0.0);
+        // Запустить запал в руке, потом бросить подальше.
+        let hand = hands_of(&h, a, a).unwrap().active() as u8;
+        command(&mut h, a, crate::CMD_USE, vec![hand]);
+        h.ticks(2);
+        command(
+            &mut h,
+            a,
+            crate::CMD_THROW,
+            crate::throw_data([2.5, 0.2, 5.0]),
+        );
+        h.ticks(10);
+        assert_eq!(dmg(&h), 0.0, "запал ещё горит");
+        h.ticks(40);
+        assert!(dmg(&h) > 0.0, "взрыв задел игрока рядом: {}", dmg(&h));
+        assert!(!on_ground(&h, a, 71), "граната сгорела");
     }
 
     #[test]

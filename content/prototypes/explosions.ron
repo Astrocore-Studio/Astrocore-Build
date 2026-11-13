@@ -1,0 +1,14 @@
+// Типы взрывов SS14 (explosion.yml): урон на единицу интенсивности. Генерируется scripts/gen_explosions.py.
+[
+    (id: "ExplosionClake", components: {"ExplosionType": (damage: (Blunt: 2.0, Heat: 2.0, Piercing: 3.0, Structural: 65.0))}),
+    (id: "ExplosionCryo", components: {"ExplosionType": (damage: (Blunt: 5.0, Cold: 5.0, Structural: 50.0))}),
+    (id: "ExplosionDefault", components: {"ExplosionType": (damage: (Blunt: 5.0, Heat: 5.0, Piercing: 5.0))}),
+    (id: "ExplosionDemolitionCharge", components: {"ExplosionType": (damage: (Blunt: 5.0, Heat: 5.0, Piercing: 5.0, Structural: 50.0))}),
+    (id: "ExplosionFireBomb", components: {"ExplosionType": (damage: (Blunt: 2.0, Heat: 1.0, Piercing: 3.0))}),
+    (id: "ExplosionHardBomb", components: {"ExplosionType": (damage: (Blunt: 15.0, Heat: 15.0, Piercing: 6.0, Structural: 40.0))}),
+    (id: "ExplosionMicroBomb", components: {"ExplosionType": (damage: (Blunt: 6.0, Heat: 6.0, Piercing: 6.0, Structural: 20.0))}),
+    (id: "ExplosionMinibomb", components: {"ExplosionType": (damage: (Blunt: 7.0, Heat: 4.0, Piercing: 4.0, Structural: 10.0))}),
+    (id: "ExplosionPowerSink", components: {"ExplosionType": (damage: (Blunt: 12.0, Heat: 12.0, Piercing: 12.0, Structural: 30.0))}),
+    (id: "ExplosionRadioactive", components: {"ExplosionType": (damage: (Blunt: 3.0, Heat: 4.0, Piercing: 3.0, Radiation: 5.0))}),
+    (id: "ExplosionXenoborgAntiStructureExplosion", components: {"ExplosionType": (damage: (Blunt: 2.0, Heat: 4.0, Piercing: 3.0, Structural: 50.0))}),
+]

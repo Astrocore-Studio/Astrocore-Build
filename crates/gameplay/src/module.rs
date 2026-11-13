@@ -43,6 +43,15 @@ use crate::wire::{
 pub const INTERACTION_RANGE_M: f32 = 1.5;
 /// Высота груди над ступнями, м.
 const CHEST_M: f32 = 0.55;
+/// Взрывчатка предмета (`ExplosiveComponent`): тип взрыва, общая интенсивность, спад, предел на клетку.
+#[derive(Debug, Clone, PartialEq)]
+pub(crate) struct Explosive {
+    pub kind: String,
+    pub total: f32,
+    pub slope: f32,
+    pub max: f32,
+}
+
 /// Скорость шага относительно бега.
 const WALK_FACTOR: f32 = 2.5 / 4.5;
 /// Скорость ползком (`CrawlerComponent.SpeedModifier`) и время вставания, с (`StandTime`).
@@ -516,6 +525,11 @@ pub struct State {
     /// Сиденья: время пристёгивания, с (`StrapComponent.BuckleDoafterTime`).
     pub(crate) straps: BTreeMap<PrototypeId, f32>,
     /// Окна обыска: кто чьи вещи смотрит.
+    /// Взрывчатка предметов, запалы гранат, типы взрывов (урон на интенсивность) и горящие запалы.
+    pub(crate) explosives: BTreeMap<PrototypeId, Explosive>,
+    pub(crate) fuses: BTreeMap<PrototypeId, f32>,
+    pub(crate) explosion_types: BTreeMap<String, DamageSpec>,
+    pub(crate) primed: BTreeMap<ObjectId, f32>,
     pub(crate) strip_view_for: BTreeMap<NetworkEntityId, NetworkEntityId>,
     pub(crate) pulls: BTreeMap<NetworkEntityId, (crate::verbs::VerbTarget, f32)>,
     /// Рука, занятая тягой (виртуальный предмет `PullerComponent.NeedsHands`).
@@ -583,6 +597,9 @@ impl State {
         let mut tank_templates = BTreeMap::new();
         let mut display_names: BTreeMap<PrototypeId, String> = BTreeMap::new();
         let mut straps: BTreeMap<PrototypeId, f32> = BTreeMap::new();
+        let mut explosives: BTreeMap<PrototypeId, Explosive> = BTreeMap::new();
+        let mut fuses: BTreeMap<PrototypeId, f32> = BTreeMap::new();
+        let mut explosion_types: BTreeMap<String, DamageSpec> = BTreeMap::new();
         let mut ss14_names: BTreeMap<PrototypeId, String> = BTreeMap::new();
         for (id, name) in names {
             let resolved = registry.spawnable(&name).ok();
@@ -590,6 +607,35 @@ impl State {
                 display_names.insert(id.clone(), n);
             }
             ss14_names.insert(id.clone(), name.clone());
+            let num = |c: &prototypes::Data, k: &str, d: f32| {
+                c.get(k)
+                    .and_then(prototypes::Data::as_f64)
+                    .map_or(d, |v| v as f32)
+            };
+            if let Some(c) = resolved.as_ref().and_then(|r| r.component("Explosive")) {
+                explosives.insert(
+                    id.clone(),
+                    Explosive {
+                        kind: c
+                            .get("explosionType")
+                            .and_then(prototypes::Data::as_str)
+                            .unwrap_or("Default")
+                            .to_string(),
+                        total: num(c, "totalIntensity", 10.0),
+                        slope: num(c, "intensitySlope", 1.0),
+                        max: num(c, "maxIntensity", 4.0),
+                    },
+                );
+            }
+            if let Some(c) = resolved.as_ref().and_then(|r| r.component("TimerTrigger")) {
+                fuses.insert(id.clone(), num(c, "delay", 3.0).max(0.0));
+            }
+            if let Some(c) = resolved.as_ref().and_then(|r| r.component("ExplosionType")) {
+                explosion_types.insert(
+                    name.strip_prefix("Explosion").unwrap_or(&name).to_string(),
+                    damage_spec(c.get("damage")),
+                );
+            }
             if let Some(c) = resolved.as_ref().and_then(|r| r.component("Strap")) {
                 straps.insert(
                     id.clone(),
@@ -1040,6 +1086,10 @@ impl State {
             pulls: BTreeMap::new(),
             pull_hands: BTreeMap::new(),
             strip_view_for: BTreeMap::new(),
+            explosives,
+            fuses,
+            explosion_types,
+            primed: BTreeMap::new(),
             straps,
             thrown: Vec::new(),
             spawn_next: 0,
@@ -2413,6 +2463,7 @@ impl State {
         self.tick_rest_and_thrown(ctx);
         self.tick_pulls(ctx);
         self.tick_stamina(ctx);
+        self.tick_primed(ctx);
         self.place_joiners(ctx);
         self.tick_disposal(ctx, dt);
         self.tick_conveyors(ctx, dt);
@@ -4786,6 +4837,96 @@ impl State {
             self.take_stamina(ctx, target, (1.0 - DISARM_FAIL_CHANCE) * STAMINA_CRIT);
             self.popup(target, format!("{name} shoves you!"));
             self.popup(actor, "You shove them!");
+        }
+    }
+
+    /// Горящие запалы: сработавшая граната взрывается там, где лежит, летит или где её держат.
+    fn tick_primed(&mut self, ctx: &mut HookContext<'_>) {
+        let clock = self.clock;
+        let due: Vec<ObjectId> = self
+            .primed
+            .iter()
+            .filter(|(_, at)| **at <= clock)
+            .map(|(id, _)| *id)
+            .collect();
+        for id in due {
+            self.primed.remove(&id);
+            // Где граната: в руках (под ногами у того, кто держит), в полёте или на земле.
+            let holder = self
+                .actors
+                .iter()
+                .find(|(_, a)| a.hands.held().any(|i| i.id == id))
+                .map(|(who, _)| *who);
+            let proto;
+            let at = if let Some(who) = holder {
+                let Some(feet) = ctx.position_of(who) else {
+                    continue;
+                };
+                let a = self.actor(who);
+                let hand = a
+                    .hands
+                    .order()
+                    .find(|&h| a.hands.get(h).is_some_and(|i| i.id == id));
+                proto = hand
+                    .and_then(|h| a.hands.drop_hand(h).ok())
+                    .map(|i| i.prototype);
+                self.publish(ctx, who);
+                feet + Vec3::Y * CHEST_M
+            } else if let Some(pos) = self.thrown.iter().position(|(_, i, _)| i.id == id) {
+                let (_, item, at) = self.thrown.remove(pos);
+                proto = Some(item.prototype);
+                at + Vec3::Y * 0.1
+            } else if let Some(o) = ctx.world.authored_object(id) {
+                proto = match &o.kind {
+                    AuthoredKind::Placement { prototype } => Some(prototype.clone()),
+                    _ => None,
+                };
+                let centre = (o.min() + o.max()) * 0.5;
+                ctx.request(WorldCommand::RemoveAuthored { id });
+                centre
+            } else {
+                continue;
+            };
+            if let Some(spec) = proto.and_then(|p| self.explosives.get(&p).cloned()) {
+                self.explode(ctx, at, &spec);
+            }
+        }
+    }
+
+    /// Взрыв в точке (`ExplosionSystem.TriggerExplosive`): заливка клеток и урон людям в них.
+    pub(crate) fn explode(&mut self, ctx: &mut HookContext<'_>, at: Vec3, spec: &Explosive) {
+        let Some(floor) = floor_at(ctx, at.y) else {
+            return;
+        };
+        let cell = crate::piping::cell_at(floor.0 as i32, at);
+        let blast =
+            crate::explosion::fill(self.atmos.layout(), cell, spec.total, spec.slope, spec.max);
+        let per_intensity = self
+            .explosion_types
+            .get(&spec.kind)
+            .cloned()
+            .unwrap_or_default();
+        let hurt: Vec<(NetworkEntityId, f32)> = self
+            .actors
+            .keys()
+            .filter_map(|who| {
+                let pos = ctx.position_of(*who)?;
+                let i = blast.at(crate::piping::cell_at(floor.0 as i32, pos));
+                (i > 0.0).then_some((*who, i))
+            })
+            .collect();
+        for (who, intensity) in hurt {
+            let scaled: DamageSpec = per_intensity
+                .iter()
+                .map(|(k, v)| (k.clone(), v * intensity))
+                .collect();
+            let t = self.actor(who);
+            let dealt = t.health.apply_to(None, &scaled);
+            if let Some(body) = t.body.as_mut() {
+                body.on_damage(&dealt);
+            }
+            self.after_health_change(ctx, who);
+            self.popup(who, "You are caught in an explosion!");
         }
     }
 
