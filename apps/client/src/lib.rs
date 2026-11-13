@@ -692,6 +692,17 @@ fn autoplay(
             120 => {
                 net.send_command(gameplay::CMD_COMBAT, vec![1]);
             }
+            130 | 200 | 300 => {
+                eprintln!(
+                    "GUN_DEBUG frame={} hands={:?} ammo={:?}",
+                    state.frame,
+                    loadout.hands.as_ref().map(|h| h
+                        .iter()
+                        .map(|(i, _, it)| (i, it.map(|x| x.prototype.to_string())))
+                        .collect::<Vec<_>>()),
+                    loadout.ammo
+                );
+            }
             140 | 150 => {
                 let p = net.core.position();
                 net.send_command(
