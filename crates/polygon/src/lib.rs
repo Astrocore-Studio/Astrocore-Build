@@ -233,6 +233,8 @@ pub fn sprites_of(registry: &PrototypeRegistry) -> Result<Vec<SpriteSource>, Pol
         ) else {
             continue;
         };
+        let floor_object = item.is_none()
+            && (r.component("Conveyor").is_some() || r.component("GasPipe").is_some());
         let e = dropped_extent(
             item.and_then(|i| i.get("size"))
                 .and_then(Data::as_str)
@@ -243,8 +245,11 @@ pub fn sprites_of(registry: &PrototypeRegistry) -> Result<Vec<SpriteSource>, Pol
             rsi: rsi.to_string(),
             state: state.to_string(),
             size: [e.max(0.25) * 1.2, e.max(0.25) * 1.2],
-            // Предметы лежат на полу плашмя, декорации и устройства стоят.
-            flat: item.is_some(),
+            // Предметы лежат на полу плашмя, декорации и устройства стоят; конвейеры и трубные
+            // устройства — объекты пола: лежат, повёрнуты по карте и имеют размер своей ячейки.
+            flat: item.is_some() || floor_object,
+            pixel_size: item.is_none(),
+            oriented: floor_object,
         });
     }
     Ok(out)

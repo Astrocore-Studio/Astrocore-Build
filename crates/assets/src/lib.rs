@@ -126,9 +126,16 @@ pub struct SpriteSource {
     pub rsi: String,
     pub state: String,
     pub size: [f32; 2],
-    /// Лежит ли спрайт на полу плашмя (с толщиной) вместо стоячего билборда.
+    /// Лежит ли спрайт на полу плашмя (с толщиной) вместо стоячего объёма.
     pub flat: bool,
+    /// Размер берётся из ячейки RSI (32 пикселя на метр), а не из поля `size`.
+    pub pixel_size: bool,
+    /// Лежащий спрайт поворачивается по `rot` карты (конвейеры, трубы).
+    pub oriented: bool,
 }
+
+/// Пикселей спрайта SS14 на метр.
+const PIXELS_PER_METER: f32 = 32.0;
 
 fn safe_rel(p: &str) -> Result<(), AssetError> {
     let ok = !p.is_empty()
@@ -244,17 +251,33 @@ pub fn build_manifest(
         if !textures.join(&image).is_file() {
             return Err(AssetError::MissingImage(textures.clone(), image));
         }
+        // Лист состояния: ячейки (направления и кадры анимации), в игре берётся первая.
+        let set = load_rsi(&textures.join(&s.rsi))?;
+        let (cw, ch) = set.meta.size;
+        let (iw, ih) = png_size(&textures.join(&image))?;
+        let grid = if cw > 0 && ch > 0 && iw % cw == 0 && ih % ch == 0 {
+            [iw / cw, ih / ch]
+        } else {
+            [1, 1]
+        };
+        let size = if s.pixel_size && cw > 0 && ch > 0 {
+            [cw as f32 / PIXELS_PER_METER, ch as f32 / PIXELS_PER_METER]
+        } else {
+            s.size
+        };
         sprs.insert(
             s.id.clone(),
             serde_json::json!({
                 "image": format!("{textures_subdir}/{image}"),
-                "size": s.size,
+                "size": size,
+                "grid": grid,
+                "oriented": s.oriented,
                 "layout": if s.flat { "flat" } else { "voxel" },
                 // Глубина объёма стоячего спрайта: половина меньшей стороны, от 10 до 50 см.
                 "thickness": if s.flat {
                     0.03
                 } else {
-                    (s.size[0].min(s.size[1]) * 0.5).clamp(0.1, 0.5)
+                    (size[0].min(size[1]) * 0.5).clamp(0.1, 0.5)
                 },
             }),
         );
@@ -318,6 +341,8 @@ mod tests {
             state: state.into(),
             size: [0.4, 0.4],
             flat: false,
+            pixel_size: false,
+            oriented: false,
         };
         let json = build_manifest(
             &root,

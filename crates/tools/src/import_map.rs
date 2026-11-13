@@ -253,7 +253,8 @@ fn furniture_box(proto: &str) -> Option<(&'static str, f32)> {
         } else {
             "ss14:table_generic"
         };
-        return Some((material, 0.78));
+        // Стол ниже пояса: 0,6 м (было 0,78, выглядело сплошным кубом).
+        return Some((material, 0.6));
     }
     match proto {
         "Rack" => Some(("ss14:rack", 0.9)),
@@ -876,7 +877,7 @@ pub fn import(
                 z_mm: 500,
                 y_mm: (FLOOR_TOP_M * 1000.0) as i32,
                 yaw_cdeg: 0,
-                half_mm: [490, (h * 1000.0) as u32, 490],
+                half_mm: [430, (h * 1000.0) as u32, 430],
             }),
             &material,
             0.1,
