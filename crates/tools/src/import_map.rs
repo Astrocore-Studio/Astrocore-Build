@@ -218,8 +218,12 @@ fn entity_rot(entity: &Value) -> u8 {
 
 /// Толщина ребра-стены: рёбра нужны логике, а видимый объём даёт блок на всю клетку.
 const WALL_EDGE_THICKNESS_M: f32 = 0.02;
-/// Высота блока стены над полом, мм: одна стена — один тайл, куб 1×1×1 м.
-const WALL_HEIGHT_MM: u32 = 1000;
+/// Высота блока стены над полом, мм: стена — один тайл. Блок упирается в потолок.
+const WALL_HEIGHT_MM: u32 = 1050;
+/// Высота этажа (от основания до верха потолочной плиты), м, и толщина потолка. Потолок над
+/// головой игрока (1 м) с запасом 5 см; стены-блоки доходят до его нижней грани.
+const STOREY_M: f32 = 1.35;
+const CEILING_THICKNESS_M: f32 = 0.1;
 
 /// Стороны трубы SS14 без поворота (`pipeDirection` прототипа): N, S, E, W битами 1, 2, 4, 8.
 fn pipe_base_dirs(proto: &str) -> Option<u8> {
@@ -859,6 +863,13 @@ pub fn import(
             material,
             0.2,
         ));
+        // Станция в один этаж: над каждой клеткой пола — потолок (пол в виде крыши).
+        elements.push(element(
+            StructureKind::Ceiling,
+            Placement::Cell(GridCell::new(c.0, c.1)),
+            &mats.floor,
+            CEILING_THICKNESS_M,
+        ));
     }
     // Мебель-ящики стоят на полу и мешают пройти; на одной клетке ящик один.
     let mut boxed: BTreeSet<(i32, i32)> = BTreeSet::new();
@@ -916,7 +927,7 @@ pub fn import(
             id: FloorId(0),
             name: "Этаж 0".into(),
             base_y: 0.0,
-            height: 3.0,
+            height: STOREY_M,
         }],
         elements,
         items,
