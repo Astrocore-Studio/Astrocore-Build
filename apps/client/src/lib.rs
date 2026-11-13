@@ -451,7 +451,7 @@ fn autoplay(
         && let Some(look) = look.as_mut()
     {
         let at = (object.min() + object.max()) * 0.5 + MVec3::Y * 0.3;
-        let delta = at - net.core.position() - MVec3::Y * 1.6;
+        let delta = at - net.core.position() - MVec3::Y * 0.9;
         look.yaw = (-delta.x).atan2(-delta.z);
         look.pitch = (-delta.y).atan2(delta.x.hypot(delta.z));
     }
@@ -566,7 +566,7 @@ fn autoplay(
                 && let Some(look) = look.as_mut()
             {
                 let at = (object.min() + object.max()) * 0.5 + MVec3::Y * 0.45;
-                let delta = at - net.core.position() - MVec3::Y * 1.6;
+                let delta = at - net.core.position() - MVec3::Y * 0.9;
                 look.yaw = (-delta.x).atan2(-delta.z);
                 look.pitch = (-delta.y).atan2(delta.x.hypot(delta.z));
             }
