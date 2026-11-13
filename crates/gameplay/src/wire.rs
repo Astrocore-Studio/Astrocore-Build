@@ -120,12 +120,16 @@ pub const CMD_RESIST: &str = "fire.resist";
 pub const CMD_COMBAT: &str = "combat.mode";
 /// Ходьба вместо бега (`ToggleWalk`): байт 1 — идти шагом, 0 — бежать.
 pub const CMD_WALK: &str = "move.walk";
+/// Толчок (`DisarmAttackEvent`): цель — игрок, как у `combat.attack`; нужен боевой режим.
+pub const CMD_DISARM: &str = "combat.disarm";
 /// Лечь / встать (`ToggleKnockdown` SS14): лёжа можно встать за 2 с.
 pub const CMD_REST: &str = "move.rest";
 /// Бросить предмет из активной руки в точку: 3 числа `f32` (x, y, z), малое-endian.
 pub const CMD_THROW: &str = "item.throw";
 /// Лежит ли персонаж: один байт, видно всем.
 pub const LYING_COMPONENT: &str = "build.lying";
+/// Выносливость владельца: байт — израсходовано, % порога (0…100), второй — в критическом ли.
+pub const STAMINA_COMPONENT: &str = "build.stamina";
 
 /// Взаимодействие с целью в мире (предмет на земле или дверь): `[id цели 16 байт]`.
 /// Что именно произойдёт, решает цепочка обработчиков: пустая рука — `InteractHand`, предмет в
@@ -366,6 +370,12 @@ pub fn register_replication(reg: &mut ReplicationRegistry) -> Result<(), Replica
         name: crate::health::MOBSTATE_COMPONENT.into(),
         channel: ReplicationChannel::ReliableOrdered,
         interest: Interest::Everyone,
+        max_bytes: 4,
+    })?;
+    reg.register(ReplicatedKind {
+        name: STAMINA_COMPONENT.into(),
+        channel: ReplicationChannel::ReliableOrdered,
+        interest: Interest::Owner,
         max_bytes: 4,
     })?;
     reg.register(ReplicatedKind {

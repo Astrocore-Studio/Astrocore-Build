@@ -47,6 +47,16 @@ const CHEST_M: f32 = 0.55;
 const WALK_FACTOR: f32 = 2.5 / 4.5;
 /// Скорость ползком (`CrawlerComponent.SpeedModifier`) и время вставания, с (`StandTime`).
 const CRAWL_FACTOR: f32 = 0.4;
+/// Выносливость (`StaminaComponent`): порог, спад в секунду, пауза до спада, оглушение при
+/// пороге, запас перед повторным оглушением и ускорение спада после него.
+const STAMINA_CRIT: f32 = 100.0;
+const STAMINA_DECAY: f32 = 3.0;
+const STAMINA_COOLDOWN_S: f32 = 3.0;
+const STAMINA_STUN_S: f32 = 6.0;
+const STAMINA_CRIT_BUFFER_S: f32 = 3.0;
+const STAMINA_AFTER_MULT: f32 = 5.0;
+/// Шанс провала толчка (`CombatModeComponent.BaseDisarmFailChance`).
+const DISARM_FAIL_CHANCE: f32 = 0.75;
 /// Скорость того, кто тащит (`PullerComponent`), и запас связи сверх начального расстояния, м
 /// (`MaxLength = Length + 0.15`).
 const PULL_SPEED_FACTOR: f32 = 0.95;
@@ -86,6 +96,13 @@ pub(crate) struct Actor {
     pub(crate) lying: bool,
     pub(crate) stand_at: Option<f32>,
     pub(crate) stand_dmg: f32,
+    /// Выносливость (`StaminaComponent`): урон, когда начнёт спадать, в критическом состоянии ли,
+    /// после ли него, и до какого времени оглушён.
+    pub(crate) stamina: f32,
+    pub(crate) stam_next: f32,
+    pub(crate) stam_crit: bool,
+    pub(crate) stam_after: bool,
+    pub(crate) stun_until: f32,
     /// Когда в следующий раз разослать здоровье из-за кровотечения или удушья, с.
     pub(crate) next_health_publish: f32,
     /// Здоровье изменилось сидящими внутри процессами, а разослать ещё не успели.
@@ -124,6 +141,11 @@ impl Actor {
             lying: false,
             stand_at: None,
             stand_dmg: 0.0,
+            stamina: 0.0,
+            stam_next: 0.0,
+            stam_crit: false,
+            stam_after: false,
+            stun_until: 0.0,
             next_health_publish: 0.0,
             health_dirty: false,
             ghost: false,
@@ -1070,6 +1092,14 @@ impl State {
         ctx.set_component(actor, crate::wire::LYING_COMPONENT, vec![u8::from(a.lying)]);
         ctx.set_component(
             actor,
+            crate::wire::STAMINA_COMPONENT,
+            vec![
+                (a.stamina / STAMINA_CRIT * 100.0).round().clamp(0.0, 100.0) as u8,
+                u8::from(a.stam_crit),
+            ],
+        );
+        ctx.set_component(
+            actor,
             crate::fire::BURNING_COMPONENT,
             vec![u8::from(a.body.as_ref().is_some_and(|b| b.on_fire))],
         );
@@ -1809,7 +1839,7 @@ impl State {
         let legs = a.health.part_disabled("LeftLeg") && a.health.part_disabled("RightLeg");
         let died = now == MobState::Dead && before != MobState::Dead;
         let resisting = a.body.as_ref().is_some_and(Body::resisting);
-        let slipped = a.slip_until > self.clock;
+        let slipped = a.slip_until > self.clock || a.stun_until > self.clock;
         let in_cryo = a.cryo.is_some();
         let status_down = a.body.as_ref().is_some_and(Body::disabled_by_status);
         let freeze = (!now.can_act() || legs || resisting || slipped || in_cryo || status_down)
@@ -2246,10 +2276,20 @@ impl State {
             } else {
                 1.0
             };
+            // Усталость замедляет: от 60% порога — 0,7, от 80% — 0,5 (`StunModifierThresholds`).
+            let tired = match self
+                .actors
+                .get(&id)
+                .map_or(0.0, |a| a.stamina / STAMINA_CRIT)
+            {
+                r if r >= 0.8 => 0.5,
+                r if r >= 0.6 => 0.7,
+                _ => 1.0,
+            };
             let speed = if a_ghost {
                 1.0
             } else {
-                vitals.speed * walk * crawl * pulling
+                vitals.speed * walk * crawl * pulling * tired
             };
             if (speed - self.speed_sent.get(&id).copied().unwrap_or(1.0)).abs() > 1e-4 {
                 self.speed_sent.insert(id, speed);
@@ -2312,6 +2352,7 @@ impl State {
         self.tick_chat(ctx);
         self.tick_rest_and_thrown(ctx);
         self.tick_pulls(ctx);
+        self.tick_stamina(ctx);
         self.place_joiners(ctx);
         self.tick_disposal(ctx, dt);
         self.tick_conveyors(ctx, dt);
@@ -4552,6 +4593,142 @@ impl State {
         }
     }
 
+    /// Урон выносливости (`TakeStaminaDamage`): положительный — устаёт и откладывает спад,
+    /// на пороге — крит: оглушение, падение, выпавшие предметы.
+    pub(crate) fn take_stamina(
+        &mut self,
+        ctx: &mut HookContext<'_>,
+        id: NetworkEntityId,
+        value: f32,
+    ) {
+        let clock = self.clock;
+        let Some(a) = self.actors.get_mut(&id) else {
+            return;
+        };
+        let old = a.stamina;
+        a.stamina = (a.stamina + value).max(0.0);
+        if a.stamina > old {
+            a.stam_next = clock + STAMINA_COOLDOWN_S;
+        }
+        if a.stam_after && old > a.stamina && a.stamina <= 0.0 {
+            a.stam_after = false;
+        }
+        if !a.stam_crit && a.stamina >= STAMINA_CRIT {
+            a.stamina = STAMINA_CRIT;
+            a.stam_crit = true;
+            a.stun_until = clock + STAMINA_STUN_S;
+            a.stand_at = None;
+            a.lying = true;
+            // Пауза до восстановления: оглушение и запас на повторное (`StamCritBufferTime`).
+            a.stam_next = clock + STAMINA_STUN_S + STAMINA_CRIT_BUFFER_S;
+            let dropped: Vec<HeldItem> = a.hands.take_all();
+            let feet = ctx.position_of(id);
+            if let Some(at) = feet {
+                for item in &dropped {
+                    State::place(ctx, item, at);
+                }
+            }
+            self.after_health_change(ctx, id);
+        } else {
+            self.publish(ctx, id);
+        }
+    }
+
+    /// Спад выносливости раз в секунду после паузы; выход из крита; после оглушения встают.
+    fn tick_stamina(&mut self, ctx: &mut HookContext<'_>) {
+        let clock = self.clock;
+        let ids: Vec<NetworkEntityId> = self.actors.keys().copied().collect();
+        for id in ids {
+            let Some(a) = self.actors.get_mut(&id) else {
+                continue;
+            };
+            // Оглушение кончилось: размораживаем и начинаем вставать (2 с).
+            if a.stun_until > 0.0 && a.stun_until <= clock {
+                a.stun_until = 0.0;
+                if a.lying && a.stand_at.is_none() {
+                    a.stand_at = Some(clock + STAND_UP_S);
+                    a.stand_dmg = a.health.total();
+                }
+                self.after_health_change(ctx, id);
+                continue;
+            }
+            if a.stamina <= 0.0 && !a.stam_crit {
+                continue;
+            }
+            if a.stam_next > clock {
+                continue;
+            }
+            if a.stam_crit {
+                a.stam_crit = false;
+                a.stam_after = true;
+                a.stam_next = clock;
+            }
+            a.stam_next += 1.0;
+            let step = if a.stam_after {
+                STAMINA_DECAY * STAMINA_AFTER_MULT
+            } else {
+                STAMINA_DECAY
+            };
+            self.take_stamina(ctx, id, -step);
+        }
+    }
+
+    /// Толчок (`DoDisarm`): нужен боевой режим, цель на дистанции и в сознании; провал с шансом
+    /// 0,75. Удачный выбивает предмет из активной руки, а без предмета валит усталостью
+    /// (`DisarmedEvent`: 25 урона выносливости).
+    fn disarm(
+        &mut self,
+        ctx: &mut HookContext<'_>,
+        actor: NetworkEntityId,
+        target: NetworkEntityId,
+    ) {
+        if actor == target || ctx.position_of(target).is_none() {
+            return;
+        }
+        self.actor(target);
+        self.actor(actor);
+        let clock = self.clock;
+        let (Some(a), Some(t)) = (self.actors.get(&actor), self.actors.get(&target)) else {
+            return;
+        };
+        if !a.combat
+            || a.ghost
+            || !a.health.state().can_act()
+            || a.stun_until > clock
+            || clock < a.next_attack
+            || t.health.state() != MobState::Alive
+            || t.ghost
+            || !self.in_reach(ctx, actor, target)
+        {
+            return;
+        }
+        self.actor(actor).next_attack = clock + 1.0 / DEFAULT_ATTACK_RATE;
+        if self.spawn_rng.next_f32() < DISARM_FAIL_CHANCE {
+            return;
+        }
+        let name = self.speaker_name(actor);
+        let held = {
+            let t = self.actor(target);
+            let active = t.hands.active();
+            t.hands.get(active).cloned().map(|item| (active, item))
+        };
+        if let Some((hand, item)) = held {
+            // Выбить предмет: падает под ноги цели.
+            if let Some(at) = ctx.position_of(target)
+                && Self::place(ctx, &item, at)
+            {
+                let _ = self.actor(target).hands.drop_hand(hand);
+                self.publish(ctx, target);
+            }
+            self.popup(target, format!("{name} disarmed you!"));
+            self.popup(actor, "You disarmed them!");
+        } else {
+            self.take_stamina(ctx, target, (1.0 - DISARM_FAIL_CHANCE) * STAMINA_CRIT);
+            self.popup(target, format!("{name} shoves you!"));
+            self.popup(actor, "You shove them!");
+        }
+    }
+
     /// Лечь сразу; лёжа — начать вставать (2 с, прерывается уроном от 5): `ToggleKnockdown`.
     fn toggle_rest(&mut self, ctx: &mut HookContext<'_>, actor: NetworkEntityId) {
         let clock = self.clock;
@@ -4692,7 +4869,11 @@ impl State {
         let Some(a) = self.actors.get(&actor) else {
             return false;
         };
-        if a.ghost || !a.health.state().can_act() || target == VerbTarget::Player(actor) {
+        if a.ghost
+            || !a.health.state().can_act()
+            || a.stun_until > self.clock
+            || target == VerbTarget::Player(actor)
+        {
             return false;
         }
         let free_hand = a.hands.order().any(|h| a.hands.get(h).is_none());
@@ -6124,7 +6305,7 @@ impl GameModule for GameplayModule {
                 if st
                     .actors
                     .get(actor)
-                    .is_some_and(|a| !a.health.state().can_act()) => {}
+                    .is_some_and(|a| !a.health.state().can_act() || a.stun_until > st.clock) => {}
             HookEvent::Command { actor, kind, data } => match kind.as_str() {
                 crate::power_monitor::CMD_FOCUS => {
                     st.focus_power_monitor(ctx, *actor, data);
@@ -6387,6 +6568,11 @@ impl GameModule for GameplayModule {
                 crate::wire::CMD_THROW => {
                     if let Some(target) = crate::wire::parse_point(data) {
                         st.throw_item(ctx, *actor, target);
+                    }
+                }
+                crate::wire::CMD_DISARM => {
+                    if let Some(target) = crate::wire::parse_attack(data) {
+                        st.disarm(ctx, *actor, target);
                     }
                 }
                 crate::wire::CMD_WALK => {

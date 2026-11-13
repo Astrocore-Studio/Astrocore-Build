@@ -352,6 +352,8 @@ pub struct HudState {
     pub examine_closed: u32,
     /// Лежит ли игрок (реплика сервера).
     pub lying: bool,
+    /// Выносливость: процент порога и крит (реплика сервера).
+    pub stamina: (u8, bool),
     /// Поля окна консоли ID: правятся локально, уходят по кнопке «Записать».
     pub idc_name: String,
     pub idc_title: String,
@@ -527,6 +529,7 @@ fn doll_color(damage: f32, limit: f32) -> Color32 {
 /// THROW и кукла здоровья с процентом. REST и THROW пока не перенесены: кнопки неактивны.
 fn edge_panel(ctx: &egui::Context, state: &mut HudState, out: &mut Commands) {
     let health = state.health.clone();
+    let state_stamina = state.stamina;
     egui::Area::new(egui::Id::new("edge_buttons"))
         .anchor(egui::Align2::RIGHT_BOTTOM, Vec2::new(-84.0, -10.0))
         .show(ctx, |ui| {
@@ -587,7 +590,7 @@ fn edge_panel(ctx: &egui::Context, state: &mut HudState, out: &mut Commands) {
         .anchor(egui::Align2::RIGHT_BOTTOM, Vec2::new(-10.0, -10.0))
         .show(ctx, |ui| {
             // Кукла здоровья и процент (`total / CRITICAL_AT`).
-            let (area, _) = ui.allocate_exact_size(Vec2::new(64.0, 118.0), Sense::hover());
+            let (area, _) = ui.allocate_exact_size(Vec2::new(64.0, 130.0), Sense::hover());
             let total: f32 = health.as_ref().map_or(0.0, |h| h.damage.values().sum());
             let pct = (100.0 - total / gameplay::CRITICAL_AT * 100.0).clamp(0.0, 100.0);
             let dmg = |part: &str| {
@@ -647,6 +650,24 @@ fn edge_panel(ctx: &egui::Context, state: &mut HudState, out: &mut Commands) {
                 gameplay::LIMB_DISABLED_AT,
                 at(33.0, 60.0, 14.0, 40.0),
             );
+            // Полоса выносливости под куклой: заполняется по мере усталости, красная в крите.
+            if state_stamina.0 > 0 {
+                let bar = Rect::from_min_size(o + Vec2::new(0.0, 122.0), Vec2::new(64.0, 6.0));
+                p.rect_filled(bar, 2.0, Color32::from_black_alpha(160));
+                let fill = Rect::from_min_size(
+                    bar.min,
+                    Vec2::new(
+                        bar.width() * f32::from(state_stamina.0) / 100.0,
+                        bar.height(),
+                    ),
+                );
+                let c = if state_stamina.1 {
+                    Color32::from_rgb(220, 60, 60)
+                } else {
+                    Color32::from_rgb(230, 190, 60)
+                };
+                p.rect_filled(fill, 2.0, c);
+            }
             p.text(
                 o + Vec2::new(32.0, 109.0),
                 egui::Align2::CENTER_CENTER,

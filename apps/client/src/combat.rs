@@ -110,6 +110,14 @@ pub fn verb_input(
         hud.state.menu = None;
         return;
     };
+    // В боевом режиме правая кнопка по игроку — толчок (`DisarmAttackEvent`), а не меню.
+    if menu
+        && hud.state.combat
+        && let gameplay::VerbTarget::Player(p) = target
+    {
+        net.send_command(gameplay::CMD_DISARM, gameplay::attack_data(p));
+        return;
+    }
     if examine {
         net.send_command(
             gameplay::CMD_VERB_DO,

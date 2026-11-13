@@ -950,6 +950,13 @@ fn loadout_window(
         alerts,
     } = &mut *hud;
     state.health = loadout.health.clone();
+    state.stamina = net
+        .core
+        .net_id()
+        .and_then(|me| net.core.component(me, gameplay::STAMINA_COMPONENT))
+        .map_or((0, false), |b| {
+            (b.first().copied().unwrap_or(0), b.get(1) == Some(&1))
+        });
     state.lying = net
         .core
         .net_id()

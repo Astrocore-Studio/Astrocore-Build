@@ -2707,6 +2707,63 @@ mod disposal_tests {
         );
     }
 
+    fn shove(h: &mut Harness, who: ConnId, target: ConnId) {
+        let nb = h.client(target).net_id().unwrap();
+        command(h, who, crate::CMD_DISARM, crate::attack_data(nb));
+        h.ticks(15);
+    }
+
+    #[test]
+    fn shoves_tire_a_player_until_they_are_stunned_and_get_up_again() {
+        let mut h = harness();
+        let (a, b) = (h.join("a"), h.join("b"));
+        h.ticks(5);
+        let nb = h.client(b).net_id().unwrap();
+        // Без боевого режима толчка нет.
+        shove(&mut h, a, b);
+        assert!(!lying(&h, a, b));
+        command(&mut h, a, crate::CMD_COMBAT, vec![1]);
+        // Шанс удачи 25%: толкаем, пока не свалится (4 удачных толчка по 25 = порог 100).
+        let mut tries = 0;
+        while !lying(&h, a, b) && tries < 200 {
+            shove(&mut h, a, b);
+            tries += 1;
+        }
+        assert!(lying(&h, a, b), "после усталости упал за {tries} толчков");
+        // Оглушённый ничего не делает: должность взять нельзя.
+        command(&mut h, b, crate::CMD_JOB, b"Free".to_vec());
+        h.ticks(3);
+        assert_eq!(jobs_view(&h, b).unwrap().current, None);
+        // Через шесть секунд оглушение кончается, ещё через две встаёт.
+        h.ticks(20 * 7);
+        assert!(lying(&h, a, b), "вставание идёт");
+        h.ticks(20 * 3);
+        assert!(!lying(&h, a, b), "встал");
+        let _ = nb;
+        command(&mut h, b, crate::CMD_JOB, b"Free".to_vec());
+        h.ticks(3);
+        assert_eq!(jobs_view(&h, b).unwrap().current.as_deref(), Some("Free"));
+    }
+
+    #[test]
+    fn a_successful_disarm_knocks_the_item_out_of_the_hand() {
+        let mut h = harness();
+        let (a, b) = (h.join("a"), h.join("b"));
+        h.ticks(5);
+        grab(&mut h, b, 31, near(), "ss14:crowbar");
+        command(&mut h, a, crate::CMD_COMBAT, vec![1]);
+        let mut tries = 0;
+        while !on_ground(&h, a, 31) && tries < 200 {
+            shove(&mut h, a, b);
+            tries += 1;
+        }
+        assert!(
+            on_ground(&h, a, 31),
+            "предмет выбит на пол за {tries} толчков"
+        );
+        assert!(hands_of(&h, b, b).unwrap().held().next().is_none());
+    }
+
     #[test]
     fn a_vending_machine_with_a_reader_refuses_without_access() {
         let mut h = harness();
