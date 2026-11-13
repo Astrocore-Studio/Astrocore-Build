@@ -425,7 +425,7 @@ fn autoplay(
             .observe(bevy::render::view::screenshot::save_to_disk(path));
     }
     // Отладка: ASTRO_LOOK=yaw,pitch держит взгляд (yaw 0 — на север, к −Z); ASTRO_LOOK_DOWN — вниз.
-    if let Some(mut l) = look {
+    if let Some(l) = look.as_mut() {
         if let Ok(v) = std::env::var("ASTRO_LOOK") {
             let p: Vec<f32> = v.split(',').filter_map(|x| x.trim().parse().ok()).collect();
             if let [yaw, pitch] = p[..] {

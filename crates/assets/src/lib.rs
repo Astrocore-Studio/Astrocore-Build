@@ -249,7 +249,13 @@ pub fn build_manifest(
             serde_json::json!({
                 "image": format!("{textures_subdir}/{image}"),
                 "size": s.size,
-                "layout": if s.flat { "flat" } else { "billboard" },
+                "layout": if s.flat { "flat" } else { "voxel" },
+                // Глубина объёма стоячего спрайта: половина меньшей стороны, от 10 до 50 см.
+                "thickness": if s.flat {
+                    0.03
+                } else {
+                    (s.size[0].min(s.size[1]) * 0.5).clamp(0.1, 0.5)
+                },
             }),
         );
     }
