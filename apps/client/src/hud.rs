@@ -1424,6 +1424,44 @@ pub fn verb_menu(
     out
 }
 
+/// Счётчик патронов над руками (`AmmoCounter`): число и полоса от вместимости; подсказка по клавишам.
+pub fn ammo_counter(ctx: &egui::Context, view: Option<&gameplay::AmmoView>) {
+    let Some(v) = view.filter(|v| v.gun) else {
+        return;
+    };
+    egui::Area::new(egui::Id::new("ammo_counter"))
+        .anchor(egui::Align2::CENTER_BOTTOM, Vec2::new(0.0, -128.0))
+        .show(ctx, |ui| {
+            egui::Frame::new()
+                .fill(Color32::from_rgba_unmultiplied(8, 10, 16, 190))
+                .corner_radius(4.0)
+                .inner_margin(6.0)
+                .show(ui, |ui| {
+                    let color = if v.ammo == 0 {
+                        Color32::from_rgb(230, 90, 90)
+                    } else {
+                        Color32::from_rgb(240, 220, 120)
+                    };
+                    ui.label(
+                        egui::RichText::new(format!("{} / {}", v.ammo, v.capacity))
+                            .size(18.0)
+                            .strong()
+                            .color(color),
+                    );
+                    let mode = if v.auto {
+                        "авто"
+                    } else {
+                        "одиночный"
+                    };
+                    ui.label(
+                        egui::RichText::new(format!("{mode} · U — зарядить, Y — достать магазин"))
+                            .small()
+                            .weak(),
+                    );
+                });
+        });
+}
+
 /// Окно обыска (`StrippableBoundUserInterface`): слоты и руки цели; щелчок по занятому снимает,
 /// по свободному надевает предмет из активной руки (4 секунды, цель предупреждена).
 pub fn strip_window(

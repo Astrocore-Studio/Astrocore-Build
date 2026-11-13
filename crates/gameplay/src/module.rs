@@ -530,6 +530,15 @@ pub struct State {
     pub(crate) fuses: BTreeMap<PrototypeId, f32>,
     pub(crate) explosion_types: BTreeMap<String, DamageSpec>,
     pub(crate) primed: BTreeMap<ObjectId, f32>,
+    /// Стрелковое оружие: описания, магазины, патроны → снаряд, урон снарядов и разброс дроби,
+    /// заряд экземпляров оружия и число патронов в магазинах-предметах.
+    pub(crate) guns: BTreeMap<PrototypeId, crate::gun::GunSpec>,
+    pub(crate) magazines: BTreeMap<PrototypeId, crate::gun::MagSpec>,
+    pub(crate) cartridge_shot: BTreeMap<String, String>,
+    pub(crate) projectiles: BTreeMap<String, DamageSpec>,
+    pub(crate) spreads: BTreeMap<String, (String, u32, f32)>,
+    pub(crate) gun_state: BTreeMap<ObjectId, crate::gun::GunState>,
+    pub(crate) mag_state: BTreeMap<ObjectId, u32>,
     pub(crate) strip_view_for: BTreeMap<NetworkEntityId, NetworkEntityId>,
     pub(crate) pulls: BTreeMap<NetworkEntityId, (crate::verbs::VerbTarget, f32)>,
     /// Рука, занятая тягой (виртуальный предмет `PullerComponent.NeedsHands`).
@@ -598,6 +607,11 @@ impl State {
         let mut display_names: BTreeMap<PrototypeId, String> = BTreeMap::new();
         let mut straps: BTreeMap<PrototypeId, f32> = BTreeMap::new();
         let mut explosives: BTreeMap<PrototypeId, Explosive> = BTreeMap::new();
+        let mut guns: BTreeMap<PrototypeId, crate::gun::GunSpec> = BTreeMap::new();
+        let mut magazines: BTreeMap<PrototypeId, crate::gun::MagSpec> = BTreeMap::new();
+        let mut cartridge_shot: BTreeMap<String, String> = BTreeMap::new();
+        let mut projectiles: BTreeMap<String, DamageSpec> = BTreeMap::new();
+        let mut spreads: BTreeMap<String, (String, u32, f32)> = BTreeMap::new();
         let mut fuses: BTreeMap<PrototypeId, f32> = BTreeMap::new();
         let mut explosion_types: BTreeMap<String, DamageSpec> = BTreeMap::new();
         let mut ss14_names: BTreeMap<PrototypeId, String> = BTreeMap::new();
@@ -612,6 +626,61 @@ impl State {
                     .and_then(prototypes::Data::as_f64)
                     .map_or(d, |v| v as f32)
             };
+            let text = |c: &prototypes::Data, k: &str| {
+                c.get(k)
+                    .and_then(prototypes::Data::as_str)
+                    .unwrap_or_default()
+                    .to_string()
+            };
+            if let Some(c) = resolved.as_ref().and_then(|r| r.component("Gun")) {
+                guns.insert(
+                    id.clone(),
+                    crate::gun::GunSpec {
+                        fire_rate: num(c, "fireRate", 1.0).max(0.1),
+                        min_angle: num(c, "minAngle", 2.0),
+                        max_angle: num(c, "maxAngle", 10.0),
+                        sound: text(c, "sound"),
+                        magazine: text(c, "magazine"),
+                        cartridge: text(c, "cartridge"),
+                        capacity: num(c, "capacity", 0.0) as u32,
+                        auto: c
+                            .get("auto")
+                            .and_then(prototypes::Data::as_bool)
+                            .unwrap_or(false),
+                    },
+                );
+            }
+            if let Some(c) = resolved.as_ref().and_then(|r| r.component("Magazine")) {
+                magazines.insert(
+                    id.clone(),
+                    crate::gun::MagSpec {
+                        cartridge: text(c, "cartridge"),
+                        capacity: num(c, "capacity", 0.0) as u32,
+                    },
+                );
+            }
+            if let Some(c) = resolved.as_ref().and_then(|r| r.component("Cartridge")) {
+                cartridge_shot.insert(name.clone(), text(c, "projectile"));
+            }
+            if let Some(c) = resolved
+                .as_ref()
+                .and_then(|r| r.component("ProjectileDamage"))
+            {
+                projectiles.insert(name.clone(), damage_spec(c.get("damage")));
+            }
+            if let Some(c) = resolved
+                .as_ref()
+                .and_then(|r| r.component("ProjectileSpread"))
+            {
+                spreads.insert(
+                    name.clone(),
+                    (
+                        text(c, "projectile"),
+                        num(c, "count", 1.0) as u32,
+                        num(c, "spread", 0.0),
+                    ),
+                );
+            }
             if let Some(c) = resolved.as_ref().and_then(|r| r.component("Explosive")) {
                 explosives.insert(
                     id.clone(),
@@ -1086,6 +1155,13 @@ impl State {
             pulls: BTreeMap::new(),
             pull_hands: BTreeMap::new(),
             strip_view_for: BTreeMap::new(),
+            guns,
+            magazines,
+            cartridge_shot,
+            projectiles,
+            spreads,
+            gun_state: BTreeMap::new(),
+            mag_state: BTreeMap::new(),
             explosives,
             fuses,
             explosion_types,
@@ -1167,6 +1243,11 @@ impl State {
         ctx.set_component(actor, MOBSTATE_COMPONENT, vec![a.health.state().to_byte()]);
         ctx.set_component(actor, GHOST_COMPONENT, vec![u8::from(a.ghost)]);
         ctx.set_component(actor, crate::wire::LYING_COMPONENT, vec![u8::from(a.lying)]);
+        ctx.set_component(
+            actor,
+            crate::gun::AMMO_COMPONENT,
+            crate::gun::encode_ammo(&self.ammo_view(actor)),
+        );
         ctx.set_component(
             actor,
             crate::wire::STAMINA_COMPONENT,
@@ -4840,6 +4921,292 @@ impl State {
         }
     }
 
+    /// Заряд нового оружия: стартовый магазин полный и патрон в патроннике либо полное хранилище.
+    fn fresh_gun(&self, spec: &crate::gun::GunSpec) -> crate::gun::GunState {
+        let mut st = crate::gun::GunState {
+            mag: None,
+            chamber: None,
+            internal: (spec.cartridge.clone(), spec.capacity),
+            next_shot: 0.0,
+        };
+        if !spec.magazine.is_empty()
+            && let Some(proto) = self.proto_by_name.get(&spec.magazine)
+            && let Some(m) = self.magazines.get(proto)
+        {
+            st.mag = Some((proto.clone(), m.cartridge.clone(), m.capacity));
+            st.internal = (String::new(), 0);
+            st.chamber = st.feed();
+        }
+        st
+    }
+
+    /// Оружие в активной руке игрока: предмет и его описание.
+    fn active_gun(&self, actor: NetworkEntityId) -> Option<(HeldItem, crate::gun::GunSpec)> {
+        let a = self.actors.get(&actor)?;
+        let item = a.hands.get(a.hands.active())?.clone();
+        let spec = self.guns.get(&item.prototype)?.clone();
+        Some((item, spec))
+    }
+
+    /// Вид заряда активного оружия для клиента (`AmmoCounter`).
+    pub(crate) fn ammo_view(&self, actor: NetworkEntityId) -> crate::gun::AmmoView {
+        let Some((item, spec)) = self.active_gun(actor) else {
+            return crate::gun::AmmoView {
+                gun: false,
+                ammo: 0,
+                capacity: 0,
+                auto: false,
+            };
+        };
+        let st = self
+            .gun_state
+            .get(&item.id)
+            .cloned()
+            .unwrap_or_else(|| self.fresh_gun(&spec));
+        let capacity = match &st.mag {
+            Some((p, _, _)) => self.magazines.get(p).map_or(0, |m| m.capacity) + 1,
+            None => spec.capacity,
+        };
+        crate::gun::AmmoView {
+            gun: true,
+            ammo: st.ammo(),
+            capacity,
+            auto: spec.auto,
+        }
+    }
+
+    /// Выстрел (`GunSystem.AttemptShoot`): боевой режим, готовое оружие и патрон; один или несколько
+    /// снарядов по лучу до преграды, попадание в первого человека на пути.
+    fn shoot(&mut self, ctx: &mut HookContext<'_>, actor: NetworkEntityId, target: Vec3) {
+        let clock = self.clock;
+        let Some(a) = self.actors.get(&actor) else {
+            return;
+        };
+        if !a.combat || a.ghost || !a.health.state().can_act() || a.stun_until > clock {
+            return;
+        }
+        let Some((item, spec)) = self.active_gun(actor) else {
+            return;
+        };
+        let Some(feet) = ctx.position_of(actor) else {
+            return;
+        };
+        let mut st = self
+            .gun_state
+            .get(&item.id)
+            .cloned()
+            .unwrap_or_else(|| self.fresh_gun(&spec));
+        if clock < st.next_shot {
+            return;
+        }
+        let Some(round) = st.take_round() else {
+            // Пусто: щелчок (`soundEmpty`).
+            st.next_shot = clock + 0.5;
+            self.gun_state.insert(item.id, st);
+            self.popup(actor, "*click*");
+            self.publish(ctx, actor);
+            return;
+        };
+        st.next_shot = clock + 1.0 / spec.fire_rate;
+        self.gun_state.insert(item.id, st);
+        let muzzle = feet + Vec3::Y * CHEST_M;
+        let aim = (target - muzzle).normalize_or_zero();
+        if aim == Vec3::ZERO {
+            return;
+        }
+        // Снаряды патрона: одиночный или дробь (`ProjectileSpread`).
+        let shot = self.cartridge_shot.get(&round).cloned().unwrap_or_default();
+        let (projectile, count, pellet_spread) = match self.spreads.get(&shot) {
+            Some((p, n, sp)) => (p.clone(), (*n).max(1), *sp),
+            None => (shot, 1, 0.0),
+        };
+        let damage = self
+            .projectiles
+            .get(&projectile)
+            .cloned()
+            .unwrap_or_default();
+        let cone = spec.min_angle.to_radians();
+        for _ in 0..count {
+            let r = |s: &mut Self| s.spawn_rng.next_f32() * 2.0 - 1.0;
+            let yaw = r(self) * (cone + pellet_spread.to_radians()) * 0.5;
+            let pitch = r(self) * (cone + pellet_spread.to_radians()) * 0.25;
+            let (sy, cy) = yaw.sin_cos();
+            let rotated = Vec3::new(
+                aim.x * cy - aim.z * sy,
+                aim.y + pitch,
+                aim.x * sy + aim.z * cy,
+            )
+            .normalize_or_zero();
+            self.fire_ray(ctx, actor, muzzle, rotated, &damage);
+        }
+        if !spec.sound.is_empty() {
+            self.sound(&spec.sound, muzzle);
+        }
+        self.publish(ctx, actor);
+    }
+
+    /// Луч снаряда: до первой преграды; попавшему человеку урон по части тела.
+    fn fire_ray(
+        &mut self,
+        ctx: &mut HookContext<'_>,
+        shooter: NetworkEntityId,
+        muzzle: Vec3,
+        dir: Vec3,
+        damage: &DamageSpec,
+    ) {
+        let wall = ctx
+            .unobstructed_distance(muzzle, muzzle + dir * crate::gun::RANGE_M)
+            .min(crate::gun::RANGE_M);
+        let mut best: Option<(f32, NetworkEntityId, Vec3)> = None;
+        for (&who, a) in &self.actors {
+            if who == shooter || a.ghost {
+                continue;
+            }
+            let Some(base) = ctx.position_of(who) else {
+                continue;
+            };
+            if let Some(t) = crate::gun::ray_cylinder(
+                muzzle,
+                dir,
+                base,
+                crate::gun::HIT_RADIUS_M,
+                crate::gun::BODY_HEIGHT_M,
+            ) && t <= wall
+                && best.as_ref().is_none_or(|(b, _, _)| t < *b)
+            {
+                best = Some((t, who, base));
+            }
+        }
+        let Some((t, who, base)) = best else {
+            return;
+        };
+        let at = muzzle + dir * t;
+        let frac = (at.y - base.y) / crate::gun::BODY_HEIGHT_M;
+        // Сторона по знаку проекции вектора «стрелок → цель» на правую руку стрелка.
+        let left = (at - muzzle).cross(Vec3::Y).dot(base - muzzle) < 0.0;
+        let part = crate::gun::hit_part(frac, left);
+        let victim = self.actor(who);
+        let dealt = victim.health.apply_to(Some(part), damage);
+        if let Some(body) = victim.body.as_mut() {
+            body.on_damage(&dealt);
+        }
+        self.after_health_change(ctx, who);
+    }
+
+    /// Перезарядка из другой руки: магазин в магазинное оружие или патрон во встроенное хранилище.
+    fn reload(&mut self, ctx: &mut HookContext<'_>, actor: NetworkEntityId) {
+        let Some((gun, spec)) = self.active_gun(actor) else {
+            return;
+        };
+        let (active, other) = {
+            let a = &self.actors[&actor];
+            let active = a.hands.active();
+            let other = a
+                .hands
+                .order()
+                .find(|&h| h != active && a.hands.get(h).is_some());
+            (active, other)
+        };
+        let Some(other) = other else {
+            return;
+        };
+        let held = self.actors[&actor].hands.get(other).cloned();
+        let Some(held) = held else {
+            return;
+        };
+        let mut st = self
+            .gun_state
+            .get(&gun.id)
+            .cloned()
+            .unwrap_or_else(|| self.fresh_gun(&spec));
+        if let Some(m) = self.magazines.get(&held.prototype).cloned()
+            && st.mag.is_some()
+        {
+            // Вставить магазин; прежний возвращается в освободившуюся руку (или на пол).
+            let count = self.mag_state.remove(&held.id).unwrap_or(m.capacity);
+            let old = st
+                .mag
+                .replace((held.prototype.clone(), m.cartridge.clone(), count));
+            let _ = self.actor(actor).hands.drop_hand(other);
+            if st.chamber.is_none() {
+                st.chamber = st.feed();
+            }
+            if let Some((proto, _, n)) = old {
+                self.give_magazine(ctx, actor, &proto, n, other);
+            }
+        } else if let Some(shot) = self.name_of(&held.prototype)
+            && self.cartridge_shot.contains_key(&shot)
+            && st.mag.is_none()
+            && st.internal.0 == shot
+            && st.internal.1 < spec.capacity
+        {
+            // Встроенное хранилище: один патрон за раз.
+            let _ = self.actor(actor).hands.drop_hand(other);
+            st.internal.1 += 1;
+        } else {
+            return;
+        }
+        let _ = active;
+        self.gun_state.insert(gun.id, st);
+        self.publish(ctx, actor);
+    }
+
+    /// Достать магазин из оружия в активной руке (`gun_magazine` ItemSlot).
+    fn eject_mag(&mut self, ctx: &mut HookContext<'_>, actor: NetworkEntityId) {
+        let Some((gun, spec)) = self.active_gun(actor) else {
+            return;
+        };
+        let mut st = self
+            .gun_state
+            .get(&gun.id)
+            .cloned()
+            .unwrap_or_else(|| self.fresh_gun(&spec));
+        let Some((proto, _, n)) = st.mag.take() else {
+            return;
+        };
+        let free = {
+            let a = &self.actors[&actor];
+            let active = a.hands.active();
+            a.hands
+                .order()
+                .find(|&h| h != active && a.hands.get(h).is_none())
+        };
+        self.gun_state.insert(gun.id, st);
+        self.give_magazine(ctx, actor, &proto, n, free.unwrap_or(0));
+        self.publish(ctx, actor);
+    }
+
+    /// Создать магазин-предмет с `count` патронов в руку `hand` или на пол.
+    fn give_magazine(
+        &mut self,
+        ctx: &mut HookContext<'_>,
+        actor: NetworkEntityId,
+        proto: &PrototypeId,
+        count: u32,
+        hand: usize,
+    ) {
+        let Some(name) = self.name_of(proto) else {
+            return;
+        };
+        let Some(item) = self.create_item(&name) else {
+            return;
+        };
+        self.mag_state.insert(item.id, count);
+        let held = self
+            .actor(actor)
+            .hands
+            .pickup_to(hand, item.clone())
+            .is_ok();
+        if !held && let Some(at) = ctx.position_of(actor) {
+            Self::place(ctx, &item, at);
+        }
+    }
+
+    /// Имя прототипа SS14 по идентификатору движка.
+    fn name_of(&self, proto: &PrototypeId) -> Option<String> {
+        self.ss14_names.get(proto).cloned()
+    }
+
     /// Горящие запалы: сработавшая граната взрывается там, где лежит, летит или где её держат.
     fn tick_primed(&mut self, ctx: &mut HookContext<'_>) {
         let clock = self.clock;
@@ -7175,6 +7542,13 @@ impl GameModule for GameplayModule {
                         st.throw_item(ctx, *actor, target);
                     }
                 }
+                crate::wire::CMD_SHOOT => {
+                    if let Some(target) = crate::wire::parse_point(data) {
+                        st.shoot(ctx, *actor, Vec3::from_array(target));
+                    }
+                }
+                crate::wire::CMD_RELOAD => st.reload(ctx, *actor),
+                crate::wire::CMD_EJECT_MAG => st.eject_mag(ctx, *actor),
                 crate::wire::CMD_DISARM => {
                     if let Some(target) = crate::wire::parse_attack(data) {
                         st.disarm(ctx, *actor, target);

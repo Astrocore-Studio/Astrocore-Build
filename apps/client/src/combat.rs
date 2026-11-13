@@ -158,6 +158,33 @@ pub fn attack_and_heal(
     {
         net.send_command(CMD_HEAL, gameplay::heal_data(active, me));
     }
+    // Оружие в руке и боевой режим: левая кнопка — выстрел в сторону прицела (у автоматического
+    // огня — пока зажата), `U` — перезарядка, `Y` — достать магазин.
+    if loadout.ammo.as_ref().is_some_and(|a| a.gun) && hud.state.combat {
+        if keys.just_pressed(KeyCode::KeyU) {
+            net.send_command(gameplay::CMD_RELOAD, Vec::new());
+        }
+        if keys.just_pressed(KeyCode::KeyY) {
+            net.send_command(gameplay::CMD_EJECT_MAG, Vec::new());
+        }
+        let auto = loadout.ammo.as_ref().is_some_and(|a| a.auto);
+        let fire = if auto {
+            buttons.pressed(MouseButton::Left)
+        } else {
+            buttons.just_pressed(MouseButton::Left)
+        };
+        if fire
+            && !wants.wants_any_pointer_input()
+            && let (Ok(window), Ok((camera, cam_t))) = (windows.single(), cameras.single())
+            && let Some(ray) = window
+                .cursor_position()
+                .and_then(|c| camera.viewport_to_world(cam_t, c).ok())
+        {
+            let target = ray.origin + *ray.direction * THROW_AIM_M * 4.0;
+            net.send_command(gameplay::CMD_SHOOT, gameplay::throw_data(target.to_array()));
+            return;
+        }
+    }
     let shift = keys.pressed(KeyCode::ShiftLeft) || keys.pressed(KeyCode::ShiftRight);
     let attack =
         buttons.just_pressed(MouseButton::Left) && !shift && !wants.wants_any_pointer_input();

@@ -8,8 +8,19 @@
 | --- | --- | --- |
 | `Effects/Chemistry/bubbles.ogg` | CC-BY-SA-3.0 (записи нет, лицензия Resources по умолчанию) | авторство не указано |
 | `Effects/Fluids/splat.ogg` | CC-BY-SA-3.0 (записи нет, лицензия Resources по умолчанию) | авторство не указано |
+| `Effects/Footsteps/floor1.ogg` | CC-BY-SA-3.0 | Taken from tgstation, modified by mirrorcult |
+| `Effects/Footsteps/floor2.ogg` | CC-BY-SA-3.0 | Taken from tgstation, modified by mirrorcult |
+| `Effects/Footsteps/floor3.ogg` | CC-BY-SA-3.0 | Taken from tgstation, modified by mirrorcult |
+| `Effects/Footsteps/floor4.ogg` | CC-BY-SA-3.0 | Taken from tgstation, modified by mirrorcult |
+| `Effects/Footsteps/floor5.ogg` | CC-BY-SA-3.0 | Taken from tgstation, modified by mirrorcult |
 | `Effects/closetclose.ogg` | CC-BY-SA-3.0 (записи нет, лицензия Resources по умолчанию) | авторство не указано |
 | `Effects/closetopen.ogg` | CC-BY-SA-3.0 (записи нет, лицензия Resources по умолчанию) | авторство не указано |
+| `Effects/rustle1.ogg` | CC-BY-SA-3.0 (записи нет, лицензия Resources по умолчанию) | авторство не указано |
+| `Effects/rustle2.ogg` | CC-BY-SA-3.0 (записи нет, лицензия Resources по умолчанию) | авторство не указано |
+| `Effects/rustle3.ogg` | CC-BY-SA-3.0 (записи нет, лицензия Resources по умолчанию) | авторство не указано |
+| `Effects/rustle4.ogg` | CC-BY-SA-3.0 (записи нет, лицензия Resources по умолчанию) | авторство не указано |
+| `Effects/rustle5.ogg` | CC-BY-SA-3.0 (записи нет, лицензия Resources по умолчанию) | авторство не указано |
+| `Effects/thunk.ogg` | CC-BY-SA-3.0 (записи нет, лицензия Resources по умолчанию) | авторство не указано |
 | `Items/Defib/defib_charge.ogg` | CC-BY-SA-3.0 (записи нет, лицензия Resources по умолчанию) | авторство не указано |
 | `Items/Defib/defib_failed.ogg` | CC-BY-SA-3.0 (записи нет, лицензия Resources по умолчанию) | авторство не указано |
 | `Items/Defib/defib_ready.ogg` | CC-BY-SA-3.0 (записи нет, лицензия Resources по умолчанию) | авторство не указано |
@@ -19,12 +30,15 @@
 | `Items/Defib/defib_zap.ogg` | CC-BY-SA-3.0 (записи нет, лицензия Resources по умолчанию) | авторство не указано |
 | `Items/Medical/healthscanner.ogg` | CC-BY-4.0 | Taken from FM Synthesis on freesound.org |
 | `Items/Medical/paper_centrifuge.ogg` | CC-BY-4.0 | Taken from temawas on freesound. Cut, converted to .ogg |
-| `Items/Toys/hew.ogg` | CC-BY-SA-3.0 (записи нет, лицензия Resources по умолчанию) | авторство не указано |
-| `Items/Toys/weh.ogg` | CC-BY-SA-3.0 (записи нет, лицензия Resources по умолчанию) | авторство не указано |
+| `Items/Toys/hew.ogg` | CC0-1.0 | Modified from weh.ogg by ArtisticRoomba |
+| `Items/Toys/weh.ogg` | CC0-1.0 | Created by BlackMajor (github) for ss14, muffled_weh.ogg modified from weh.ogg by Slorkito (ss14 discord) |
 | `Items/bikehorn.ogg` | CC-BY-SA-3.0 (записи нет, лицензия Resources по умолчанию) | авторство не указано |
 | `Items/hypospray.ogg` | CC-BY-SA-3.0 (записи нет, лицензия Resources по умолчанию) | авторство не указано |
 | `Items/soda_shake.ogg` | CC-BY-NC-4.0 | User mcmast on freesound.org. Converted and edited by Tayrtahn |
+| `Machines/airlock_close.ogg` | CC-BY-SA-3.0 | From eris/bay at commit 789ed19064ac42376d2355192cd1069a45a310f1, modified by mirrorcult to be shorter and match airlock timings |
 | `Machines/airlock_deny.ogg` | CC-BY-SA-3.0 | /tg/station |
+| `Machines/airlock_open.ogg` | CC-BY-SA-3.0 | /tg/station |
+| `Machines/alarm.ogg` | CC-BY-SA-3.0 (записи нет, лицензия Resources по умолчанию) | авторство не указано |
 | `Machines/buzz-sigh.ogg` | CC-BY-SA-3.0 | Taken from TG station. |
 | `Machines/buzz_loop.ogg` | CC0-1.0 | Created by Duasun, converted to OGG by EmoGarbage404 (github). |
 | `Machines/disposalflush.ogg` | CC-BY-SA-3.0 (записи нет, лицензия Resources по умолчанию) | авторство не указано |
@@ -52,5 +66,19 @@
 | `Voice/Human/whistle_1.ogg` | CC0-1.0 | Taken from https://freesound.org/ |
 | `Voice/Human/whistle_2.ogg` | CC0-1.0 | Taken from https://freesound.org/ |
 | `Voice/Human/whistle_3.ogg` | CC0-1.0 | Taken from https://freesound.org/ |
+| `Weapons/Guns/Gunshots/atreides.ogg` | CC-BY-SA-3.0 | Taken from CM-SS13 |
+| `Weapons/Guns/Gunshots/energycrossbow_shoot.ogg` | CC-BY-SA-3.0 (записи нет, лицензия Resources по умолчанию) | авторство не указано |
+| `Weapons/Guns/Gunshots/flaregun.ogg` | CC-BY-SA-3.0 | Taken from CM-SS13 |
+| `Weapons/Guns/Gunshots/kinetic_accel.ogg` | CC-BY-SA-3.0 (записи нет, лицензия Resources по умолчанию) | авторство не указано |
+| `Weapons/Guns/Gunshots/laser.ogg` | CC-BY-SA-3.0 (записи нет, лицензия Resources по умолчанию) | авторство не указано |
+| `Weapons/Guns/Gunshots/laser_cannon.ogg` | CC-BY-SA-3.0 (записи нет, лицензия Resources по умолчанию) | авторство не указано |
+| `Weapons/Guns/Gunshots/ltrifle.ogg` | CC-BY-SA-3.0 (записи нет, лицензия Resources по умолчанию) | авторство не указано |
+| `Weapons/Guns/Gunshots/mk58.ogg` | CC-BY-SA-3.0 | Taken from CM-SS13 |
+| `Weapons/Guns/Gunshots/revolver.ogg` | CC-BY-SA-3.0 (записи нет, лицензия Resources по умолчанию) | авторство не указано |
+| `Weapons/Guns/Gunshots/shotgun.ogg` | CC-BY-SA-3.0 (записи нет, лицензия Resources по умолчанию) | авторство не указано |
+| `Weapons/Guns/Gunshots/smg.ogg` | CC-BY-SA-3.0 (записи нет, лицензия Resources по умолчанию) | авторство не указано |
+| `Weapons/Guns/Gunshots/sniper.ogg` | CC-BY-SA-3.0 (записи нет, лицензия Resources по умолчанию) | авторство не указано |
+| `Weapons/Guns/Gunshots/taser2.ogg` | CC-BY-SA-3.0 | Taken from tgstation |
+| `Weapons/Guns/Gunshots/water_spray.ogg` | CC0-1.0 | Watering by elittle13. Converted to .OGG and MONO by EmoGarbage404 (github) |
 
 Не взяты (лицензия не подходит или файла нет): `Voice/Human/whistle_4.ogg` (Custom).

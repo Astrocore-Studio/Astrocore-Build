@@ -29,6 +29,13 @@ const PROTOS: &str = r#"[
         "Explosive": (explosionType: "Default", totalIntensity: 120.0, intensitySlope: 3.0, maxIntensity: 10.0),
         "TimerTrigger": (delay: 1.0),
     }),
+    (id: "Bullet", components: {"ProjectileDamage": (damage: (Piercing: 15.0))}),
+    (id: "Round", components: {"Item": (size: "Tiny"), "Cartridge": (projectile: "Bullet")}),
+    (id: "PistolMag", components: {"Item": (size: "Small"), "Magazine": (cartridge: "Round", capacity: 3)}),
+    (id: "Pistol", components: {
+        "Item": (size: "Small"),
+        "Gun": (fireRate: 10.0, minAngle: 0.0, maxAngle: 0.0, sound: "", magazine: "PistolMag", cartridge: "", capacity: 0, auto: false),
+    }),
     (id: "Truncheon", components: {
         "Item": (size: "Normal"),
         "MeleeWeapon": (damage: (Blunt: 10.0), attackRate: 3.0, bluntStaminaDamageFactor: 1.5),
@@ -2937,6 +2944,70 @@ mod disposal_tests {
         h.ticks(40);
         assert!(dmg(&h) > 0.0, "взрыв задел игрока рядом: {}", dmg(&h));
         assert!(!on_ground(&h, a, 71), "граната сгорела");
+    }
+
+    fn ammo_of(h: &Harness, who: ConnId) -> crate::AmmoView {
+        let net = h.client(who).net_id().unwrap();
+        h.client(who)
+            .component(net, crate::AMMO_COMPONENT)
+            .and_then(crate::decode_ammo)
+            .unwrap()
+    }
+
+    fn damage_of(h: &Harness, who: ConnId) -> f32 {
+        let net = h.client(who).net_id().unwrap();
+        h.client(who)
+            .component(net, crate::HEALTH_COMPONENT)
+            .and_then(crate::decode_health)
+            .map_or(0.0, |v| v.damage.values().sum())
+    }
+
+    #[test]
+    fn a_gun_shoots_until_it_runs_dry_and_a_fresh_magazine_loads_it_again() {
+        let mut h = harness();
+        let (a, b) = (h.join("a"), h.join("b"));
+        h.ticks(5);
+        grab(&mut h, a, 81, near(), "ss14:pistol");
+        // В руке оружие: полный магазин на 3 патрона, один из них сразу в патроннике.
+        let v = ammo_of(&h, a);
+        assert!(v.gun && v.ammo == 3, "{v:?}");
+        // Цель уходит вперёд.
+        for _ in 0..40 {
+            h.input(b, 0, 1, 0.0);
+        }
+        h.ticks(5);
+        let target = h.server.player_position(b).unwrap() + Vec3::Y * 0.5;
+        let fire = |h: &mut Harness| {
+            command(h, a, crate::CMD_SHOOT, crate::throw_data(target.to_array()));
+            h.ticks(6);
+        };
+        // Без боевого режима выстрела нет.
+        fire(&mut h);
+        assert_eq!((damage_of(&h, b), ammo_of(&h, a).ammo), (0.0, 3));
+        command(&mut h, a, crate::CMD_COMBAT, vec![1]);
+        fire(&mut h);
+        assert!(damage_of(&h, b) > 0.0, "попала пуля: {}", damage_of(&h, b));
+        assert_eq!(ammo_of(&h, a).ammo, 2);
+        for _ in 0..2 {
+            fire(&mut h);
+        }
+        assert_eq!(ammo_of(&h, a).ammo, 0);
+        let spent = damage_of(&h, b);
+        fire(&mut h);
+        assert_eq!(damage_of(&h, b), spent, "пустое оружие не стреляет");
+        // Новый магазин из другой руки: заряжено снова, старый магазин вернулся в руку.
+        spawn(&mut h, item_at(82, "ss14:pistol_mag", near()));
+        command(&mut h, a, crate::CMD_SELECT_HAND, vec![1]);
+        command(&mut h, a, crate::CMD_PICKUP_ANY, pickup_data(oid(82)));
+        h.ticks(3);
+        command(&mut h, a, crate::CMD_SELECT_HAND, vec![0]);
+        command(&mut h, a, crate::CMD_RELOAD, vec![]);
+        h.ticks(3);
+        assert_eq!(
+            ammo_of(&h, a).ammo,
+            3,
+            "новый магазин (в патронник ушёл один из трёх)+1"
+        );
     }
 
     #[test]

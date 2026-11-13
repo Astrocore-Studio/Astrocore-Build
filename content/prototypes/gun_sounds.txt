@@ -1,0 +1,15 @@
+Effects/thunk.ogg
+Weapons/Guns/Gunshots/atreides.ogg
+Weapons/Guns/Gunshots/energycrossbow_shoot.ogg
+Weapons/Guns/Gunshots/flaregun.ogg
+Weapons/Guns/Gunshots/kinetic_accel.ogg
+Weapons/Guns/Gunshots/laser.ogg
+Weapons/Guns/Gunshots/laser_cannon.ogg
+Weapons/Guns/Gunshots/ltrifle.ogg
+Weapons/Guns/Gunshots/mk58.ogg
+Weapons/Guns/Gunshots/revolver.ogg
+Weapons/Guns/Gunshots/shotgun.ogg
+Weapons/Guns/Gunshots/smg.ogg
+Weapons/Guns/Gunshots/sniper.ogg
+Weapons/Guns/Gunshots/taser2.ogg
+Weapons/Guns/Gunshots/water_spray.ogg

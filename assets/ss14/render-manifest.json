@@ -3170,6 +3170,22 @@
       ],
       "thickness": 0.029999999329447746
     },
+    "ss14:bullet_foam": {
+      "frames": 1,
+      "grid": [
+        1,
+        1
+      ],
+      "image": "Textures/Objects/Fun/Foam/foam_dart.rsi/foamdart.png",
+      "layout": "flat",
+      "name": "foam dart",
+      "oriented": false,
+      "size": [
+        0.36000001430511475,
+        0.36000001430511475
+      ],
+      "thickness": 0.029999999329447746
+    },
     "ss14:butch_cleaver": {
       "frames": 1,
       "grid": [
@@ -3467,6 +3483,198 @@
       "image": "Textures/Objects/Specific/Hydroponics/carrot.rsi/seed.png",
       "layout": "flat",
       "name": "packet of carrot seeds",
+      "oriented": false,
+      "size": [
+        0.30000001192092896,
+        0.30000001192092896
+      ],
+      "thickness": 0.029999999329447746
+    },
+    "ss14:cartridge_cap": {
+      "frames": 1,
+      "grid": [
+        1,
+        1
+      ],
+      "image": "Textures/Objects/Weapons/Guns/Ammunition/Casings/capgun_casing.rsi/base.png",
+      "layout": "flat",
+      "name": "cap gun cartridge",
+      "oriented": false,
+      "size": [
+        0.30000001192092896,
+        0.30000001192092896
+      ],
+      "thickness": 0.029999999329447746
+    },
+    "ss14:cartridge_caseless_rifle": {
+      "frames": 1,
+      "grid": [
+        1,
+        1
+      ],
+      "image": "Textures/Objects/Weapons/Guns/Ammunition/Casings/ammo_casing.rsi/base.png",
+      "layout": "flat",
+      "name": "cartridge (.25 caseless)",
+      "oriented": false,
+      "size": [
+        0.30000001192092896,
+        0.30000001192092896
+      ],
+      "thickness": 0.029999999329447746
+    },
+    "ss14:cartridge_caseless_rifle_practice": {
+      "frames": 1,
+      "grid": [
+        1,
+        1
+      ],
+      "image": "Textures/Objects/Weapons/Guns/Ammunition/Casings/ammo_casing.rsi/base.png",
+      "layout": "flat",
+      "name": "cartridge (.25 caseless practice)",
+      "oriented": false,
+      "size": [
+        0.30000001192092896,
+        0.30000001192092896
+      ],
+      "thickness": 0.029999999329447746
+    },
+    "ss14:cartridge_light_rifle": {
+      "frames": 1,
+      "grid": [
+        1,
+        1
+      ],
+      "image": "Textures/Objects/Weapons/Guns/Ammunition/Casings/ammo_casing.rsi/base.png",
+      "layout": "flat",
+      "name": "cartridge (.30 rifle)",
+      "oriented": false,
+      "size": [
+        0.30000001192092896,
+        0.30000001192092896
+      ],
+      "thickness": 0.029999999329447746
+    },
+    "ss14:cartridge_light_rifle_practice": {
+      "frames": 1,
+      "grid": [
+        1,
+        1
+      ],
+      "image": "Textures/Objects/Weapons/Guns/Ammunition/Casings/ammo_casing.rsi/base.png",
+      "layout": "flat",
+      "name": "cartridge (.30 rifle practice)",
+      "oriented": false,
+      "size": [
+        0.30000001192092896,
+        0.30000001192092896
+      ],
+      "thickness": 0.029999999329447746
+    },
+    "ss14:cartridge_magnum": {
+      "frames": 1,
+      "grid": [
+        1,
+        1
+      ],
+      "image": "Textures/Objects/Weapons/Guns/Ammunition/Casings/ammo_casing.rsi/base.png",
+      "layout": "flat",
+      "name": "cartridge (.45 magnum)",
+      "oriented": false,
+      "size": [
+        0.30000001192092896,
+        0.30000001192092896
+      ],
+      "thickness": 0.029999999329447746
+    },
+    "ss14:cartridge_magnum_ap": {
+      "frames": 1,
+      "grid": [
+        1,
+        1
+      ],
+      "image": "Textures/Objects/Weapons/Guns/Ammunition/Casings/ammo_casing.rsi/base.png",
+      "layout": "flat",
+      "name": "cartridge (.45 magnum armor-piercing)",
+      "oriented": false,
+      "size": [
+        0.30000001192092896,
+        0.30000001192092896
+      ],
+      "thickness": 0.029999999329447746
+    },
+    "ss14:cartridge_magnum_practice": {
+      "frames": 1,
+      "grid": [
+        1,
+        1
+      ],
+      "image": "Textures/Objects/Weapons/Guns/Ammunition/Casings/ammo_casing.rsi/base.png",
+      "layout": "flat",
+      "name": "cartridge (.45 magnum practice)",
+      "oriented": false,
+      "size": [
+        0.30000001192092896,
+        0.30000001192092896
+      ],
+      "thickness": 0.029999999329447746
+    },
+    "ss14:cartridge_pistol": {
+      "frames": 1,
+      "grid": [
+        1,
+        1
+      ],
+      "image": "Textures/Objects/Weapons/Guns/Ammunition/Casings/ammo_casing.rsi/base.png",
+      "layout": "flat",
+      "name": "cartridge (.35 auto)",
+      "oriented": false,
+      "size": [
+        0.30000001192092896,
+        0.30000001192092896
+      ],
+      "thickness": 0.029999999329447746
+    },
+    "ss14:cartridge_pistol_practice": {
+      "frames": 1,
+      "grid": [
+        1,
+        1
+      ],
+      "image": "Textures/Objects/Weapons/Guns/Ammunition/Casings/ammo_casing.rsi/base.png",
+      "layout": "flat",
+      "name": "cartridge (.35 auto practice)",
+      "oriented": false,
+      "size": [
+        0.30000001192092896,
+        0.30000001192092896
+      ],
+      "thickness": 0.029999999329447746
+    },
+    "ss14:cartridge_rifle": {
+      "frames": 1,
+      "grid": [
+        1,
+        1
+      ],
+      "image": "Textures/Objects/Weapons/Guns/Ammunition/Casings/ammo_casing.rsi/base.png",
+      "layout": "flat",
+      "name": "cartridge (.20 rifle)",
+      "oriented": false,
+      "size": [
+        0.30000001192092896,
+        0.30000001192092896
+      ],
+      "thickness": 0.029999999329447746
+    },
+    "ss14:cartridge_rifle_practice": {
+      "frames": 1,
+      "grid": [
+        1,
+        1
+      ],
+      "image": "Textures/Objects/Weapons/Guns/Ammunition/Casings/ammo_casing.rsi/base.png",
+      "layout": "flat",
+      "name": "cartridge (.20 rifle practice)",
       "oriented": false,
       "size": [
         0.30000001192092896,
@@ -17339,6 +17547,22 @@
       "image": "Textures/Objects/Tools/Lighters/lighters.rsi/icon_map.png",
       "layout": "flat",
       "name": "Discount Dan's lighter",
+      "oriented": false,
+      "size": [
+        0.30000001192092896,
+        0.30000001192092896
+      ],
+      "thickness": 0.029999999329447746
+    },
+    "ss14:disease_swab": {
+      "frames": 1,
+      "grid": [
+        1,
+        1
+      ],
+      "image": "Textures/Objects/Specific/Medical/mouth_swab.rsi/icon.png",
+      "layout": "flat",
+      "name": "sterile swab",
       "oriented": false,
       "size": [
         0.30000001192092896,
@@ -33935,6 +34159,70 @@
       "size": [
         0.48000001907348633,
         0.48000001907348633
+      ],
+      "thickness": 0.029999999329447746
+    },
+    "ss14:shell_shotgun": {
+      "frames": 1,
+      "grid": [
+        1,
+        1
+      ],
+      "image": "Textures/Objects/Weapons/Guns/Ammunition/Casings/shotgun_shell.rsi/base.png",
+      "layout": "flat",
+      "name": "shell (.50 pellet)",
+      "oriented": false,
+      "size": [
+        0.30000001192092896,
+        0.30000001192092896
+      ],
+      "thickness": 0.029999999329447746
+    },
+    "ss14:shell_shotgun_beanbag": {
+      "frames": 1,
+      "grid": [
+        1,
+        1
+      ],
+      "image": "Textures/Objects/Weapons/Guns/Ammunition/Casings/shotgun_shell.rsi/beanbag.png",
+      "layout": "flat",
+      "name": "shell (.50 beanbag)",
+      "oriented": false,
+      "size": [
+        0.30000001192092896,
+        0.30000001192092896
+      ],
+      "thickness": 0.029999999329447746
+    },
+    "ss14:shell_shotgun_flare": {
+      "frames": 1,
+      "grid": [
+        1,
+        1
+      ],
+      "image": "Textures/Objects/Weapons/Guns/Ammunition/Casings/shotgun_shell.rsi/flare.png",
+      "layout": "flat",
+      "name": "shell (.50 flare)",
+      "oriented": false,
+      "size": [
+        0.30000001192092896,
+        0.30000001192092896
+      ],
+      "thickness": 0.029999999329447746
+    },
+    "ss14:shell_shotgun_practice": {
+      "frames": 1,
+      "grid": [
+        1,
+        1
+      ],
+      "image": "Textures/Objects/Weapons/Guns/Ammunition/Casings/shotgun_shell.rsi/practice.png",
+      "layout": "flat",
+      "name": "shell (.50 practice)",
+      "oriented": false,
+      "size": [
+        0.30000001192092896,
+        0.30000001192092896
       ],
       "thickness": 0.029999999329447746
     },

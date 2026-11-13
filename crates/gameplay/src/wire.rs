@@ -113,6 +113,12 @@ pub const CMD_CHAT: &str = "chat";
 pub const CMD_VERB_LIST: &str = "verb.list";
 /// Выполнить глагол: `verbs::target_data(цель, Some(глагол))`.
 pub const CMD_VERB_DO: &str = "verb.do";
+/// Выстрел из оружия в активной руке в точку (три `f32`, как `item.throw`); нужен боевой режим.
+pub const CMD_SHOOT: &str = "gun.shoot";
+/// Перезарядка: магазин или патрон из другой руки в оружие в активной.
+pub const CMD_RELOAD: &str = "gun.reload";
+/// Достать магазин из оружия в активной руке.
+pub const CMD_EJECT_MAG: &str = "gun.eject";
 /// Обыск: снять предмет с цели или надеть на неё из активной руки (`verbs::strip_data`).
 pub const CMD_STRIP: &str = "strip.act";
 /// Лобби: «Готов» / «Не готов», а после старта раунда — «Присоединиться».
@@ -379,6 +385,12 @@ pub fn register_replication(reg: &mut ReplicationRegistry) -> Result<(), Replica
         channel: ReplicationChannel::ReliableOrdered,
         interest: Interest::Everyone,
         max_bytes: 4,
+    })?;
+    reg.register(ReplicatedKind {
+        name: crate::gun::AMMO_COMPONENT.into(),
+        channel: ReplicationChannel::ReliableOrdered,
+        interest: Interest::Owner,
+        max_bytes: crate::gun::AMMO_MAX_BYTES,
     })?;
     reg.register(ReplicatedKind {
         name: STAMINA_COMPONENT.into(),

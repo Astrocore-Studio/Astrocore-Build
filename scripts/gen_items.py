@@ -96,6 +96,8 @@ def _wl_components():
 
 
 WL_COMPONENTS = _wl_components()
+GUN_SOUNDS = set()
+PROJECTILES = set()
 NOT_ITEMS = {'MobState', 'Mind', 'Body', 'Humanoid', 'Hands', 'Physics'}
 
 
@@ -188,6 +190,29 @@ def convert(i):
         out.append('"Shakeable": (duration: %s, requireInHand: %s)' % (float(_secs(sk.get('shakeDuration'), 1.0)), 'true' if sk.get('requireInHand') else 'false'))
     if 'Pill' in comps:
         out.append('"Pill": ()')
+    gun = comps.get('Gun')
+    if gun is not None:
+        sg = gun.get('soundGunshot')
+        sound = (sg.get('path') if isinstance(sg, dict) else '') or ''
+        sound = sound.removeprefix('/Audio/')
+        mag = ''
+        slot = ((comps.get('ItemSlots') or {}).get('slots') or {}).get('gun_magazine') or {}
+        if 'ChamberMagazineAmmoProvider' in comps or 'MagazineAmmoProvider' in comps:
+            mag = slot.get('startingItem') or ''
+        prov = comps.get('BallisticAmmoProvider') or comps.get('RevolverAmmoProvider') or {}
+        out.append('"Gun": (fireRate: %s, minAngle: %s, maxAngle: %s, sound: %s, magazine: %s, cartridge: %s, capacity: %d, auto: %s)' % (
+            float(gun.get('fireRate', 1.0)), float(gun.get('minAngle', 2.0)), float(gun.get('maxAngle', 10.0)),
+            q(sound), q(mag), q(prov.get('proto') or ''), int(prov.get('capacity', 0)),
+            'true' if gun.get('selectedMode') == 'FullAuto' else 'false'))
+        if sound:
+            GUN_SOUNDS.add(sound)
+    elif 'BallisticAmmoProvider' in comps:
+        bp = comps['BallisticAmmoProvider']
+        if bp.get('proto'):
+            out.append('"Magazine": (cartridge: %s, capacity: %d)' % (q(bp['proto']), int(bp.get('capacity', 0))))
+    ca = comps.get('CartridgeAmmo')
+    if ca is not None and ca.get('proto'):
+        out.append('"Cartridge": (projectile: %s)' % q(ca['proto']))
     ex = comps.get('Explosive')
     if ex is not None:
         out.append('"Explosive": (explosionType: %s, totalIntensity: %s, intensitySlope: %s, maxIntensity: %s)' % (
@@ -254,6 +279,34 @@ def convert(i):
     return '    (id: %s, name: Some(%s), components: {%s}),' % (q(i), q(name), ', '.join(out))
 
 
+def write_guns():
+    """Снаряды патронов (`Projectile.damage`) и разброс дроби (`ProjectileSpread`) → guns.ron; звуки выстрелов."""
+    out = ['// Снаряды SS14: урон выстрела и разброс дроби. Создано scripts/gen_items.py.', '[']
+    done = set()
+    todo = list(PROJECTILES)
+    while todo:
+        i = todo.pop()
+        if i in done:
+            continue
+        done.add(i)
+        c = P.entity_components(i)
+        sp = c.get('ProjectileSpread')
+        pr = c.get('Projectile')
+        if sp:
+            out.append('    (id: %s, components: {"ProjectileSpread": (projectile: %s, count: %d, spread: %s)}),' % (
+                q(i), q(sp.get('proto', '')), int(sp.get('count', 1)), float(sp.get('spread', 0))))
+            if sp.get('proto'):
+                todo.append(sp['proto'])
+        elif pr:
+            types = ((pr.get('damage') or {}).get('types') or {})
+            types = {k: float(v) for k, v in types.items() if isinstance(v, (int, float))}
+            out.append('    (id: %s, components: {"ProjectileDamage": (damage: (%s))}),' % (
+                q(i), ', '.join('%s: %s' % (k, v) for k, v in sorted(types.items()))))
+    out.append(']')
+    open('content/prototypes/guns.ron', 'w', encoding='utf-8').write('\n'.join(sorted(set(out[:2])) and out) + '\n')
+    open('content/prototypes/gun_sounds.txt', 'w').write('\n'.join(sorted(GUN_SOUNDS)) + '\n')
+
+
 def main():
     todo = list(seeds())
     seen = set()
@@ -268,12 +321,24 @@ def main():
             continue
         lines.append((i, line))
         todo.extend(fill_ids(P.entity_components(i)))
+        # Оружие тянет за собой магазин, патрон и снаряд (`ChamberMagazineAmmoProvider`, `CartridgeAmmo`).
+        c = P.entity_components(i)
+        if 'Gun' in c:
+            slot = ((c.get('ItemSlots') or {}).get('slots') or {}).get('gun_magazine') or {}
+            for dep in (slot.get('startingItem'), (c.get('BallisticAmmoProvider') or c.get('RevolverAmmoProvider') or {}).get('proto')):
+                if dep:
+                    todo.append(dep)
+        if 'BallisticAmmoProvider' in c and 'Gun' not in c and (c['BallisticAmmoProvider'] or {}).get('proto'):
+            todo.append(c['BallisticAmmoProvider']['proto'])
+        if 'CartridgeAmmo' in c and c['CartridgeAmmo'].get('proto'):
+            PROJECTILES.add(c['CartridgeAmmo']['proto'])
     lines.sort()
     head = [
         '// Предметы SS14, нужные должностям, автоматам, спавнерам и карте. Создано scripts/gen_items.py.',
         '[',
     ]
     open('content/prototypes/ss14_items.ron', 'w').write('\n'.join(head + [l for _, l in lines] + [']']) + '\n')
+    write_guns()
     rsis = sorted({re.search(r'sprite: "([^"]+)"', l).group(1) for _, l in lines})
     open('/tmp/items_rsi.txt', 'w').write('\n'.join(rsis) + '\n')
     print(len(lines), 'предметов,', len(rsis), 'наборов RSI')

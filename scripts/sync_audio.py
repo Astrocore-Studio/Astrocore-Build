@@ -26,6 +26,11 @@ if os.path.exists('content/prototypes/reagent_sounds.txt'):
     SOUNDS += [l.strip() for l in open('content/prototypes/reagent_sounds.txt') if l.strip()]
 
 
+# Звуки выстрелов (`scripts/gen_items.py`).
+if os.path.exists('content/prototypes/gun_sounds.txt'):
+    SOUNDS += [l.strip() for l in open('content/prototypes/gun_sounds.txt') if l.strip()]
+
+
 def attribution(rel):
     d, f = os.path.split(rel)
     path = ROOT + d + '/attributions.yml'
