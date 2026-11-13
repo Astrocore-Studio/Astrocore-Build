@@ -2631,6 +2631,12 @@ mod disposal_tests {
         );
         h.ticks(3);
         assert!(verb_ids(&mut h, a, who).contains(&"stop_pull".to_string()));
+        // Тянущий занимает руку: она недоступна, пока тащит.
+        let busy = |h: &Harness| {
+            let hands = hands_of(h, a, a).unwrap();
+            (0..hands.len()).filter(|&i| hands.is_disabled(i)).count()
+        };
+        assert_eq!(busy(&h), 1, "одна рука занята тягой");
         // Тащащий идёт вперёд: цель следует за ним на длине связи.
         for _ in 0..40 {
             h.input(a, 0, 1, 0.0);

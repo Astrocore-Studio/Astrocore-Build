@@ -518,6 +518,8 @@ pub struct State {
     /// Окна обыска: кто чьи вещи смотрит.
     pub(crate) strip_view_for: BTreeMap<NetworkEntityId, NetworkEntityId>,
     pub(crate) pulls: BTreeMap<NetworkEntityId, (crate::verbs::VerbTarget, f32)>,
+    /// Рука, занятая тягой (виртуальный предмет `PullerComponent.NeedsHands`).
+    pub(crate) pull_hands: BTreeMap<NetworkEntityId, usize>,
     /// Брошенные предметы в полёте: когда упадут, предмет и место падения.
     pub(crate) thrown: Vec<(f32, crate::hands::HeldItem, Vec3)>,
     pub(crate) spawn_next: usize,
@@ -1036,6 +1038,7 @@ impl State {
             descriptions: BTreeMap::new(),
             verb_seq: 0,
             pulls: BTreeMap::new(),
+            pull_hands: BTreeMap::new(),
             strip_view_for: BTreeMap::new(),
             straps,
             thrown: Vec::new(),
@@ -4977,7 +4980,21 @@ impl State {
             VerbTarget::Player(_) => Vec3::new(spot.x - feet.x, 0.0, spot.z - feet.z).length(),
             VerbTarget::Object(_) => Vec3::new(spot.x - feet.x, 0.0, spot.z - feet.z).length(),
         };
+        // Прежняя тяга отпускается; тянущий занимает свободную руку, пока тащит.
+        self.release_pull(actor);
+        let hand = {
+            let a = self.actor(actor);
+            let hand = a.hands.order().find(|&h| a.hands.get(h).is_none());
+            if let Some(h) = hand {
+                a.hands.set_disabled(h, true);
+            }
+            hand
+        };
+        if let Some(h) = hand {
+            self.pull_hands.insert(actor, h);
+        }
         self.pulls.insert(actor, (target, len.max(0.5)));
+        self.publish(ctx, actor);
         if let VerbTarget::Player(p) = target {
             let name = self.speaker_name(actor);
             self.popup(p, format!("{name} is pulling you."));
@@ -4985,8 +5002,19 @@ impl State {
     }
 
     /// Отпустить цель (`TryStopPull`).
-    fn stop_pull(&mut self, _ctx: &mut HookContext<'_>, actor: NetworkEntityId) {
+    fn stop_pull(&mut self, ctx: &mut HookContext<'_>, actor: NetworkEntityId) {
+        self.release_pull(actor);
+        self.publish(ctx, actor);
+    }
+
+    /// Снять тягу и вернуть руку (`TryStopPull`): рука снова свободна.
+    fn release_pull(&mut self, actor: NetworkEntityId) {
         self.pulls.remove(&actor);
+        if let Some(h) = self.pull_hands.remove(&actor)
+            && let Some(a) = self.actors.get_mut(&actor)
+        {
+            a.hands.set_disabled(h, false);
+        }
     }
 
     /// Тяга: цель следует за тащащим на длине связи; срывается, если тащащий выбыл или цель
@@ -5003,12 +5031,12 @@ impl State {
             let (Some(feet), Some(spot)) =
                 (ctx.position_of(actor), self.verb_target_spot(ctx, target))
             else {
-                self.pulls.remove(&actor);
+                self.release_pull(actor);
                 continue;
             };
             let flat = Vec3::new(spot.x - feet.x, 0.0, spot.z - feet.z);
             if !alive || flat.length() > PULL_BREAK_M + len {
-                self.pulls.remove(&actor);
+                self.release_pull(actor);
                 continue;
             }
             if flat.length() <= len + PULL_SLACK_M {
@@ -5024,7 +5052,7 @@ impl State {
                 }
                 VerbTarget::Object(id) => {
                     let Some(obj) = ctx.world.authored_object(id).cloned() else {
-                        self.pulls.remove(&actor);
+                        self.release_pull(actor);
                         continue;
                     };
                     let centre = (obj.min() + obj.max()) * 0.5;
@@ -5043,9 +5071,17 @@ impl State {
         }
         // Игрок вышел: связи с ним и от него снимаются.
         let present: Vec<NetworkEntityId> = ctx.players().collect();
-        self.pulls.retain(|a, (t, _)| {
-            present.contains(a) && !matches!(t, VerbTarget::Player(p) if !present.contains(p))
-        });
+        let gone: Vec<NetworkEntityId> = self
+            .pulls
+            .iter()
+            .filter(|(a, (t, _))| {
+                !present.contains(a) || matches!(t, VerbTarget::Player(p) if !present.contains(p))
+            })
+            .map(|(a, _)| *a)
+            .collect();
+        for a in gone {
+            self.release_pull(a);
+        }
     }
 
     /// Глагол «Buckle» / «Unbuckle» для сиденья (`SharedBuckleSystem.OnGetInteractionVerbs`).
@@ -5113,7 +5149,7 @@ impl State {
         let centre = (obj.min() + obj.max()) * 0.5;
         let at = Vec3::new(centre.x, obj.min().y, centre.z);
         self.actor(actor).buckled = Some(strap);
-        self.pulls.remove(&actor);
+        self.release_pull(actor);
         ctx.teleport(actor, at);
         self.after_health_change(ctx, actor);
     }
