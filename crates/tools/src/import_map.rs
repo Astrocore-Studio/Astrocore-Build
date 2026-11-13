@@ -218,8 +218,8 @@ fn entity_rot(entity: &Value) -> u8 {
 
 /// Толщина ребра-стены: рёбра нужны логике, а видимый объём даёт блок на всю клетку.
 const WALL_EDGE_THICKNESS_M: f32 = 0.02;
-/// Высота блока стены над полом, мм.
-const WALL_HEIGHT_MM: u32 = 3000;
+/// Высота блока стены над полом, мм: одна стена — один тайл, куб 1×1×1 м.
+const WALL_HEIGHT_MM: u32 = 1000;
 
 /// Стороны трубы SS14 без поворота (`pipeDirection` прототипа): N, S, E, W битами 1, 2, 4, 8.
 fn pipe_base_dirs(proto: &str) -> Option<u8> {
