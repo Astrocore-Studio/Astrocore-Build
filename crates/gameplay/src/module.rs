@@ -4408,6 +4408,10 @@ impl State {
         if self.lobby.as_ref().is_some_and(|l| !l.started) {
             return;
         }
+        // Пустой сервер раунд не считает: время идёт, пока есть хотя бы один игрок.
+        if ctx.players().next().is_none() {
+            return;
+        }
         self.round.clock += dt;
         if self.round.ended.is_none() {
             let alive = |a: &NetworkEntityId| {
