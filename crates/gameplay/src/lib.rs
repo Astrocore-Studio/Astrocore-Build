@@ -30,7 +30,9 @@ pub mod power_monitor;
 pub use idconsole::{
     IDCONSOLE_COMPONENT, IdConsoleView, TargetView, WriteRequest, decode_view, write_data,
 };
+pub mod chat;
 pub mod jobs;
+pub use chat::{CHAT_COMPONENT, Channel, ChatLine, ChatView, chat_data, decode_chat};
 pub mod lobby;
 pub mod round_end;
 pub use jobs::{JOBS_COMPONENT, JobEntry, JobsView, decode_jobs};
@@ -67,8 +69,8 @@ pub use module::State;
 pub use module::{GameplayModule, INTERACTION_RANGE_M, NAMESPACE};
 pub use storage::{Storage, StorageError, StorageSpec};
 pub use wire::{
-    BagView, CMD_ATTACK, CMD_CANCEL, CMD_CHEM_AMOUNT, CMD_CRYO_BEAKER_EJECT, CMD_CRYO_CLEAR,
-    CMD_CRYO_CLOSE, CMD_CRYO_EJECT, CMD_CRYO_INJECT, CMD_CRYO_INSERT, CMD_CRYO_PUT,
+    BagView, CMD_ATTACK, CMD_CANCEL, CMD_CHAT, CMD_CHEM_AMOUNT, CMD_CRYO_BEAKER_EJECT,
+    CMD_CRYO_CLEAR, CMD_CRYO_CLOSE, CMD_CRYO_EJECT, CMD_CRYO_INJECT, CMD_CRYO_INSERT, CMD_CRYO_PUT,
     CMD_DISP_AMOUNT, CMD_DISP_CLEAR, CMD_DISP_CLOSE, CMD_DISP_DISPENSE, CMD_DISP_EJECT,
     CMD_DISP_INSERT, CMD_DROP, CMD_EQUIP, CMD_FEED, CMD_HEAL, CMD_ID_CLOSE, CMD_ID_EJECT,
     CMD_ID_INSERT, CMD_ID_WRITE, CMD_INTERACT, CMD_JOB, CMD_LAB_BOTTLE, CMD_LAB_CLOSE,

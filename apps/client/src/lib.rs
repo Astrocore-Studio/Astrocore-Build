@@ -40,6 +40,8 @@ pub struct Loadout {
     pub jobs: Option<gameplay::JobsView>,
     /// Лобби перед раундом.
     pub lobby: Option<gameplay::LobbyView>,
+    /// Чат: то, что слышал игрок.
+    pub chat: Option<gameplay::ChatView>,
     /// Сводка конца раунда.
     pub roundend: Option<gameplay::RoundEndView>,
     /// Открытая консоль выдачи ID.
@@ -73,65 +75,70 @@ impl Plugin for BuildClientPlugin {
         if let Some(root) = self.manifest.as_ref().and_then(|m| m.parent()) {
             app.insert_resource(BodyRoot(root.to_path_buf(), self.manifest.clone()));
         }
-        app.add_plugins(EguiPlugin::default())
-            .init_resource::<Loadout>()
-            .init_resource::<Ground>()
-            .insert_resource(Hud {
-                icons: hud::Icons::from_manifest(self.manifest.as_deref().unwrap_or("".as_ref())),
-                state: hud::HudState::default(),
-                power: power_ui::UiState::default(),
-                alerts: alerts_ui::UiState::default(),
-            })
-            .insert_resource(Autoplay {
-                enabled: self.autoplay,
-                frame: 0,
-            })
-            .init_resource::<fire::FxAssets>()
-            .init_resource::<lights::FlashlightOn>()
-            .add_systems(Startup, (install_body, install_sounds))
-            .add_systems(Last, alarm_visuals::sync)
-            .add_systems(PreUpdate, smoke_inputs.after(bevy::input::InputSystems))
-            .add_systems(
-                Update,
-                (
-                    refresh_loadout,
-                    cursor_ground,
-                    hand_keys,
-                    autoplay,
-                    outfit::sync_outfits,
-                )
-                    .chain(),
+        // Пока поле ввода в фокусе, клавиши не доходят до игры (иначе W/A/S/D двигали бы персонажа).
+        app.insert_resource(bevy_egui::EguiGlobalSettings {
+            enable_absorb_bevy_input_system: true,
+            ..Default::default()
+        })
+        .add_plugins(EguiPlugin::default())
+        .init_resource::<Loadout>()
+        .init_resource::<Ground>()
+        .insert_resource(Hud {
+            icons: hud::Icons::from_manifest(self.manifest.as_deref().unwrap_or("".as_ref())),
+            state: hud::HudState::default(),
+            power: power_ui::UiState::default(),
+            alerts: alerts_ui::UiState::default(),
+        })
+        .insert_resource(Autoplay {
+            enabled: self.autoplay,
+            frame: 0,
+        })
+        .init_resource::<fire::FxAssets>()
+        .init_resource::<lights::FlashlightOn>()
+        .add_systems(Startup, (install_body, install_sounds))
+        .add_systems(Last, alarm_visuals::sync)
+        .add_systems(PreUpdate, smoke_inputs.after(bevy::input::InputSystems))
+        .add_systems(
+            Update,
+            (
+                refresh_loadout,
+                cursor_ground,
+                hand_keys,
+                autoplay,
+                outfit::sync_outfits,
             )
-            .add_systems(
-                Update,
-                (
-                    ghost_camera,
-                    players::walk_bob,
-                    players::tint_ghosts,
-                    sounds::door_sounds,
-                    sounds::item_sounds,
-                    sounds::trace_alarm_playback,
-                    fx_events,
-                    combat::attack_and_heal,
-                    fire::sync_fx,
-                    fire::animate_flames,
-                    lights::sync_lights,
-                    lights::flashlight,
-                ),
-            )
-            .add_systems(
-                PostUpdate,
-                statusfx::camera_shake.before(bevy::transform::TransformSystems::Propagate),
-            )
-            .add_systems(
-                EguiPrimaryContextPass,
-                (
-                    loadout_window,
-                    players::other_bars,
-                    statusfx::overlay,
-                    lights::vignette,
-                ),
-            );
+                .chain(),
+        )
+        .add_systems(
+            Update,
+            (
+                ghost_camera,
+                players::walk_bob,
+                players::tint_ghosts,
+                sounds::door_sounds,
+                sounds::item_sounds,
+                sounds::trace_alarm_playback,
+                fx_events,
+                combat::attack_and_heal,
+                fire::sync_fx,
+                fire::animate_flames,
+                lights::sync_lights,
+                lights::flashlight,
+            ),
+        )
+        .add_systems(
+            PostUpdate,
+            statusfx::camera_shake.before(bevy::transform::TransformSystems::Propagate),
+        )
+        .add_systems(
+            EguiPrimaryContextPass,
+            (
+                loadout_window,
+                players::other_bars,
+                statusfx::overlay,
+                lights::vignette,
+            ),
+        );
     }
 }
 
@@ -329,6 +336,10 @@ fn refresh_loadout(net: Option<NonSend<Net>>, time: Res<Time>, mut loadout: ResM
         .core
         .component(me, gameplay::IDCONSOLE_COMPONENT)
         .and_then(gameplay::decode_view);
+    loadout.chat = net
+        .core
+        .component(me, gameplay::CHAT_COMPONENT)
+        .and_then(gameplay::decode_chat);
     loadout.roundend = net
         .core
         .component(me, gameplay::ROUNDEND_COMPONENT)
@@ -466,6 +477,15 @@ fn autoplay(
         let delta = at - net.core.position() - MVec3::Y * 0.9;
         look.yaw = (-delta.x).atan2(-delta.z);
         look.pitch = (-delta.y).atan2(delta.x.hypot(delta.z));
+    }
+    // Отладка: сказать фразу в чат (ASTRO_AUTOPLAY_SAY=текст).
+    if let Ok(text) = std::env::var("ASTRO_AUTOPLAY_SAY")
+        && matches!(state.frame, 80 | 100)
+    {
+        net.send_command(
+            gameplay::CMD_CHAT,
+            gameplay::chat_data(gameplay::Channel::Say, &text),
+        );
     }
     // Отладка: сразу взять должность (для снимков).
     if let Ok(job) = std::env::var("ASTRO_AUTOPLAY_JOB")
@@ -722,7 +742,15 @@ fn loadout_window(
     }
     // Лобби: экран на весь кадр, пока игрок не вышел на станцию.
     if let Some(lobby) = loadout.lobby.as_ref().filter(|l| l.in_lobby) {
-        for (kind, data) in hud::lobby_screen(&ctx, lobby) {
+        let at = egui::pos2(16.0, (ctx.content_rect().max.y - 230.0).max(16.0));
+        let mut cmds = hud::lobby_screen(&ctx, lobby);
+        cmds.extend(hud::chat_panel(
+            &ctx,
+            &mut hud.state,
+            loadout.chat.as_ref(),
+            at,
+        ));
+        for (kind, data) in cmds {
             net.send_command(kind, data);
         }
         return Ok(());
@@ -789,6 +817,8 @@ fn loadout_window(
     if let Some(v) = loadout.roundend.as_ref() {
         hud::roundend_panel(&ctx, v);
     }
+    let chat_at = egui::pos2(16.0, (ctx.content_rect().max.y - 290.0).max(16.0));
+    commands.extend(hud::chat_panel(&ctx, state, loadout.chat.as_ref(), chat_at));
     hud::toasts(&ctx, &mut loadout.toasts, time.elapsed_secs());
     commands.extend(hud::dispenser_window(
         &ctx,

@@ -11,6 +11,7 @@ use astrocore_world::{
 use prototypes::PrototypeRegistry;
 
 use crate::body::{Body, Environment, VITALS_COMPONENT, Vitals, encode_vitals};
+use crate::chat::ChatState;
 use crate::doafter::{
     Action, BREAK_DISTANCE_M, DOAFTER_COMPONENT, DoAfter, DoAfterView, PRY_TIME_S, encode_doafter,
 };
@@ -449,6 +450,8 @@ pub struct State {
     pub(crate) lobby: Option<Lobby>,
     /// Конец раунда: сигнал серверу, предел времени, часы раунда, экипаж, итог.
     pub(crate) round: RoundState,
+    /// Чат: журнал строк по получателям.
+    pub(crate) chat: ChatState,
     pub(crate) spawn_next: usize,
     /// Огнезапоры: клетки по обе стороны проёма и что они удерживают (давление, температура).
     pub(crate) firelock_cells: BTreeMap<ObjectId, (atmos::Cell, atmos::Cell)>,
@@ -940,6 +943,7 @@ impl State {
             placed: BTreeSet::new(),
             lobby: None,
             round: RoundState::default(),
+            chat: ChatState::default(),
             spawn_next: 0,
             firelock_cells: BTreeMap::new(),
             firelock_hold: BTreeMap::new(),
@@ -2233,6 +2237,7 @@ impl State {
         self.sync_power(ctx);
         self.tick_lobby(ctx);
         self.tick_round(ctx);
+        self.tick_chat(ctx);
         self.place_joiners(ctx);
         self.tick_disposal(ctx, dt);
         self.tick_conveyors(ctx, dt);
@@ -4473,6 +4478,127 @@ impl State {
         }
     }
 
+    /// Название должности или «Игрок N» — вместо имени персонажа.
+    fn speaker_name(&self, who: NetworkEntityId) -> String {
+        self.player_job
+            .get(&who)
+            .and_then(|j| self.jobs.iter().find(|s| &s.id == j))
+            .map_or_else(|| format!("Игрок {}", who.0), |s| s.title.clone())
+    }
+
+    /// Сообщение игрока: кому оно слышно, решает канал и расстояние.
+    fn chat_say(&mut self, ctx: &mut HookContext<'_>, actor: NetworkEntityId, data: &[u8]) {
+        use crate::chat::{self, Channel};
+        let Some((&byte, text)) = data.split_first() else {
+            return;
+        };
+        let (Some(mut channel), Ok(text)) = (Channel::from_byte(byte), std::str::from_utf8(text))
+        else {
+            return;
+        };
+        let Some(text) = chat::clean(text) else {
+            return;
+        };
+        if self
+            .chat
+            .last
+            .get(&actor)
+            .is_some_and(|t| self.clock - t < chat::MIN_GAP_S)
+        {
+            return;
+        }
+        self.chat.last.insert(actor, self.clock);
+        let in_lobby = self
+            .lobby
+            .as_ref()
+            .is_some_and(|l| l.in_lobby.contains(&actor));
+        let gone = |a: &NetworkEntityId| {
+            self.actors.get(a).is_some_and(|x| {
+                x.ghost || matches!(x.health.state(), crate::health::MobState::Dead)
+            })
+        };
+        let who = if matches!(channel, Channel::Ooc) || in_lobby {
+            format!("Игрок {}", actor.0)
+        } else {
+            self.speaker_name(actor)
+        };
+        if in_lobby {
+            channel = Channel::Ooc;
+        } else if gone(&actor) && !matches!(channel, Channel::Ooc) {
+            channel = Channel::Dead;
+        }
+        let spot = ctx.position_of(actor);
+        let players: Vec<NetworkEntityId> = ctx.players().collect();
+        let id = self.chat.next_id;
+        self.chat.next_id += 1;
+        let mut heard: Vec<(NetworkEntityId, String)> = Vec::new();
+        for p in players {
+            let dist = match (spot, ctx.position_of(p)) {
+                (Some(a), Some(b)) => a.distance(b),
+                _ => f32::INFINITY,
+            };
+            let deaf_to_living = gone(&p);
+            let text_for = match channel {
+                Channel::Ooc => Some(text.clone()),
+                Channel::Dead => deaf_to_living.then(|| text.clone()),
+                Channel::Say | Channel::Emote => {
+                    (p == actor || deaf_to_living || dist <= chat::VOICE_RANGE_M)
+                        .then(|| text.clone())
+                }
+                Channel::Whisper => {
+                    if p == actor || deaf_to_living || dist <= chat::WHISPER_CLEAR_M {
+                        Some(text.clone())
+                    } else if dist <= chat::WHISPER_MUFFLED_M {
+                        Some(chat::muffle(id, &text))
+                    } else {
+                        None
+                    }
+                }
+            };
+            if let Some(t) = text_for {
+                heard.push((p, t));
+            }
+        }
+        let line = chat::ChatLine {
+            id,
+            channel,
+            who,
+            text: String::new(),
+        };
+        for (p, t) in heard {
+            let entry = self.chat.log.entry(p).or_default();
+            entry.push_back(chat::ChatLine {
+                text: t,
+                ..line.clone()
+            });
+            while entry.len() > chat::KEEP_LINES {
+                entry.pop_front();
+            }
+            self.chat.dirty.insert(p);
+        }
+    }
+
+    /// Разослать журнал тем, кто получил новые строки.
+    fn tick_chat(&mut self, ctx: &mut HookContext<'_>) {
+        let ids: Vec<NetworkEntityId> = ctx.players().collect();
+        self.chat.log.retain(|p, _| ids.contains(p));
+        self.chat.last.retain(|p, _| ids.contains(p));
+        for p in std::mem::take(&mut self.chat.dirty) {
+            let Some(lines) = self.chat.log.get(&p) else {
+                continue;
+            };
+            let mut view = crate::chat::ChatView {
+                lines: lines.iter().cloned().collect(),
+            };
+            let mut bytes = crate::chat::encode_chat(&view);
+            while bytes.len() > crate::chat::CHAT_MAX_BYTES && !view.lines.is_empty() {
+                view.lines.remove(0);
+                bytes = crate::chat::encode_chat(&view);
+            }
+            ctx.set_component(p, crate::chat::CHAT_COMPONENT, bytes);
+        }
+    }
+
     /// «Готов»/«Не готов» до старта, «Присоединиться» после.
     fn lobby_ready(&mut self, _ctx: &mut HookContext<'_>, actor: NetworkEntityId) {
         let Some(l) = self.lobby.as_mut() else {
@@ -5463,6 +5589,9 @@ impl GameModule for GameplayModule {
     fn handle(&mut self, ctx: &mut HookContext<'_>, event: &HookEvent) {
         let st = &mut self.state;
         match event {
+            HookEvent::Command { actor, kind, data } if kind == crate::wire::CMD_CHAT => {
+                st.chat_say(ctx, *actor, data);
+            }
             HookEvent::Command { actor, kind, .. }
                 if st
                     .lobby

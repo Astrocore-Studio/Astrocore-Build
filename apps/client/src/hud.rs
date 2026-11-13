@@ -289,6 +289,10 @@ pub struct HudState {
     pub clothes_open: bool,
     /// Окно выбора должности закрыто вручную.
     pub jobs_hidden: bool,
+    /// Чат: введённый текст, канал и просьба вернуть фокус полю ввода.
+    pub chat_input: String,
+    pub chat_channel: u8,
+    pub chat_focus: bool,
     /// Поля окна консоли ID: правятся локально, уходят по кнопке «Записать».
     pub idc_name: String,
     pub idc_title: String,
@@ -887,6 +891,117 @@ fn draw_frame(ctx: &egui::Context, ui: &egui::Ui, icons: &mut Icons, outer: Rect
 
 /// Окно торгового автомата (`VendingMachineMenu`): список товаров со значками и остатком; нажатие
 /// заказывает товар, закрытие окна закрывает автомат.
+/// Окно чата (`ChatUIController`): журнал, выбор канала и строка ввода. Клавиша T или клик по
+/// строке ввода даёт ей фокус; пока она в фокусе, клавиши не двигают персонажа.
+pub fn chat_panel(
+    ctx: &egui::Context,
+    state: &mut HudState,
+    view: Option<&gameplay::ChatView>,
+    pos: Pos2,
+) -> Commands {
+    use gameplay::Channel;
+    let mut out: Commands = Vec::new();
+    let channels = [
+        (Channel::Say, "Сказать"),
+        (Channel::Whisper, "Шепнуть"),
+        (Channel::Emote, "Действие"),
+        (Channel::Ooc, "OOC"),
+    ];
+    if !ctx.egui_wants_keyboard_input() && ctx.input(|i| i.key_pressed(egui::Key::T)) {
+        state.chat_focus = true;
+    }
+    egui::Area::new(egui::Id::new("chat"))
+        .order(egui::Order::Foreground)
+        .fixed_pos(pos)
+        .show(ctx, |ui| {
+            egui::Frame::new()
+                .fill(Color32::from_rgba_unmultiplied(8, 10, 16, 190))
+                .corner_radius(4.0)
+                .inner_margin(6.0)
+                .show(ui, |ui| {
+                    ui.set_width(380.0);
+                    egui::ScrollArea::vertical()
+                        .max_height(150.0)
+                        .stick_to_bottom(true)
+                        .show(ui, |ui| {
+                            for l in view.map_or(&[][..], |v| &v.lines[..]) {
+                                let (text, color) = match l.channel {
+                                    Channel::Say => (
+                                        format!("{} говорит: «{}»", l.who, l.text),
+                                        Color32::from_gray(230),
+                                    ),
+                                    Channel::Whisper => (
+                                        format!("{} шепчет: «{}»", l.who, l.text),
+                                        Color32::from_gray(160),
+                                    ),
+                                    Channel::Emote => (
+                                        format!("* {} {}", l.who, l.text),
+                                        Color32::from_rgb(230, 200, 120),
+                                    ),
+                                    Channel::Ooc => (
+                                        format!("OOC {}: {}", l.who, l.text),
+                                        Color32::from_rgb(120, 170, 255),
+                                    ),
+                                    Channel::Dead => (
+                                        format!("МЕРТВЫЕ {}: {}", l.who, l.text),
+                                        Color32::from_rgb(190, 140, 255),
+                                    ),
+                                };
+                                ui.label(egui::RichText::new(text).color(color).size(13.0));
+                            }
+                        });
+                    ui.horizontal(|ui| {
+                        let name = |c: u8| {
+                            channels
+                                .iter()
+                                .find(|(ch, _)| ch.to_byte() == c)
+                                .map_or("Сказать", |(_, n)| *n)
+                        };
+                        egui::ComboBox::from_id_salt("chat_channel")
+                            .width(84.0)
+                            .selected_text(name(state.chat_channel))
+                            .show_ui(ui, |ui| {
+                                for (ch, label) in channels {
+                                    ui.selectable_value(
+                                        &mut state.chat_channel,
+                                        ch.to_byte(),
+                                        label,
+                                    );
+                                }
+                            });
+                        let edit = ui.add(
+                            egui::TextEdit::singleline(&mut state.chat_input)
+                                .hint_text("T — написать")
+                                .char_limit(gameplay::chat::MAX_LEN)
+                                .desired_width(f32::INFINITY),
+                        );
+                        if state.chat_focus {
+                            edit.request_focus();
+                            state.chat_focus = false;
+                        }
+                        let enter =
+                            edit.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter));
+                        if enter {
+                            let text = std::mem::take(&mut state.chat_input);
+                            if let Some(t) = gameplay::chat::clean(&text) {
+                                // «/me …» — действие, «/ooc …» — OOC, «/w …» — шёпот.
+                                let (channel, body) = match t.split_once(' ') {
+                                    Some(("/me", b)) => (Channel::Emote.to_byte(), b.to_string()),
+                                    Some(("/ooc", b)) => (Channel::Ooc.to_byte(), b.to_string()),
+                                    Some(("/w", b)) => (Channel::Whisper.to_byte(), b.to_string()),
+                                    _ => (state.chat_channel, t),
+                                };
+                                if let Some(ch) = Channel::from_byte(channel) {
+                                    out.push((gameplay::CMD_CHAT, gameplay::chat_data(ch, &body)));
+                                }
+                            }
+                        }
+                    });
+                });
+        });
+    out
+}
+
 /// Экран лобби (`LobbyGui`): заголовок, раунд, таймер и кнопка «Готов» / «Присоединиться».
 pub fn lobby_screen(ctx: &egui::Context, v: &gameplay::LobbyView) -> Commands {
     let mut out: Commands = Vec::new();

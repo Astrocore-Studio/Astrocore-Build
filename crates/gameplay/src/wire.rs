@@ -107,6 +107,8 @@ pub const CMD_DISP_CLOSE: &str = "disp.close";
 pub const CMD_LOCK: &str = "lock.toggle";
 /// Выбрать должность: данные — её идентификатор (UTF-8).
 pub const CMD_JOB: &str = "job.pick";
+/// Чат: байт канала и текст UTF-8 (`chat_data`).
+pub const CMD_CHAT: &str = "chat";
 /// Лобби: «Готов» / «Не готов», а после старта раунда — «Присоединиться».
 pub const CMD_LOBBY_READY: &str = "lobby.ready";
 pub const CMD_RESIST: &str = "fire.resist";
@@ -285,6 +287,12 @@ pub fn register_replication(reg: &mut ReplicationRegistry) -> Result<(), Replica
         channel: ReplicationChannel::ReliableOrdered,
         interest: Interest::Owner,
         max_bytes: crate::round_end::ROUNDEND_MAX_BYTES,
+    })?;
+    reg.register(ReplicatedKind {
+        name: crate::chat::CHAT_COMPONENT.into(),
+        channel: ReplicationChannel::ReliableOrdered,
+        interest: Interest::Owner,
+        max_bytes: crate::chat::CHAT_MAX_BYTES,
     })?;
     reg.register(ReplicatedKind {
         name: crate::lobby::LOBBY_COMPONENT.into(),

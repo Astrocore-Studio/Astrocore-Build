@@ -2345,6 +2345,61 @@ mod disposal_tests {
         assert!(v.crew.is_empty());
     }
 
+    fn chat_of(h: &Harness, who: ConnId) -> Vec<crate::ChatLine> {
+        let Some(net) = h.client(who).net_id() else {
+            return Vec::new();
+        };
+        h.client(who)
+            .component(net, crate::CHAT_COMPONENT)
+            .and_then(crate::decode_chat)
+            .map(|v| v.lines)
+            .unwrap_or_default()
+    }
+
+    fn say(h: &mut Harness, who: ConnId, channel: crate::Channel, text: &str) {
+        command(h, who, crate::CMD_CHAT, crate::chat_data(channel, text));
+        h.ticks(10);
+    }
+
+    #[test]
+    fn chat_reaches_those_in_range_and_the_dead_talk_among_themselves() {
+        use super::combat::kill;
+        let mut h = harness();
+        let (a, b, c) = (h.join("a"), h.join("b"), h.join("c"));
+        h.ticks(5);
+        say(&mut h, a, crate::Channel::Say, "Привет");
+        for who in [a, b, c] {
+            let l = chat_of(&h, who);
+            assert_eq!(
+                (l[0].channel, l[0].text.as_str()),
+                (crate::Channel::Say, "Привет")
+            );
+        }
+        assert!(chat_of(&h, b)[0].who.starts_with("Игрок"));
+        // Шёпот вплотную слышен ясно (неразборчивость на расстоянии проверена `muffle`).
+        say(&mut h, a, crate::Channel::Whisper, "секретное сообщение");
+        assert_eq!(chat_of(&h, b).last().unwrap().text, "секретное сообщение");
+        // Пустое и слишком частое сообщения отбрасываются.
+        let before = chat_of(&h, a).len();
+        say(&mut h, a, crate::Channel::Say, "   ");
+        assert_eq!(chat_of(&h, a).len(), before);
+        // Мёртвые говорят в чате мёртвых: живые его не видят.
+        command(&mut h, a, crate::CMD_JOB, b"Free".to_vec());
+        grab(&mut h, a, 10, near(), "ss14:cudgel");
+        kill(&mut h, a, c);
+        say(&mut h, c, crate::Channel::Say, "я призрак");
+        let dead = chat_of(&h, c).last().unwrap().clone();
+        assert_eq!(
+            (dead.channel, dead.text.as_str()),
+            (crate::Channel::Dead, "я призрак")
+        );
+        assert!(chat_of(&h, a).iter().all(|l| l.text != "я призрак"));
+        // OOC слышат все.
+        say(&mut h, c, crate::Channel::Ooc, "всем привет");
+        assert_eq!(chat_of(&h, a).last().unwrap().text, "всем привет");
+        assert_eq!(chat_of(&h, a).last().unwrap().channel, crate::Channel::Ooc);
+    }
+
     #[test]
     fn a_vending_machine_with_a_reader_refuses_without_access() {
         let mut h = harness();
