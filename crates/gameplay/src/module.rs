@@ -4642,12 +4642,21 @@ impl State {
         }
     }
 
+    /// Допуск на размер цели при проверке прямой видимости, м: объект — крупнее игрока.
+    fn verb_slack(target: crate::verbs::VerbTarget) -> f32 {
+        match target {
+            crate::verbs::VerbTarget::Object(_) => 1.0,
+            crate::verbs::VerbTarget::Player(_) => 0.5,
+        }
+    }
+
     /// Достаёт ли взгляд игрока до цели: расстояние по состоянию смотрящего и без преград.
     fn examine_distance(
         &self,
         ctx: &HookContext<'_>,
         actor: NetworkEntityId,
         spot: Vec3,
+        slack: f32,
     ) -> Option<f32> {
         let feet = ctx.position_of(actor)?;
         let a = self.actors.get(&actor)?;
@@ -4658,9 +4667,10 @@ impl State {
         if d > range {
             return None;
         }
-        // Преграда между глазами и целью (`InRangeUnOccluded`): допуск на толщину самой цели.
+        // Преграда между глазами и целью (`InRangeUnOccluded`): допуск `slack` на собственный
+        // объём цели (луч идёт в её центр и упирается в её же коробку).
         let free = ctx.unobstructed_distance(eye, spot);
-        (free >= d - 0.4).then_some(d)
+        (free >= d - slack).then_some(d)
     }
 
     /// Меню глаголов для цели (`GetVerbsEvent`): осмотр всегда, остальное — по обстоятельствам.
@@ -4673,7 +4683,7 @@ impl State {
             return;
         };
         let mut verbs = Vec::new();
-        match self.examine_distance(ctx, actor, spot) {
+        match self.examine_distance(ctx, actor, spot, Self::verb_slack(target)) {
             Some(d) => {
                 verbs.push(Verb {
                     id: "examine".into(),
@@ -4718,7 +4728,7 @@ impl State {
         let Some(spot) = self.verb_target_spot(ctx, target) else {
             return;
         };
-        let Some(dist) = self.examine_distance(ctx, actor, spot) else {
+        let Some(dist) = self.examine_distance(ctx, actor, spot, Self::verb_slack(target)) else {
             self.popup(actor, "You can't make out whatever that is.");
             return;
         };
