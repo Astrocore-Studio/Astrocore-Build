@@ -173,12 +173,17 @@ pub fn walk_bob(
         } else {
             0.0
         };
+        // Лежит убитый или в критическом состоянии, а также тот, кто сам лёг (`REST`).
         let lying = match (net.as_ref(), id) {
-            (Some(n), Some(id)) => n
-                .core
-                .component(id, gameplay::MOBSTATE_COMPONENT)
-                .and_then(|b| b.first().copied())
-                .is_some_and(|b| MobState::from_byte(b) != MobState::Alive),
+            (Some(n), Some(id)) => {
+                n.core
+                    .component(id, gameplay::MOBSTATE_COMPONENT)
+                    .and_then(|b| b.first().copied())
+                    .is_some_and(|b| MobState::from_byte(b) != MobState::Alive)
+                    || n.core
+                        .component(id, gameplay::LYING_COMPONENT)
+                        .is_some_and(|b| b.first() == Some(&1))
+            }
             _ => false,
         };
         if let Ok(kids) = children.get(e) {
@@ -187,7 +192,7 @@ pub fn walk_bob(
                     if lying {
                         // Лежит на боку: спрайт повёрнут на 90° вокруг основания и чуть сдвинут.
                         q.rotation = Quat::from_rotation_z(-std::f32::consts::FRAC_PI_2);
-                        q.translation = Vec3::new(0.45, 0.05, 0.0);
+                        q.translation = Vec3::new(0.25, 0.03, 0.0);
                     } else {
                         q.rotation = Quat::IDENTITY;
                         q.translation = Vec3::new(0.0, bob, 0.0);

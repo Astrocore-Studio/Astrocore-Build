@@ -66,6 +66,9 @@ pub fn pick_target(
         .map(|(id, _, part)| (id, part))
 }
 
+/// Куда целится бросок, если курсор смотрит выше пола, м.
+const THROW_AIM_M: f32 = 8.0;
+
 /// Левая кнопка по миру — удар по игроку под курсором; `T` — применить предмет из руки на него.
 #[allow(clippy::too_many_arguments)]
 pub fn attack_and_heal(
@@ -78,6 +81,7 @@ pub fn attack_and_heal(
     transforms: Query<&Transform>,
     loadout: Res<crate::Loadout>,
     ground: Res<crate::Ground>,
+    mut hud: ResMut<crate::Hud>,
     net: Option<NonSendMut<Net>>,
 ) {
     let Some(mut net) = net else { return };
@@ -88,6 +92,31 @@ pub fn attack_and_heal(
         net.send_command(CMD_HEAL, gameplay::heal_data(active, me));
     }
     let attack = buttons.just_pressed(MouseButton::Left) && !wants.wants_any_pointer_input();
+    // Режим броска: щелчок бросает предмет из руки в точку под курсором и выключает режим.
+    if attack && hud.state.throw_mode {
+        hud.state.throw_mode = false;
+        let (Ok(window), Ok((camera, cam_t))) = (windows.single(), cameras.single()) else {
+            return;
+        };
+        let ray = window
+            .cursor_position()
+            .and_then(|c| camera.viewport_to_world(cam_t, c).ok());
+        let feet = net.core.position();
+        // Точка на полу под курсором; если смотрят выше пола — вперёд на предельную дальность.
+        let target = ground.0.map(|p| [p[0], p[1], p[2]]).or_else(|| {
+            let r = ray?;
+            let d = *r.direction;
+            Some([
+                feet.x + d.x * THROW_AIM_M,
+                feet.y,
+                feet.z + d.z * THROW_AIM_M,
+            ])
+        });
+        if let Some(t) = target {
+            net.send_command(gameplay::CMD_THROW, gameplay::throw_data(t));
+        }
+        return;
+    }
     let heal_other = keys.just_pressed(KeyCode::KeyT);
     let feed_other = keys.just_pressed(KeyCode::KeyC);
     if !attack && !heal_other && !feed_other {

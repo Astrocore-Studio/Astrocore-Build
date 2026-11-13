@@ -571,6 +571,17 @@ fn autoplay(
             gameplay::chat_data(gameplay::Channel::Say, &text),
         );
     }
+    // Отладка: лечь (ASTRO_AUTOPLAY_REST) и бросить предмет из руки вперёд (ASTRO_AUTOPLAY_THROW).
+    if std::env::var_os("ASTRO_AUTOPLAY_REST").is_some() && state.frame == 100 {
+        net.send_command(gameplay::CMD_REST, Vec::new());
+    }
+    if std::env::var_os("ASTRO_AUTOPLAY_THROW").is_some() && state.frame == 90 {
+        let p = net.core.position();
+        net.send_command(
+            gameplay::CMD_THROW,
+            gameplay::throw_data([p.x + 0.6, p.y, p.z - 3.0]),
+        );
+    }
     // Отладка: сразу взять должность (для снимков).
     if let Ok(job) = std::env::var("ASTRO_AUTOPLAY_JOB")
         && state.frame == 60
@@ -860,6 +871,11 @@ fn loadout_window(
         alerts,
     } = &mut *hud;
     state.health = loadout.health.clone();
+    state.lying = net
+        .core
+        .net_id()
+        .and_then(|me| net.core.component(me, gameplay::LYING_COMPONENT))
+        .is_some_and(|b| b.first() == Some(&1));
     state.vitals = loadout.vitals.clone();
     let commands = hud::draw(
         &ctx,

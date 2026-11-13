@@ -342,6 +342,10 @@ pub struct HudState {
     /// Режимы кнопок справа внизу (боевой режим, шаг вместо бега).
     pub combat: bool,
     pub walk: bool,
+    /// Режим броска: следующий щелчок по миру бросает предмет из руки.
+    pub throw_mode: bool,
+    /// Лежит ли игрок (реплика сервера).
+    pub lying: bool,
     /// Поля окна консоли ID: правятся локально, уходят по кнопке «Записать».
     pub idc_name: String,
     pub idc_title: String,
@@ -557,10 +561,21 @@ fn edge_panel(ctx: &egui::Context, state: &mut HudState, out: &mut Commands) {
             {
                 out.push((gameplay::CMD_RESIST, Vec::new()));
             }
-            ui.add_enabled(false, btn("REST", mode(false)))
-                .on_disabled_hover_text("Лечь — пока не перенесено");
-            ui.add_enabled(false, btn("THROW", mode(false)))
-                .on_disabled_hover_text("Бросок — пока не перенесён");
+            let lying = state.lying;
+            if ui
+                .add(btn(if lying { "STAND" } else { "REST" }, mode(lying)))
+                .on_hover_text("Лечь / встать (вставать 2 с, ползком медленнее)")
+                .clicked()
+            {
+                out.push((gameplay::CMD_REST, Vec::new()));
+            }
+            if ui
+                .add(btn("THROW", mode(state.throw_mode)))
+                .on_hover_text("Бросок: щёлкните по миру, чтобы бросить предмет из руки")
+                .clicked()
+            {
+                state.throw_mode = !state.throw_mode;
+            }
         });
     egui::Area::new(egui::Id::new("edge_doll"))
         .anchor(egui::Align2::RIGHT_BOTTOM, Vec2::new(-10.0, -10.0))
@@ -1111,7 +1126,7 @@ pub fn chat_panel(
         (Channel::Emote, "Действие"),
         (Channel::Ooc, "OOC"),
     ];
-    if !ctx.egui_wants_keyboard_input() && ctx.input(|i| i.key_pressed(egui::Key::T)) {
+    if !ctx.egui_wants_keyboard_input() && ctx.input(|i| i.key_pressed(egui::Key::Enter)) {
         state.chat_focus = true;
     }
     egui::Area::new(egui::Id::new("chat"))
@@ -1175,7 +1190,7 @@ pub fn chat_panel(
                             });
                         let edit = ui.add(
                             egui::TextEdit::singleline(&mut state.chat_input)
-                                .hint_text("T — написать")
+                                .hint_text("Enter — написать")
                                 .char_limit(gameplay::chat::MAX_LEN)
                                 .desired_width(f32::INFINITY),
                         );
