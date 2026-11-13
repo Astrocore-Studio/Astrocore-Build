@@ -132,6 +132,8 @@ pub struct SpriteSource {
     pub pixel_size: bool,
     /// Лежащий спрайт поворачивается по `rot` карты (конвейеры, трубы).
     pub oriented: bool,
+    /// Название прототипа для подсказки под прицелом (`EntityPrototype.name`).
+    pub name: Option<String>,
 }
 
 /// Пикселей спрайта SS14 на метр.
@@ -280,6 +282,7 @@ pub fn build_manifest(
                 "size": size,
                 "grid": grid,
                 "oriented": s.oriented,
+                "name": s.name,
                 "layout": if s.flat {
                     "flat"
                 } else if box4 {
@@ -358,6 +361,7 @@ mod tests {
             flat: false,
             pixel_size: false,
             oriented: false,
+            name: None,
         };
         let json = build_manifest(
             &root,

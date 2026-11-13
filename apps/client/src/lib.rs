@@ -103,6 +103,7 @@ impl Plugin for BuildClientPlugin {
             (
                 refresh_loadout,
                 cursor_ground,
+                aim_target,
                 hand_keys,
                 autoplay,
                 outfit::sync_outfits,
@@ -235,6 +236,84 @@ fn cursor_ground(
     };
     let feet = net.core.position();
     ground.0 = ground_point(ray.origin, *ray.direction, feet.y + hud::GROUND_LIFT_M);
+}
+
+/// Луч против ящика: расстояние до входа в ящик `[min, max]`.
+fn ray_box(origin: [f32; 3], dir: [f32; 3], min: [f32; 3], max: [f32; 3]) -> Option<f32> {
+    let (mut t0, mut t1) = (0.0_f32, f32::INFINITY);
+    for i in 0..3 {
+        if dir[i].abs() < 1e-6 {
+            if origin[i] < min[i] || origin[i] > max[i] {
+                return None;
+            }
+            continue;
+        }
+        let (a, b) = ((min[i] - origin[i]) / dir[i], (max[i] - origin[i]) / dir[i]);
+        t0 = t0.max(a.min(b));
+        t1 = t1.min(a.max(b));
+        if t0 > t1 {
+            return None;
+        }
+    }
+    Some(t0)
+}
+
+/// Дальность подсказки «что под прицелом», м.
+const AIM_RANGE_M: f32 = 3.5;
+
+/// Что под прицелом (в первом лице — центр экрана, в третьем — курсор): название объекта для
+/// подсказки (`ContextMenu`/подпись SS14 3D).
+fn aim_target(
+    windows: Query<&Window, With<bevy::window::PrimaryWindow>>,
+    cameras: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
+    look: Option<Res<astrocore_client::Look>>,
+    net: Option<NonSend<Net>>,
+    mut hud: ResMut<Hud>,
+) {
+    hud.state.aim = None;
+    let (Some(net), Ok(window), Ok((camera, transform))) =
+        (net, windows.single(), cameras.single())
+    else {
+        return;
+    };
+    let first_person = look.is_some_and(|l| l.first_person);
+    let ray = if first_person {
+        Ray3d::new(transform.translation(), transform.forward())
+    } else {
+        let Some(cursor) = window.cursor_position() else {
+            return;
+        };
+        let Ok(ray) = camera.viewport_to_world(transform, cursor) else {
+            return;
+        };
+        ray
+    };
+    let Some(world) = net.core.world() else {
+        return;
+    };
+    let (origin, dir) = (ray.origin.to_array(), ray.direction.as_vec3().to_array());
+    let me = net.core.position();
+    let mut best: Option<(f32, String)> = None;
+    for o in world.authored() {
+        let astrocore_world::AuthoredKind::Placement { prototype } = &o.kind else {
+            continue;
+        };
+        let Some(name) = hud.icons.name(prototype.as_str()) else {
+            continue;
+        };
+        let (min, max) = (o.min().to_array(), o.max().to_array());
+        let Some(t) = ray_box(origin, dir, min, max) else {
+            continue;
+        };
+        let centre = (o.min() + o.max()) * 0.5;
+        if t <= AIM_RANGE_M + 4.0
+            && centre.distance(me) <= AIM_RANGE_M
+            && best.as_ref().is_none_or(|(b, _)| t < *b)
+        {
+            best = Some((t, name.to_string()));
+        }
+    }
+    hud.state.aim = best.map(|(_, n)| n);
 }
 
 #[derive(Resource)]

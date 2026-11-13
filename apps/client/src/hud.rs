@@ -65,6 +65,8 @@ pub struct Icons {
     /// Размер текстуры в пикселях, нужен для раскладки кадров.
     sizes: HashMap<String, (u32, u32)>,
     first_frames: HashMap<String, Rect>,
+    /// Названия прототипов для подсказки под прицелом.
+    names: HashMap<String, String>,
 }
 
 impl Icons {
@@ -78,7 +80,13 @@ impl Icons {
             delays: HashMap::new(),
             sizes: HashMap::new(),
             first_frames: HashMap::new(),
+            names: HashMap::new(),
         }
+    }
+
+    /// Название прототипа (`EntityPrototype.name`).
+    pub fn name(&self, proto: &str) -> Option<&str> {
+        self.names.get(proto).map(String::as_str)
     }
 
     /// Каталог с текстурами (`assets/ss14`).
@@ -107,7 +115,22 @@ impl Icons {
                 })
             })
             .unwrap_or_default();
-        Self::new(root, items)
+        let names = std::fs::read(path)
+            .ok()
+            .and_then(|b| serde_json::from_slice::<serde_json::Value>(&b).ok())
+            .and_then(|v| {
+                v.get("sprites")?.as_object().map(|m| {
+                    m.iter()
+                        .filter_map(|(k, e)| {
+                            Some((k.clone(), e.get("name")?.as_str()?.to_string()))
+                        })
+                        .collect()
+                })
+            })
+            .unwrap_or_default();
+        let mut icons = Self::new(root, items);
+        icons.names = names;
+        icons
     }
 
     fn load(&mut self, ctx: &egui::Context, rel: &str) -> Option<egui::TextureId> {
@@ -293,6 +316,11 @@ pub struct HudState {
     pub chat_input: String,
     pub chat_channel: u8,
     pub chat_focus: bool,
+    /// Название объекта под прицелом.
+    pub aim: Option<String>,
+    /// Режимы кнопок справа внизу (боевой режим, шаг вместо бега).
+    pub combat: bool,
+    pub walk: bool,
     /// Поля окна консоли ID: правятся локально, уходят по кнопке «Записать».
     pub idc_name: String,
     pub idc_title: String,
@@ -382,6 +410,10 @@ pub fn draw(
                 state.clothes_open = !state.clothes_open;
             }
         });
+    edge_panel(ctx, state, &mut out);
+    if first_person {
+        aim_tooltip(ctx, state);
+    }
     alerts(
         ctx,
         icons,
@@ -430,6 +462,157 @@ pub fn draw(
     }
     drag_ghost_and_world_drop(ctx, icons, ground, &mut out);
     out
+}
+
+/// Подсказка под прицелом: название объекта, на который смотрит игрок (SS14 3D).
+fn aim_tooltip(ctx: &egui::Context, state: &HudState) {
+    let Some(name) = state.aim.as_deref() else {
+        return;
+    };
+    let c = ctx.content_rect().center();
+    let painter = ctx.layer_painter(egui::LayerId::new(
+        egui::Order::Tooltip,
+        egui::Id::new("aim_tooltip"),
+    ));
+    let font = egui::FontId::proportional(15.0);
+    let galley = painter.layout_no_wrap(name.to_string(), font, Color32::from_gray(235));
+    let rect = Rect::from_min_size(
+        Pos2::new(c.x - galley.size().x * 0.5, c.y + 22.0),
+        galley.size(),
+    )
+    .expand2(Vec2::new(8.0, 3.0));
+    painter.rect_filled(rect, 3.0, Color32::from_rgba_unmultiplied(8, 10, 16, 190));
+    painter.galley(rect.min + Vec2::new(8.0, 3.0), galley, Color32::WHITE);
+}
+
+/// Цвет части тела куклы по доле урона до порога отказа: от зелёного к красному.
+fn doll_color(damage: f32, limit: f32) -> Color32 {
+    let t = (damage / limit).clamp(0.0, 1.0);
+    let (r, g) = (60.0 + 190.0 * t, 200.0 - 150.0 * t);
+    Color32::from_rgb(r as u8, g as u8, 70)
+}
+
+/// Панель справа внизу (`HandsGui`/`HealthDoll` SS14 3D): кнопки COMBAT, RUN/WALK, RESIST, REST,
+/// THROW и кукла здоровья с процентом. REST и THROW пока не перенесены: кнопки неактивны.
+fn edge_panel(ctx: &egui::Context, state: &mut HudState, out: &mut Commands) {
+    let health = state.health.clone();
+    egui::Area::new(egui::Id::new("edge_panel"))
+        .anchor(egui::Align2::RIGHT_BOTTOM, Vec2::new(-10.0, -10.0))
+        .show(ctx, |ui| {
+            ui.with_layout(egui::Layout::left_to_right(egui::Align::Max), |ui| {
+                ui.vertical(|ui| {
+                    let mode = |on: bool| {
+                        if on {
+                            Color32::from_rgb(150, 50, 50)
+                        } else {
+                            Color32::from_rgb(40, 46, 60)
+                        }
+                    };
+                    let size = Vec2::new(86.0, 24.0);
+                    let btn = |label: &str, fill: Color32| {
+                        egui::Button::new(egui::RichText::new(label).size(12.0).strong())
+                            .fill(fill)
+                            .min_size(size)
+                    };
+                    if ui
+                        .add(btn("COMBAT", mode(state.combat)))
+                        .on_hover_text("Боевой режим: бить можно только в нём")
+                        .clicked()
+                    {
+                        state.combat = !state.combat;
+                        out.push((gameplay::CMD_COMBAT, vec![u8::from(state.combat)]));
+                    }
+                    let run = if state.walk { "WALK" } else { "RUN" };
+                    if ui
+                        .add(btn(run, mode(state.walk)))
+                        .on_hover_text("Бег / шаг")
+                        .clicked()
+                    {
+                        state.walk = !state.walk;
+                        out.push((gameplay::CMD_WALK, vec![u8::from(state.walk)]));
+                    }
+                    if ui
+                        .add(btn("RESIST", mode(false)))
+                        .on_hover_text("Сопротивляться: потушить огонь, выбраться из капсулы")
+                        .clicked()
+                    {
+                        out.push((gameplay::CMD_RESIST, Vec::new()));
+                    }
+                    ui.add_enabled(false, btn("REST", mode(false)))
+                        .on_disabled_hover_text("Лечь — пока не перенесено");
+                    ui.add_enabled(false, btn("THROW", mode(false)))
+                        .on_disabled_hover_text("Бросок — пока не перенесён");
+                });
+                // Кукла здоровья и процент (`total / CRITICAL_AT`).
+                let (area, _) = ui.allocate_exact_size(Vec2::new(64.0, 118.0), Sense::hover());
+                let total: f32 = health.as_ref().map_or(0.0, |h| h.damage.values().sum());
+                let pct = (100.0 - total / gameplay::CRITICAL_AT * 100.0).clamp(0.0, 100.0);
+                let dmg = |part: &str| {
+                    health
+                        .as_ref()
+                        .and_then(|h| h.parts.get(part))
+                        .copied()
+                        .unwrap_or(0.0)
+                };
+                let p = ui.painter();
+                let o = area.min;
+                let part = |p: &egui::Painter, name: &str, limit: f32, r: Rect| {
+                    p.rect_filled(r, 3.0, doll_color(dmg(name), limit));
+                    p.rect_stroke(
+                        r,
+                        3.0,
+                        egui::Stroke::new(1.0, Color32::from_black_alpha(160)),
+                        egui::StrokeKind::Inside,
+                    );
+                };
+                let at = |x: f32, y: f32, w: f32, h: f32| {
+                    Rect::from_min_size(o + Vec2::new(x, y), Vec2::new(w, h))
+                };
+                part(
+                    p,
+                    "Head",
+                    gameplay::HEAD_FATAL_AT,
+                    at(23.0, 0.0, 18.0, 18.0),
+                );
+                part(
+                    p,
+                    "Torso",
+                    gameplay::TORSO_FATAL_AT,
+                    at(17.0, 20.0, 30.0, 38.0),
+                );
+                part(
+                    p,
+                    "LeftArm",
+                    gameplay::LIMB_DISABLED_AT,
+                    at(5.0, 20.0, 10.0, 36.0),
+                );
+                part(
+                    p,
+                    "RightArm",
+                    gameplay::LIMB_DISABLED_AT,
+                    at(49.0, 20.0, 10.0, 36.0),
+                );
+                part(
+                    p,
+                    "LeftLeg",
+                    gameplay::LIMB_DISABLED_AT,
+                    at(17.0, 60.0, 14.0, 40.0),
+                );
+                part(
+                    p,
+                    "RightLeg",
+                    gameplay::LIMB_DISABLED_AT,
+                    at(33.0, 60.0, 14.0, 40.0),
+                );
+                p.text(
+                    o + Vec2::new(32.0, 109.0),
+                    egui::Align2::CENTER_CENTER,
+                    format!("{pct:.0}%"),
+                    egui::FontId::proportional(15.0),
+                    Color32::WHITE,
+                );
+            });
+        });
 }
 
 /// Панель алертов справа вверху (`AlertsUI` SS14), столбцом: здоровье (`health0…4` по доле урона до

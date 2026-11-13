@@ -250,6 +250,7 @@ pub fn sprites_of(registry: &PrototypeRegistry) -> Result<Vec<SpriteSource>, Pol
             flat: item.is_some() || floor_object,
             pixel_size: item.is_none(),
             oriented: floor_object,
+            name: r.name.clone(),
         });
     }
     Ok(out)

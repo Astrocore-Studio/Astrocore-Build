@@ -1202,6 +1202,7 @@ mod combat {
     }
 
     fn hit(h: &mut Harness, who: ConnId, target: ConnId) {
+        command(h, who, crate::CMD_COMBAT, vec![1]);
         let net = h.client(target).net_id().unwrap();
         command(h, who, CMD_ATTACK, crate::attack_data(net));
     }
@@ -1329,6 +1330,7 @@ mod combat {
     }
 
     fn hit_part(h: &mut Harness, who: ConnId, target: ConnId, part: &str) {
+        command(h, who, crate::CMD_COMBAT, vec![1]);
         let net = h.client(target).net_id().unwrap();
         let i = crate::PARTS.iter().position(|p| *p == part).unwrap() as u8;
         command(h, who, CMD_ATTACK, crate::attack_part_data(net, i));
@@ -1778,6 +1780,7 @@ mod survival {
     }
 
     fn hit_part_pub(h: &mut Harness, who: ConnId, target: ConnId, part: &str) {
+        command(h, who, crate::CMD_COMBAT, vec![1]);
         let net = h.client(target).net_id().unwrap();
         let i = crate::PARTS.iter().position(|p| *p == part).unwrap() as u8;
         command(h, who, crate::CMD_ATTACK, crate::attack_part_data(net, i));
@@ -2398,6 +2401,41 @@ mod disposal_tests {
         say(&mut h, c, crate::Channel::Ooc, "всем привет");
         assert_eq!(chat_of(&h, a).last().unwrap().text, "всем привет");
         assert_eq!(chat_of(&h, a).last().unwrap().channel, crate::Channel::Ooc);
+    }
+
+    #[test]
+    fn blows_land_only_in_combat_mode() {
+        let mut h = harness();
+        let (a, b) = (h.join("a"), h.join("b"));
+        h.ticks(5);
+        grab(&mut h, a, 10, near(), "ss14:cudgel");
+        let net = h.client(b).net_id().unwrap();
+        let i = crate::PARTS.iter().position(|p| *p == "Head").unwrap() as u8;
+        // Без боевого режима удар не проходит, в боевом — проходит.
+        let dmg = |h: &Harness| -> f32 {
+            let b_net = h.client(b).net_id().unwrap();
+            h.client(b)
+                .component(b_net, crate::HEALTH_COMPONENT)
+                .and_then(crate::decode_health)
+                .map_or(0.0, |v| v.damage.values().sum())
+        };
+        command(
+            &mut h,
+            a,
+            crate::CMD_ATTACK,
+            crate::attack_part_data(net, i),
+        );
+        h.ticks(5);
+        assert_eq!(dmg(&h), 0.0);
+        command(&mut h, a, crate::CMD_COMBAT, vec![1]);
+        command(
+            &mut h,
+            a,
+            crate::CMD_ATTACK,
+            crate::attack_part_data(net, i),
+        );
+        h.ticks(5);
+        assert!(dmg(&h) > 0.0);
     }
 
     #[test]

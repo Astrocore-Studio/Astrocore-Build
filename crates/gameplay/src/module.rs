@@ -43,6 +43,8 @@ use crate::wire::{
 pub const INTERACTION_RANGE_M: f32 = 1.5;
 /// Высота груди над ступнями, м.
 const CHEST_M: f32 = 0.55;
+/// Скорость шага относительно бега.
+const WALK_FACTOR: f32 = 2.5 / 4.5;
 /// Размер выброшенного предмета в мире, м.
 const DROPPED_SIZE_M: f32 = 0.3;
 /// На сколько выброшенный предмет отступает от препятствия, м.
@@ -63,6 +65,9 @@ pub(crate) struct Actor {
     pub(crate) next_attack: f32,
     /// Заморожен ли персонаж (чтобы замечать перемены).
     pub(crate) frozen: bool,
+    /// Боевой режим включён; идёт шагом, а не бегом.
+    pub(crate) combat: bool,
+    pub(crate) walking: bool,
     /// Когда в следующий раз разослать здоровье из-за кровотечения или удушья, с.
     pub(crate) next_health_publish: f32,
     /// Здоровье изменилось сидящими внутри процессами, а разослать ещё не успели.
@@ -96,6 +101,8 @@ impl Actor {
             mob_state: MobState::Alive,
             next_attack: 0.0,
             frozen: false,
+            combat: false,
+            walking: false,
             next_health_publish: 0.0,
             health_dirty: false,
             ghost: false,
@@ -2178,7 +2185,13 @@ impl State {
                 body.tick(dt, &mut env, mob, barotrauma)
             };
             let vitals = body.vitals();
-            let speed = if a_ghost { 1.0 } else { vitals.speed };
+            // Шагом идут медленнее: 2,5 против 4,5 у бега (`WalkSpeed` / `SprintSpeed`).
+            let walk = if self.actors.get(&id).is_some_and(|a| a.walking) {
+                WALK_FACTOR
+            } else {
+                1.0
+            };
+            let speed = if a_ghost { 1.0 } else { vitals.speed * walk };
             if (speed - self.speed_sent.get(&id).copied().unwrap_or(1.0)).abs() > 1e-4 {
                 self.speed_sent.insert(id, speed);
                 ctx.set_speed(id, speed);
@@ -5861,8 +5874,21 @@ impl GameModule for GameplayModule {
                         st.after_health_change(ctx, *actor);
                     }
                 }
+                crate::wire::CMD_COMBAT => {
+                    if let [on] = data[..] {
+                        st.actor(*actor).combat = on != 0;
+                    }
+                }
+                crate::wire::CMD_WALK => {
+                    if let [on] = data[..] {
+                        st.actor(*actor).walking = on != 0;
+                    }
+                }
                 CMD_ATTACK => {
-                    if let Some((target, part)) = parse_attack_part(data) {
+                    // Бить можно только в боевом режиме (`CombatModeSystem`).
+                    if st.actors.get(actor).is_some_and(|a| a.combat)
+                        && let Some((target, part)) = parse_attack_part(data)
+                    {
                         st.attack(ctx, *actor, target, part);
                     }
                 }

@@ -112,6 +112,10 @@ pub const CMD_CHAT: &str = "chat";
 /// Лобби: «Готов» / «Не готов», а после старта раунда — «Присоединиться».
 pub const CMD_LOBBY_READY: &str = "lobby.ready";
 pub const CMD_RESIST: &str = "fire.resist";
+/// Боевой режим (`CombatModeSystem`): байт 1 — включить, 0 — выключить. Бить можно только в нём.
+pub const CMD_COMBAT: &str = "combat.mode";
+/// Ходьба вместо бега (`ToggleWalk`): байт 1 — идти шагом, 0 — бежать.
+pub const CMD_WALK: &str = "move.walk";
 
 /// Взаимодействие с целью в мире (предмет на земле или дверь): `[id цели 16 байт]`.
 /// Что именно произойдёт, решает цепочка обработчиков: пустая рука — `InteractHand`, предмет в
