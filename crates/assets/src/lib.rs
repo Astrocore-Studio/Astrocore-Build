@@ -260,6 +260,14 @@ pub fn build_manifest(
         } else {
             [1, 1]
         };
+        let (dirs, frames) = set.meta.state(&s.state).map_or((1, 1), |st| {
+            (
+                u8::from(st.directions == astrocore_sprites::DirectionSet::Four) * 4,
+                st.frame_count() as u32,
+            )
+        });
+        // Стоячая вещь с четырьмя направлениями собирается брусом из четырёх видов.
+        let box4 = !s.flat && dirs == 4 && grid[0] * grid[1] >= 4 * frames;
         let size = if s.pixel_size && cw > 0 && ch > 0 {
             [cw as f32 / PIXELS_PER_METER, ch as f32 / PIXELS_PER_METER]
         } else {
@@ -272,7 +280,14 @@ pub fn build_manifest(
                 "size": size,
                 "grid": grid,
                 "oriented": s.oriented,
-                "layout": if s.flat { "flat" } else { "voxel" },
+                "layout": if s.flat {
+                    "flat"
+                } else if box4 {
+                    "box4"
+                } else {
+                    "voxel"
+                },
+                "frames": frames,
                 // Глубина объёма стоячего спрайта: половина меньшей стороны, от 10 до 50 см.
                 "thickness": if s.flat {
                     0.03
