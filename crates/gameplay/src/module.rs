@@ -1369,7 +1369,6 @@ impl State {
 
     /// Положить предмет в мир в точке `at` (ступни предмета).
     pub(crate) fn place(ctx: &mut HookContext<'_>, item: &HeldItem, at: Vec3) -> bool {
-        eprintln!("PLACE_DEBUG {} at {at:?}", item.prototype);
         let Some(floor) = floor_at(ctx, at.y) else {
             return false;
         };

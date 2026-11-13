@@ -712,6 +712,8 @@ fn autoplay(
             }
             _ => {}
         }
+        // Остальной сценарий автоигры (экипировка, подбор) оружие бы убрал.
+        return;
     }
     // Отладка: лечь (ASTRO_AUTOPLAY_REST) и бросить предмет из руки вперёд (ASTRO_AUTOPLAY_THROW).
     if std::env::var_os("ASTRO_AUTOPLAY_REST").is_some() && state.frame == 100 {

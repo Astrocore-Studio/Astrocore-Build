@@ -3023,10 +3023,18 @@ mod disposal_tests {
         grab(&mut h, a, 95, near(), "ss14:pistol");
         command(&mut h, a, crate::CMD_COMBAT, vec![1]);
         for _ in 0..3 {
-            command(&mut h, a, crate::CMD_SHOOT, crate::throw_data([8.5, 0.8, 2.5]));
+            command(
+                &mut h,
+                a,
+                crate::CMD_SHOOT,
+                crate::throw_data([8.5, 0.8, 2.5]),
+            );
             h.ticks(10);
         }
-        assert!(hands_of(&h, a, a).unwrap().held().next().is_some(), "оружие в руке");
+        assert!(
+            hands_of(&h, a, a).unwrap().held().next().is_some(),
+            "оружие в руке"
+        );
         assert_eq!(ammo_of(&h, a).ammo, 0, "три выстрела в пустоту");
     }
 
