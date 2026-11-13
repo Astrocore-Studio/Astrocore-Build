@@ -315,6 +315,12 @@ fn aim_target(
             best = Some((t, name.to_string()));
         }
     }
+    if std::env::var_os("ASTRO_AIM_DEBUG").is_some() {
+        let n = world.authored().count();
+        eprintln!(
+            "AIM first_person={first_person} dir={dir:?} origin={origin:?} authored={n} hit={best:?}"
+        );
+    }
     hud.state.aim = best.map(|(_, n)| n);
 }
 
