@@ -887,6 +887,69 @@ fn draw_frame(ctx: &egui::Context, ui: &egui::Ui, icons: &mut Icons, outer: Rect
 
 /// Окно торгового автомата (`VendingMachineMenu`): список товаров со значками и остатком; нажатие
 /// заказывает товар, закрытие окна закрывает автомат.
+/// Экран лобби (`LobbyGui`): заголовок, раунд, таймер и кнопка «Готов» / «Присоединиться».
+pub fn lobby_screen(ctx: &egui::Context, v: &gameplay::LobbyView) -> Commands {
+    let mut out: Commands = Vec::new();
+    let screen = ctx.content_rect();
+    egui::Area::new(egui::Id::new("lobby"))
+        .order(egui::Order::Foreground)
+        .fixed_pos(screen.min)
+        .show(ctx, |ui| {
+            ui.painter()
+                .rect_filled(screen, 0.0, Color32::from_rgb(10, 12, 18));
+            ui.set_min_size(screen.size());
+            ui.vertical_centered(|ui| {
+                ui.add_space((ui.available_height() * 0.2).max(24.0));
+                ui.label(
+                    egui::RichText::new("ASTROCORE BUILD")
+                        .size(48.0)
+                        .strong()
+                        .color(Color32::from_rgb(170, 200, 255)),
+                );
+                ui.add_space(6.0);
+                ui.label(
+                    egui::RichText::new(format!("Станция {} · раунд {}", v.station, v.round))
+                        .size(20.0)
+                        .color(Color32::from_gray(190)),
+                );
+                ui.add_space(28.0);
+                let timer = if v.started {
+                    "Раунд идёт".to_string()
+                } else {
+                    format!("До начала раунда: {}:{:02}", v.left / 60, v.left % 60)
+                };
+                ui.label(egui::RichText::new(timer).size(28.0));
+                ui.add_space(8.0);
+                ui.label(format!("Игроков: {} · готовы: {}", v.total, v.ready_count));
+                ui.add_space(24.0);
+                let (text, fill) = if v.started {
+                    ("Присоединиться", Color32::from_rgb(40, 110, 70))
+                } else if v.ready {
+                    ("Готов ✓", Color32::from_rgb(40, 110, 70))
+                } else {
+                    ("Не готов", Color32::from_rgb(90, 50, 50))
+                };
+                let button = egui::Button::new(egui::RichText::new(text).size(24.0))
+                    .fill(fill)
+                    .min_size(egui::vec2(240.0, 52.0));
+                if ui.add(button).clicked() {
+                    out.push((gameplay::CMD_LOBBY_READY, Vec::new()));
+                }
+                if !v.started {
+                    ui.add_space(10.0);
+                    ui.label(
+                        egui::RichText::new(
+                            "Готовые игроки выйдут на станцию, когда таймер дойдёт до нуля",
+                        )
+                        .small()
+                        .color(Color32::from_gray(140)),
+                    );
+                }
+            });
+        });
+    out
+}
+
 /// Окно выбора должности (`LateJoinGui`): список со свободными местами; пока должности нет.
 pub fn jobs_window(
     ctx: &egui::Context,

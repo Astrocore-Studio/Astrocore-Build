@@ -244,12 +244,16 @@ fn registry() -> Arc<PrototypeRegistry> {
 }
 
 fn harness() -> Harness {
+    harness_with(|m| m)
+}
+
+fn harness_with(tune: impl FnOnce(GameplayModule) -> GameplayModule) -> Harness {
     let mut host = ModuleHost::new();
-    host.register(Box::new(
+    host.register(Box::new(tune(
         GameplayModule::new(registry())
             .unwrap()
             .with_spawn(Vec3::new(1.5, 0.25, 1.5)),
-    ))
+    )))
     .unwrap();
     host.finalize().unwrap();
     let mut reg = ReplicationRegistry::new();
@@ -2247,6 +2251,52 @@ mod disposal_tests {
         command(&mut h, b, crate::CMD_JOB, b"Free".to_vec());
         command(&mut h, b, crate::CMD_JOB, b"Tester".to_vec());
         h.ticks(10);
+        assert_eq!(jobs_view(&h, b).unwrap().current.as_deref(), Some("Free"));
+    }
+
+    fn lobby_view(h: &Harness, who: ConnId) -> Option<crate::LobbyView> {
+        let net = h.client(who).net_id()?;
+        h.client(who)
+            .component(net, crate::LOBBY_COMPONENT)
+            .and_then(crate::decode_lobby)
+    }
+
+    #[test]
+    fn the_lobby_holds_players_until_the_round_starts() {
+        let mut h = harness_with(|m| m.with_lobby(3.0, 7));
+        let a = h.join("a");
+        let b = h.join("b");
+        h.ticks(10);
+        let v = lobby_view(&h, a).expect("лобби");
+        assert!(v.in_lobby && !v.started && !v.ready);
+        assert_eq!((v.total, v.round), (2, 7));
+        // В лобби должность не взять.
+        command(&mut h, a, crate::CMD_JOB, b"Free".to_vec());
+        h.ticks(5);
+        assert_eq!(jobs_view(&h, a).unwrap().current, None);
+        // Готов / не готов.
+        command(&mut h, a, crate::CMD_LOBBY_READY, vec![]);
+        h.ticks(5);
+        assert!(lobby_view(&h, a).unwrap().ready);
+        assert_eq!(lobby_view(&h, b).unwrap().ready_count, 1);
+        command(&mut h, a, crate::CMD_LOBBY_READY, vec![]);
+        h.ticks(5);
+        assert!(!lobby_view(&h, a).unwrap().ready);
+        command(&mut h, a, crate::CMD_LOBBY_READY, vec![]);
+        // Таймер вышел: готовый на станции, второй остался в лобби.
+        h.ticks(80);
+        let (va, vb) = (lobby_view(&h, a).unwrap(), lobby_view(&h, b).unwrap());
+        assert!(va.started && !va.in_lobby);
+        assert!(vb.started && vb.in_lobby);
+        command(&mut h, a, crate::CMD_JOB, b"Free".to_vec());
+        h.ticks(5);
+        assert_eq!(jobs_view(&h, a).unwrap().current.as_deref(), Some("Free"));
+        // «Присоединиться» после старта выводит на станцию.
+        command(&mut h, b, crate::CMD_LOBBY_READY, vec![]);
+        h.ticks(5);
+        assert!(!lobby_view(&h, b).unwrap().in_lobby);
+        command(&mut h, b, crate::CMD_JOB, b"Free".to_vec());
+        h.ticks(5);
         assert_eq!(jobs_view(&h, b).unwrap().current.as_deref(), Some("Free"));
     }
 

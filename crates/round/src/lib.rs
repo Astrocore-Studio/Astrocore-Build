@@ -12,12 +12,17 @@ pub enum RoundError {
     Module(String),
 }
 
+/// Время лобби по умолчанию (`game.lobbyduration` SS14).
+pub const DEFAULT_LOBBY_SECS: f32 = 120.0;
+
 /// Настройки раунда.
 #[derive(Debug, Clone)]
 pub struct RoundConfig {
     pub tick_hz: u8,
     /// Разрешить игрокам править структуру мира (отладка; по умолчанию выключено).
     pub allow_edit: bool,
+    /// Секунд лобби до старта раунда; `None` — без лобби (игроки сразу на станции).
+    pub lobby_secs: Option<f32>,
 }
 
 impl Default for RoundConfig {
@@ -25,6 +30,7 @@ impl Default for RoundConfig {
         Self {
             tick_hz: 20,
             allow_edit: false,
+            lobby_secs: None,
         }
     }
 }
@@ -59,6 +65,10 @@ impl Round {
             .map_err(|e| RoundError::Module(e.to_string()))?
             .with_spawn(astrocore_math::glam::Vec3::from_array(polygon::spawn()))
             .with_station_name(polygon::map().name);
+        let module = match config.lobby_secs {
+            Some(secs) => module.with_lobby(secs, number),
+            None => module,
+        };
         modules
             .register(Box::new(module))
             .map_err(|e| RoundError::Module(e.to_string()))?;

@@ -38,6 +38,8 @@ pub struct Loadout {
     pub vending: Option<gameplay::VendingView>,
     /// Список должностей и текущая.
     pub jobs: Option<gameplay::JobsView>,
+    /// Лобби перед раундом.
+    pub lobby: Option<gameplay::LobbyView>,
     /// Открытая консоль выдачи ID.
     pub idconsole: Option<gameplay::IdConsoleView>,
     /// Раздатчик реагентов и анализатор здоровья.
@@ -325,6 +327,10 @@ fn refresh_loadout(net: Option<NonSend<Net>>, time: Res<Time>, mut loadout: ResM
         .core
         .component(me, gameplay::IDCONSOLE_COMPONENT)
         .and_then(gameplay::decode_view);
+    loadout.lobby = net
+        .core
+        .component(me, gameplay::LOBBY_COMPONENT)
+        .and_then(gameplay::decode_lobby);
     loadout.jobs = net
         .core
         .component(me, gameplay::JOBS_COMPONENT)
@@ -459,6 +465,7 @@ fn autoplay(
     if let Ok(job) = std::env::var("ASTRO_AUTOPLAY_JOB")
         && state.frame == 60
     {
+        net.send_command(gameplay::CMD_LOBBY_READY, Vec::new());
         net.send_command(gameplay::CMD_JOB, job.into_bytes());
     }
     // Отладка: открыть окно ближайшей машины (ASTRO_AUTOPLAY_OPEN=ChemMaster|CryoPod); для капсулы
@@ -706,6 +713,13 @@ fn loadout_window(
                     }
                 });
             });
+    }
+    // Лобби: экран на весь кадр, пока игрок не вышел на станцию.
+    if let Some(lobby) = loadout.lobby.as_ref().filter(|l| l.in_lobby) {
+        for (kind, data) in hud::lobby_screen(&ctx, lobby) {
+            net.send_command(kind, data);
+        }
+        return Ok(());
     }
     let progress = loadout.doafter.as_ref().map(|(v, since)| {
         let label = match v.kind.as_str() {

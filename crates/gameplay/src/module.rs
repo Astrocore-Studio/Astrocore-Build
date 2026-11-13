@@ -24,6 +24,7 @@ use crate::health::{
 use crate::interact::{InteractionHandler, Target, Used};
 use crate::inventory::Inventory;
 use crate::items::{ItemInfo, item_info};
+use crate::lobby::Lobby;
 use crate::reagents::Solution;
 use crate::storage::Storage;
 use crate::wire::{
@@ -443,6 +444,8 @@ pub struct State {
     pub(crate) disposal_timer: f32,
     /// Игроки, уже получившие место появления.
     pub(crate) placed: BTreeSet<NetworkEntityId>,
+    /// Лобби: `None` — выключено (игроки сразу выходят на станцию).
+    pub(crate) lobby: Option<Lobby>,
     pub(crate) spawn_next: usize,
     /// Огнезапоры: клетки по обе стороны проёма и что они удерживают (давление, температура).
     pub(crate) firelock_cells: BTreeMap<ObjectId, (atmos::Cell, atmos::Cell)>,
@@ -932,6 +935,7 @@ impl State {
             disposal_rng: crate::disposal::Rng(0x9e37_79b9_7f4a_7c15),
             disposal_timer: 0.0,
             placed: BTreeSet::new(),
+            lobby: None,
             spawn_next: 0,
             firelock_cells: BTreeMap::new(),
             firelock_hold: BTreeMap::new(),
@@ -2223,6 +2227,7 @@ impl State {
         self.tick_puddles(ctx, dt);
         self.sync_pipes(ctx);
         self.sync_power(ctx);
+        self.tick_lobby(ctx);
         self.place_joiners(ctx);
         self.tick_disposal(ctx, dt);
         self.tick_conveyors(ctx, dt);
@@ -4333,6 +4338,76 @@ impl State {
         true
     }
 
+    /// Лобби: новички ждут старта; по таймеру готовые выходят на станцию.
+    fn tick_lobby(&mut self, ctx: &mut HookContext<'_>) {
+        let dt = self.last_dt;
+        let ids: Vec<NetworkEntityId> = ctx.players().collect();
+        let hold = self.spawn;
+        let Some(l) = self.lobby.as_mut() else {
+            return;
+        };
+        l.known.retain(|p| ids.contains(p));
+        l.in_lobby.retain(|p| ids.contains(p));
+        l.ready.retain(|p| ids.contains(p));
+        l.sent.retain(|p, _| ids.contains(p));
+        for p in &ids {
+            if l.known.insert(*p) {
+                // Новичок: в лобби; `placed` не даёт `place_joiners` вывести его на станцию.
+                l.in_lobby.insert(*p);
+                self.placed.insert(*p);
+            }
+        }
+        if !l.started {
+            l.left -= dt;
+            if l.left <= 0.0 {
+                l.started = true;
+                let go: Vec<NetworkEntityId> = l.ready.iter().copied().collect();
+                for p in go {
+                    l.in_lobby.remove(&p);
+                    self.placed.remove(&p);
+                }
+            }
+        }
+        // Ожидающие стоят на месте.
+        if let Some(at) = hold {
+            for p in &l.in_lobby {
+                ctx.teleport(*p, at);
+            }
+        }
+        let total = ids.len() as u32;
+        let ready_count = l.ready.len() as u32;
+        for p in ids {
+            let view = crate::lobby::LobbyView {
+                in_lobby: l.in_lobby.contains(&p),
+                started: l.started,
+                left: l.left.max(0.0).ceil() as u32,
+                ready: l.ready.contains(&p),
+                ready_count,
+                total,
+                round: l.round,
+                station: self.alerts.station.clone(),
+            };
+            let bytes = crate::lobby::encode_lobby(&view);
+            if l.sent.get(&p) != Some(&bytes) {
+                ctx.set_component(p, crate::lobby::LOBBY_COMPONENT, bytes.clone());
+                l.sent.insert(p, bytes);
+            }
+        }
+    }
+
+    /// «Готов»/«Не готов» до старта, «Присоединиться» после.
+    fn lobby_ready(&mut self, _ctx: &mut HookContext<'_>, actor: NetworkEntityId) {
+        let Some(l) = self.lobby.as_mut() else {
+            return;
+        };
+        if l.started {
+            l.in_lobby.remove(&actor);
+            self.placed.remove(&actor);
+        } else if !l.ready.remove(&actor) {
+            l.ready.insert(actor);
+        }
+    }
+
     /// Новички появляются на точках должностей `Passenger` и `Latejoin` карты по очереди; если на
     /// карте таких нет, остаётся точка появления по умолчанию.
     fn place_joiners(&mut self, ctx: &mut HookContext<'_>) {
@@ -5169,6 +5244,13 @@ impl GameplayModule {
         self
     }
 
+    /// Включить лобби: до старта раунда игроки ждут `secs` секунд (`game.lobbyduration`).
+    #[must_use]
+    pub fn with_lobby(mut self, secs: f32, round: u32) -> Self {
+        self.state.lobby = Some(Lobby::new(secs, round));
+        self
+    }
+
     #[must_use]
     pub fn with_station_name(mut self, name: String) -> Self {
         self.state.power_monitor.station = name.clone();
@@ -5295,6 +5377,16 @@ impl GameModule for GameplayModule {
     fn handle(&mut self, ctx: &mut HookContext<'_>, event: &HookEvent) {
         let st = &mut self.state;
         match event {
+            HookEvent::Command { actor, kind, .. }
+                if st
+                    .lobby
+                    .as_ref()
+                    .is_some_and(|l| l.in_lobby.contains(actor)) =>
+            {
+                if kind == crate::wire::CMD_LOBBY_READY {
+                    st.lobby_ready(ctx, *actor);
+                }
+            }
             HookEvent::Command { actor, kind, .. } if kind == CMD_RESPAWN => {
                 st.respawn(ctx, *actor);
             }

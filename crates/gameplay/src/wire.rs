@@ -107,6 +107,8 @@ pub const CMD_DISP_CLOSE: &str = "disp.close";
 pub const CMD_LOCK: &str = "lock.toggle";
 /// Выбрать должность: данные — её идентификатор (UTF-8).
 pub const CMD_JOB: &str = "job.pick";
+/// Лобби: «Готов» / «Не готов», а после старта раунда — «Присоединиться».
+pub const CMD_LOBBY_READY: &str = "lobby.ready";
 pub const CMD_RESIST: &str = "fire.resist";
 
 /// Взаимодействие с целью в мире (предмет на земле или дверь): `[id цели 16 байт]`.
@@ -277,6 +279,12 @@ pub fn register_replication(reg: &mut ReplicationRegistry) -> Result<(), Replica
         channel: ReplicationChannel::ReliableOrdered,
         interest: Interest::Owner,
         max_bytes: crate::jobs::JOBS_MAX_BYTES,
+    })?;
+    reg.register(ReplicatedKind {
+        name: crate::lobby::LOBBY_COMPONENT.into(),
+        channel: ReplicationChannel::ReliableOrdered,
+        interest: Interest::Owner,
+        max_bytes: crate::lobby::LOBBY_MAX_BYTES,
     })?;
     reg.register(ReplicatedKind {
         name: crate::vending::VENDING_COMPONENT.into(),
