@@ -344,6 +344,12 @@ pub struct HudState {
     pub walk: bool,
     /// Режим броска: следующий щелчок по миру бросает предмет из руки.
     pub throw_mode: bool,
+    /// Объект под прицелом (для правой кнопки и осмотра).
+    pub aim_id: Option<ObjectId>,
+    /// Открытое меню глаголов: куда, для какой цели и с какого ответа сервера ждать список.
+    pub menu: Option<VerbMenu>,
+    /// Окно осмотра закрыто на ответе с этим номером.
+    pub examine_closed: u32,
     /// Лежит ли игрок (реплика сервера).
     pub lying: bool,
     /// Поля окна консоли ID: правятся локально, уходят по кнопке «Записать».
@@ -1331,6 +1337,98 @@ pub fn roundend_panel(ctx: &egui::Context, v: &gameplay::RoundEndView) {
                     });
                 });
         });
+}
+
+/// Открытое меню глаголов (`VerbMenu` SS14): точка на экране, цель и номер ответа, после которого
+/// список считается пришедшим по этой цели.
+#[derive(Clone, Debug)]
+pub struct VerbMenu {
+    pub at: Pos2,
+    pub target: gameplay::VerbTarget,
+    pub after_seq: u32,
+}
+
+/// Меню глаголов у курсора: список приходит от сервера (`CMD_VERB_LIST`); выбор глагола шлёт
+/// `CMD_VERB_DO`. Закрывается щелчком мимо или Escape.
+pub fn verb_menu(
+    ctx: &egui::Context,
+    state: &mut HudState,
+    view: Option<&gameplay::VerbsView>,
+) -> Commands {
+    let mut out: Commands = Vec::new();
+    let Some(menu) = state.menu.clone() else {
+        return out;
+    };
+    let want = gameplay::target_data(menu.target, None);
+    let Some(v) = view.filter(|v| v.seq > menu.after_seq && v.target == want) else {
+        return out;
+    };
+    let mut close = ctx.input(|i| i.key_pressed(egui::Key::Escape));
+    let resp = egui::Area::new(egui::Id::new("verb_menu"))
+        .order(egui::Order::Foreground)
+        .fixed_pos(menu.at)
+        .show(ctx, |ui| {
+            egui::Frame::popup(ui.style()).show(ui, |ui| {
+                ui.set_min_width(130.0);
+                ui.label(egui::RichText::new("Действия").small().weak());
+                for verb in &v.verbs {
+                    let b = ui.add_enabled(verb.disabled.is_none(), egui::Button::new(&verb.label));
+                    let b = match &verb.disabled {
+                        Some(why) => b.on_disabled_hover_text(why),
+                        None => b,
+                    };
+                    if b.clicked() {
+                        out.push((
+                            gameplay::CMD_VERB_DO,
+                            gameplay::target_data(menu.target, Some(&verb.id)),
+                        ));
+                        close = true;
+                    }
+                }
+            });
+        });
+    // Щелчок вне меню закрывает его.
+    if ctx.input(|i| i.pointer.any_pressed())
+        && !ctx
+            .pointer_interact_pos()
+            .is_some_and(|p| resp.response.rect.contains(p))
+    {
+        close = true;
+    }
+    if close {
+        state.menu = None;
+    }
+    out
+}
+
+/// Окно осмотра (`ExamineSystem`): имя и строки описания.
+pub fn examine_window(
+    ctx: &egui::Context,
+    state: &mut HudState,
+    view: Option<&gameplay::ExamineView>,
+) {
+    let Some(v) = view.filter(|v| v.seq > state.examine_closed) else {
+        return;
+    };
+    let mut open = true;
+    egui::Window::new(&v.name)
+        .id(egui::Id::new("examine"))
+        .anchor(egui::Align2::CENTER_TOP, Vec2::new(0.0, 80.0))
+        .collapsible(false)
+        .resizable(false)
+        .open(&mut open)
+        .show(ctx, |ui| {
+            ui.set_max_width(340.0);
+            if v.lines.is_empty() {
+                ui.label("Ничего особенного.");
+            }
+            for l in &v.lines {
+                ui.label(l);
+            }
+        });
+    if !open {
+        state.examine_closed = v.seq;
+    }
 }
 
 /// Окно выбора должности (`LateJoinGui`): список со свободными местами; пока должности нет.

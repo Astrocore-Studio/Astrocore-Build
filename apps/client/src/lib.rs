@@ -40,6 +40,9 @@ pub struct Loadout {
     pub jobs: Option<gameplay::JobsView>,
     /// Лобби перед раундом.
     pub lobby: Option<gameplay::LobbyView>,
+    /// Глаголы для цели и результат осмотра.
+    pub verbs: Option<gameplay::VerbsView>,
+    pub examine: Option<gameplay::ExamineView>,
     /// Чат: то, что слышал игрок.
     pub chat: Option<gameplay::ChatView>,
     /// Сводка конца раунда.
@@ -121,6 +124,7 @@ impl Plugin for BuildClientPlugin {
                 sounds::trace_alarm_playback,
                 fx_events,
                 combat::attack_and_heal,
+                combat::verb_input,
                 fire::sync_fx,
                 fire::animate_flames,
                 lights::sync_lights,
@@ -292,7 +296,7 @@ fn aim_target(
         return;
     };
     let (origin, dir) = (ray.origin.to_array(), ray.direction.as_vec3().to_array());
-    let mut best: Option<(f32, String)> = None;
+    let mut best: Option<(f32, String, ObjectId)> = None;
     for o in world.authored() {
         let astrocore_world::AuthoredKind::Placement { prototype } = &o.kind else {
             continue;
@@ -315,8 +319,8 @@ fn aim_target(
             continue;
         };
         // Объект, внутри объёма которого стоит камера, целью не бывает (луч начинается в нём).
-        if t > 0.05 && t <= AIM_RANGE_M && best.as_ref().is_none_or(|(b, _)| t < *b) {
-            best = Some((t, info.name.clone()));
+        if t > 0.05 && t <= AIM_RANGE_M && best.as_ref().is_none_or(|(b, _, _)| t < *b) {
+            best = Some((t, info.name.clone(), o.id));
         }
     }
     if std::env::var_os("ASTRO_AIM_DEBUG").is_some() {
@@ -327,7 +331,7 @@ fn aim_target(
     }
     // Стены, пол и потолок закрывают цель: если до объекта луч упирается в плиту или куб
     // раньше, подсказки нет.
-    if let Some((t, _)) = &best {
+    if let Some((t, _, _)) = &best {
         let step = world.config().grid_step_m;
         let blocked = world.elements().any(|e| {
             use astrocore_world::{Placement, StructureKind};
@@ -371,7 +375,8 @@ fn aim_target(
             best = None;
         }
     }
-    hud.state.aim = best.map(|(_, n)| n);
+    hud.state.aim_id = best.as_ref().map(|(_, _, id)| *id);
+    hud.state.aim = best.map(|(_, n, _)| n);
 }
 
 #[derive(Resource)]
@@ -473,6 +478,14 @@ fn refresh_loadout(net: Option<NonSend<Net>>, time: Res<Time>, mut loadout: ResM
         .core
         .component(me, gameplay::IDCONSOLE_COMPONENT)
         .and_then(gameplay::decode_view);
+    loadout.verbs = net
+        .core
+        .component(me, gameplay::VERBS_COMPONENT)
+        .and_then(gameplay::decode_verbs);
+    loadout.examine = net
+        .core
+        .component(me, gameplay::EXAMINE_COMPONENT)
+        .and_then(gameplay::decode_examine);
     loadout.chat = net
         .core
         .component(me, gameplay::CHAT_COMPONENT)
@@ -622,6 +635,19 @@ fn autoplay(
         net.send_command(
             gameplay::CMD_CHAT,
             gameplay::chat_data(gameplay::Channel::Say, &text),
+        );
+    }
+    // Отладка: осмотреть объект с номером из ASTRO_AUTOPLAY_EXAMINE (hex, как ASTRO_OPEN_ID).
+    if let Ok(hex) = std::env::var("ASTRO_AUTOPLAY_EXAMINE")
+        && state.frame == 100
+        && let Ok(n) = u128::from_str_radix(hex.trim_start_matches("0x"), 16)
+    {
+        net.send_command(
+            gameplay::CMD_VERB_DO,
+            gameplay::target_data(
+                gameplay::VerbTarget::Object(ObjectId::from_u128(n)),
+                Some("examine"),
+            ),
         );
     }
     // Отладка: лечь (ASTRO_AUTOPLAY_REST) и бросить предмет из руки вперёд (ASTRO_AUTOPLAY_THROW).
@@ -970,6 +996,8 @@ fn loadout_window(
     if let Some(v) = loadout.roundend.as_ref() {
         hud::roundend_panel(&ctx, v);
     }
+    commands.extend(hud::verb_menu(&ctx, state, loadout.verbs.as_ref()));
+    hud::examine_window(&ctx, state, loadout.examine.as_ref());
     let chat_at = egui::pos2(16.0, (ctx.content_rect().max.y - 290.0).max(16.0));
     commands.extend(hud::chat_panel(&ctx, state, loadout.chat.as_ref(), chat_at));
     hud::toasts(&ctx, &mut loadout.toasts, time.elapsed_secs());

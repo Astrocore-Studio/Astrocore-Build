@@ -66,6 +66,65 @@ pub fn pick_target(
         .map(|(id, _, part)| (id, part))
 }
 
+/// Правая кнопка по миру — меню глаголов цели; Shift + левая — сразу осмотр (SS14: Shift+клик).
+/// Цель: игрок под курсором, иначе объект под прицелом.
+#[allow(clippy::too_many_arguments)]
+pub fn verb_input(
+    buttons: Res<ButtonInput<MouseButton>>,
+    keys: Res<ButtonInput<KeyCode>>,
+    wants: Res<EguiWantsInput>,
+    windows: Query<&Window, With<bevy::window::PrimaryWindow>>,
+    cameras: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
+    remote: Res<RemoteSprites>,
+    transforms: Query<&Transform>,
+    loadout: Res<crate::Loadout>,
+    mut hud: ResMut<crate::Hud>,
+    net: Option<NonSendMut<Net>>,
+) {
+    let Some(mut net) = net else { return };
+    let shift = keys.pressed(KeyCode::ShiftLeft) || keys.pressed(KeyCode::ShiftRight);
+    let free = !wants.wants_any_pointer_input();
+    let menu = buttons.just_pressed(MouseButton::Right) && free;
+    let examine = buttons.just_pressed(MouseButton::Left) && shift && free;
+    if !menu && !examine {
+        return;
+    }
+    let (Ok(window), Ok((camera, cam_t))) = (windows.single(), cameras.single()) else {
+        return;
+    };
+    let Some(cursor) = window.cursor_position() else {
+        return;
+    };
+    let Ok(ray) = camera.viewport_to_world(cam_t, cursor) else {
+        return;
+    };
+    let candidates: Vec<(NetworkEntityId, Vec3)> = remote
+        .0
+        .iter()
+        .filter_map(|(id, e)| Some((*id, transforms.get(*e).ok()?.translation)))
+        .collect();
+    let target = pick_target(ray.origin, *ray.direction, &candidates)
+        .map(|(id, _)| gameplay::VerbTarget::Player(id))
+        .or(hud.state.aim_id.map(gameplay::VerbTarget::Object));
+    let Some(target) = target else {
+        hud.state.menu = None;
+        return;
+    };
+    if examine {
+        net.send_command(
+            gameplay::CMD_VERB_DO,
+            gameplay::target_data(target, Some("examine")),
+        );
+    } else {
+        net.send_command(gameplay::CMD_VERB_LIST, gameplay::target_data(target, None));
+        hud.state.menu = Some(crate::hud::VerbMenu {
+            at: bevy_egui::egui::pos2(cursor.x, cursor.y),
+            target,
+            after_seq: loadout.verbs.as_ref().map_or(0, |v| v.seq),
+        });
+    }
+}
+
 /// Куда целится бросок, если курсор смотрит выше пола, м.
 const THROW_AIM_M: f32 = 8.0;
 
@@ -91,7 +150,9 @@ pub fn attack_and_heal(
     {
         net.send_command(CMD_HEAL, gameplay::heal_data(active, me));
     }
-    let attack = buttons.just_pressed(MouseButton::Left) && !wants.wants_any_pointer_input();
+    let shift = keys.pressed(KeyCode::ShiftLeft) || keys.pressed(KeyCode::ShiftRight);
+    let attack =
+        buttons.just_pressed(MouseButton::Left) && !shift && !wants.wants_any_pointer_input();
     // Режим броска: щелчок бросает предмет из руки в точку под курсором и выключает режим.
     if attack && hud.state.throw_mode {
         hud.state.throw_mode = false;
