@@ -2438,6 +2438,49 @@ mod disposal_tests {
         assert!(dmg(&h) > 0.0);
     }
 
+    fn lying(h: &Harness, who: ConnId, of: ConnId) -> bool {
+        let net = h.client(of).net_id().unwrap();
+        h.client(who)
+            .component(net, crate::LYING_COMPONENT)
+            .is_some_and(|b| b.first() == Some(&1))
+    }
+
+    #[test]
+    fn lying_down_is_instant_and_standing_up_takes_two_seconds() {
+        let mut h = harness();
+        let (a, b) = (h.join("a"), h.join("b"));
+        h.ticks(5);
+        assert!(!lying(&h, b, a));
+        command(&mut h, a, crate::CMD_REST, vec![]);
+        h.ticks(3);
+        assert!(lying(&h, a, a) && lying(&h, b, a), "лежит — видно всем");
+        // Встаёт: сначала ещё лежит, через две секунды стоит.
+        command(&mut h, a, crate::CMD_REST, vec![]);
+        h.ticks(20);
+        assert!(lying(&h, b, a), "через секунду ещё лежит");
+        h.ticks(40);
+        assert!(!lying(&h, b, a), "через две секунды стоит");
+    }
+
+    #[test]
+    fn a_thrown_item_flies_and_lands_where_it_was_aimed() {
+        let mut h = harness();
+        let a = h.join("a");
+        h.ticks(5);
+        grab(&mut h, a, 10, near(), "ss14:crowbar");
+        let spot = [4.5_f32, 0.2, 2.5];
+        command(&mut h, a, crate::CMD_THROW, crate::throw_data(spot));
+        h.ticks(1);
+        assert!(!on_ground(&h, a, 10), "в полёте предмета нет на полу");
+        assert!(hands_of(&h, a, a).unwrap().held().next().is_none());
+        h.ticks(40);
+        assert!(on_ground(&h, a, 10), "упал на пол");
+        // Пустая рука и мусорные данные ничего не бросают.
+        command(&mut h, a, crate::CMD_THROW, crate::throw_data(spot));
+        command(&mut h, a, crate::CMD_THROW, vec![1, 2, 3]);
+        h.ticks(5);
+    }
+
     #[test]
     fn a_vending_machine_with_a_reader_refuses_without_access() {
         let mut h = harness();

@@ -77,14 +77,14 @@ pub use wire::{
     CMD_ID_INSERT, CMD_ID_WRITE, CMD_INTERACT, CMD_JOB, CMD_LAB_BOTTLE, CMD_LAB_CLOSE,
     CMD_LAB_EJECT, CMD_LAB_INSERT, CMD_LAB_MODE, CMD_LAB_PILLS, CMD_LAB_REAGENT, CMD_LAB_SOURCE,
     CMD_LAB_START, CMD_LOBBY_READY, CMD_LOCK, CMD_MOVE_HAND, CMD_MOVE_SLOT, CMD_PICKUP,
-    CMD_PICKUP_ANY, CMD_RESIST, CMD_RESPAWN, CMD_SCAN_CLOSE, CMD_SELECT_HAND, CMD_SHAKE, CMD_SPILL,
-    CMD_STORE, CMD_SWAP_HANDS, CMD_TAKE, CMD_TAKE_TO, CMD_UNEQUIP, CMD_UNEQUIP_TO, CMD_USE,
-    CMD_USE_GROUND, CMD_VEND, CMD_VEND_CLOSE, CMD_WALK, HANDS_COMPONENT, INVENTORY_COMPONENT,
-    InventoryView, WORN_COMPONENT, Worn, attack_data, attack_part_data, decode_hands,
-    decode_inventory, decode_worn, drop_at_data, drop_data, encode_worn, equip_data, feed_data,
-    heal_data, interact_data, move_hand_data, move_slot_data, parse_drop, parse_object_id,
-    pickup_data, register_replication, store_data, take_data, take_to_data, unequip_data,
-    unequip_to_data, use_data,
+    CMD_PICKUP_ANY, CMD_RESIST, CMD_RESPAWN, CMD_REST, CMD_SCAN_CLOSE, CMD_SELECT_HAND, CMD_SHAKE,
+    CMD_SPILL, CMD_STORE, CMD_SWAP_HANDS, CMD_TAKE, CMD_TAKE_TO, CMD_THROW, CMD_UNEQUIP,
+    CMD_UNEQUIP_TO, CMD_USE, CMD_USE_GROUND, CMD_VEND, CMD_VEND_CLOSE, CMD_WALK, HANDS_COMPONENT,
+    INVENTORY_COMPONENT, InventoryView, LYING_COMPONENT, WORN_COMPONENT, Worn, attack_data,
+    attack_part_data, decode_hands, decode_inventory, decode_worn, drop_at_data, drop_data,
+    encode_worn, equip_data, feed_data, heal_data, interact_data, move_hand_data, move_slot_data,
+    parse_drop, parse_object_id, parse_point, pickup_data, register_replication, store_data,
+    take_data, take_to_data, throw_data, unequip_data, unequip_to_data, use_data,
 };
 
 #[cfg(test)]

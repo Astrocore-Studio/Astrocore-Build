@@ -116,6 +116,12 @@ pub const CMD_RESIST: &str = "fire.resist";
 pub const CMD_COMBAT: &str = "combat.mode";
 /// Ходьба вместо бега (`ToggleWalk`): байт 1 — идти шагом, 0 — бежать.
 pub const CMD_WALK: &str = "move.walk";
+/// Лечь / встать (`ToggleKnockdown` SS14): лёжа можно встать за 2 с.
+pub const CMD_REST: &str = "move.rest";
+/// Бросить предмет из активной руки в точку: 3 числа `f32` (x, y, z), малое-endian.
+pub const CMD_THROW: &str = "item.throw";
+/// Лежит ли персонаж: один байт, видно всем.
+pub const LYING_COMPONENT: &str = "build.lying";
 
 /// Взаимодействие с целью в мире (предмет на земле или дверь): `[id цели 16 байт]`.
 /// Что именно произойдёт, решает цепочка обработчиков: пустая рука — `InteractHand`, предмет в
@@ -347,6 +353,12 @@ pub fn register_replication(reg: &mut ReplicationRegistry) -> Result<(), Replica
         max_bytes: 4,
     })?;
     reg.register(ReplicatedKind {
+        name: LYING_COMPONENT.into(),
+        channel: ReplicationChannel::ReliableOrdered,
+        interest: Interest::Everyone,
+        max_bytes: 4,
+    })?;
+    reg.register(ReplicatedKind {
         name: crate::health::GHOST_COMPONENT.into(),
         channel: ReplicationChannel::ReliableOrdered,
         interest: Interest::Everyone,
@@ -470,6 +482,19 @@ pub fn attack_part_data(target: astrocore_core::NetworkEntityId, part: u8) -> Ve
 }
 
 /// Цель и необязательная часть тела; неизвестный индекс части отвергает команду.
+/// Данные команды `item.throw`: точка (x, y, z) тремя `f32`.
+pub fn throw_data(target: [f32; 3]) -> Vec<u8> {
+    target.iter().flat_map(|v| v.to_le_bytes()).collect()
+}
+
+/// Точка из данных `item.throw`; нечисловые значения отвергаются.
+pub fn parse_point(data: &[u8]) -> Option<[f32; 3]> {
+    let b: [u8; 12] = data.try_into().ok()?;
+    let f = |i: usize| f32::from_le_bytes([b[i], b[i + 1], b[i + 2], b[i + 3]]);
+    let p = [f(0), f(4), f(8)];
+    p.iter().all(|v| v.is_finite()).then_some(p)
+}
+
 pub fn parse_attack_part(
     data: &[u8],
 ) -> Option<(astrocore_core::NetworkEntityId, Option<&'static str>)> {

@@ -45,6 +45,14 @@ pub const INTERACTION_RANGE_M: f32 = 1.5;
 const CHEST_M: f32 = 0.55;
 /// Скорость шага относительно бега.
 const WALK_FACTOR: f32 = 2.5 / 4.5;
+/// Скорость ползком (`CrawlerComponent.SpeedModifier`) и время вставания, с (`StandTime`).
+const CRAWL_FACTOR: f32 = 0.4;
+const STAND_UP_S: f32 = 2.0;
+/// Урон за время вставания, прерывающий его (`DamageThreshold` доафтера).
+const STAND_BREAK_DAMAGE: f32 = 5.0;
+/// Дальность броска, м (`HandsComponent.ThrowRange`), скорость полёта, м/с (`baseThrowSpeed`).
+const THROW_RANGE_M: f32 = 8.0;
+const THROW_SPEED_MPS: f32 = 10.0;
 /// Размер выброшенного предмета в мире, м.
 const DROPPED_SIZE_M: f32 = 0.3;
 /// На сколько выброшенный предмет отступает от препятствия, м.
@@ -68,6 +76,10 @@ pub(crate) struct Actor {
     /// Боевой режим включён; идёт шагом, а не бегом.
     pub(crate) combat: bool,
     pub(crate) walking: bool,
+    /// Лежит; когда встанет (`TryStandDoAfter`), с, и урон на начало вставания.
+    pub(crate) lying: bool,
+    pub(crate) stand_at: Option<f32>,
+    pub(crate) stand_dmg: f32,
     /// Когда в следующий раз разослать здоровье из-за кровотечения или удушья, с.
     pub(crate) next_health_publish: f32,
     /// Здоровье изменилось сидящими внутри процессами, а разослать ещё не успели.
@@ -103,6 +115,9 @@ impl Actor {
             frozen: false,
             combat: false,
             walking: false,
+            lying: false,
+            stand_at: None,
+            stand_dmg: 0.0,
             next_health_publish: 0.0,
             health_dirty: false,
             ghost: false,
@@ -459,6 +474,8 @@ pub struct State {
     pub(crate) round: RoundState,
     /// Чат: журнал строк по получателям.
     pub(crate) chat: ChatState,
+    /// Брошенные предметы в полёте: когда упадут, предмет и место падения.
+    pub(crate) thrown: Vec<(f32, crate::hands::HeldItem, Vec3)>,
     pub(crate) spawn_next: usize,
     /// Огнезапоры: клетки по обе стороны проёма и что они удерживают (давление, температура).
     pub(crate) firelock_cells: BTreeMap<ObjectId, (atmos::Cell, atmos::Cell)>,
@@ -951,6 +968,7 @@ impl State {
             lobby: None,
             round: RoundState::default(),
             chat: ChatState::default(),
+            thrown: Vec::new(),
             spawn_next: 0,
             firelock_cells: BTreeMap::new(),
             firelock_hold: BTreeMap::new(),
@@ -1025,6 +1043,7 @@ impl State {
         ctx.set_component(actor, HEALTH_COMPONENT, encode_health(&health_view));
         ctx.set_component(actor, MOBSTATE_COMPONENT, vec![a.health.state().to_byte()]);
         ctx.set_component(actor, GHOST_COMPONENT, vec![u8::from(a.ghost)]);
+        ctx.set_component(actor, crate::wire::LYING_COMPONENT, vec![u8::from(a.lying)]);
         ctx.set_component(
             actor,
             crate::fire::BURNING_COMPONENT,
@@ -2191,7 +2210,17 @@ impl State {
             } else {
                 1.0
             };
-            let speed = if a_ghost { 1.0 } else { vitals.speed * walk };
+            // Лёжа ползут со скоростью 0,4 (`CrawlerComponent.SpeedModifier`).
+            let crawl = if self.actors.get(&id).is_some_and(|a| a.lying) {
+                CRAWL_FACTOR
+            } else {
+                1.0
+            };
+            let speed = if a_ghost {
+                1.0
+            } else {
+                vitals.speed * walk * crawl
+            };
             if (speed - self.speed_sent.get(&id).copied().unwrap_or(1.0)).abs() > 1e-4 {
                 self.speed_sent.insert(id, speed);
                 ctx.set_speed(id, speed);
@@ -2251,6 +2280,7 @@ impl State {
         self.tick_lobby(ctx);
         self.tick_round(ctx);
         self.tick_chat(ctx);
+        self.tick_rest_and_thrown(ctx);
         self.place_joiners(ctx);
         self.tick_disposal(ctx, dt);
         self.tick_conveyors(ctx, dt);
@@ -4491,6 +4521,95 @@ impl State {
         }
     }
 
+    /// Лечь сразу; лёжа — начать вставать (2 с, прерывается уроном от 5): `ToggleKnockdown`.
+    fn toggle_rest(&mut self, ctx: &mut HookContext<'_>, actor: NetworkEntityId) {
+        let clock = self.clock;
+        let Some(a) = self.actors.get_mut(&actor) else {
+            return;
+        };
+        if a.ghost || !a.health.state().can_act() {
+            return;
+        }
+        if a.lying {
+            if a.stand_at.is_none() {
+                a.stand_at = Some(clock + STAND_UP_S);
+                a.stand_dmg = a.health.total();
+            }
+        } else {
+            a.lying = true;
+            a.stand_at = None;
+        }
+        self.publish(ctx, actor);
+    }
+
+    /// Бросок предмета из активной руки (`ThrowingSystem.TryThrow`): летит на 10 м/с, дальше
+    /// 8 м не бросить, до преграды — и падает; вставание и смерть не мешают, лёжа бросать можно.
+    fn throw_item(&mut self, ctx: &mut HookContext<'_>, actor: NetworkEntityId, target: [f32; 3]) {
+        let (Some(feet), Some(a)) = (ctx.position_of(actor), self.actors.get(&actor)) else {
+            return;
+        };
+        if a.ghost || !a.health.state().can_act() {
+            return;
+        }
+        let hand = a.hands.active();
+        let Some(item) = a.hands.get(hand).cloned() else {
+            return;
+        };
+        let chest = feet + Vec3::Y * CHEST_M;
+        let want = Vec3::new(target[0], chest.y, target[2]) - chest;
+        let len = want.length();
+        if len < 1e-4 {
+            return;
+        }
+        let dir = want / len;
+        let reach = len.min(THROW_RANGE_M);
+        let free = ctx
+            .unobstructed_distance(chest, chest + dir * reach)
+            .min(reach);
+        let dist = if free < reach {
+            (free - DROP_CLEARANCE_M).max(0.0)
+        } else {
+            free
+        };
+        let p = chest + dir * dist;
+        let at = Vec3::new(p.x, feet.y, p.z);
+        let _ = self.actor(actor).hands.drop_hand(hand);
+        self.thrown
+            .push((self.clock + dist / THROW_SPEED_MPS, item, at));
+        self.publish(ctx, actor);
+    }
+
+    /// Встающие встают, прерванные уроном остаются; упавшие брошенные предметы ложатся на пол.
+    fn tick_rest_and_thrown(&mut self, ctx: &mut HookContext<'_>) {
+        let clock = self.clock;
+        let mut changed: Vec<NetworkEntityId> = Vec::new();
+        for (id, a) in &mut self.actors {
+            let Some(at) = a.stand_at else {
+                continue;
+            };
+            if a.health.total() - a.stand_dmg >= STAND_BREAK_DAMAGE {
+                a.stand_at = None;
+            } else if clock >= at {
+                a.stand_at = None;
+                a.lying = false;
+                changed.push(*id);
+            }
+        }
+        for id in changed {
+            self.publish(ctx, id);
+        }
+        let landed: Vec<(f32, crate::hands::HeldItem, Vec3)> = {
+            let (due, rest): (Vec<_>, Vec<_>) = std::mem::take(&mut self.thrown)
+                .into_iter()
+                .partition(|t| t.0 <= clock);
+            self.thrown = rest;
+            due
+        };
+        for (_, item, at) in landed {
+            Self::place(ctx, &item, at);
+        }
+    }
+
     /// Название должности или «Игрок N» — вместо имени персонажа.
     fn speaker_name(&self, who: NetworkEntityId) -> String {
         self.player_job
@@ -5877,6 +5996,14 @@ impl GameModule for GameplayModule {
                 crate::wire::CMD_COMBAT => {
                     if let [on] = data[..] {
                         st.actor(*actor).combat = on != 0;
+                    }
+                }
+                crate::wire::CMD_REST => {
+                    st.toggle_rest(ctx, *actor);
+                }
+                crate::wire::CMD_THROW => {
+                    if let Some(target) = crate::wire::parse_point(data) {
+                        st.throw_item(ctx, *actor, target);
                     }
                 }
                 crate::wire::CMD_WALK => {
