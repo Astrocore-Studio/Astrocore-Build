@@ -318,6 +318,48 @@ fn aim_target(
             best = Some((t, info.name.clone()));
         }
     }
+    // Стены, пол и потолок закрывают цель: если до объекта луч упирается в плиту или куб
+    // раньше, подсказки нет.
+    if let Some((t, _)) = &best {
+        let step = world.config().grid_step_m;
+        let blocked = world.elements().any(|e| {
+            use astrocore_world::{Placement, StructureKind};
+            let bounds = match (e.kind, e.placement) {
+                (StructureKind::Freeform, Placement::Free(f)) => Some(f.aabb(step)),
+                (StructureKind::Ceiling, Placement::Cell(c)) => world.floor(e.floor).map(|fl| {
+                    let min = c.min_corner(step, fl.top_y() - e.thickness);
+                    (
+                        min.to_array(),
+                        (min + MVec3::new(step, e.thickness, step)).to_array(),
+                    )
+                }),
+                (StructureKind::Floor, Placement::Cell(c)) => world.floor(e.floor).map(|fl| {
+                    let min = c.min_corner(step, fl.base_y);
+                    (
+                        min.to_array(),
+                        (min + MVec3::new(step, e.thickness, step)).to_array(),
+                    )
+                }),
+                _ => None,
+            };
+            let Some((min, max)) = bounds else {
+                return false;
+            };
+            // Далёкие плиты не проверяем: цель ближе AIM_RANGE_M.
+            let centre = [
+                (min[0] + max[0]) * 0.5 - origin[0],
+                (min[1] + max[1]) * 0.5 - origin[1],
+                (min[2] + max[2]) * 0.5 - origin[2],
+            ];
+            if centre.iter().map(|v| v * v).sum::<f32>() > (AIM_RANGE_M + 2.0).powi(2) {
+                return false;
+            }
+            ray_box(origin, dir, min, max).is_some_and(|h| h < *t - 0.05)
+        });
+        if blocked {
+            best = None;
+        }
+    }
     hud.state.aim = best.map(|(_, n)| n);
 }
 
@@ -939,6 +981,17 @@ fn loadout_window(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_ray_enters_a_box_only_in_front_of_it() {
+        let (min, max) = ([-0.5, 0.0, 2.0], [0.5, 1.0, 3.0]);
+        let hit = ray_box([0.0, 0.5, 0.0], [0.0, 0.0, 1.0], min, max);
+        assert!((hit.unwrap() - 2.0).abs() < 1e-4);
+        // Мимо, назад и поверх ящика луч не попадает.
+        assert!(ray_box([0.0, 0.5, 0.0], [0.0, 0.0, -1.0], min, max).is_none());
+        assert!(ray_box([0.0, 2.0, 0.0], [0.0, 0.0, 1.0], min, max).is_none());
+        assert!(ray_box([2.0, 0.5, 0.0], [0.0, 0.0, 1.0], min, max).is_none());
+    }
 
     #[test]
     fn a_ray_hits_the_floor_plane_only_in_front_of_the_camera() {

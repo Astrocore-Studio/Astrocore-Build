@@ -15,7 +15,7 @@ const SEE_M: f32 = 35.0;
 const LUMENS_PER_ENERGY: f32 = 25_000.0;
 /// Толщина потолка (как в импорте карты) и на сколько ниже него висит свет, м.
 const CEILING_THICKNESS_M: f32 = 0.1;
-const LAMP_BELOW_CEILING_M: f32 = 0.3;
+const LAMP_BELOW_CEILING_M: f32 = 0.5;
 /// Яркость общего света и солнца на станции со светильниками.
 const DIM_AMBIENT: f32 = 4.0;
 /// Внутри станции солнца нет: свет только от ламп и фонарика.
@@ -126,7 +126,7 @@ pub struct FlashlightOn(pub bool);
 const BEAM_HALF_ANGLE: f32 = 0.42;
 /// Дальность луча, м, и сила света, люмен.
 const BEAM_RANGE_M: f32 = 14.0;
-const BEAM_LUMENS: f32 = 450_000.0;
+const BEAM_LUMENS: f32 = 120_000.0;
 
 pub fn flashlight(
     mut commands: Commands,
