@@ -344,6 +344,8 @@ pub struct HudState {
     pub walk: bool,
     /// Режим броска: следующий щелчок по миру бросает предмет из руки.
     pub throw_mode: bool,
+    /// Для какой руки есть объёмная модель в руках (плоский значок не рисуется).
+    pub held_3d: Vec<bool>,
     /// Объект под прицелом (для правой кнопки и осмотра).
     pub aim_id: Option<ObjectId>,
     /// Открытое меню глаголов: куда, для какой цели и с какого ответа сервера ждать список.
@@ -420,7 +422,7 @@ pub fn draw(
         return out;
     };
     if first_person {
-        viewmodel(ctx, icons, hands);
+        viewmodel(ctx, icons, hands, &state.held_3d);
     }
     if let Some(p) = progress {
         egui::Area::new(egui::Id::new("hud_progress"))
@@ -868,7 +870,7 @@ fn drag_ghost_and_world_drop(
 }
 
 /// Вид от первого лица: прицел и предметы в руках крупно по нижним углам экрана.
-fn viewmodel(ctx: &egui::Context, icons: &mut Icons, hands: &Hands) {
+fn viewmodel(ctx: &egui::Context, icons: &mut Icons, hands: &Hands, in_3d: &[bool]) {
     let screen = ctx.content_rect();
     let c = screen.center();
     let p = ctx.layer_painter(egui::LayerId::new(
@@ -882,6 +884,10 @@ fn viewmodel(ctx: &egui::Context, icons: &mut Icons, hands: &Hands) {
     p.line_segment([c + Vec2::new(0.0, 2.0), c + Vec2::new(0.0, 6.0)], stroke);
     const BIG: f32 = 160.0;
     for (i, _, item) in hands.iter() {
+        // У руки есть объёмная модель — плоский значок не нужен.
+        if in_3d.get(i).copied().unwrap_or(false) {
+            continue;
+        }
         let Some(it) = item else { continue };
         let Some(tex) = icons.item(ctx, it.prototype.as_str()) else {
             continue;

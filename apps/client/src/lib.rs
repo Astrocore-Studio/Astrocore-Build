@@ -8,6 +8,7 @@ mod alerts_ui;
 mod body;
 mod combat;
 mod fire;
+mod held;
 mod hud;
 mod lights;
 mod outfit;
@@ -100,6 +101,7 @@ impl Plugin for BuildClientPlugin {
             frame: 0,
             examined: None,
         })
+        .init_resource::<held::HeldModels>()
         .init_resource::<fire::FxAssets>()
         .init_resource::<lights::FlashlightOn>()
         .add_systems(Startup, (install_body, install_sounds))
@@ -111,6 +113,7 @@ impl Plugin for BuildClientPlugin {
                 refresh_loadout,
                 cursor_ground,
                 aim_target,
+                held::sync_held,
                 hand_keys,
                 autoplay,
                 outfit::sync_outfits,
