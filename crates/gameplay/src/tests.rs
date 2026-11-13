@@ -2515,7 +2515,9 @@ mod disposal_tests {
         );
         h.ticks(3);
         let v = verbs_of(&h, a).expect("глаголы");
-        assert_eq!(v.verbs.len(), 1);
+        // Осмотр первым, дальше — «Pull»: предмет можно тащить, рука свободна.
+        assert_eq!(v.verbs.len(), 2);
+        assert_eq!(v.verbs[1].id, "pull");
         assert_eq!(
             (v.verbs[0].id.as_str(), v.verbs[0].disabled.as_deref()),
             ("examine", None)
@@ -2546,7 +2548,7 @@ mod disposal_tests {
             .iter()
             .map(|v| v.id.clone())
             .collect();
-        assert_eq!(ids, ["examine", "examine_health"]);
+        assert_eq!(ids, ["examine", "examine_health", "pull"]);
         command(
             &mut h,
             a,
