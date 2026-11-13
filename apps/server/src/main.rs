@@ -81,14 +81,24 @@ fn run(args: &[String]) -> Result<(), String> {
     let (mut number, mut signal) = (round.number, round.signal);
     let mut host = astrocore_lightyear::LyGameHost::start(addr, key, round.server, tick_hz);
     println!("Lightyear: {}", host.local_addr());
+    let mut pending: Option<std::thread::JoinHandle<Result<Round, String>>> = None;
     let mut steps = 0u64;
     while max_ticks.is_none_or(|m| steps < m) {
         host.step();
-        if signal.take() {
-            // Раунд окончен и сводка показана: новый раунд с нуля, клиенты входят заново.
+        if pending.is_none() && signal.take() {
+            // Раунд окончен и сводка показана. Новый раунд строится в отдельном потоке, чтобы
+            // сеть не замолчала (иначе клиенты отвалятся по таймауту).
             number += 1;
-            let mut next = Round::start(number, &content, &config).map_err(|e| e.to_string())?;
-            let _ = next.server.tick();
+            let (content, config, n) = (content.clone(), config.clone(), number);
+            pending = Some(std::thread::spawn(move || {
+                let mut round = Round::start(n, &content, &config).map_err(|e| e.to_string())?;
+                let _ = round.server.tick();
+                Ok(round)
+            }));
+        }
+        if pending.as_ref().is_some_and(|t| t.is_finished()) {
+            let built = pending.take().expect("поток есть").join();
+            let next = built.map_err(|_| "поток раунда упал".to_string())??;
             println!("раунд {number} начат");
             signal = next.signal;
             host.replace_game(next.server);
