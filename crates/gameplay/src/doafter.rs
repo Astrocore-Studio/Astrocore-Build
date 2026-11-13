@@ -63,6 +63,14 @@ pub(crate) enum Action {
         pod: ObjectId,
         target: astrocore_core::NetworkEntityId,
     },
+    /// Обыск: снять предмет с цели (`take`) или надеть на неё активный из руки.
+    Strip {
+        target: astrocore_core::NetworkEntityId,
+        /// Рука цели или слот одежды.
+        hand: Option<usize>,
+        slot: String,
+        take: bool,
+    },
     /// Пристегнуться к сиденью (`BuckleDoAfterEvent`).
     Buckle {
         strap: ObjectId,
@@ -98,6 +106,7 @@ impl Action {
             Self::Mix { .. } => "mix",
             Self::Eat { .. } => "eat",
             Self::Buckle { .. } => "buckle",
+            Self::Strip { .. } => "strip",
         }
     }
 }

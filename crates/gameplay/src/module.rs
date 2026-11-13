@@ -47,6 +47,8 @@ const CHEST_M: f32 = 0.55;
 const WALK_FACTOR: f32 = 2.5 / 4.5;
 /// Скорость ползком (`CrawlerComponent.SpeedModifier`) и время вставания, с (`StandTime`).
 const CRAWL_FACTOR: f32 = 0.4;
+/// Обыск: время снять или надеть предмет, с.
+const STRIP_DELAY_S: f32 = 4.0;
 /// Выносливость (`StaminaComponent`): порог, спад в секунду, пауза до спада, оглушение при
 /// пороге, запас перед повторным оглушением и ускорение спада после него.
 const STAMINA_CRIT: f32 = 100.0;
@@ -513,6 +515,8 @@ pub struct State {
     /// Кто кого тащит: тащащий → (цель, длина связи, м). Цель тащат не более одного.
     /// Сиденья: время пристёгивания, с (`StrapComponent.BuckleDoafterTime`).
     pub(crate) straps: BTreeMap<PrototypeId, f32>,
+    /// Окна обыска: кто чьи вещи смотрит.
+    pub(crate) strip_view_for: BTreeMap<NetworkEntityId, NetworkEntityId>,
     pub(crate) pulls: BTreeMap<NetworkEntityId, (crate::verbs::VerbTarget, f32)>,
     /// Брошенные предметы в полёте: когда упадут, предмет и место падения.
     pub(crate) thrown: Vec<(f32, crate::hands::HeldItem, Vec3)>,
@@ -1032,6 +1036,7 @@ impl State {
             descriptions: BTreeMap::new(),
             verb_seq: 0,
             pulls: BTreeMap::new(),
+            strip_view_for: BTreeMap::new(),
             straps,
             thrown: Vec::new(),
             spawn_next: 0,
@@ -1961,6 +1966,15 @@ impl State {
             let target = *target;
             self.defib_begin_feedback(ctx, actor, target);
         }
+        if let Action::Strip {
+            target,
+            hand,
+            slot,
+            take,
+        } = &action
+        {
+            self.strip_alert(actor, *target, *hand, slot, *take);
+        }
         self.actor(actor).doafter = Some(DoAfter {
             action,
             delay,
@@ -1982,6 +1996,12 @@ impl State {
             }),
             Action::Unequip { slot, .. } => a.inventory.get(slot).is_some(),
             Action::Buckle { strap } => self.can_buckle(ctx, actor, *strap),
+            Action::Strip {
+                target,
+                hand,
+                slot,
+                take,
+            } => self.can_strip(ctx, actor, *target, *hand, slot, *take),
             Action::Eat { hand, item, target } => {
                 if target.is_some_and(|t| !self.in_reach(ctx, actor, t)) {
                     return false;
@@ -2109,6 +2129,8 @@ impl State {
                 .and_then(|i| self.healing.get(&i.prototype))
                 .map_or(0.0, |h| h.delay),
             Action::Mix { hand, shake, .. } => self.mix_delay(actor, *hand, *shake),
+            // Обыск: 4 с на слот и руку (`StripTime`, `HandStripDelay`).
+            Action::Strip { .. } => STRIP_DELAY_S,
             // Время пристёгивания одинаково у сидений билда (`BuckleDoafterTime` 2 с).
             Action::Buckle { .. } => self.straps.values().next().copied().unwrap_or(2.0),
             Action::CryoPut { .. } => self
@@ -2158,6 +2180,12 @@ impl State {
             Action::Defib { hand, target } => self.zap(ctx, actor, hand, target),
             Action::CryoPut { pod, target } => self.cryo_put(ctx, pod, target),
             Action::Buckle { strap } => self.buckle(ctx, actor, strap),
+            Action::Strip {
+                target,
+                hand,
+                slot,
+                take,
+            } => self.strip_run(ctx, actor, target, hand, &slot, take),
             Action::Mix {
                 hand,
                 target,
@@ -5098,6 +5126,258 @@ impl State {
         }
     }
 
+    /// Можно ли обыскивать игрока: рядом, не себя, оба живы, цель — человек с телом.
+    fn strip_reach(
+        &self,
+        ctx: &HookContext<'_>,
+        actor: NetworkEntityId,
+        target: NetworkEntityId,
+    ) -> bool {
+        let Some(a) = self.actors.get(&actor) else {
+            return false;
+        };
+        actor != target
+            && !a.ghost
+            && a.health.state().can_act()
+            && a.stun_until <= self.clock
+            && self.actors.get(&target).is_some_and(|t| !t.ghost)
+            && self.in_reach(ctx, actor, target)
+    }
+
+    /// Окно обыска (`StrippableBoundUserInterface`): вещи цели; показывается владельцу окна.
+    fn open_strip(
+        &mut self,
+        ctx: &mut HookContext<'_>,
+        actor: NetworkEntityId,
+        target: NetworkEntityId,
+    ) {
+        if !self.strip_reach(ctx, actor, target) {
+            return;
+        }
+        self.strip_view_for.insert(actor, target);
+        self.publish_strip(ctx, actor);
+    }
+
+    fn publish_strip(&mut self, ctx: &mut HookContext<'_>, viewer: NetworkEntityId) {
+        let Some(&target) = self.strip_view_for.get(&viewer) else {
+            return;
+        };
+        let name_of = |s: &State, i: &HeldItem| {
+            s.display_names
+                .get(&i.prototype)
+                .cloned()
+                .unwrap_or_else(|| i.prototype.to_string())
+        };
+        let Some(t) = self.actors.get(&target) else {
+            return;
+        };
+        let slots = t
+            .inventory
+            .iter()
+            .map(|(d, i)| (d.name.clone(), i.map(|i| name_of(self, i))))
+            .collect();
+        let hands = t
+            .hands
+            .iter()
+            .map(|(n, name, i)| (n as u8, name.to_string(), i.map(|i| name_of(self, i))))
+            .collect();
+        self.verb_seq += 1;
+        let view = crate::verbs::StripView {
+            seq: self.verb_seq,
+            target: target.0,
+            name: self.speaker_name(target),
+            slots,
+            hands,
+        };
+        ctx.set_component(
+            viewer,
+            crate::verbs::STRIP_COMPONENT,
+            crate::verbs::encode_strip(&view),
+        );
+    }
+
+    /// Команда обыска: занятый слот или рука — снять, свободный — надеть активный предмет.
+    fn strip_command(
+        &mut self,
+        ctx: &mut HookContext<'_>,
+        actor: NetworkEntityId,
+        target: NetworkEntityId,
+        hand: Option<u8>,
+        slot: &str,
+    ) {
+        if !self.strip_reach(ctx, actor, target) {
+            return;
+        }
+        let Some(t) = self.actors.get(&target) else {
+            return;
+        };
+        let occupied = match hand {
+            Some(h) => t.hands.get(usize::from(h)).is_some(),
+            None => t.inventory.get(slot).is_some(),
+        };
+        self.begin(
+            ctx,
+            actor,
+            Action::Strip {
+                target,
+                hand: hand.map(usize::from),
+                slot: slot.to_string(),
+                take: occupied,
+            },
+        );
+    }
+
+    /// Предупреждение цели в начале обыска (`strippable-component-alert-owner`).
+    fn strip_alert(
+        &mut self,
+        actor: NetworkEntityId,
+        target: NetworkEntityId,
+        hand: Option<usize>,
+        slot: &str,
+        take: bool,
+    ) {
+        let who = self.speaker_name(actor);
+        let item = |s: &State, i: Option<&HeldItem>| {
+            i.map_or_else(
+                || "item".to_string(),
+                |i| {
+                    s.display_names
+                        .get(&i.prototype)
+                        .cloned()
+                        .unwrap_or_else(|| i.prototype.to_string())
+                },
+            )
+        };
+        let text = if take {
+            let held = self.actors.get(&target).and_then(|t| match hand {
+                Some(h) => t.hands.get(h),
+                None => t.inventory.get(slot),
+            });
+            format!("{who} is removing your {}!", item(self, held))
+        } else {
+            let held = self
+                .actors
+                .get(&actor)
+                .and_then(|a| a.hands.get(a.hands.active()));
+            format!("{who} is putting a {} on you!", item(self, held))
+        };
+        self.popup(target, text);
+    }
+
+    /// Можно ли начать обыск (`CanStripRemove*` / `CanStripInsert*`): цель рядом, предмет есть /
+    /// слот свободен и вещь подходит.
+    fn can_strip(
+        &self,
+        ctx: &HookContext<'_>,
+        actor: NetworkEntityId,
+        target: NetworkEntityId,
+        hand: Option<usize>,
+        slot: &str,
+        take: bool,
+    ) -> bool {
+        if !self.strip_reach(ctx, actor, target) {
+            return false;
+        }
+        let (Some(a), Some(t)) = (self.actors.get(&actor), self.actors.get(&target)) else {
+            return false;
+        };
+        if take {
+            return match hand {
+                Some(h) => t.hands.get(h).is_some(),
+                None => t.inventory.get(slot).is_some(),
+            };
+        }
+        // Надеть: в руке что-то есть, слот или рука цели свободны, вещь подходит.
+        let Some(item) = a.hands.get(a.hands.active()) else {
+            return false;
+        };
+        match hand {
+            Some(h) => t.hands.get(h).is_none() && h < t.hands.len(),
+            None => {
+                t.inventory.get(slot).is_none()
+                    && self
+                        .info(&item.prototype)
+                        .is_some_and(|info| t.inventory.can_equip(slot, info).is_ok())
+            }
+        }
+    }
+
+    /// Результат обыска: вещь переходит от цели к тому, кто обыскивает, или наоборот.
+    fn strip_run(
+        &mut self,
+        ctx: &mut HookContext<'_>,
+        actor: NetworkEntityId,
+        target: NetworkEntityId,
+        hand: Option<usize>,
+        slot: &str,
+        take: bool,
+    ) {
+        let feet = ctx.position_of(actor);
+        let mut to_floor: Vec<HeldItem> = Vec::new();
+        if take {
+            let taken: Vec<HeldItem> = match hand {
+                Some(h) => self
+                    .actor(target)
+                    .hands
+                    .drop_hand(h)
+                    .map(|i| vec![i])
+                    .unwrap_or_default(),
+                None => self
+                    .actor(target)
+                    .inventory
+                    .unequip(slot)
+                    .map(|(i, dropped)| std::iter::once(i).chain(dropped).collect())
+                    .unwrap_or_default(),
+            };
+            let mut taken = taken.into_iter();
+            if let Some(first) = taken.next() {
+                if self.actor(actor).hands.pickup_any(first.clone()).is_err() {
+                    to_floor.push(first);
+                }
+            }
+            to_floor.extend(taken);
+        } else {
+            let (active, item) = {
+                let a = self.actor(actor);
+                let active = a.hands.active();
+                (active, a.hands.get(active).cloned())
+            };
+            let Some(item) = item else {
+                return;
+            };
+            let Some(info) = self.info(&item.prototype).cloned() else {
+                return;
+            };
+            let placed = match hand {
+                Some(h) => self.actor(target).hands.pickup_to(h, item.clone()).is_ok(),
+                None => self
+                    .actor(target)
+                    .inventory
+                    .equip(slot, item.clone(), &info)
+                    .is_ok(),
+            };
+            if placed {
+                let _ = self.actor(actor).hands.drop_hand(active);
+            }
+        }
+        if let Some(at) = feet {
+            for i in &to_floor {
+                Self::place(ctx, i, at);
+            }
+        }
+        self.publish(ctx, actor);
+        self.publish(ctx, target);
+        let viewers: Vec<NetworkEntityId> = self
+            .strip_view_for
+            .iter()
+            .filter(|(_, t)| **t == target)
+            .map(|(v, _)| *v)
+            .collect();
+        for v in viewers {
+            self.publish_strip(ctx, v);
+        }
+    }
+
     /// Допуск на размер цели при проверке прямой видимости, м: объект — крупнее игрока.
     fn verb_slack(target: crate::verbs::VerbTarget) -> f32 {
         match target {
@@ -5169,6 +5449,15 @@ impl State {
         if let Some(v) = self.buckle_verb(ctx, actor, target) {
             verbs.push(v);
         }
+        if let VerbTarget::Player(p) = target
+            && self.strip_reach(ctx, actor, p)
+        {
+            verbs.push(Verb {
+                id: "strip".into(),
+                label: "Strip".into(),
+                disabled: None,
+            });
+        }
         self.verb_seq += 1;
         let view = VerbsView {
             seq: self.verb_seq,
@@ -5192,6 +5481,10 @@ impl State {
             return;
         };
         // Таскание не требует осмотра: свои правила дальности внутри `start_pull`.
+        if let (VerbTarget::Player(p), "strip") = (target, verb) {
+            self.open_strip(ctx, actor, p);
+            return;
+        }
         if matches!(verb, "buckle" | "unbuckle") {
             if let (VerbTarget::Object(strap), "buckle") = (target, verb) {
                 self.begin(ctx, actor, Action::Buckle { strap });
@@ -5239,6 +5532,10 @@ impl State {
         match (verb, target) {
             ("pull", _) => {
                 self.start_pull(ctx, actor, target);
+                return;
+            }
+            ("strip", VerbTarget::Player(p)) => {
+                self.open_strip(ctx, actor, p);
                 return;
             }
             ("buckle", VerbTarget::Object(strap)) => {
@@ -6686,6 +6983,11 @@ impl GameModule for GameplayModule {
                 crate::wire::CMD_COMBAT => {
                     if let [on] = data[..] {
                         st.actor(*actor).combat = on != 0;
+                    }
+                }
+                crate::wire::CMD_STRIP => {
+                    if let Some((target, hand, slot)) = crate::verbs::parse_strip(data) {
+                        st.strip_command(ctx, *actor, target, hand, &slot);
                     }
                 }
                 crate::wire::CMD_REST => {

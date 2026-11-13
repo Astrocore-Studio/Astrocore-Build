@@ -15,6 +15,8 @@ use serde::{Deserialize, Serialize};
 
 pub const VERBS_COMPONENT: &str = "build.verbs";
 pub const VERBS_MAX_BYTES: usize = 2048;
+pub const STRIP_COMPONENT: &str = "build.strip";
+pub const STRIP_MAX_BYTES: usize = 4096;
 pub const EXAMINE_COMPONENT: &str = "build.examine";
 pub const EXAMINE_MAX_BYTES: usize = 4096;
 
@@ -97,6 +99,53 @@ pub struct ExamineView {
     pub seq: u32,
     pub name: String,
     pub lines: Vec<String>,
+}
+
+/// Для клиента: вещи обыскиваемого (`StrippableBoundUserInterface`): слоты и руки с названиями.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct StripView {
+    pub seq: u32,
+    pub target: u32,
+    pub name: String,
+    /// Слоты одежды: имя слота, название предмета или `None`.
+    pub slots: Vec<(String, Option<String>)>,
+    /// Руки: номер, название руки, предмет.
+    pub hands: Vec<(u8, String, Option<String>)>,
+}
+
+pub fn encode_strip(v: &StripView) -> Vec<u8> {
+    serde_json::to_vec(v).unwrap_or_default()
+}
+
+pub fn decode_strip(bytes: &[u8]) -> Option<StripView> {
+    if bytes.is_empty() || bytes.len() > STRIP_MAX_BYTES {
+        return None;
+    }
+    serde_json::from_slice(bytes).ok()
+}
+
+/// Данные команды `strip.act`: игрок-цель, рука (1) или слот (0) и его имя или номер руки.
+pub fn strip_data(target: NetworkEntityId, hand: Option<u8>, slot: &str) -> Vec<u8> {
+    let mut v = target.0.to_le_bytes().to_vec();
+    match hand {
+        Some(h) => v.extend_from_slice(&[1, h]),
+        None => {
+            v.push(0);
+            v.extend_from_slice(slot.as_bytes());
+        }
+    }
+    v
+}
+
+/// Разбор `strip_data`: цель, `Some(рука)` или слот.
+pub fn parse_strip(data: &[u8]) -> Option<(NetworkEntityId, Option<u8>, String)> {
+    let (id, rest) = data.split_at_checked(4)?;
+    let target = NetworkEntityId(u32::from_le_bytes(id.try_into().ok()?));
+    match rest.split_first()? {
+        (1, [h]) => Some((target, Some(*h), String::new())),
+        (0, name) => Some((target, None, std::str::from_utf8(name).ok()?.to_string())),
+        _ => None,
+    }
 }
 
 pub fn encode_verbs(v: &VerbsView) -> Vec<u8> {
@@ -224,6 +273,31 @@ mod tests {
             Some("Their body is absolutely smashed to a pulp!")
         );
         assert_eq!(health_line("Unknown", 50.0), None);
+    }
+
+    #[test]
+    fn strip_commands_survive_the_wire() {
+        let t = NetworkEntityId(9);
+        assert_eq!(
+            parse_strip(&strip_data(t, None, "jumpsuit")),
+            Some((t, None, "jumpsuit".into()))
+        );
+        assert_eq!(
+            parse_strip(&strip_data(t, Some(1), "")),
+            Some((t, Some(1), String::new()))
+        );
+        assert_eq!(parse_strip(&[1, 2]), None);
+        let v = StripView {
+            seq: 1,
+            target: 9,
+            name: "Chemist".into(),
+            slots: vec![
+                ("jumpsuit".into(), Some("jumpsuit".into())),
+                ("belt".into(), None),
+            ],
+            hands: vec![(0, "left".into(), None)],
+        };
+        assert_eq!(decode_strip(&encode_strip(&v)), Some(v));
     }
 
     #[test]

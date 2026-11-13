@@ -2817,6 +2817,88 @@ mod disposal_tests {
         assert!(verb_ids(&mut h, b, chair).contains(&"buckle".to_string()));
     }
 
+    fn strip_view_of(h: &Harness, who: ConnId, of: ConnId) -> Option<crate::StripView> {
+        let _ = of;
+        let net = h.client(who).net_id()?;
+        h.client(who)
+            .component(net, crate::STRIP_COMPONENT)
+            .and_then(crate::decode_strip)
+    }
+
+    #[test]
+    fn stripping_takes_and_puts_clothes_after_the_delay() {
+        let mut h = harness();
+        let (a, b) = (h.join("a"), h.join("b"));
+        h.ticks(5);
+        grab(&mut h, b, 51, near(), "ss14:heavy_coat");
+        command(&mut h, b, CMD_EQUIP, equip_data(0, "outerClothing"));
+        h.ticks(40);
+        let nb = h.client(b).net_id().unwrap();
+        let who = crate::VerbTarget::Player(nb);
+        assert!(verb_ids(&mut h, a, who).contains(&"strip".to_string()));
+        command(
+            &mut h,
+            a,
+            crate::CMD_VERB_DO,
+            crate::target_data(who, Some("strip")),
+        );
+        h.ticks(3);
+        let v = strip_view_of(&h, a, b).expect("окно обыска");
+        let coat = v.slots.iter().find(|(s, _)| s == "outerClothing").unwrap();
+        assert!(coat.1.is_some(), "на цели куртка: {:?}", v.slots);
+        // Снять: четыре секунды, цель предупреждена, пока предмет на ней.
+        command(
+            &mut h,
+            a,
+            crate::CMD_STRIP,
+            crate::strip_data(nb, None, "outerClothing"),
+        );
+        h.ticks(40);
+        assert!(
+            hands_of(&h, a, a).unwrap().held().next().is_none(),
+            "ещё идёт"
+        );
+        h.ticks(60);
+        assert_eq!(
+            hands_of(&h, a, a)
+                .unwrap()
+                .held()
+                .next()
+                .map(|i| i.prototype.as_str().to_string()),
+            Some("ss14:heavy_coat".to_string())
+        );
+        let v = strip_view_of(&h, a, b).unwrap();
+        assert!(
+            v.slots
+                .iter()
+                .find(|(s, _)| s == "outerClothing")
+                .unwrap()
+                .1
+                .is_none()
+        );
+        // Надеть обратно из руки.
+        command(
+            &mut h,
+            a,
+            crate::CMD_STRIP,
+            crate::strip_data(nb, None, "outerClothing"),
+        );
+        h.ticks(100);
+        assert!(hands_of(&h, a, a).unwrap().held().next().is_none());
+        let v = strip_view_of(&h, a, b).unwrap();
+        assert!(
+            v.slots
+                .iter()
+                .find(|(s, _)| s == "outerClothing")
+                .unwrap()
+                .1
+                .is_some()
+        );
+        // Себя обыскивать нельзя.
+        let me = crate::VerbTarget::Player(h.client(a).net_id().unwrap());
+        assert!(!verb_ids(&mut h, a, me).contains(&"strip".to_string()));
+    }
+
     #[test]
     fn a_successful_disarm_knocks_the_item_out_of_the_hand() {
         let mut h = harness();

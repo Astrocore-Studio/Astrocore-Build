@@ -350,6 +350,8 @@ pub struct HudState {
     pub menu: Option<VerbMenu>,
     /// Окно осмотра закрыто на ответе с этим номером.
     pub examine_closed: u32,
+    /// Окно обыска закрыто на ответе с этим номером.
+    pub strip_closed: u32,
     /// Лежит ли игрок (реплика сервера).
     pub lying: bool,
     /// Выносливость: процент порога и крит (реплика сервера).
@@ -1418,6 +1420,54 @@ pub fn verb_menu(
     }
     if close {
         state.menu = None;
+    }
+    out
+}
+
+/// Окно обыска (`StrippableBoundUserInterface`): слоты и руки цели; щелчок по занятому снимает,
+/// по свободному надевает предмет из активной руки (4 секунды, цель предупреждена).
+pub fn strip_window(
+    ctx: &egui::Context,
+    state: &mut HudState,
+    view: Option<&gameplay::StripView>,
+) -> Commands {
+    let mut out: Commands = Vec::new();
+    let Some(v) = view.filter(|v| v.seq > state.strip_closed) else {
+        return out;
+    };
+    let target = astrocore_core::NetworkEntityId(v.target);
+    let mut open = true;
+    egui::Window::new(format!("Обыск: {}", v.name))
+        .id(egui::Id::new("strip"))
+        .anchor(egui::Align2::RIGHT_CENTER, Vec2::new(-20.0, 0.0))
+        .collapsible(false)
+        .resizable(false)
+        .open(&mut open)
+        .show(ctx, |ui| {
+            ui.label(egui::RichText::new("Руки").small().weak());
+            for (n, name, item) in &v.hands {
+                let text = format!("{name}: {}", item.as_deref().unwrap_or("—"));
+                if ui.button(text).clicked() {
+                    out.push((
+                        gameplay::CMD_STRIP,
+                        gameplay::strip_data(target, Some(*n), ""),
+                    ));
+                }
+            }
+            ui.separator();
+            ui.label(egui::RichText::new("Одежда").small().weak());
+            for (slot, item) in &v.slots {
+                let text = format!("{slot}: {}", item.as_deref().unwrap_or("—"));
+                if ui.button(text).clicked() {
+                    out.push((
+                        gameplay::CMD_STRIP,
+                        gameplay::strip_data(target, None, slot),
+                    ));
+                }
+            }
+        });
+    if !open {
+        state.strip_closed = v.seq;
     }
     out
 }

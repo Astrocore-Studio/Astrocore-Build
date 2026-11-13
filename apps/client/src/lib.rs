@@ -43,6 +43,7 @@ pub struct Loadout {
     /// Глаголы для цели и результат осмотра.
     pub verbs: Option<gameplay::VerbsView>,
     pub examine: Option<gameplay::ExamineView>,
+    pub strip: Option<gameplay::StripView>,
     /// Чат: то, что слышал игрок.
     pub chat: Option<gameplay::ChatView>,
     /// Сводка конца раунда.
@@ -485,6 +486,10 @@ fn refresh_loadout(net: Option<NonSend<Net>>, time: Res<Time>, mut loadout: ResM
         .core
         .component(me, gameplay::VERBS_COMPONENT)
         .and_then(gameplay::decode_verbs);
+    loadout.strip = net
+        .core
+        .component(me, gameplay::STRIP_COMPONENT)
+        .and_then(gameplay::decode_strip);
     loadout.examine = net
         .core
         .component(me, gameplay::EXAMINE_COMPONENT)
@@ -959,6 +964,7 @@ fn loadout_window(
             "heal" => "Лечим…",
             "eat" => "Едим…",
             "buckle" => "Пристёгиваемся…",
+            "strip" => "Обыскиваем…",
             _ => "Действие…",
         };
         (
@@ -1028,6 +1034,7 @@ fn loadout_window(
     }
     commands.extend(hud::verb_menu(&ctx, state, loadout.verbs.as_ref()));
     hud::examine_window(&ctx, state, loadout.examine.as_ref());
+    commands.extend(hud::strip_window(&ctx, state, loadout.strip.as_ref()));
     let chat_at = egui::pos2(16.0, (ctx.content_rect().max.y - 290.0).max(16.0));
     commands.extend(hud::chat_panel(&ctx, state, loadout.chat.as_ref(), chat_at));
     hud::toasts(&ctx, &mut loadout.toasts, time.elapsed_secs());

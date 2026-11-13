@@ -33,8 +33,8 @@ pub use idconsole::{
 pub mod chat;
 pub mod verbs;
 pub use verbs::{
-    EXAMINE_COMPONENT, ExamineView, VERBS_COMPONENT, Verb, VerbTarget, VerbsView, decode_examine,
-    decode_verbs, target_data,
+    EXAMINE_COMPONENT, ExamineView, STRIP_COMPONENT, StripView, VERBS_COMPONENT, Verb, VerbTarget,
+    VerbsView, decode_examine, decode_strip, decode_verbs, strip_data, target_data,
 };
 pub mod jobs;
 pub use chat::{CHAT_COMPONENT, Channel, ChatLine, ChatView, chat_data, decode_chat};
@@ -83,7 +83,7 @@ pub use wire::{
     CMD_LAB_EJECT, CMD_LAB_INSERT, CMD_LAB_MODE, CMD_LAB_PILLS, CMD_LAB_REAGENT, CMD_LAB_SOURCE,
     CMD_LAB_START, CMD_LOBBY_READY, CMD_LOCK, CMD_MOVE_HAND, CMD_MOVE_SLOT, CMD_PICKUP,
     CMD_PICKUP_ANY, CMD_RESIST, CMD_RESPAWN, CMD_REST, CMD_SCAN_CLOSE, CMD_SELECT_HAND, CMD_SHAKE,
-    CMD_SPILL, CMD_STORE, CMD_SWAP_HANDS, CMD_TAKE, CMD_TAKE_TO, CMD_THROW, CMD_UNEQUIP,
+    CMD_SPILL, CMD_STORE, CMD_STRIP, CMD_SWAP_HANDS, CMD_TAKE, CMD_TAKE_TO, CMD_THROW, CMD_UNEQUIP,
     CMD_UNEQUIP_TO, CMD_USE, CMD_USE_GROUND, CMD_VEND, CMD_VEND_CLOSE, CMD_VERB_DO, CMD_VERB_LIST,
     CMD_WALK, HANDS_COMPONENT, INVENTORY_COMPONENT, InventoryView, LYING_COMPONENT,
     STAMINA_COMPONENT, WORN_COMPONENT, Worn, attack_data, attack_part_data, decode_hands,
