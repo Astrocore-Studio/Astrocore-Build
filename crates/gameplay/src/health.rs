@@ -276,6 +276,8 @@ pub fn decode_health(bytes: &[u8]) -> Option<HealthView> {
 pub struct Melee {
     pub damage: DamageSpec,
     pub rate: f32,
+    /// Какая доля тупого урона идёт ещё и в выносливость (`BluntStaminaDamageFactor`, 0,5).
+    pub stamina_factor: f32,
 }
 
 /// Лечащий предмет: расходуется целиком за одно применение.

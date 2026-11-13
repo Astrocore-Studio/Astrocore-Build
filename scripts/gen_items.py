@@ -188,6 +188,16 @@ def convert(i):
         out.append('"Shakeable": (duration: %s, requireInHand: %s)' % (float(_secs(sk.get('shakeDuration'), 1.0)), 'true' if sk.get('requireInHand') else 'false'))
     if 'Pill' in comps:
         out.append('"Pill": ()')
+    mw = comps.get('MeleeWeapon')
+    if mw is not None:
+        # Урон по видам (`damage.types`); группы и режимы без прямого урона не переносятся.
+        types = ((mw.get('damage') or {}).get('types') or {})
+        types = {k: float(v) for k, v in types.items() if isinstance(v, (int, float)) and v}
+        if types:
+            out.append('"MeleeWeapon": (damage: (%s), attackRate: %s, bluntStaminaDamageFactor: %s)' % (
+                ', '.join('%s: %s' % (k, v) for k, v in sorted(types.items())),
+                float(mw.get('attackRate', 1.0)),
+                float(mw.get('bluntStaminaDamageFactor', 0.5))))
     df = comps.get('Defibrillator')
     if df is not None:
         heal = (df.get('zapHeal') or {}).get('types') or {}

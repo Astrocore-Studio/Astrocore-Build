@@ -834,6 +834,10 @@ impl State {
                             .get("attackRate")
                             .and_then(prototypes::Data::as_f64)
                             .map_or(DEFAULT_ATTACK_RATE, |v| v.max(0.1) as f32),
+                        stamina_factor: c
+                            .get("bluntStaminaDamageFactor")
+                            .and_then(prototypes::Data::as_f64)
+                            .map_or(0.5, |v| v.max(0.0) as f32),
                     },
                 );
             }
@@ -1588,6 +1592,7 @@ impl State {
             .unwrap_or_else(|| Melee {
                 damage: DamageSpec::from([("Blunt".to_string(), FIST_DAMAGE)]),
                 rate: DEFAULT_ATTACK_RATE,
+                stamina_factor: 0.5,
             });
         let clock = self.clock;
         self.actor(actor).next_attack = clock + 1.0 / weapon.rate;
@@ -1598,7 +1603,12 @@ impl State {
         if let Some(body) = t.body.as_mut() {
             body.on_damage(&dealt);
         }
+        // Тупой удар утомляет: урон Blunt × коэффициент оружия (`SharedMeleeWeaponSystem`).
+        let tired = dealt.get("Blunt").copied().unwrap_or(0.0) * weapon.stamina_factor;
         self.after_health_change(ctx, target);
+        if tired > 0.0 {
+            self.take_stamina(ctx, target, tired);
+        }
     }
 
     /// Закрыт ли предмет (бутылка, пока её не открыли).

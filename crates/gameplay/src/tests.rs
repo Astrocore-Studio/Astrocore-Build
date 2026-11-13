@@ -22,6 +22,10 @@ const PROTOS: &str = r#"[
         "Item": (size: "Normal"),
         "MeleeWeapon": (damage: (Blunt: 60.0), attackRate: 1.0),
     }),
+    (id: "Truncheon", components: {
+        "Item": (size: "Normal"),
+        "MeleeWeapon": (damage: (Blunt: 10.0), attackRate: 3.0, bluntStaminaDamageFactor: 1.5),
+    }),
     (id: "Dagger", components: {
         "Item": (size: "Small"),
         "MeleeWeapon": (damage: (Slash: 20.0), attackRate: 1.0),
@@ -2743,6 +2747,29 @@ mod disposal_tests {
         command(&mut h, b, crate::CMD_JOB, b"Free".to_vec());
         h.ticks(3);
         assert_eq!(jobs_view(&h, b).unwrap().current.as_deref(), Some("Free"));
+    }
+
+    #[test]
+    fn blunt_blows_tire_the_victim_by_the_weapon_factor_until_they_fall() {
+        let mut h = harness();
+        let (a, b) = (h.join("a"), h.join("b"));
+        h.ticks(5);
+        grab(&mut h, a, 41, near(), "ss14:truncheon");
+        command(&mut h, a, crate::CMD_COMBAT, vec![1]);
+        let nb = h.client(b).net_id().unwrap();
+        let torso = crate::PARTS.iter().position(|p| *p == "Torso").unwrap() as u8;
+        // 10 урона × 1,5 = 15 выносливости за удар: семь ударов — порог.
+        for i in 0..7 {
+            assert!(!lying(&h, a, b), "до удара {i} ещё стоит");
+            command(
+                &mut h,
+                a,
+                crate::CMD_ATTACK,
+                crate::attack_part_data(nb, torso),
+            );
+            h.ticks(8);
+        }
+        assert!(lying(&h, a, b), "усталость уронила");
     }
 
     #[test]
