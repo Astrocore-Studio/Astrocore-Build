@@ -13,6 +13,9 @@ const MAX_ACTIVE: usize = 40;
 const SEE_M: f32 = 35.0;
 /// Люмен на единицу `energy` SS14: подобрано по виду сцены.
 const LUMENS_PER_ENERGY: f32 = 25_000.0;
+/// Толщина потолка (как в импорте карты) и на сколько ниже него висит свет, м.
+const CEILING_THICKNESS_M: f32 = 0.1;
+const LAMP_BELOW_CEILING_M: f32 = 0.3;
 /// Яркость общего света и солнца на станции со светильниками.
 const DIM_AMBIENT: f32 = 4.0;
 /// Внутри станции солнца нет: свет только от ламп и фонарика.
@@ -76,6 +79,12 @@ pub fn sync_lights(
     for e in &existing {
         commands.entity(e).despawn();
     }
+    // Светильники на карте лежат на полу; свет вешаем под потолок, как плафоны (`LAMP_BELOW_CEILING_M`).
+    let lamp_y = net
+        .core
+        .world()
+        .and_then(|w| w.floors().next().map(|f| f.top_y()))
+        .map(|top| top - CEILING_THICKNESS_M - LAMP_BELOW_CEILING_M);
     type Lamp = (f32, f32, f32, u8, bool);
     let mut on: Vec<(f32, &Lamp)> = view
         .lights
@@ -98,7 +107,7 @@ pub fn sync_lights(
                 range: k[4],
                 cast_shadows: false,
             },
-            Transform::from_xyz(l.0, l.1, l.2),
+            Transform::from_xyz(l.0, lamp_y.unwrap_or(l.1), l.2),
         ));
     }
 }
@@ -116,8 +125,8 @@ pub struct FlashlightOn(pub bool);
 /// Полураствор конуса, рад.
 const BEAM_HALF_ANGLE: f32 = 0.42;
 /// Дальность луча, м, и сила света, люмен.
-const BEAM_RANGE_M: f32 = 18.0;
-const BEAM_LUMENS: f32 = 2_500_000.0;
+const BEAM_RANGE_M: f32 = 14.0;
+const BEAM_LUMENS: f32 = 450_000.0;
 
 pub fn flashlight(
     mut commands: Commands,

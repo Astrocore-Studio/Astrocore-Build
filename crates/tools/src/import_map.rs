@@ -867,11 +867,12 @@ pub fn import(
             material,
             0.2,
         ));
-        // Станция в один этаж: над каждой клеткой пола — потолок (пол в виде крыши).
+        // Станция в один этаж: над каждой клеткой пола — потолок (пол в виде крыши) из той же плитки,
+        // что и пол под ним.
         elements.push(element(
             StructureKind::Ceiling,
             Placement::Cell(GridCell::new(c.0, c.1)),
-            &mats.floor,
+            material,
             CEILING_THICKNESS_M,
         ));
     }
