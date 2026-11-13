@@ -10,6 +10,7 @@ mod hud;
 mod lights;
 mod outfit;
 mod players;
+mod power_ui;
 mod sounds;
 mod statusfx;
 use gameplay::{
@@ -20,6 +21,9 @@ use gameplay::{
 /// Что игрок сейчас держит и носит, как это видит клиент (копия серверных реплик).
 #[derive(Resource, Default)]
 pub struct Loadout {
+    pub power_monitor: Option<gameplay::power_monitor::View>,
+    pub power_map: Option<gameplay::power_monitor::MapView>,
+    pub power_cables: Option<gameplay::power_monitor::CableView>,
     pub hands: Option<Hands>,
     pub inventory: Option<InventoryView>,
     /// Идущее действие с таймером и время (с игры), когда клиент о нём узнал.
@@ -67,6 +71,7 @@ impl Plugin for BuildClientPlugin {
             .insert_resource(Hud {
                 icons: hud::Icons::from_manifest(self.manifest.as_deref().unwrap_or("".as_ref())),
                 state: hud::HudState::default(),
+                power: power_ui::UiState::default(),
             })
             .insert_resource(Autoplay {
                 enabled: self.autoplay,
@@ -209,6 +214,7 @@ fn cursor_ground(
 pub(crate) struct Hud {
     pub(crate) icons: hud::Icons,
     state: hud::HudState,
+    power: power_ui::UiState,
 }
 
 #[derive(Resource)]
@@ -221,6 +227,18 @@ struct Autoplay {
 fn refresh_loadout(net: Option<NonSend<Net>>, time: Res<Time>, mut loadout: ResMut<Loadout>) {
     let Some(net) = net else { return };
     let Some(me) = net.core.net_id() else { return };
+    loadout.power_monitor = net
+        .core
+        .component(me, gameplay::power_monitor::COMPONENT)
+        .and_then(gameplay::power_monitor::decode);
+    loadout.power_map = net
+        .core
+        .component(me, gameplay::power_monitor::MAP_COMPONENT)
+        .and_then(gameplay::power_monitor::decode);
+    loadout.power_cables = net
+        .core
+        .component(me, gameplay::power_monitor::CABLE_COMPONENT)
+        .and_then(gameplay::power_monitor::decode);
     loadout.hands = net
         .core
         .component(me, HANDS_COMPONENT)
@@ -349,8 +367,18 @@ fn autoplay(
     if net.core.net_id().is_none() {
         return;
     }
+    // Welcome can arrive before the map snapshot; debug interactions need the world.
+    if net.core.world().is_none() {
+        return;
+    }
     state.frame += 1;
-    // Отладка: снимки окна в файлы (ASTRO_SHOT=каталог, кадры 130, 200, 450).
+    if std::env::var_os("ASTRO_SMOKE_EXIT").is_some() && state.frame >= 380 {
+        commands.queue(|world: &mut World| {
+            world.write_message(bevy::app::AppExit::Success);
+        });
+        return;
+    }
+    // Отладка: снимки окна в файлы (ASTRO_SHOT=каталог, кадры 260 и 340).
     if let Some(dir) = std::env::var_os("ASTRO_SHOT")
         && matches!(state.frame, 260 | 340)
     {
@@ -395,6 +423,44 @@ fn autoplay(
         {
             net.send_command(gameplay::CMD_CRYO_PUT, me.0.to_le_bytes().to_vec());
         }
+        if want == "ComputerPowerMonitoring" {
+            use gameplay::power_monitor::{self as power, Group};
+            if state.frame == 200 {
+                net.send_command(power::CMD_FOCUS, power::focus_data(Group::Apc, None));
+            }
+            // Wait for the replicated tab before selecting; packet arrival is not frame-bound.
+            if (230..320).contains(&state.frame)
+                && state.frame.is_multiple_of(15)
+                && let Some(view) = loadout
+                    .power_monitor
+                    .as_ref()
+                    .filter(|v| v.group == Group::Apc && v.focus.is_none())
+                && let Some(entry) = view
+                    .entries
+                    .iter()
+                    .max_by(|a, b| a.power.total_cmp(&b.power))
+            {
+                net.send_command(
+                    power::CMD_FOCUS,
+                    power::focus_data(Group::Apc, Some(entry.id)),
+                );
+            }
+            if state.frame == 340 {
+                if let Some(view) = &loadout.power_monitor {
+                    eprintln!(
+                        "ASTRO_POWER: group={:?} focus={:?} entries={} sources={} loads={}",
+                        view.group,
+                        view.focus,
+                        view.entries.len(),
+                        view.sources.len(),
+                        view.loads.len()
+                    );
+                } else {
+                    eprintln!("ASTRO_POWER: console did not open");
+                }
+            }
+        }
+        return;
     }
     // Сценарий огня для снимков: поднять сварку и зажечь.
     if std::env::var_os("ASTRO_AUTOPLAY_FIRE").is_some() {
@@ -528,7 +594,11 @@ fn loadout_window(
             ((time.elapsed_secs() - since) / v.delay_s.max(0.01)).min(1.0),
         )
     });
-    let Hud { icons, state } = &mut *hud;
+    let Hud {
+        icons,
+        state,
+        power,
+    } = &mut *hud;
     state.health = loadout.health.clone();
     state.vitals = loadout.vitals.clone();
     let commands = hud::draw(
@@ -545,6 +615,15 @@ fn loadout_window(
         }),
     );
     let mut commands = commands;
+    commands.extend(power_ui::draw(
+        &ctx,
+        power,
+        icons,
+        loadout.power_monitor.as_ref(),
+        loadout.power_map.as_ref(),
+        loadout.power_cables.as_ref(),
+        net.core.world(),
+    ));
     commands.extend(hud::vending_window(&ctx, icons, loadout.vending.as_ref()));
     let hand = loadout.hands.as_ref().map_or(0, |h| h.active() as u8);
     commands.extend(hud::idconsole_window(

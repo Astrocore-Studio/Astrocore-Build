@@ -115,6 +115,8 @@ pub const CMD_RESIST: &str = "fire.resist";
 pub const CMD_INTERACT: &str = "interact";
 /// Использовать предмет в руке (`UseInHand`): `[рука]`.
 pub const CMD_USE: &str = "use";
+pub const CMD_POWER_FOCUS: &str = "power.focus";
+pub const CMD_POWER_CLOSE: &str = "power.close";
 
 /// Состояние инвентаря и содержимое сумок игрока; видит только сам игрок.
 pub const INVENTORY_COMPONENT: &str = "build.inventory";
@@ -196,6 +198,18 @@ pub fn decode_hands(bytes: &[u8]) -> Option<Hands> {
 
 /// Зарегистрировать виды данных билда на сервере.
 pub fn register_replication(reg: &mut ReplicationRegistry) -> Result<(), ReplicationError> {
+    for name in [
+        crate::power_monitor::COMPONENT,
+        crate::power_monitor::MAP_COMPONENT,
+        crate::power_monitor::CABLE_COMPONENT,
+    ] {
+        reg.register(ReplicatedKind {
+            name: name.into(),
+            channel: ReplicationChannel::ReliableOrdered,
+            interest: Interest::Owner,
+            max_bytes: crate::power_monitor::MAX_BYTES,
+        })?;
+    }
     reg.register(ReplicatedKind {
         name: HANDS_COMPONENT.into(),
         channel: ReplicationChannel::ReliableOrdered,

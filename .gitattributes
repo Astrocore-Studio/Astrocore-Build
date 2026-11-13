@@ -1,0 +1,2 @@
+# Generated manifest is compared with Rust's LF output, including on Windows.
+assets/ss14/render-manifest.json text eol=lf

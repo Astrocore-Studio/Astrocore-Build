@@ -235,6 +235,8 @@ fn oid(n: u128) -> ObjectId {
 fn registry() -> Arc<PrototypeRegistry> {
     let mut r = PrototypeRegistry::new();
     r.load_ron_str(PROTOS, "test").unwrap();
+    r.load_ron_str(power_monitoring::PROTOS, "power monitor test")
+        .unwrap();
     r.validate().unwrap();
     Arc::new(r)
 }
@@ -2965,5 +2967,163 @@ mod disposal_tests {
         command(&mut h, a, crate::CMD_RESIST, vec![]);
         h.ticks(5);
         assert!(cryo_view(&h, b).unwrap().patient.is_none());
+    }
+}
+
+mod power_monitoring {
+    use super::*;
+    use crate::power_monitor::{self as monitor, Group, View};
+    pub(super) const PROTOS: &str = r#"[
+    (id: "Monitor", components: {"ApcPowerReceiver": (load: 50.0)}),
+    (id: "Panel", components: {"PowerSupplier": (group: "hv", maxSupply: 5000.0, rampRate: 5000.0)}),
+    (id: "Sub", components: {"PowerBattery": (from: "hv", to: "mv", capacity: 10000.0, startingCharge: 10000.0, maxChargeRate: 5000.0, maxSupply: 5000.0)}),
+    (id: "Apc", components: {"PowerBattery": (from: "mv", to: "apc", capacity: 1000.0, startingCharge: 1000.0, maxChargeRate: 1000.0, maxSupply: 1000.0)}),
+    (id: "Lamp", components: {"ApcPowerReceiver": (load: 100.0)}),
+    (id: "PowerMonitoringData", abstract: true, components: {"PowerMonitoring": (
+        consoles: ["Monitor"], devices: [
+            (prototype: "Panel", name: "solar panel", group: "Generator", collection: "solar"),
+            (prototype: "Sub", name: "substation", group: "Substation", collection: "substation"),
+            (prototype: "Apc", name: "APC", group: "APC", collection: "apc"),
+        ],
+    )}),
+]"#;
+    fn id(n: u128) -> ObjectId {
+        ObjectId::from_u128(0xF000_0000 + n)
+    }
+
+    fn view(h: &Harness, who: ConnId) -> Option<View> {
+        monitor::decode(
+            h.client(who)
+                .component(h.client(who).net_id()?, monitor::COMPONENT)?,
+        )
+    }
+
+    fn setup() -> Harness {
+        let mut h = super::harness();
+        for (n, group) in [(10, "hv"), (11, "mv"), (12, "apc")] {
+            let mut zone = AuthoredObject::new(
+                id(n),
+                AuthoredKind::Zone,
+                FloorId(0),
+                Vec3::new(3.0, 0.0, 3.0),
+                Vec3::new(4.0, 0.05, 4.0),
+            );
+            zone.metadata.insert("power_cable".into(), group.into());
+            spawn(&mut h, zone);
+        }
+        for (n, prototype, x) in [
+            (1, "monitor", 3.0),
+            (2, "panel", 3.4),
+            (3, "panel", 3.7),
+            (4, "sub", 3.5),
+            (5, "apc", 3.6),
+            (6, "lamp", 3.8),
+        ] {
+            spawn(
+                &mut h,
+                item_at(
+                    0xF000_0000 + n - 0xBEEF_0000,
+                    &format!("ss14:{prototype}"),
+                    Vec3::new(x, 0.9, 3.0),
+                ),
+            );
+        }
+        h
+    }
+    #[test]
+    fn monitor_reports_real_power_groups_collections_and_focused_networks_privately() {
+        let mut h = setup();
+        let a = h.join("a");
+        let b = h.join("b");
+        h.ticks(120);
+        command(&mut h, a, CMD_INTERACT, interact_data(id(1)));
+        h.ticks(2);
+        let initial = view(&h, a).expect("powered console opens");
+        assert_eq!(initial.group, Group::Generator);
+        assert_eq!(
+            initial.entries.len(),
+            1,
+            "two connected panels form one collection"
+        );
+        assert!(initial.total_sources > 0.0);
+        assert!(
+            initial.total_loads >= 149.0,
+            "includes APC-fed console and lamp demand"
+        );
+        let owner = h.client(a).net_id().unwrap();
+        for component in [
+            monitor::COMPONENT,
+            monitor::MAP_COMPONENT,
+            monitor::CABLE_COMPONENT,
+        ] {
+            assert!(h.client(a).component(owner, component).unwrap().len() <= monitor::MAX_BYTES);
+            assert!(
+                h.client(b).component(owner, component).is_none(),
+                "owner-only telemetry"
+            );
+        }
+        command(
+            &mut h,
+            a,
+            monitor::CMD_FOCUS,
+            monitor::focus_data(Group::Substation, Some(id(4))),
+        );
+        h.ticks(2);
+        let focused = view(&h, a).unwrap();
+        assert_eq!(focused.focus, Some(id(4)));
+        assert_eq!(focused.sources.len(), 1);
+        assert_eq!(focused.loads.len(), 1);
+        assert_eq!(focused.loads[0].id, id(5));
+        assert!(focused.sources[0].power > 0.0);
+        let net = h.client(a).net_id().unwrap();
+        let cables: monitor::CableView = monitor::decode(
+            h.client(a)
+                .component(net, monitor::CABLE_COMPONENT)
+                .unwrap(),
+        )
+        .unwrap();
+        assert!(!cables.focus.is_empty());
+        command(
+            &mut h,
+            a,
+            monitor::CMD_FOCUS,
+            monitor::focus_data(Group::Apc, Some(id(999))),
+        );
+        h.ticks(25);
+        assert_eq!(
+            view(&h, a).unwrap().focus,
+            Some(id(4)),
+            "unknown device is rejected"
+        );
+    }
+
+    #[test]
+    fn monitor_is_single_user_and_closes_when_its_power_network_disappears() {
+        let mut h = setup();
+        let a = h.join("a");
+        let b = h.join("b");
+        h.ticks(120);
+        command(&mut h, a, CMD_INTERACT, interact_data(id(1)));
+        h.ticks(2);
+        command(&mut h, b, CMD_INTERACT, interact_data(id(1)));
+        h.ticks(2);
+        assert!(view(&h, a).is_some());
+        assert!(view(&h, b).is_none(), "ActivatableUI.singleUser");
+        command(&mut h, a, monitor::CMD_CLOSE, Vec::new());
+        h.ticks(2);
+        assert!(view(&h, a).is_none());
+        command(&mut h, b, CMD_INTERACT, interact_data(id(1)));
+        h.ticks(2);
+        assert!(view(&h, b).is_some());
+        let outs = h
+            .server
+            .apply_world_command(WorldCommand::RemoveAuthored { id: id(12) })
+            .unwrap();
+        h.deliver(outs);
+        h.ticks(2);
+        assert!(view(&h, b).is_none(), "power loss closes the UI");
+        command(&mut h, a, CMD_INTERACT, interact_data(id(1)));
+        h.ticks(2);
+        assert!(view(&h, a).is_none(), "unpowered console stays closed");
     }
 }

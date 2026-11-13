@@ -61,7 +61,12 @@ fn run(args: &[String]) -> Result<(), String> {
         tick_hz,
         ..RoundConfig::default()
     };
-    let round = Round::start(1, &content, &config).map_err(|e| e.to_string())?;
+    let mut round = Round::start(1, &content, &config).map_err(|e| e.to_string())?;
+    // Initialize map-dependent systems before accepting clients. On Saltern the
+    // first tick builds networks and resolves spawners; doing it during the
+    // handshake can exceed netcode's connection-request timeout.
+    println!("подготовка систем карты…");
+    let _ = round.server.tick();
     println!("раунд {} начат; слушаю {addr}", round.number);
     let mut host = astrocore_lightyear::LyGameHost::start(addr, key, round.server, tick_hz);
     println!("Lightyear: {}", host.local_addr());

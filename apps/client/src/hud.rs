@@ -64,6 +64,7 @@ pub struct Icons {
     delays: HashMap<String, Vec<f32>>,
     /// Размер текстуры в пикселях, нужен для раскладки кадров.
     sizes: HashMap<String, (u32, u32)>,
+    first_frames: HashMap<String, Rect>,
 }
 
 impl Icons {
@@ -76,6 +77,7 @@ impl Icons {
             cache: HashMap::new(),
             delays: HashMap::new(),
             sizes: HashMap::new(),
+            first_frames: HashMap::new(),
         }
     }
 
@@ -119,6 +121,32 @@ impl Icons {
             self.cache.insert(rel.to_string(), tex);
         }
         self.cache.get(rel)?.as_ref().map(|t| t.id())
+    }
+
+    pub(crate) fn first_frame(
+        &mut self,
+        ctx: &egui::Context,
+        rel: &str,
+    ) -> Option<(egui::TextureId, Rect)> {
+        let texture = self.load(ctx, rel)?;
+        let uv = *self.first_frames.entry(rel.into()).or_insert_with(|| {
+            let path = self.root.join(rel);
+            let (width, height) = image::image_dimensions(&path).unwrap_or((32, 32));
+            let meta = path
+                .parent()
+                .and_then(|p| std::fs::read(p.join("meta.json")).ok())
+                .and_then(|b| serde_json::from_slice::<serde_json::Value>(&b).ok());
+            let frame = |key| {
+                meta.as_ref()
+                    .and_then(|m| m.get("size")?.get(key)?.as_f64())
+                    .unwrap_or(32.0) as f32
+            };
+            Rect::from_min_max(
+                Pos2::ZERO,
+                Pos2::new(frame("x") / width as f32, frame("y") / height as f32),
+            )
+        });
+        Some((texture, uv))
     }
 
     /// Кадр анимированного состояния RSI в момент `time`: текстура и область в долях (кадры лежат

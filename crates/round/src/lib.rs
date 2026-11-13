@@ -57,7 +57,8 @@ impl Round {
         let mut modules = ModuleHost::new();
         let module = gameplay::GameplayModule::new(registry)
             .map_err(|e| RoundError::Module(e.to_string()))?
-            .with_spawn(astrocore_math::glam::Vec3::from_array(polygon::spawn()));
+            .with_spawn(astrocore_math::glam::Vec3::from_array(polygon::spawn()))
+            .with_station_name(polygon::map().name);
         modules
             .register(Box::new(module))
             .map_err(|e| RoundError::Module(e.to_string()))?;

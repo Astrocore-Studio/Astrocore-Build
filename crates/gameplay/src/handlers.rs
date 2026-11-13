@@ -715,8 +715,26 @@ impl InteractionHandler for DispenserUse {
 }
 
 /// Базовая цепочка: порядок важен — первый обработавший прекращает обход.
+pub struct PowerMonitorUse;
+
+impl InteractionHandler for PowerMonitorUse {
+    fn interact_hand(
+        &mut self,
+        state: &mut State,
+        ctx: &mut HookContext<'_>,
+        user: NetworkEntityId,
+        target: &Target,
+    ) -> bool {
+        let Target::Item { id, prototype, .. } = target else {
+            return false;
+        };
+        state.power_monitor.consoles.contains(prototype) && state.open_power_monitor(ctx, user, *id)
+    }
+}
+
 pub fn default_handlers() -> Vec<Box<dyn InteractionHandler>> {
     vec![
+        Box::new(PowerMonitorUse),
         Box::new(GasDeviceUse),
         Box::new(DisposalUnitUse),
         Box::new(SwitchUse),

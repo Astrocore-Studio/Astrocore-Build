@@ -167,6 +167,8 @@ impl PowerPart {
 /// Результат сборки: решатель и привязки объектов к его элементам.
 pub struct Built {
     pub state: PowerState,
+    pub suppliers: Vec<(ObjectId, usize)>,
+    pub cables: Vec<(CableGroup, atmos::Cell, usize)>,
     /// (объект, номер аккумулятора).
     pub batteries: Vec<(ObjectId, usize)>,
     /// (объект, номер потребителя, заявленная мощность).
@@ -200,7 +202,7 @@ pub fn build(
         .filter(|(_, _, p)| p.terminal)
         .map(|(_, c, _)| *c)
         .collect();
-    let (mut batteries, mut receivers) = (Vec::new(), Vec::new());
+    let (mut batteries, mut receivers, mut suppliers) = (Vec::new(), Vec::new(), Vec::new());
     let near = |g: CableGroup, c: atmos::Cell, r: f32| grid.nearest(g, c, r).map(|(_, n)| n);
     for (id, cell, p) in parts {
         if let Some(s) = &p.supplier
@@ -210,7 +212,7 @@ pub fn build(
             supply.ramp_rate = s.ramp_rate;
             supply.ramp_tolerance = s.ramp_tolerance;
             let nid = net(&mut state, &mut net_of, s.group, n);
-            state.add_supply(nid, supply);
+            suppliers.push((*id, state.add_supply(nid, supply)));
         }
         if let Some(b) = &p.battery {
             let from = match b.from {
@@ -252,6 +254,14 @@ pub fn build(
     }
     Built {
         state,
+        suppliers,
+        cables: cables
+            .iter()
+            .filter_map(|(group, cell)| {
+                let local = grid.net_at(*group, *cell)?;
+                Some((*group, *cell, *net_of.get(&(*group, local))?))
+            })
+            .collect(),
         batteries,
         receivers,
     }

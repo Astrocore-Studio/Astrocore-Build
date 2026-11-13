@@ -1,2 +1,4 @@
 .astro-key
 /target
+/.local
+/scripts/__pycache__/

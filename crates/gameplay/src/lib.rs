@@ -25,6 +25,7 @@ pub mod handlers;
 mod hands;
 mod health;
 pub mod idconsole;
+pub mod power_monitor;
 pub use idconsole::{
     IDCONSOLE_COMPONENT, IdConsoleView, TargetView, WriteRequest, decode_view, write_data,
 };

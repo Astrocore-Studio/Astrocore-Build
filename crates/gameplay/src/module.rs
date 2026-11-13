@@ -326,6 +326,9 @@ pub struct State {
     /// Электричество: разбор прототипов, состояние решателя, подпись мира, заряды аккумуляторов.
     pub(crate) power_parts: BTreeMap<PrototypeId, crate::electric::PowerPart>,
     pub(crate) power: power::PowerState,
+    pub(crate) power_suppliers: Vec<(ObjectId, usize)>,
+    pub(crate) power_cables: Vec<(power::CableGroup, atmos::Cell, usize)>,
+    pub(crate) power_monitor: crate::power_monitor::Monitoring,
     pub(crate) power_sig: Vec<(ObjectId, atmos::Cell, u8)>,
     pub(crate) power_batteries: Vec<(ObjectId, usize)>,
     pub(crate) power_receivers: Vec<(ObjectId, usize, f32)>,
@@ -787,6 +790,9 @@ impl State {
             }
         }
         Ok(Self {
+            power_monitor: crate::power_monitor::Monitoring::load(&registry),
+            power_suppliers: Vec::new(),
+            power_cables: Vec::new(),
             infos,
             range_m: INTERACTION_RANGE_M,
             actors: BTreeMap::new(),
@@ -2233,6 +2239,7 @@ impl State {
         self.tick_alarms(ctx, dt);
         self.tick_firelocks(ctx, dt);
         self.tick_power(dt);
+        self.tick_power_monitors(ctx);
         self.publish_lights(ctx, dt);
         self.atmos.advance(dt);
         self.tick_devices(ctx, dt);
@@ -2680,6 +2687,8 @@ impl State {
             .map(|(id, _, _)| *id)
             .collect();
         let built = crate::electric::build(&cables, &parts, &self.power_charge);
+        self.power_suppliers = built.suppliers;
+        self.power_cables = built.cables;
         self.power_batteries = built.batteries;
         self.power_receivers = built.receivers;
         self.power = built.state;
@@ -5096,6 +5105,12 @@ impl GameplayModule {
         self
     }
 
+    #[must_use]
+    pub fn with_station_name(mut self, name: String) -> Self {
+        self.state.power_monitor.station = name;
+        self
+    }
+
     /// Добавить обработчик в конец цепочки (после базовых).
     #[must_use]
     pub fn with_handler(mut self, handler: Box<dyn InteractionHandler>) -> Self {
@@ -5215,6 +5230,12 @@ impl GameModule for GameplayModule {
                     .get(actor)
                     .is_some_and(|a| !a.health.state().can_act()) => {}
             HookEvent::Command { actor, kind, data } => match kind.as_str() {
+                crate::power_monitor::CMD_FOCUS => {
+                    st.focus_power_monitor(ctx, *actor, data);
+                }
+                crate::power_monitor::CMD_CLOSE => {
+                    st.close_power_monitor(*actor);
+                }
                 CMD_USE_GROUND => {
                     if let Some((hand, Some([x, y, z]))) = crate::wire::parse_drop(data) {
                         st.use_on_ground(ctx, *actor, usize::from(hand), Vec3::new(x, y, z));
@@ -5624,6 +5645,7 @@ impl GameModule for GameplayModule {
             },
             HookEvent::Tick { dt, .. } => st.tick(ctx, *dt),
             HookEvent::PlayerLeft { actor, pos } => {
+                st.power_monitor.forget(*actor);
                 // Всё, что игрок держал и носил, остаётся лежать там, где он стоял (DropAll);
                 // содержимое сумок остаётся в сумках.
                 st.release_job(*actor);
