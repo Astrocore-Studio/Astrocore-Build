@@ -101,9 +101,16 @@ pub fn referenced(content: &Path) -> Result<(BTreeSet<String>, BTreeSet<String>)
     Ok((rsi, files))
 }
 
+/// Прочитать `meta.json` без метки порядка байтов UTF-8: часть наборов её несёт, а разборщик
+/// RSI её не принимает.
+fn read_meta(path: &Path) -> std::io::Result<String> {
+    let text = std::fs::read_to_string(path)?;
+    Ok(text.strip_prefix('\u{feff}').unwrap_or(&text).to_string())
+}
+
 /// Ошибка `meta.json`, из-за которой набор нельзя считать RSI.
 fn meta_problem(dir: &Path) -> Option<String> {
-    let Ok(text) = std::fs::read_to_string(dir.join("meta.json")) else {
+    let Ok(text) = read_meta(&dir.join("meta.json")) else {
         return Some("нет meta.json".into());
     };
     serde_json::from_str::<serde_json::Value>(&text)
@@ -113,7 +120,7 @@ fn meta_problem(dir: &Path) -> Option<String> {
 
 /// Чего не хватает по лицензии: `None`, если лицензия и авторство указаны.
 fn license_gap(dir: &Path) -> Option<String> {
-    let text = std::fs::read_to_string(dir.join("meta.json")).ok()?;
+    let text = read_meta(&dir.join("meta.json")).ok()?;
     let v: serde_json::Value = serde_json::from_str(&text).ok()?;
     let has = |k: &str| {
         v.get(k)
@@ -137,6 +144,13 @@ fn copy_dir(src: &Path, dst: &Path, bytes: &mut u64) -> Result<(), SyncError> {
         if entry.file_type().is_dir() {
             std::fs::create_dir_all(&target).map_err(|e| SyncError::Io(target.clone(), e))?;
         } else {
+            if entry.file_name() == "meta.json"
+                && let Ok(text) = read_meta(entry.path())
+            {
+                *bytes += text.len() as u64;
+                std::fs::write(&target, text).map_err(|e| SyncError::Io(target.clone(), e))?;
+                continue;
+            }
             *bytes += std::fs::copy(entry.path(), &target)
                 .map_err(|e| SyncError::Io(target.clone(), e))?;
         }
@@ -215,6 +229,26 @@ mod tests {
         std::fs::create_dir_all(dir).unwrap();
         std::fs::write(dir.join("meta.json"), meta).unwrap();
         std::fs::write(dir.join("icon.png"), b"png").unwrap();
+    }
+
+    #[test]
+    fn a_meta_with_a_utf8_bom_is_read_and_copied_without_it() {
+        let dir = std::env::temp_dir().join(format!("bom_rsi_{}", std::process::id()));
+        let (src, dst) = (dir.join("a.rsi"), dir.join("out"));
+        rsi(
+            &src,
+            "\u{feff}{\"license\":\"CC0\",\"copyright\":\"me\",\"states\":[]}",
+        );
+        assert_eq!(meta_problem(&src), None, "BOM не мешает разбору");
+        assert_eq!(license_gap(&src), None);
+        let mut bytes = 0;
+        copy_dir(&src, &dst, &mut bytes).unwrap();
+        let copied = std::fs::read(dst.join("meta.json")).unwrap();
+        assert!(
+            !copied.starts_with(&[0xEF, 0xBB, 0xBF]),
+            "метки в копии нет"
+        );
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]

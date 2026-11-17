@@ -43873,8 +43873,8 @@
       "delays": [],
       "frames": 1,
       "grid": [
-        2,
-        2
+        1,
+        1
       ],
       "image": "Textures/Structures/Wallmounts/switch.rsi/off.png",
       "layout": "billboard",
@@ -43890,8 +43890,8 @@
       "delays": [],
       "frames": 1,
       "grid": [
-        2,
-        2
+        1,
+        1
       ],
       "image": "Textures/Structures/Wallmounts/switch.rsi/off.png",
       "layout": "billboard",
