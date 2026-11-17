@@ -252,6 +252,12 @@ pub fn register_replication(reg: &mut ReplicationRegistry) -> Result<(), Replica
         })?;
     }
     reg.register(ReplicatedKind {
+        name: crate::character::LOOK_COMPONENT.into(),
+        channel: ReplicationChannel::ReliableOrdered,
+        interest: Interest::Everyone,
+        max_bytes: crate::character::LOOK_MAX_BYTES,
+    })?;
+    reg.register(ReplicatedKind {
         name: HANDS_COMPONENT.into(),
         channel: ReplicationChannel::ReliableOrdered,
         interest: Interest::Everyone,

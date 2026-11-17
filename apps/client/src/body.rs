@@ -18,8 +18,12 @@ const LAYERS: &[&str] = &[
 const SKIN: [u8; 3] = [238, 190, 158];
 const CELL: u32 = 32;
 
-/// Собрать лист 4×1 (S, N, E, W) из частей. Каждый PNG частей — сетка 2×2 кадров направлений.
-pub fn compose(root: &Path) -> Option<image::RgbaImage> {
+/// Цвет кожи по умолчанию (тон 20), пока сервер не прислал внешность.
+pub const DEFAULT_SKIN: [u8; 3] = SKIN;
+
+/// Собрать лист 4×1 (S, N, E, W) из частей кожей цвета `skin`. Каждый PNG частей — сетка 2×2
+/// кадров направлений.
+pub fn compose(root: &Path, skin: [u8; 3]) -> Option<image::RgbaImage> {
     let mut sheet = image::RgbaImage::new(CELL * 4, CELL);
     for name in LAYERS {
         let part = image::open(root.join(PARTS).join(format!("{name}.png")))
@@ -34,7 +38,7 @@ pub fn compose(root: &Path) -> Option<image::RgbaImage> {
                         continue;
                     }
                     if !name.ends_with("_foot") {
-                        for (c, s) in px.0.iter_mut().zip(SKIN) {
+                        for (c, s) in px.0.iter_mut().zip(skin) {
                             *c = (u16::from(*c) * u16::from(s) / 255) as u8;
                         }
                     }
@@ -54,7 +58,7 @@ pub fn install(
     images: &mut Assets<Image>,
     commands: &mut Commands,
 ) {
-    let Some(sheet) = compose(root) else {
+    let Some(sheet) = compose(root, DEFAULT_SKIN) else {
         eprintln!("части тела не найдены в {}", root.display());
         return;
     };

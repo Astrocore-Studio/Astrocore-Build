@@ -140,6 +140,8 @@ pub(crate) struct Actor {
     pub(crate) buckled: Option<ObjectId>,
     /// Когда в следующий раз разослать здоровье из-за кровотечения или удушья, с.
     pub(crate) next_health_publish: f32,
+    /// Профиль персонажа: внешность и имя (новичок получает случайный, как в SS14).
+    pub(crate) profile: crate::character::Profile,
     /// Здоровье изменилось сидящими внутри процессами, а разослать ещё не успели.
     pub(crate) health_dirty: bool,
     /// Умерший летает призраком; тело осталось лежать на месте смерти.
@@ -183,6 +185,7 @@ impl Actor {
             stun_until: 0.0,
             buckled: None,
             next_health_publish: 0.0,
+            profile: crate::character::Profile::default(),
             health_dirty: false,
             ghost: false,
             respawn_at: 0.0,
@@ -587,6 +590,8 @@ pub struct State {
     girders: BTreeMap<(i32, i32), ObjectId>,
     /// Предметы, убранные с земли в этом тике (мир применит запрос позже).
     pub(crate) gone: BTreeSet<ObjectId>,
+    /// Допустимые причёски и бороды (прототипы с компонентом `Marking`).
+    pub(crate) catalog: crate::character::Catalog,
     pub(crate) charger_slot: BTreeMap<ObjectId, (f32, HeldItem)>,
     pub(crate) explosion_types: BTreeMap<String, DamageSpec>,
     pub(crate) primed: BTreeMap<ObjectId, f32>,
@@ -1316,6 +1321,7 @@ impl State {
             rcd_recharge: Default::default(),
             girders: BTreeMap::new(),
             gone: BTreeSet::new(),
+            catalog: crate::character::Catalog::from_registry(&registry, NAMESPACE)?,
             charger_slot: BTreeMap::new(),
             explosion_types,
             primed: BTreeMap::new(),
@@ -1370,9 +1376,12 @@ impl State {
     }
 
     pub(crate) fn actor(&mut self, id: NetworkEntityId) -> &mut Actor {
-        self.actors
-            .entry(id)
-            .or_insert_with(|| Actor::new(id.0.wrapping_mul(2_246_822_519) ^ 0x85eb_ca6b))
+        let catalog = &self.catalog;
+        self.actors.entry(id).or_insert_with(|| {
+            let mut a = Actor::new(id.0.wrapping_mul(2_246_822_519) ^ 0x85eb_ca6b);
+            a.profile = crate::character::Profile::random(id.0 as u64, catalog);
+            a
+        })
     }
 
     pub(crate) fn info(&self, proto: &PrototypeId) -> Option<&ItemInfo> {
@@ -1418,6 +1427,11 @@ impl State {
         if let Some(body) = a.body.as_ref() {
             ctx.set_component(actor, VITALS_COMPONENT, encode_vitals(&body.vitals()));
         }
+        ctx.set_component(
+            actor,
+            crate::character::LOOK_COMPONENT,
+            crate::character::encode_look(&a.profile.look(&self.catalog)),
+        );
         let worn: crate::wire::Worn = a
             .inventory
             .iter()

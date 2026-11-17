@@ -3289,6 +3289,23 @@ mod disposal_tests {
     }
 
     #[test]
+    fn every_player_gets_a_look_that_everyone_sees() {
+        let mut h = harness();
+        let (a, b) = (h.join("a"), h.join("b"));
+        h.ticks(10);
+        let look_of = |h: &Harness, viewer: ConnId, owner: ConnId| {
+            let net = h.client(owner).net_id().unwrap();
+            h.client(viewer)
+                .component(net, crate::character::LOOK_COMPONENT)
+                .and_then(crate::character::decode_look)
+        };
+        let seen_by_a = look_of(&h, a, b).expect("a видит внешность b");
+        let seen_by_b = look_of(&h, b, b).expect("b видит свою внешность");
+        assert_eq!(seen_by_a, seen_by_b, "все видят одно и то же");
+        assert!(look_of(&h, b, a).is_some());
+    }
+
+    #[test]
     fn a_charger_refills_an_energy_gun_left_in_its_slot() {
         let mut h = harness();
         let (a, b) = (h.join("a"), h.join("b"));

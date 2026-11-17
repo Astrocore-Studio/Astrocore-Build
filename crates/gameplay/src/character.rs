@@ -9,7 +9,7 @@
 //! Не перенесено: другие виды, маркировки, черты, предпочтения антагонистов, голос, приоритеты
 //! должностей (этап 5 плана), сохранение (этап 4).
 
-use std::collections::BTreeSet;
+use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
 
@@ -128,11 +128,12 @@ impl Default for Profile {
     }
 }
 
-/// Допустимые стили: идентификаторы маркировок причёски и бороды.
+/// Допустимые стили: идентификатор маркировки → картинка (путь внутри `Textures`, лист 2×2
+/// направлений S, N, E, W).
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Catalog {
-    pub hair: BTreeSet<String>,
-    pub facial_hair: BTreeSet<String>,
+    pub hair: BTreeMap<String, String>,
+    pub facial_hair: BTreeMap<String, String>,
 }
 
 impl Catalog {
@@ -149,10 +150,17 @@ impl Catalog {
             let Some(marking) = resolved.component("Marking") else {
                 continue;
             };
-            match marking.get("part").and_then(prototypes::Data::as_str) {
-                Some("Hair") => catalog.hair.insert(name),
-                Some("FacialHair") => catalog.facial_hair.insert(name),
-                _ => false,
+            let text = |k: &str| {
+                marking
+                    .get(k)
+                    .and_then(prototypes::Data::as_str)
+                    .unwrap_or_default()
+            };
+            let png = format!("{}/{}.png", text("sprite"), text("state"));
+            match text("part") {
+                "Hair" => catalog.hair.insert(name, png),
+                "FacialHair" => catalog.facial_hair.insert(name, png),
+                _ => None,
             };
         }
         Ok(catalog)
@@ -250,8 +258,8 @@ impl Profile {
             name = DEFAULT_NAME.into();
         }
         let a = &self.appearance;
-        let style = |id: &str, known: &BTreeSet<String>| {
-            if known.contains(id) {
+        let style = |id: &str, known: &BTreeMap<String, String>| {
+            if known.contains_key(id) {
                 id.to_string()
             } else {
                 String::new()
@@ -278,6 +286,139 @@ impl Profile {
             },
             clothing: self.clothing,
             backpack: self.backpack,
+        }
+    }
+}
+
+/// Слой внешности для клиента: картинка (путь внутри `Textures`) и цвет.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct LookLayer {
+    pub png: String,
+    pub color: Rgb,
+}
+
+/// Как выглядит персонаж: рассылается всем (`build.look`). Клиент красит тело цветом кожи и кладёт
+/// слои глаз, бороды и причёски (порядок слоёв гуманоида SS14: под одеждой).
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct Look {
+    pub skin: Rgb,
+    pub eyes: Rgb,
+    pub facial_hair: Option<LookLayer>,
+    pub hair: Option<LookLayer>,
+}
+
+pub const LOOK_COMPONENT: &str = "build.look";
+pub const LOOK_MAX_BYTES: usize = 1024;
+
+pub fn encode_look(look: &Look) -> Vec<u8> {
+    serde_json::to_vec(look).unwrap_or_default()
+}
+
+/// Разобрать внешность; пути картинок проверяются (без выхода из каталога и посторонних знаков),
+/// потому что клиент читает их как есть.
+pub fn decode_look(bytes: &[u8]) -> Option<Look> {
+    if bytes.is_empty() || bytes.len() > LOOK_MAX_BYTES {
+        return None;
+    }
+    let look: Look = serde_json::from_slice(bytes).ok()?;
+    let safe = |l: &Option<LookLayer>| {
+        l.as_ref().is_none_or(|l| {
+            !l.png.is_empty()
+                && l.png.len() <= 128
+                && l.png.ends_with(".png")
+                && l.png.split('/').all(|part| {
+                    !part.is_empty()
+                        && part != ".."
+                        && part
+                            .chars()
+                            .all(|c| c.is_ascii_alphanumeric() || matches!(c, '_' | '-' | '.'))
+                })
+        })
+    };
+    (safe(&look.hair) && safe(&look.facial_hair)).then_some(look)
+}
+
+/// Цвета глаз, которые бывают у людей (`RealisticEyeColors` SS14, по смыслу).
+const EYE_COLORS: [Rgb; 6] = [
+    [0x2c, 0x1e, 0x14],
+    [0x4a, 0x2f, 0x1a],
+    [0x3b, 0x6e, 0x3a],
+    [0x3a, 0x5f, 0x9e],
+    [0x6a, 0x8c, 0xa8],
+    [0x70, 0x70, 0x70],
+];
+/// Естественные цвета волос.
+const HAIR_COLORS: [Rgb; 7] = [
+    [0x1a, 0x14, 0x10],
+    [0x32, 0x28, 0x1e],
+    [0x5a, 0x3a, 0x22],
+    [0x8a, 0x5a, 0x2c],
+    [0xc2, 0x9a, 0x5a],
+    [0xe0, 0xc8, 0x8a],
+    [0x9a, 0x2a, 0x1e],
+];
+
+fn mix(seed: u64) -> u64 {
+    let mut z = seed.wrapping_add(0x9e37_79b9_7f4a_7c15);
+    z = (z ^ (z >> 30)).wrapping_mul(0xbf58_476d_1ce4_e5b9);
+    z = (z ^ (z >> 27)).wrapping_mul(0x94d0_49bb_1331_11eb);
+    z ^ (z >> 31)
+}
+
+impl Profile {
+    /// Случайный профиль новичка (`HumanoidCharacterProfile.Random`): пол, возраст, кожа, глаза,
+    /// причёска, у мужчин часто борода. Один и тот же `seed` даёт один и тот же профиль.
+    pub fn random(seed: u64, catalog: &Catalog) -> Profile {
+        let mut n = mix(seed);
+        let mut next = |m: u64| {
+            n = mix(n);
+            n % m.max(1)
+        };
+        let sex = if next(2) == 0 { Sex::Male } else { Sex::Female };
+        let pick = |map: &BTreeMap<String, String>, i: u64| {
+            map.keys()
+                .nth(i as usize % map.len().max(1))
+                .cloned()
+                .unwrap_or_default()
+        };
+        let hair = pick(&catalog.hair, next(1000));
+        let facial = if sex == Sex::Male && next(100) < 40 {
+            pick(&catalog.facial_hair, next(1000))
+        } else {
+            String::new()
+        };
+        let hair_color = HAIR_COLORS[next(HAIR_COLORS.len() as u64) as usize];
+        Profile {
+            sex,
+            gender: sex.default_gender(),
+            age: MIN_AGE + next(43) as u8,
+            appearance: Appearance {
+                skin_tone: next(101) as f32,
+                eyes: EYE_COLORS[next(EYE_COLORS.len() as u64) as usize],
+                hair,
+                hair_color,
+                facial_hair: facial,
+                facial_hair_color: hair_color,
+            },
+            ..Profile::default()
+        }
+        .validated(catalog)
+    }
+
+    /// Внешность для рассылки клиентам.
+    pub fn look(&self, catalog: &Catalog) -> Look {
+        let a = &self.appearance;
+        let layer = |id: &str, map: &BTreeMap<String, String>, color: Rgb| {
+            map.get(id).map(|png| LookLayer {
+                png: png.clone(),
+                color,
+            })
+        };
+        Look {
+            skin: skin_color(a.skin_tone),
+            eyes: a.eyes,
+            facial_hair: layer(&a.facial_hair, &catalog.facial_hair, a.facial_hair_color),
+            hair: layer(&a.hair, &catalog.hair, a.hair_color),
         }
     }
 }
@@ -344,8 +485,16 @@ mod tests {
 
     fn catalog() -> Catalog {
         Catalog {
-            hair: ["HumanHairAfro".to_string()].into(),
-            facial_hair: ["HumanFacialHairBeard".to_string()].into(),
+            hair: [(
+                "HumanHairAfro".to_string(),
+                "Mobs/Customization/human_hair.rsi/afro.png".to_string(),
+            )]
+            .into(),
+            facial_hair: [(
+                "HumanFacialHairBeard".to_string(),
+                "Mobs/Customization/human_facial_hair.rsi/beard.png".to_string(),
+            )]
+            .into(),
         }
     }
 
@@ -362,7 +511,10 @@ mod tests {
         let c = Catalog::from_registry(&registry, "ss14").unwrap();
         assert_eq!(c.hair.len(), 203);
         assert_eq!(c.facial_hair.len(), 35);
-        assert!(c.hair.contains("HumanHairAfro") && c.facial_hair.contains("HumanFacialHairChin"));
+        assert!(
+            c.hair.contains_key("HumanHairAfro")
+                && c.facial_hair.contains_key("HumanFacialHairChin")
+        );
     }
 
     #[test]
@@ -438,6 +590,46 @@ mod tests {
             ..Profile::default()
         };
         assert_eq!(old.validated(&catalog()).age, MAX_AGE);
+    }
+
+    #[test]
+    fn a_random_profile_is_valid_stable_and_varied() {
+        let c = catalog();
+        let a = Profile::random(7, &c);
+        assert_eq!(a, Profile::random(7, &c), "тот же seed — тот же профиль");
+        assert_eq!(a.validated(&c), a);
+        let many: std::collections::BTreeSet<String> = (0..64)
+            .map(|s| {
+                let p = Profile::random(s, &c);
+                format!(
+                    "{:?}{}{:?}",
+                    p.sex, p.appearance.skin_tone, p.appearance.eyes
+                )
+            })
+            .collect();
+        assert!(many.len() > 20, "внешности разные: {}", many.len());
+    }
+
+    #[test]
+    fn the_look_resolves_styles_and_rejects_unsafe_paths() {
+        let c = catalog();
+        let mut p = Profile::default();
+        p.appearance.hair = "HumanHairAfro".into();
+        let look = p.look(&c);
+        assert_eq!(
+            look.hair.as_ref().map(|l| l.png.as_str()),
+            Some("Mobs/Customization/human_hair.rsi/afro.png")
+        );
+        assert!(look.facial_hair.is_none(), "бороды нет");
+        assert_eq!(decode_look(&encode_look(&look)), Some(look.clone()));
+        let mut bad = look;
+        bad.hair.as_mut().unwrap().png = "../../etc/passwd.png".into();
+        assert!(
+            decode_look(&encode_look(&bad)).is_none(),
+            "выход из каталога"
+        );
+        assert!(decode_look(&[]).is_none());
+        assert!(decode_look(&vec![b' '; LOOK_MAX_BYTES + 1]).is_none());
     }
 
     #[test]
