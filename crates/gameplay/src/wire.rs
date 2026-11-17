@@ -41,6 +41,7 @@ pub const CMD_RESPAWN: &str = "ghost.respawn";
 /// Ударить персонажа в пределах досягаемости: `[сетевой id цели, 4 байта LE]`. Оружие — предмет в
 /// активной руке (`MeleeWeapon`), без него кулак.
 pub const CMD_ATTACK: &str = "combat.attack";
+pub const CMD_ATTACK_OBJECT: &str = "combat.attack_object";
 /// Применить лечащий предмет из руки на персонажа: `[рука, сетевой id цели, 4 байта LE]`.
 pub const CMD_HEAL: &str = "combat.heal";
 /// Накормить или напоить другого персонажа предметом из руки: `[рука, сетевой id цели, 4 байта LE]`.
@@ -228,12 +229,20 @@ pub fn decode_hands(bytes: &[u8]) -> Option<Hands> {
 
 /// Зарегистрировать виды данных билда на сервере.
 pub fn register_replication(reg: &mut ReplicationRegistry) -> Result<(), ReplicationError> {
+    reg.register(ReplicatedKind {
+        name: crate::wires::MOTION_COMPONENT.into(),
+        channel: ReplicationChannel::ReliableOrdered,
+        interest: Interest::Owner,
+        max_bytes: crate::wires::MOTION_MAX_BYTES,
+    })?;
     for name in [
         crate::power_monitor::COMPONENT,
         crate::power_monitor::MAP_COMPONENT,
         crate::power_monitor::CABLE_COMPONENT,
         crate::alerts::COMPONENT,
         crate::alerts::VISUAL_COMPONENT,
+        crate::door_electronics::COMPONENT,
+        crate::wires::COMPONENT,
     ] {
         reg.register(ReplicatedKind {
             name: name.into(),

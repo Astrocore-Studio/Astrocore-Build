@@ -47,6 +47,36 @@ fn known() -> BTreeSet<String> {
 }
 
 #[test]
+fn repairable_items_keep_authored_damage_and_a_vendors_broken_state() {
+    let yaml = room_yaml(7)
+        .replace("proto: Crowbar", "proto: VendingMachineCola")
+        .replacen("  - uid: 4\n    components:\n", "  - uid: 4\n    components:\n    - type: Damageable\n      damage:\n        types: {Blunt: 78.25, Heat: 12.5}\n    - type: VendingMachine\n      broken: true\n", 1);
+    let (map, _) = import(
+        &yaml,
+        "repair",
+        &["VendingMachineCola".into()].into(),
+        &Materials::default(),
+    )
+    .unwrap();
+    let item = map
+        .items
+        .iter()
+        .find(|item| item.prototype == "VendingMachineCola")
+        .unwrap();
+    let damage: serde_json::Value = serde_json::from_str(&item.meta["damage"]).unwrap();
+    assert_eq!(damage, serde_json::json!({"Blunt":78.25,"Heat":12.5}));
+    assert_eq!(item.meta["broken"], "1");
+    // build_world validates structure; the game places MapItems later.
+    let saved = maps::MapFile::parse(&map.to_ron().unwrap()).unwrap();
+    let saved = saved
+        .items
+        .iter()
+        .find(|item| item.prototype == "VendingMachineCola")
+        .unwrap();
+    assert_eq!(saved.meta, item.meta);
+}
+
+#[test]
 fn device_links_preserve_uids_and_names_for_colocated_entities() {
     let yaml=room_yaml(7).replacen("  - uid: 4\n    components:\n", "  - uid: 4\n    components:\n    - type: DeviceList\n      devices: [5]\n    - type: MetaData\n      name: Room control\n",1);
     let known = ["Crowbar".into(), "Lamp".into()].into();
@@ -94,6 +124,56 @@ fn firelock_uid_resolves_to_the_imported_structure_element() {
             .iter()
             .any(|element| element.id == ObjectId::from_u128(id)
                 && element.material.as_str() == "ss14:firelock")
+    );
+}
+
+#[test]
+fn a_directional_window_can_share_its_tile_with_a_windoor_on_another_side() {
+    let yaml = room_yaml(7)
+        .replace("proto: AirlockGlass", "proto: Windoor")
+        .replace("pos: 3.5,0.5", "pos: 3.5,1.5")
+        + "- proto: WindowReinforcedDirectional\n  entities:\n  - uid: 1000\n    components:\n    - type: Transform\n      pos: 3.5,1.5\n      rot: 1.5707963267948966 rad\n";
+    let (map, report) = import(&yaml, "glazing", &known(), &Materials::default()).unwrap();
+    assert_eq!((report.doors, report.doors_unplaced), (1, 0));
+    assert!(
+        map.elements
+            .iter()
+            .any(|e| matches!(e.kind, StructureKind::Opening(OpeningKind::Window)))
+    );
+    assert!(map.build_world("glazing").is_ok());
+}
+
+#[test]
+fn station_airlock_keeps_its_board_skin_and_access_and_loose_electronics_remain_items() {
+    let proto = "AirlockArmoryGlassLocked";
+    let yaml = room_yaml(7)
+        .replace("proto: AirlockGlass", &format!("proto: {proto}"))
+        .replace("proto: Crowbar", "proto: DoorElectronics");
+    let mut materials = Materials::default();
+    materials
+        .door_access
+        .insert(proto.into(), vec![vec!["Armory".into()]]);
+    let (map, report) = import(
+        &yaml,
+        "armory",
+        &["DoorElectronics".into()].into(),
+        &materials,
+    )
+    .unwrap();
+    assert_eq!(report.doors, 1);
+    assert!(map.items.iter().any(|i| i.prototype == "DoorElectronics"));
+    let zone = map
+        .zones
+        .iter()
+        .find(|z| z.metadata.contains_key("door_element"))
+        .unwrap();
+    assert_eq!(zone.metadata["frame_board"], "DoorElectronicsArmory");
+    assert_eq!(zone.metadata["installed_access"], "Armory");
+    assert_eq!(zone.metadata["construction_node"], "glassAirlock");
+    assert!(
+        map.elements
+            .iter()
+            .any(|e| e.material.as_str() == "ss14:airlock_armory_glass_locked")
     );
 }
 
@@ -180,6 +260,6 @@ fn pipe_directions_rotate_counter_clockwise() {
         "изгиб юг+запад на 90° — юг+восток"
     );
     assert_eq!(dirs_text(rotate_pipe_dirs(2 | 8, 2)), "NE");
-    assert_eq!(pipe_base_dirs("GasPipeStraightAlt1"), None);
+    assert_eq!(pipe_base_dirs("GasPipeStraightAlt1"), Some(1 | 2));
     assert_eq!(pipe_base_dirs("GasPipeTJunction"), Some(2 | 4 | 8));
 }

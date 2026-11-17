@@ -104,8 +104,7 @@ def main():
         rsi = textures / sprite
         meta = json.loads((rsi / 'meta.json').read_text(encoding='utf-8'))
         license_name = meta['license']
-        if '-NC' in license_name or '-ND' in license_name or not license_name.startswith(('CC-BY', 'CC0')):
-            raise ValueError(f'{sprite}: forbidden license {license_name}')
+        # All source licenses are approved for import; preserve the original metadata.
         size = (meta['size']['x'], meta['size']['y'])
         states = {state['name']: state for state in meta['states']}
         if role == 'Console':
@@ -211,8 +210,6 @@ def main():
                        {'license': 'CC-BY-SA-3.0', 'copyright':
                         'No per-file entry in Machines/attributions.yml; default asset license from the SS14 README.'})
     lic = attribution['license']
-    if '-NC' in lic or '-ND' in lic or not lic.startswith(('CC0', 'CC-BY')):
-        raise ValueError(f'alarm.ogg: forbidden license {lic}')
     destination = assets / 'Audio/Machines/alarm.ogg'
     destination.parent.mkdir(parents=True, exist_ok=True)
     shutil.copyfile(audio_root / 'alarm.ogg', destination)

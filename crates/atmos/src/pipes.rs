@@ -56,6 +56,7 @@ pub struct NodeSpec {
     /// Устойчивый идентификатор (чтобы газ сохранялся при перестройке сетей).
     pub key: u64,
     pub cell: Cell,
+    pub layer: u8,
     pub dirs: u8,
     pub volume: f32,
 }
@@ -355,6 +356,7 @@ pub fn flow_gas(mix: &mut GasMixture, delta_p: f32, dt: f32, area: f32) -> Optio
 #[derive(Debug, Clone)]
 struct Node {
     cell: Cell,
+    layer: u8,
     dirs: u8,
     volume: f32,
     net: usize,
@@ -461,6 +463,7 @@ impl Pipes {
                 s.key,
                 Node {
                     cell: s.cell,
+                    layer: s.layer,
                     dirs: s.dirs,
                     volume: s.volume,
                     net: 0,
@@ -505,7 +508,8 @@ impl Pipes {
                     continue;
                 };
                 for &j in others {
-                    if self.nodes[&keys[j]].dirs & opposite(dir) != 0 {
+                    let adjacent = &self.nodes[&keys[j]];
+                    if adjacent.layer == n.layer && adjacent.dirs & opposite(dir) != 0 {
                         uf.union(i, j);
                     }
                 }

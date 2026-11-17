@@ -10,11 +10,61 @@ use astrocore_world::{AuthoredKind, AuthoredObject, FloorId, WorldCommand};
 use prototypes::PrototypeRegistry;
 
 use crate::*;
+#[path = "airlock_wire_tests.rs"]
+mod airlock_wire_tests;
+#[path = "repairable_tests.rs"]
+mod repairable_tests;
 
 const PROTOS: &str = r#"[
     (id: "BaseItem", abstract: true, components: {"Item": (size: "Small")}),
     (id: "Crowbar", name: Some("crowbar"), parents: ["BaseItem"], components: {"Tool": (qualities: ["Prying"])}),
+    (id: "RiotShield", name: Some("riot shield"), parents: ["BaseItem"]),
+    (id: "VendingMachineCola", name: Some("Space Cola"), components: {"VendingMachine": (pack:"Test",initialStockQuality:1.0,ejectDelay:1.2,stock:(Crowbar:8))}),
     (id: "Boulder", components: {"Sprite": (state: "boulder")}),
+    (id:"SheetSteel1",parents:["BaseItem"]),
+    (id:"SheetSteel",parents:["BaseItem"]),
+    (id:"SheetGlass",parents:["BaseItem"]),
+    (id:"SheetPlasteel1",parents:["BaseItem"]),
+    (id:"SheetPlasteel10",parents:["BaseItem"]),
+    (id:"ComputerFrame",components:{"Sprite":(state:"0")}),
+    (id:"RCD",parents:["BaseItem"]),
+    (id:"RCDAmmo",parents:["BaseItem"]),
+    (id:"AirlockAssembly",components:{"Sprite":(state:"assembly")}),
+    (id:"DoorElectronics",parents:["BaseItem"]),
+    (id:"Multitool",parents:["BaseItem"],components:{"Tool":(qualities:["Pulsing"])}),
+    (id:"ClothingHandsGlovesColorYellow",parents:["BaseItem"],components:{"Clothing":(slots:["Gloves"])}),
+    (id:"Girder",components:{"Sprite":(state:"girder")}),
+    (id:"ReinforcedGirder",components:{"Sprite":(state:"reinforced")}),
+    (id:"InflatableWallStack5",parents:["BaseItem"]),
+    (id:"InflatableWallStack1",parents:["BaseItem"]),
+    (id:"MaterialSheetMeat",parents:["BaseItem"]),
+    (id:"MaterialSheetMeat1",parents:["BaseItem"]),
+    (id:"InflatableDoorStack1",parents:["BaseItem"]),
+    (id:"GasVentPumpAlt1",components:{"GasPipe":(nodes:[(dirs:"S")]),"GasVentPump":(node:0),"Sprite":(state:"vent_off")}),
+    (id:"GasFilterFlipped",components:{"GasPipe":(nodes:[(dirs:"N"),(dirs:"E"),(dirs:"S")]),"GasFilter":(inlet:0,filter:1,outlet:2)}),
+    (id:"SheetRGlass",parents:["BaseItem"]),
+    (id:"SheetRGlass1",parents:["BaseItem"]),
+    (id:"UnfinishedMachineFrame",components:{"Sprite":(state:"box_0")}),
+    (id:"MachineFrame",components:{"Sprite":(state:"box_1")}),
+    (id:"ChemMaster",components:{"Sprite":(state:"off")}),
+    (id:"ChemMasterMachineCircuitboard",parents:["BaseItem"]),
+    (id:"MicroManipulatorStockPart",parents:["BaseItem"]),
+    (id:"Beaker",parents:["BaseItem"]),
+    (id:"ComputerAlert",components:{"Sprite":(state:"screen")}),
+    (id:"AlertsComputerCircuitboard",parents:["BaseItem"]),
+    (id:"SheetGlass10",parents:["BaseItem"]),
+    (id:"SheetGlass1",parents:["BaseItem"]),
+    (id:"CableApcStack10",parents:["BaseItem"]),
+    (id:"CableApcStack1",parents:["BaseItem"]),
+    (id:"PartRodMetal1",parents:["BaseItem"]),
+    (id:"PartRodMetal",parents:["BaseItem"]),
+    (id:"FloorTileItemSteel",parents:["BaseItem"]),
+    (id:"CableHVStack10",parents:["BaseItem"]),
+    (id:"CableHVStack1",parents:["BaseItem"]),
+    (id:"Wirecutter",parents:["BaseItem"],components:{"Tool":(qualities:["Cutting"])}),
+    (id:"Wrench",parents:["BaseItem"],components:{"Tool":(qualities:["Anchoring"])}),
+    (id:"Screwdriver",parents:["BaseItem"],components:{"Tool":(qualities:["Screwing"])}),
+    (id: "SheetSteel10", parents: ["BaseItem"]),
     (id: "Pen", components: {"Item": (size: "Tiny")}),
     (id: "Chair", components: {"Sprite": (state: "chair"), "Strap": (buckleDoafterTime: 1.0)}),
     (id: "Toolbox", components: {"Item": (size: "Large")}),
@@ -101,6 +151,8 @@ const PROTOS: &str = r#"[
         "Storage": (grid: ["0,0,5,3"], maxItemSize: "Normal"),
     }),
     (id: "Welder", components: {
+        "Welder": (), "Tool":(qualities:["Welding"]),
+        "Solution":(maxVol:100.0,reagents:(WeldingFuel:100.0)),
         "Item": (size: "Small"),
         "IgnitionSource": (temperature: 700.0),
     }),
@@ -4488,4 +4540,1257 @@ mod atmos_alerts {
         assert!(view(&h, b).is_none(), "unpowered console closes");
         assert!(visuals(&h, b).states.contains(&(id(4), Level::Invalid)));
     }
+}
+
+#[test]
+fn steel_construction_can_be_cancelled_then_seals_a_floor_cell() {
+    use astrocore_math::GridEdge;
+    let mut h = harness();
+    let who = h.join("engineer");
+    spawn(
+        &mut h,
+        item_at(901, "ss14:sheet_steel10", Vec3::new(3.0, 0.9, 3.0)),
+    );
+    command(&mut h, who, CMD_PICKUP, pickup_data(oid(901)));
+    let feet = h.client(who).position();
+    let x = feet.x.floor() as i32 + 1;
+    let z = feet.z.floor() as i32;
+    let data = drop_at_data(0, [x as f32 + 0.5, feet.y, z as f32 + 0.5]);
+    let frame_count = |h: &Harness| {
+        h.client(who).world().unwrap().authored().filter(|o|matches!(&o.kind,AuthoredKind::Placement{prototype} if prototype.as_str()=="ss14:girder")).count()
+    };
+    command(&mut h, who, CMD_USE_GROUND, data.clone());
+    command(&mut h, who, CMD_CANCEL, vec![]);
+    h.ticks(90);
+    assert_eq!(frame_count(&h), 0);
+    command(&mut h, who, CMD_USE_GROUND, data.clone());
+    h.ticks(90);
+    assert_eq!(frame_count(&h), 1);
+    command(&mut h, who, CMD_USE_GROUND, data.clone());
+    h.ticks(140);
+    assert_eq!(frame_count(&h), 0);
+    let world = h.client(who).world().unwrap();
+    let atmosphere = crate::world_atmos::layout(world, &|_| false);
+    for (dx, dz) in [(1, 0), (-1, 0), (0, 1), (0, -1)] {
+        assert!(
+            atmosphere
+                .blocked
+                .contains(&atmos::edge((x, z), (x + dx, z + dz)))
+        );
+    }
+    let inventory = decode_inventory(
+        h.client(who)
+            .component(h.client(who).net_id().unwrap(), INVENTORY_COMPONENT)
+            .unwrap(),
+    )
+    .unwrap();
+    assert!(inventory.charges.contains(&(oid(901), 6)));
+    for edge in [
+        GridEdge::along_x(x, z),
+        GridEdge::along_x(x, z + 1),
+        GridEdge::along_z(x, z),
+        GridEdge::along_z(x + 1, z),
+    ] {
+        assert_eq!(
+            world
+                .edge_element(FloorId(0), edge)
+                .unwrap()
+                .material
+                .as_str(),
+            "ss14:wall_solid"
+        );
+    }
+
+    let exchange = |h: &mut Harness, n, proto: &str| {
+        command(h, who, CMD_DROP, drop_data(0));
+        spawn(h, item_at(n, proto, feet + Vec3::Y * 0.4));
+        command(h, who, CMD_PICKUP, pickup_data(oid(n)));
+        assert_eq!(
+            hands_of(h, who, who).unwrap().get(0).map(|i| i.id),
+            Some(oid(n)),
+            "{proto}"
+        );
+    };
+    exchange(&mut h, 902, "ss14:welder");
+    command(&mut h, who, CMD_USE_GROUND, data.clone());
+    h.ticks(240);
+    assert_eq!(frame_count(&h), 0);
+    command(&mut h, who, CMD_USE, use_data(0));
+    command(&mut h, who, CMD_USE_GROUND, data.clone());
+    h.ticks(240);
+    assert_eq!(frame_count(&h), 1, "welding should expose the frame");
+    let frame_world = h.client(who).world().unwrap();
+    let atmosphere = crate::world_atmos::layout(frame_world, &|_| false);
+    for (dx, dz) in [(1, 0), (-1, 0), (0, 1), (0, -1)] {
+        assert!(
+            !atmosphere
+                .blocked
+                .contains(&atmos::edge((x, z), (x + dx, z + dz)))
+        );
+    }
+    exchange(&mut h, 903, "ss14:wrench");
+    command(&mut h, who, CMD_USE_GROUND, data.clone());
+    h.ticks(40);
+    exchange(&mut h, 904, "ss14:screwdriver");
+    command(&mut h, who, CMD_USE_GROUND, data);
+    h.ticks(80);
+    assert_eq!(frame_count(&h), 0, "loose frame dismantled");
+    let scrap = h
+        .client(who)
+        .world()
+        .unwrap()
+        .authored()
+        .find_map(|o| match &o.kind {
+            AuthoredKind::Placement { prototype } if prototype.as_str() == "ss14:sheet_steel1" => {
+                Some(o.id)
+            }
+            _ => None,
+        })
+        .unwrap();
+    command(&mut h, who, CMD_DROP, drop_data(0));
+    command(
+        &mut h,
+        who,
+        crate::CMD_VERB_DO,
+        crate::target_data(crate::VerbTarget::Object(scrap), Some("split_half")),
+    );
+    let hands = hands_of(&h, who, who).unwrap();
+    let single = hands.get(0).unwrap();
+    assert_eq!(single.prototype.as_str(), "ss14:sheet_steel1");
+    let charges = |h: &Harness| {
+        decode_inventory(
+            h.client(who)
+                .component(h.client(who).net_id().unwrap(), INVENTORY_COMPONENT)
+                .unwrap(),
+        )
+        .unwrap()
+        .charges
+    };
+    assert!(charges(&h).contains(&(single.id, 1)));
+    assert!(
+        charges(&h).contains(&(hands.get(1).unwrap().id, 2)),
+        "wall plating was refunded"
+    );
+    command(&mut h, who, CMD_INTERACT, interact_data(scrap));
+    assert!(charges(&h).contains(&(single.id, 2)));
+    command(
+        &mut h,
+        who,
+        CMD_USE_GROUND,
+        drop_at_data(0, [x as f32 + 0.5, feet.y, z as f32 + 0.5]),
+    );
+    h.ticks(30);
+    assert_eq!(frame_count(&h), 1, "recovered steel builds again");
+}
+
+#[test]
+fn a_rod_and_two_tiles_repair_a_missing_floor_on_both_clients() {
+    use astrocore_math::GridCell;
+    use astrocore_world::SlotKey;
+    let mut h = harness();
+    let who = h.join("builder");
+    let other = h.join("observer");
+    let feet = h.client(who).position();
+    let cell = GridCell::new(feet.x.floor() as i32 + 1, feet.z.floor() as i32);
+    let floor = |h: &Harness, c| {
+        h.client(c)
+            .world()
+            .unwrap()
+            .element_at(FloorId(0), SlotKey::FloorSlab(cell))
+            .map(|e| (e.id, e.material.to_string()))
+    };
+    let outs = h
+        .server
+        .apply_world_command(WorldCommand::RemoveElement {
+            id: floor(&h, who).unwrap().0,
+        })
+        .unwrap();
+    h.deliver(outs);
+    let use_ground = drop_at_data(0, [cell.x as f32 + 0.5, feet.y, cell.z as f32 + 0.5]);
+    for (id, prototype, material) in [
+        (9101, "ss14:part_rod_metal1", "ss14:tile_lattice"),
+        (9102, "ss14:floor_tile_item_steel", "ss14:tile_plating"),
+        (9103, "ss14:floor_tile_item_steel", "ss14:tile_floorsteel"),
+    ] {
+        spawn(&mut h, item_at(id, prototype, feet + Vec3::Y * 0.4));
+        command(&mut h, who, CMD_PICKUP, pickup_data(oid(id)));
+        command(&mut h, who, CMD_USE_GROUND, use_ground.clone());
+        h.ticks(2);
+        assert_eq!(floor(&h, other).unwrap().1, material);
+        assert!(hands_of(&h, other, who).unwrap().get(0).is_none());
+        let layout = crate::world_atmos::layout(h.client(who).world().unwrap(), &|_| false);
+        assert_eq!(
+            layout.cells[&(cell.x, cell.z)],
+            if material == "ss14:tile_lattice" {
+                atmos::CellKind::Space
+            } else {
+                atmos::CellKind::Air
+            }
+        );
+    }
+    spawn(&mut h, item_at(9104, "ss14:crowbar", feet + Vec3::Y * 0.4));
+    command(&mut h, who, CMD_PICKUP, pickup_data(oid(9104)));
+    command(&mut h, who, CMD_USE_GROUND, use_ground.clone());
+    command(&mut h, who, CMD_CANCEL, vec![]);
+    h.ticks(30);
+    assert_eq!(floor(&h, other).unwrap().1, "ss14:tile_floorsteel");
+    command(&mut h, who, CMD_USE_GROUND, use_ground);
+    h.ticks(30);
+    assert_eq!(floor(&h, other).unwrap().1, "ss14:tile_plating");
+}
+
+#[test]
+fn metal_rod_recipe_consumes_one_sheet_and_merges_two_rods() {
+    let mut h = harness();
+    let who = h.join("engineer");
+    let feet = h.client(who).position();
+    spawn(
+        &mut h,
+        item_at(9120, "ss14:sheet_steel10", feet + Vec3::Y * 0.4),
+    );
+    command(&mut h, who, CMD_PICKUP, pickup_data(oid(9120)));
+    command(
+        &mut h,
+        who,
+        crate::crafting::CMD_CRAFT,
+        b"SheetRGlass".to_vec(),
+    );
+    for _ in 0..2 {
+        command(
+            &mut h,
+            who,
+            crate::crafting::CMD_CRAFT,
+            b"MetalRod".to_vec(),
+        );
+    }
+    let hands = hands_of(&h, who, who).unwrap();
+    let rods = hands.get(1).unwrap();
+    assert_eq!(rods.prototype.as_str(), "ss14:part_rod_metal");
+    let inventory = decode_inventory(
+        h.client(who)
+            .component(h.client(who).net_id().unwrap(), INVENTORY_COMPONENT)
+            .unwrap(),
+    )
+    .unwrap();
+    assert!(inventory.charges.contains(&(rods.id, 4)));
+    assert!(inventory.charges.contains(&(oid(9120), 8)));
+}
+
+#[test]
+fn an_engineer_can_lay_rotate_disconnect_and_cut_a_primary_gas_pipe() {
+    use astrocore_math::GridCell;
+    use astrocore_world::{Placement, SlotKey};
+    let mut h = harness();
+    let who = h.join("builder");
+    let feet = h.client(who).position();
+    let cell = GridCell::new(feet.x.floor() as i32 + 1, feet.z.floor() as i32);
+    let point = [cell.x as f32 + 0.5, feet.y, cell.z as f32 + 0.5];
+    let world = h.client(who).world().unwrap();
+    let mut floor = world
+        .element_at(FloorId(0), SlotKey::FloorSlab(cell))
+        .unwrap()
+        .clone();
+    let id = floor.id;
+    floor.material = PrototypeId::new("ss14:tile_plating").unwrap();
+    floor.placement = Placement::Cell(cell);
+    for cmd in [
+        WorldCommand::RemoveElement { id },
+        WorldCommand::PlaceElement(floor),
+    ] {
+        let out = h.server.apply_world_command(cmd).unwrap();
+        h.deliver(out);
+    }
+    let equip = |h: &mut Harness, id, p| {
+        if hands_of(h, who, who).is_some_and(|hands| hands.get(0).is_some()) {
+            command(h, who, CMD_DROP, drop_data(0));
+        }
+        spawn(h, item_at(id, p, feet + Vec3::Y * 0.4));
+        command(h, who, CMD_PICKUP, pickup_data(oid(id)));
+    };
+    equip(&mut h, 9200, "ss14:sheet_steel10");
+    command(
+        &mut h,
+        who,
+        crate::crafting::CMD_PLACE,
+        crate::crafting::placement_data("GasPipeHalf", 1, point),
+    );
+    h.ticks(30);
+    let other = h.join("observer");
+    let pipe = h
+        .client(other)
+        .world()
+        .unwrap()
+        .authored()
+        .find(|o| {
+            o.metadata
+                .get("pipe_proto")
+                .is_some_and(|s| s == "GasPipeHalf")
+        })
+        .unwrap();
+    assert_eq!(pipe.metadata["gas_pipe"], "E");
+    assert_eq!(pipe.metadata["gas_pipe_volume"], "100");
+    let id = pipe.id;
+    command(
+        &mut h,
+        who,
+        crate::crafting::CMD_PLACE,
+        crate::crafting::placement_data("GasPipeHalfAlt1", 1, point),
+    );
+    h.ticks(30);
+    let second = h
+        .client(other)
+        .world()
+        .unwrap()
+        .authored()
+        .find(|o| {
+            o.metadata
+                .get("pipe_proto")
+                .is_some_and(|s| s == "GasPipeHalfAlt1")
+        })
+        .unwrap()
+        .id;
+    equip(&mut h, 9201, "ss14:wrench");
+    let mut select_layer = drop_at_data(0, point);
+    select_layer.push(1);
+    command(&mut h, who, CMD_USE_GROUND, select_layer);
+    h.ticks(30);
+    assert!(
+        h.client(other)
+            .world()
+            .unwrap()
+            .authored_object(second)
+            .unwrap()
+            .metadata
+            .contains_key("loose_pipe_dirs")
+    );
+    assert!(
+        h.client(other)
+            .world()
+            .unwrap()
+            .authored_object(id)
+            .unwrap()
+            .metadata
+            .contains_key("gas_pipe")
+    );
+    let mut primary = drop_at_data(0, point);
+    primary.push(0);
+    command(&mut h, who, CMD_USE_GROUND, primary.clone());
+    h.ticks(30);
+    assert_eq!(
+        h.client(other)
+            .world()
+            .unwrap()
+            .authored_object(id)
+            .unwrap()
+            .metadata["loose_pipe_dirs"],
+        "E"
+    );
+    equip(&mut h, 9202, "ss14:welder");
+    command(&mut h, who, CMD_USE, use_data(0));
+    command(&mut h, who, CMD_USE_GROUND, primary);
+    h.ticks(30);
+    assert!(
+        h.client(other)
+            .world()
+            .unwrap()
+            .authored_object(id)
+            .is_none()
+    );
+}
+
+#[test]
+fn laid_cable_connects_to_supply_and_can_be_cut_after_isolation() {
+    use astrocore_math::GridCell;
+    use astrocore_world::SlotKey;
+    let mut h = harness();
+    let who = h.join("electrician");
+    let feet = h.client(who).position();
+    let cell = GridCell::new(feet.x.floor() as i32 + 1, feet.z.floor() as i32);
+    let point = [cell.x as f32 + 0.5, feet.y, cell.z as f32 + 0.5];
+    let mut slab = h
+        .client(who)
+        .world()
+        .unwrap()
+        .element_at(FloorId(0), SlotKey::FloorSlab(cell))
+        .unwrap()
+        .clone();
+    slab.material = PrototypeId::new("ss14:tile_plating").unwrap();
+    for change in [
+        WorldCommand::RemoveElement { id: slab.id },
+        WorldCommand::PlaceElement(slab),
+    ] {
+        let out = h.server.apply_world_command(change).unwrap();
+        h.deliver(out);
+    }
+    let equip = |h: &mut Harness, id, proto| {
+        spawn(h, item_at(id, proto, feet + Vec3::Y * 0.4));
+        command(h, who, CMD_PICKUP, pickup_data(oid(id)));
+    };
+    equip(&mut h, 9300, "ss14:cable_hvstack10");
+    command(&mut h, who, CMD_USE_GROUND, drop_at_data(0, point));
+    command(&mut h, who, CMD_USE_GROUND, drop_at_data(0, point));
+    h.ticks(4);
+    let other = h.join("observer");
+    let wires: Vec<_> = h
+        .client(other)
+        .world()
+        .unwrap()
+        .authored()
+        .filter(|o| o.metadata.contains_key("cable_proto"))
+        .map(|o| o.id)
+        .collect();
+    assert_eq!(wires.len(), 1);
+    spawn(&mut h, item_at(9301, "ss14:panel", Vec3::from_array(point)));
+    command(&mut h, who, CMD_DROP, drop_data(0));
+    equip(&mut h, 9302, "ss14:wirecutter");
+    h.ticks(90);
+    command(&mut h, who, CMD_USE_GROUND, drop_at_data(0, point));
+    h.ticks(45);
+    assert!(
+        h.client(other)
+            .world()
+            .unwrap()
+            .authored_object(wires[0])
+            .is_some()
+    );
+    let net = h.client(who).net_id().unwrap();
+    let health =
+        crate::decode_health(h.client(who).component(net, HEALTH_COMPONENT).unwrap()).unwrap();
+    assert_eq!(health.damage.get("Shock"), Some(&22.), "{health:?}");
+    let out = h
+        .server
+        .apply_world_command(WorldCommand::RemoveAuthored { id: oid(9301) })
+        .unwrap();
+    h.deliver(out);
+    h.ticks(320);
+    command(&mut h, who, CMD_USE_GROUND, drop_at_data(0, point));
+    h.ticks(45);
+    let world = h.client(other).world().unwrap();
+    assert!(world.authored_object(wires[0]).is_none());
+    assert!(world.authored().any(|o| matches!(&o.kind, AuthoredKind::Placement{prototype} if prototype.as_str()=="ss14:cable_hvstack1")));
+}
+
+#[test]
+fn reinforced_wall_requires_all_nine_tool_steps_before_it_opens() {
+    use astrocore_math::GridCell;
+    use astrocore_world::Placement;
+    let mut h = harness();
+    let who = h.join("engineer");
+    let feet = h.client(who).position();
+    let cell = GridCell::new(feet.x.floor() as i32 + 1, feet.z.floor() as i32);
+    let point = drop_at_data(0, [cell.x as f32 + 0.5, feet.y, cell.z as f32 + 0.5]);
+    let equip = |h: &mut Harness, id, proto: &str| {
+        if hands_of(h, who, who).is_some_and(|hands| hands.get(0).is_some()) {
+            command(h, who, CMD_DROP, drop_data(0));
+        }
+        spawn(h, item_at(id, proto, feet + Vec3::Y * 0.4));
+        command(h, who, CMD_PICKUP, pickup_data(oid(id)));
+        if proto == "ss14:welder" {
+            command(h, who, CMD_USE, use_data(0));
+        }
+    };
+    equip(&mut h, 9350, "ss14:sheet_steel10");
+    command(&mut h, who, CMD_USE_GROUND, point.clone());
+    h.ticks(40);
+    equip(&mut h, 9351, "ss14:sheet_plasteel10");
+    for _ in 0..2 {
+        command(&mut h, who, CMD_USE_GROUND, point.clone());
+        h.ticks(40);
+    }
+    let other = h.join("observer");
+    let wall = |h: &Harness| {
+        h.client(other).world().unwrap().elements().any(|e| {
+            matches!(e.placement,Placement::Free(p) if p.cell==cell)
+                && e.material.as_str().starts_with("ss14:wall_reinforced")
+        })
+    };
+    assert!(wall(&h));
+    let sequence = [
+        ("wirecutter", 1),
+        ("screwdriver", 1),
+        ("welder", 5),
+        ("crowbar", 1),
+        ("wrench", 1),
+        ("welder", 10),
+        ("crowbar", 1),
+        ("screwdriver", 1),
+        ("wirecutter", 1),
+    ];
+    for (i, (tool, seconds)) in sequence.iter().enumerate() {
+        equip(&mut h, 9352 + i as u128, &format!("ss14:{tool}"));
+        command(&mut h, who, CMD_USE_GROUND, point.clone());
+        h.ticks(seconds * 24 + 8);
+        assert_eq!(wall(&h), i + 1 < sequence.len(), "step {i}: {tool}");
+        if i == 0 {
+            let guest = h.join("late observer");
+            assert!(
+                h.client(guest)
+                    .world()
+                    .unwrap()
+                    .elements()
+                    .any(|e| e.material.as_str() == "ss14:wall_reinforced_stage5")
+            );
+        }
+    }
+    assert!(h.client(other).world().unwrap().authored().any(|o| matches!(&o.kind,AuthoredKind::Placement{prototype} if prototype.as_str()=="ss14:reinforced_girder")));
+}
+
+#[test]
+fn a_computer_board_determines_the_console_and_survives_disassembly() {
+    let mut h = harness();
+    let who = h.join("engineer");
+    let feet = h.client(who).position();
+    let point = [feet.x.floor() + 1.5, feet.y, feet.z.floor() + 0.5];
+    let equip = |h: &mut Harness, id, proto: &str| {
+        if hands_of(h, who, who).is_some_and(|s| s.get(0).is_some()) {
+            command(h, who, CMD_DROP, drop_data(0));
+        }
+        spawn(h, item_at(id, proto, feet + Vec3::Y * 0.4));
+        command(h, who, CMD_PICKUP, pickup_data(oid(id)));
+    };
+    equip(&mut h, 9400, "ss14:sheet_steel10");
+    command(
+        &mut h,
+        who,
+        crate::crafting::CMD_PLACE,
+        crate::crafting::placement_data("Computer", 0, point),
+    );
+    h.ticks(70);
+    let guest = h.join("observer");
+    let id = h
+        .client(guest)
+        .world()
+        .unwrap()
+        .authored()
+        .find(|o| o.metadata.contains_key("construction_graph"))
+        .unwrap()
+        .id;
+    for (i, (proto, next)) in [
+        ("wrench", "frameUnsecured"),
+        ("alerts_computer_circuitboard", "boardUnsecured"),
+        ("screwdriver", "missingWires"),
+        ("cable_apc_stack10", "monitorMissing"),
+        ("sheet_glass10", "monitorUnsecured"),
+        ("screwdriver", "computer"),
+        ("crowbar", "monitorUnsecured"),
+        ("crowbar", "monitorMissing"),
+        ("wirecutter", "missingWires"),
+        ("screwdriver", "boardUnsecured"),
+        ("crowbar", "frameUnsecured"),
+    ]
+    .iter()
+    .enumerate()
+    {
+        equip(&mut h, 9401 + i as u128, &format!("ss14:{proto}"));
+        command(&mut h, who, CMD_INTERACT, interact_data(id));
+        h.ticks(35);
+        let o = h
+            .client(guest)
+            .world()
+            .unwrap()
+            .authored_object(id)
+            .unwrap();
+        assert_eq!(&o.metadata["construction_node"], next, "using {proto}");
+        if *next == "computer" {
+            assert!(
+                matches!(&o.kind,AuthoredKind::Placement{prototype} if prototype.as_str()=="ss14:computer_alert")
+            );
+        }
+    }
+    let board = h
+        .client(guest)
+        .world()
+        .unwrap()
+        .authored_object(oid(9402))
+        .unwrap();
+    assert!(
+        matches!(&board.kind,AuthoredKind::Placement{prototype} if prototype.as_str()=="ss14:alerts_computer_circuitboard")
+    );
+}
+
+#[test]
+fn chem_master_requires_all_parts_and_returns_the_installed_board_and_beakers() {
+    let mut h = harness();
+    let who = h.join("engineer");
+    let feet = h.client(who).position();
+    let point = [feet.x.floor() + 1.5, feet.y, feet.z.floor() + 0.5];
+    let equip = |h: &mut Harness, id, proto: &str| {
+        if hands_of(h, who, who).is_some_and(|s| s.get(0).is_some()) {
+            command(h, who, CMD_DROP, drop_data(0));
+        }
+        spawn(
+            h,
+            item_at(id, &format!("ss14:{proto}"), feet + Vec3::Y * 0.4),
+        );
+        command(h, who, CMD_PICKUP, pickup_data(oid(id)));
+    };
+    equip(&mut h, 9500, "sheet_steel10");
+    command(
+        &mut h,
+        who,
+        crate::crafting::CMD_PLACE,
+        crate::crafting::placement_data("MachineFrame", 0, point),
+    );
+    h.ticks(72);
+    let guest = h.join("observer");
+    let id = h
+        .client(guest)
+        .world()
+        .unwrap()
+        .authored()
+        .find(|o| o.metadata.contains_key("construction_node"))
+        .unwrap()
+        .id;
+    for (i, (proto, next)) in [
+        ("wrench", "missingWires"),
+        ("cable_apc_stack10", "machineFrame"),
+        ("chem_master_machine_circuitboard", "machineFrame"),
+        ("micro_manipulator_stock_part", "machineFrame"),
+        ("sheet_glass10", "machineFrame"),
+        ("cable_apc_stack10", "machineFrame"),
+        ("beaker", "machineFrame"),
+        ("screwdriver", "machineFrame"),
+        ("beaker", "machineFrame"),
+        ("screwdriver", "machine"),
+        ("crowbar", "machine"),
+        ("screwdriver", "machine"),
+        ("crowbar", "machineFrame"),
+        ("crowbar", "machineFrame"),
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        equip(&mut h, 9501 + i as u128, proto);
+        command(&mut h, who, CMD_INTERACT, interact_data(id));
+        h.ticks(55);
+        let obj = h
+            .client(guest)
+            .world()
+            .unwrap()
+            .authored_object(id)
+            .unwrap();
+        assert_eq!(obj.metadata["construction_node"], next, "step {i}: {proto}");
+        if next == "machine" {
+            assert!(
+                matches!(&obj.kind, AuthoredKind::Placement{prototype} if prototype.as_str()=="ss14:chem_master")
+            );
+        }
+    }
+    for id in [9503, 9504, 9507, 9509] {
+        assert!(
+            h.client(guest)
+                .world()
+                .unwrap()
+                .authored_object(oid(id))
+                .is_some(),
+            "part {id}"
+        );
+    }
+}
+
+#[test]
+fn a_grille_passes_air_until_glazed_and_survives_window_removal() {
+    use astrocore_math::GridCell;
+    let mut h = harness();
+    let who = h.join("engineer");
+    let feet = h.client(who).position();
+    let cell = GridCell::new(feet.x.floor() as i32 + 1, feet.z.floor() as i32);
+    let point = [cell.x as f32 + 0.5, feet.y, cell.z as f32 + 0.5];
+    let equip = |h: &mut Harness, id, proto: &str| {
+        if hands_of(h, who, who).is_some_and(|s| s.get(0).is_some()) {
+            command(h, who, CMD_DROP, drop_data(0));
+        }
+        spawn(h, item_at(id, proto, feet + Vec3::Y * 0.4));
+        command(h, who, CMD_PICKUP, pickup_data(oid(id)));
+    };
+    let other = h.join("observer");
+    let check = |h: &Harness, material: Option<&str>, sealed| {
+        let world = h.client(other).world().unwrap();
+        let at = world
+            .elements()
+            .find(|e| matches!(e.placement,astrocore_world::Placement::Free(p) if p.cell==cell));
+        assert_eq!(at.map(|e| e.material.as_str()), material);
+        assert_eq!(
+            crate::world_atmos::layout(world, &|_| false)
+                .blocked
+                .contains(&atmos::edge((cell.x, cell.z), (cell.x - 1, cell.z))),
+            sealed
+        );
+    };
+    equip(&mut h, 9580, "ss14:part_rod_metal");
+    command(
+        &mut h,
+        who,
+        crate::crafting::CMD_PLACE,
+        crate::crafting::placement_data("Grille", 0, point),
+    );
+    h.ticks(30);
+    check(&h, Some("ss14:grille"), false);
+    equip(&mut h, 9581, "ss14:sheet_glass10");
+    command(
+        &mut h,
+        who,
+        crate::crafting::CMD_PLACE,
+        crate::crafting::placement_data("Window", 0, point),
+    );
+    h.ticks(85);
+    check(&h, Some("ss14:window"), true);
+    equip(&mut h, 9582, "ss14:screwdriver");
+    command(&mut h, who, CMD_USE_GROUND, drop_at_data(0, point));
+    h.ticks(30);
+    check(&h, Some("ss14:window"), true);
+    equip(&mut h, 9583, "ss14:wrench");
+    command(&mut h, who, CMD_USE_GROUND, drop_at_data(0, point));
+    h.ticks(56);
+    check(&h, Some("ss14:grille"), false);
+    equip(&mut h, 9584, "ss14:wirecutter");
+    command(&mut h, who, CMD_USE_GROUND, drop_at_data(0, point));
+    h.ticks(12);
+    check(&h, None, false);
+}
+
+#[test]
+fn a_glass_airlock_can_be_assembled_opened_and_stripped_back_to_its_board() {
+    let mut h = harness();
+    let who = h.join("engineer");
+    let feet = h.client(who).position();
+    spawn(
+        &mut h,
+        item_at(
+            9647,
+            "ss14:clothing_hands_gloves_color_yellow",
+            feet + Vec3::Y * 0.4,
+        ),
+    );
+    command(&mut h, who, CMD_PICKUP, pickup_data(oid(9647)));
+    command(&mut h, who, CMD_EQUIP, equip_data(0, "gloves"));
+    let point = [feet.x.floor() + 1.5, feet.y, feet.z.floor() + 0.5];
+    let equip = |h: &mut Harness, id, proto: &str| {
+        if hands_of(h, who, who).is_some_and(|s| s.get(0).is_some()) {
+            command(h, who, CMD_DROP, drop_data(0));
+        }
+        spawn(
+            h,
+            item_at(id, &format!("ss14:{proto}"), feet + Vec3::Y * 0.4),
+        );
+        command(h, who, CMD_PICKUP, pickup_data(oid(id)));
+    };
+    equip(&mut h, 9650, "sheet_steel10");
+    command(
+        &mut h,
+        who,
+        crate::crafting::CMD_PLACE,
+        crate::crafting::placement_data("AirlockGlass", 0, point),
+    );
+    h.ticks(55);
+    let other = h.join("observer");
+    let id = h
+        .client(other)
+        .world()
+        .unwrap()
+        .authored()
+        .find(|o| {
+            o.metadata
+                .get("construction_graph")
+                .is_some_and(|v| v == "Airlock")
+        })
+        .unwrap()
+        .id;
+    for (i, (item, delay)) in [
+        ("wrench", 1),
+        ("cable_apc_stack10", 3),
+        ("door_electronics", 3),
+        ("sheet_rglass", 2),
+        ("sheet_rglass", 2),
+        ("screwdriver", 3),
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        if item == "door_electronics" {
+            equip(&mut h, 9648, "multitool");
+            spawn(
+                &mut h,
+                item_at(9653, "ss14:door_electronics", feet + Vec3::Y * 0.4),
+            );
+            command(&mut h, who, CMD_INTERACT, interact_data(oid(9653)));
+            command(
+                &mut h,
+                who,
+                crate::door_electronics::CMD_UPDATE,
+                br#"["Engineering"]"#.to_vec(),
+            );
+            let view = h
+                .client(who)
+                .component(
+                    h.client(who).net_id().unwrap(),
+                    crate::door_electronics::COMPONENT,
+                )
+                .and_then(crate::door_electronics::decode)
+                .unwrap();
+            assert_eq!(view.selected, vec!["Engineering"]);
+            command(
+                &mut h,
+                who,
+                crate::door_electronics::CMD_UPDATE,
+                br#"["InventedAccess"]"#.to_vec(),
+            );
+            command(&mut h, who, CMD_DROP, drop_data(0));
+            command(&mut h, who, CMD_PICKUP, pickup_data(oid(9653)));
+        } else {
+            equip(&mut h, 9651 + i as u128, item);
+        }
+        command(&mut h, who, CMD_INTERACT, interact_data(id));
+        h.ticks(25 * delay + 7);
+    }
+    let obj = h
+        .client(other)
+        .world()
+        .unwrap()
+        .authored_object(id)
+        .unwrap();
+    assert_eq!(obj.metadata["construction_node"], "glassAirlock");
+    let door =
+        ObjectId::from_u128(u128::from_str_radix(&obj.metadata["door_element"], 16).unwrap());
+    assert_eq!(
+        h.client(other)
+            .world()
+            .unwrap()
+            .element(door)
+            .unwrap()
+            .material
+            .as_str(),
+        "ss14:airlock_glass"
+    );
+    command(&mut h, who, CMD_DROP, drop_data(0));
+    command(&mut h, who, CMD_INTERACT, interact_data(door));
+    h.ticks(25);
+    assert!(
+        !h.client(other)
+            .door_ids()
+            .into_iter()
+            .any(|net| h.client(other).door_element(net) == Some(door)
+                && h.client(other).door_open(net) == Some(true))
+    );
+    equip(&mut h, 9649, "boss_card");
+    command(&mut h, who, CMD_SWAP_HANDS, Vec::new());
+    command(&mut h, who, CMD_INTERACT, interact_data(door));
+    h.ticks(25);
+    let net_door = h
+        .client(other)
+        .door_ids()
+        .into_iter()
+        .find(|net| h.client(other).door_element(*net) == Some(door))
+        .unwrap();
+    assert_eq!(h.client(other).door_open(net_door), Some(true));
+    command(&mut h, who, CMD_INTERACT, interact_data(door));
+    h.ticks(25);
+    assert_eq!(h.client(other).door_open(net_door), Some(false));
+    command(&mut h, who, CMD_SWAP_HANDS, Vec::new());
+    equip(&mut h, 9657, "welder");
+    command(&mut h, who, CMD_USE, use_data(0));
+    command(&mut h, who, CMD_INTERACT, interact_data(door));
+    h.ticks(80);
+    assert_eq!(
+        h.client(other)
+            .world()
+            .unwrap()
+            .authored_object(id)
+            .unwrap()
+            .metadata["welded"],
+        "1"
+    );
+    equip(&mut h, 9658, "screwdriver");
+    command(&mut h, who, CMD_INTERACT, interact_data(door));
+    h.ticks(30);
+    equip(&mut h, 9659, "wirecutter");
+    let mut bolt_wire = None;
+    for i in 0..8 {
+        command(
+            &mut h,
+            who,
+            crate::wire::CMD_VERB_DO,
+            crate::verbs::target_data(
+                crate::verbs::VerbTarget::Object(door),
+                Some(&format!("door_wire_Cut_{i}")),
+            ),
+        );
+        if h.client(other)
+            .world()
+            .unwrap()
+            .authored_object(id)
+            .unwrap()
+            .metadata
+            .get("bolted")
+            .is_some_and(|v| v == "1")
+        {
+            bolt_wire = Some(i);
+            command(
+                &mut h,
+                who,
+                crate::wire::CMD_VERB_DO,
+                crate::verbs::target_data(
+                    crate::verbs::VerbTarget::Object(door),
+                    Some(&format!("door_wire_Mend_{i}")),
+                ),
+            );
+            equip(&mut h, 9670, "multitool");
+            command(
+                &mut h,
+                who,
+                crate::wire::CMD_VERB_DO,
+                crate::verbs::target_data(
+                    crate::verbs::VerbTarget::Object(door),
+                    Some(&format!("door_wire_Pulse_{i}")),
+                ),
+            );
+            equip(&mut h, 9671, "wirecutter");
+        }
+    }
+    if let Some(i) = bolt_wire {
+        command(
+            &mut h,
+            who,
+            crate::wire::CMD_VERB_DO,
+            crate::verbs::target_data(
+                crate::verbs::VerbTarget::Object(door),
+                Some(&format!("door_wire_Cut_{i}")),
+            ),
+        );
+    }
+    equip(&mut h, 9660, "crowbar");
+    command(&mut h, who, CMD_INTERACT, interact_data(door));
+    h.ticks(55);
+    assert!(h.client(other).world().unwrap().element(door).is_none());
+    assert_eq!(
+        h.client(other)
+            .world()
+            .unwrap()
+            .authored_object(id)
+            .unwrap()
+            .metadata["construction_node"],
+        "glassElectronics"
+    );
+    command(&mut h, who, CMD_INTERACT, interact_data(id));
+    h.ticks(132);
+    assert_eq!(
+        h.client(other)
+            .world()
+            .unwrap()
+            .authored_object(id)
+            .unwrap()
+            .metadata["construction_node"],
+        "wired"
+    );
+    assert!(
+        hands_of(&h, who, who)
+            .unwrap()
+            .held()
+            .any(|i| i.id == oid(9653))
+    );
+    command(&mut h, who, CMD_DROP, drop_data(1));
+    equip(&mut h, 9661, "multitool");
+    command(&mut h, who, CMD_INTERACT, interact_data(oid(9653)));
+    let view = h
+        .client(who)
+        .component(
+            h.client(who).net_id().unwrap(),
+            crate::door_electronics::COMPONENT,
+        )
+        .and_then(crate::door_electronics::decode)
+        .unwrap();
+    assert_eq!(view.selected, vec!["Engineering"]);
+}
+
+#[test]
+fn meat_wall_uses_a_girder_and_returns_it_when_pried_apart() {
+    let mut h = harness();
+    let who = h.join("engineer");
+    let feet = h.client(who).position();
+    let pos = [feet.x.floor() + 1.5, feet.y, feet.z.floor() + 0.5];
+    spawn(&mut h, item_at(9910, "ss14:girder", Vec3::from_array(pos)));
+    spawn(
+        &mut h,
+        item_at(9911, "ss14:material_sheet_meat", feet + Vec3::Y * 0.4),
+    );
+    command(&mut h, who, CMD_PICKUP, pickup_data(oid(9911)));
+    command(
+        &mut h,
+        who,
+        crate::crafting::CMD_PLACE,
+        crate::crafting::placement_data("MeatWall", 0, pos),
+    );
+    h.ticks(55);
+    let other = h.join("observer");
+    let world = h.client(other).world().unwrap();
+    assert!(world.authored_object(oid(9910)).is_none());
+    assert!(
+        world
+            .elements()
+            .any(|e| e.material.as_str() == "ss14:wall_meat")
+    );
+    command(&mut h, who, CMD_DROP, drop_data(0));
+    spawn(&mut h, item_at(9912, "ss14:crowbar", feet + Vec3::Y * 0.4));
+    command(&mut h, who, CMD_PICKUP, pickup_data(oid(9912)));
+    command(&mut h, who, CMD_USE_GROUND, drop_at_data(0, pos));
+    h.ticks(135);
+    let world = h.client(other).world().unwrap();
+    assert!(
+        !world
+            .elements()
+            .any(|e| e.material.as_str() == "ss14:wall_meat")
+    );
+    assert!(world.authored().any(|o| matches!(&o.kind,AuthoredKind::Placement{prototype} if prototype.as_str()=="ss14:girder")));
+}
+
+#[test]
+fn a_flipped_filter_uses_the_source_inlet_and_outlet_even_with_legacy_build_data() {
+    let state = State::new(registry()).unwrap();
+    let part = &state.pipe_parts[&PrototypeId::new("ss14:gas_filter_flipped").unwrap()];
+    assert_eq!(
+        part.nodes,
+        vec![
+            (atmos::pipes::SOUTH, 200.),
+            (atmos::pipes::WEST, 200.),
+            (atmos::pipes::NORTH, 200.)
+        ]
+    );
+}
+
+#[test]
+fn a_secondary_vent_requires_unscrewing_before_welding_and_returns_two_steel() {
+    use astrocore_math::GridCell;
+    use astrocore_world::SlotKey;
+    let mut h = harness();
+    let who = h.join("engineer");
+    let feet = h.client(who).position();
+    let cell = GridCell::new(feet.x.floor() as i32 + 1, feet.z.floor() as i32);
+    let pos = [cell.x as f32 + 0.5, feet.y, cell.z as f32 + 0.5];
+    let mut slab = h
+        .client(who)
+        .world()
+        .unwrap()
+        .element_at(FloorId(0), SlotKey::FloorSlab(cell))
+        .unwrap()
+        .clone();
+    slab.material = PrototypeId::new("ss14:tile_plating").unwrap();
+    for cmd in [
+        WorldCommand::RemoveElement { id: slab.id },
+        WorldCommand::PlaceElement(slab),
+    ] {
+        let res = h.server.apply_world_command(cmd).unwrap();
+        h.deliver(res);
+    }
+    let equip = |h: &mut Harness, id, proto: &str| {
+        if hands_of(h, who, who).is_some_and(|hands| hands.get(0).is_some()) {
+            command(h, who, CMD_DROP, drop_data(0))
+        }
+        spawn(h, item_at(id, proto, feet + Vec3::Y * 0.4));
+        command(h, who, CMD_PICKUP, pickup_data(oid(id)));
+    };
+    equip(&mut h, 9880, "ss14:sheet_steel10");
+    command(
+        &mut h,
+        who,
+        crate::crafting::CMD_PLACE,
+        crate::crafting::placement_data("GasVentPumpAlt1", 1, pos),
+    );
+    h.ticks(30);
+    let other = h.join("observer");
+    let obj = h
+        .client(other)
+        .world()
+        .unwrap()
+        .authored()
+        .find(|o| {
+            o.metadata
+                .get("pipe_proto")
+                .is_some_and(|p| p == "GasVentPumpAlt1")
+        })
+        .unwrap();
+    let id = obj.id;
+    assert!(
+        matches!(&obj.kind,AuthoredKind::Placement {prototype} if prototype.as_str()=="ss14:gas_vent_pump_alt1")
+    );
+    assert_eq!(obj.metadata["gas_pipe"], "E");
+    let mut use_at = drop_at_data(0, pos);
+    use_at.push(1);
+    for (i, tool) in ["wrench", "welder", "screwdriver", "welder"]
+        .into_iter()
+        .enumerate()
+    {
+        equip(&mut h, 9881 + i as u128, &format!("ss14:{tool}"));
+        if tool == "welder" {
+            command(&mut h, who, CMD_USE, use_data(0))
+        }
+        command(&mut h, who, CMD_USE_GROUND, use_at.clone());
+        h.ticks(32);
+        let obj = h.client(other).world().unwrap().authored_object(id);
+        match i {
+            0 | 1 => assert!(obj.unwrap().metadata.contains_key("loose_pipe_dirs")),
+            2 => assert_eq!(obj.unwrap().metadata["pipe_step"], "1"),
+            _ => assert!(obj.is_none()),
+        }
+    }
+    let stack=h.client(other).world().unwrap().authored().find(|o|matches!(&o.kind,AuthoredKind::Placement{prototype} if prototype.as_str()=="ss14:sheet_steel1")).unwrap().id;
+    command(&mut h, who, CMD_DROP, drop_data(0));
+    command(&mut h, who, CMD_PICKUP, pickup_data(stack));
+    assert!(inv_of(&h, who, who).unwrap().charges.contains(&(stack, 2)));
+}
+
+#[test]
+fn emergency_inflatables_use_one_stack_unit_and_fold_back_into_the_hand() {
+    for (i, (stack, packed, material)) in [
+        (
+            "inflatable_wall_stack5",
+            "inflatable_wall_stack1",
+            "inflatable_wall",
+        ),
+        (
+            "inflatable_door_stack1",
+            "inflatable_door_stack1",
+            "inflatable_door",
+        ),
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        let mut h = harness();
+        let who = h.join("engineer");
+        let feet = h.client(who).position();
+        let id = oid(9850 + i as u128);
+        spawn(
+            &mut h,
+            item_at(
+                9850 + i as u128,
+                &format!("ss14:{stack}"),
+                feet + Vec3::Y * 0.4,
+            ),
+        );
+        command(&mut h, who, CMD_PICKUP, pickup_data(id));
+        let spot = [feet.x.floor() + 1.5, feet.y, feet.z.floor() + 0.5];
+        command(&mut h, who, CMD_USE_GROUND, drop_at_data(0, spot));
+        h.ticks(30);
+        let other = h.join("observer");
+        let part = h
+            .client(other)
+            .world()
+            .unwrap()
+            .elements()
+            .find(|e| {
+                e.material.as_str() == format!("ss14:{material}")
+                    && !matches!(e.kind, astrocore_world::StructureKind::Wall)
+            })
+            .unwrap()
+            .id;
+        if i == 0 {
+            assert!(inv_of(&h, who, who).unwrap().charges.contains(&(id, 4)));
+        } else {
+            command(&mut h, who, CMD_INTERACT, interact_data(part));
+            h.ticks(10);
+            assert!(
+                h.client(other)
+                    .door_ids()
+                    .into_iter()
+                    .any(|n| h.client(other).door_element(n) == Some(part)
+                        && h.client(other).door_open(n) == Some(true))
+            );
+        }
+        command(
+            &mut h,
+            who,
+            crate::wire::CMD_VERB_DO,
+            crate::verbs::target_data(crate::verbs::VerbTarget::Object(part), Some("disassemble")),
+        );
+        h.ticks(12);
+        assert!(h.client(other).world().unwrap().element(part).is_some());
+        h.ticks(72);
+        assert!(h.client(other).world().unwrap().element(part).is_none());
+        assert!(
+            hands_of(&h, who, who)
+                .unwrap()
+                .held()
+                .any(|i| i.prototype.as_str() == format!("ss14:{packed}"))
+        );
+    }
+}
+
+#[test]
+fn rcd_consumes_matter_on_completion_and_retains_unused_cartridge_charges() {
+    let mut h = harness();
+    let who = h.join("engineer");
+    let feet = h.client(who).position();
+    let point = [feet.x.floor() + 1.5, feet.y, feet.z.floor() + 0.5];
+    let charge = |h: &Harness, id| {
+        inv_of(h, who, who)
+            .unwrap()
+            .charges
+            .into_iter()
+            .find(|(item, _)| *item == oid(id))
+            .unwrap()
+            .1
+    };
+    spawn(&mut h, item_at(9750, "ss14:rcd", feet + Vec3::Y * 0.4));
+    command(&mut h, who, CMD_PICKUP, pickup_data(oid(9750)));
+    assert_eq!(charge(&h, 9750), 30);
+    command(
+        &mut h,
+        who,
+        crate::crafting::CMD_RCD_MODE,
+        b"WallSolid".to_vec(),
+    );
+    command(
+        &mut h,
+        who,
+        crate::crafting::CMD_RCD_USE,
+        drop_at_data(0, point),
+    );
+    h.ticks(8);
+    command(
+        &mut h,
+        who,
+        crate::crafting::CMD_RCD_MODE,
+        b"Grille".to_vec(),
+    );
+    h.ticks(110);
+    assert_eq!(charge(&h, 9750), 30);
+    command(
+        &mut h,
+        who,
+        crate::crafting::CMD_RCD_MODE,
+        b"WallSolid".to_vec(),
+    );
+    command(
+        &mut h,
+        who,
+        crate::crafting::CMD_RCD_USE,
+        drop_at_data(0, point),
+    );
+    h.ticks(140);
+    let build_cost = crate::crafting::rcd_mode_info("WallSolid")["cost"]
+        .as_u64()
+        .unwrap() as u32;
+    assert_eq!(charge(&h, 9750), 30 - build_cost);
+    command(
+        &mut h,
+        who,
+        crate::crafting::CMD_RCD_MODE,
+        b"Deconstruct".to_vec(),
+    );
+    command(
+        &mut h,
+        who,
+        crate::crafting::CMD_RCD_USE,
+        drop_at_data(0, point),
+    );
+    h.ticks(210);
+    assert_eq!(charge(&h, 9750), 30 - build_cost - 6);
+    command(&mut h, who, CMD_DROP, drop_data(0));
+    spawn(&mut h, item_at(9751, "ss14:rcdammo", feet + Vec3::Y * 0.4));
+    command(&mut h, who, CMD_PICKUP, pickup_data(oid(9751)));
+    command(&mut h, who, CMD_INTERACT, interact_data(oid(9750)));
+    assert_eq!(charge(&h, 9751), 30 - build_cost - 6);
+    command(&mut h, who, CMD_DROP, drop_data(0));
+    command(&mut h, who, CMD_PICKUP, pickup_data(oid(9750)));
+    assert_eq!(charge(&h, 9750), 30);
 }

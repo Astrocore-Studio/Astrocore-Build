@@ -3,10 +3,12 @@ use astrocore_core::ObjectId;
 use astrocore_math::glam::Vec3 as MVec3;
 use bevy::prelude::*;
 use bevy_egui::{EguiContexts, EguiPlugin, EguiPrimaryContextPass, egui};
+mod airlock_visuals;
 mod alarm_visuals;
 mod alerts_ui;
 mod body;
 mod combat;
+mod engineering_visuals;
 mod fire;
 mod held;
 mod hud;
@@ -16,6 +18,7 @@ mod players;
 mod power_ui;
 mod sounds;
 mod statusfx;
+mod wires_ui;
 use gameplay::{
     CMD_DROP, CMD_EQUIP, CMD_SELECT_HAND, CMD_SWAP_HANDS, HANDS_COMPONENT, Hands,
     INVENTORY_COMPONENT, InventoryView, decode_hands, decode_inventory, drop_data, equip_data,
@@ -24,6 +27,9 @@ use gameplay::{
 /// Что игрок сейчас держит и носит, как это видит клиент (копия серверных реплик).
 #[derive(Resource, Default)]
 pub struct Loadout {
+    pub airlock_motions: Option<Vec<gameplay::wires::Motion>>,
+    pub wires: Option<gameplay::wires::View>,
+    pub door_electronics: Option<gameplay::door_electronics::View>,
     pub atmos_alerts: Option<gameplay::alerts::View>,
     pub alarm_visuals: Option<gameplay::alerts::Visuals>,
     pub power_monitor: Option<gameplay::power_monitor::View>,
@@ -69,7 +75,7 @@ pub struct Loadout {
 /// Клиент билда: вид от первого лица, клавиши рук и худ по образцу SS14.
 ///
 /// E — взаимодействие с ближайшим предметом или дверью (обрабатывает клиент движка),
-/// G — выбросить предмет из активной руки, X — сменить активную руку, 1 и 2 — выбрать руку.
+/// G открывает меню строительства, Q выбрасывает предмет, X меняет активную руку.
 pub struct BuildClientPlugin {
     /// Манифест рендера: из него худ берёт значки предметов, рядом с ним лежат текстуры интерфейса.
     pub manifest: Option<std::path::PathBuf>,
@@ -90,6 +96,7 @@ impl Plugin for BuildClientPlugin {
         .add_plugins(EguiPlugin::default())
         .init_resource::<Loadout>()
         .init_resource::<Ground>()
+        .init_resource::<engineering_visuals::Visuals>()
         .insert_resource(Hud {
             icons: hud::Icons::from_manifest(self.manifest.as_deref().unwrap_or("".as_ref())),
             state: hud::HudState::default(),
@@ -100,18 +107,21 @@ impl Plugin for BuildClientPlugin {
             enabled: self.autoplay,
             frame: 0,
             examined: None,
+            engineering_stage: 0,
         })
         .init_resource::<held::HeldModels>()
         .init_resource::<fire::FxAssets>()
         .init_resource::<lights::FlashlightOn>()
         .add_systems(Startup, (install_body, install_sounds))
         .add_systems(Last, alarm_visuals::sync)
+        .add_systems(PostUpdate, airlock_visuals::motions)
         .add_systems(PreUpdate, smoke_inputs.after(bevy::input::InputSystems))
         .add_systems(
             Update,
             (
                 refresh_loadout,
                 cursor_ground,
+                engineering_visuals::sync,
                 aim_target,
                 held::sync_held,
                 hand_keys,
@@ -216,7 +226,7 @@ fn install_body(
 
 /// Точка пола под курсором мыши (в метрах), если курсор над миром.
 #[derive(Resource, Default)]
-pub(crate) struct Ground(pub(crate) Option<[f32; 3]>);
+pub(crate) struct Ground(pub(crate) Option<[f32; 3]>, u8);
 
 /// Пересечение луча с горизонтальной плоскостью на высоте `y`.
 fn ground_point(origin: Vec3, dir: Vec3, y: f32) -> Option<[f32; 3]> {
@@ -231,6 +241,7 @@ fn cursor_ground(
     windows: Query<&Window, With<bevy::window::PrimaryWindow>>,
     cameras: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
     net: Option<NonSend<Net>>,
+    look: Option<Res<astrocore_client::Look>>,
     mut ground: ResMut<Ground>,
 ) {
     ground.0 = None;
@@ -239,14 +250,34 @@ fn cursor_ground(
     else {
         return;
     };
-    let Some(cursor) = window.cursor_position() else {
-        return;
-    };
-    let Ok(ray) = camera.viewport_to_world(transform, cursor) else {
-        return;
+    let ray = if look.is_some_and(|l| l.first_person) {
+        Ray3d::new(transform.translation(), transform.forward())
+    } else {
+        let Some(ray) = window
+            .cursor_position()
+            .and_then(|pos| camera.viewport_to_world(transform, pos).ok())
+        else {
+            return;
+        };
+        ray
     };
     let feet = net.core.position();
     ground.0 = ground_point(ray.origin, *ray.direction, feet.y + hud::GROUND_LIFT_M);
+    ground.1 = ground.0.map_or(0, |[x, _, z]| {
+        // AlignAtmosPipeLayers uses a quarter-tile dead zone, then chooses the
+        // secondary or tertiary layer relative to the eye's cardinal axes.
+        let delta = Vec3::new(x - x.floor() - 0.5, 0., z - z.floor() - 0.5);
+        if delta.length() <= 0.25 {
+            return 0;
+        }
+        let right = transform.right().as_vec3();
+        let north = Vec3::Y.cross(right).normalize_or_zero();
+        if delta.dot(right) + delta.dot(north) >= 0. {
+            1
+        } else {
+            2
+        }
+    });
 }
 
 /// Луч против ящика: расстояние до входа в ящик `[min, max]`.
@@ -330,6 +361,39 @@ fn aim_target(
             best = Some((t, info.name.clone(), o.id));
         }
     }
+    for e in world.elements() {
+        use astrocore_world::{OpeningKind, Placement, StructureKind};
+        let (min, max, label) = match (e.kind, e.placement) {
+            (StructureKind::Opening(OpeningKind::Door), Placement::Edge(edge)) => {
+                let Some(floor) = world.floor(e.floor) else {
+                    continue;
+                };
+                let (a, b) = edge.endpoints(world.config().grid_step_m, floor.base_y);
+                let margin = MVec3::new(0.06, 0., 0.06);
+                (
+                    (a.min(b) - margin).to_array(),
+                    (a.max(b) + margin + MVec3::Y * 2.).to_array(),
+                    if e.material.as_str() == "ss14:inflatable_door" {
+                        "inflatable door"
+                    } else {
+                        "Door"
+                    },
+                )
+            }
+            (_, Placement::Free(p)) if e.material.as_str() == "ss14:inflatable_wall" => {
+                let (min, max) = p.aabb(world.config().grid_step_m);
+                (min, max, "inflatable barricade")
+            }
+            _ => continue,
+        };
+        if let Some(t) = ray_box(origin, dir, min, max)
+            && t > 0.05
+            && t <= AIM_RANGE_M
+            && best.as_ref().is_none_or(|(previous, _, _)| t < *previous)
+        {
+            best = Some((t, label.into(), e.id));
+        }
+    }
     if std::env::var_os("ASTRO_AIM_DEBUG").is_some() {
         eprintln!(
             "AIM origin={origin:?} dir={dir:?} best={best:?} feet={:?}",
@@ -396,6 +460,7 @@ pub(crate) struct Hud {
 
 #[derive(Resource)]
 struct Autoplay {
+    engineering_stage: u8,
     enabled: bool,
     frame: u32,
     /// Отладка: объект, уже отправленный на осмотр.
@@ -483,6 +548,18 @@ fn refresh_loadout(net: Option<NonSend<Net>>, time: Res<Time>, mut loadout: ResM
         .core
         .component(me, gameplay::SCAN_COMPONENT)
         .and_then(gameplay::decode_scan);
+    loadout.airlock_motions = net
+        .core
+        .component(me, gameplay::wires::MOTION_COMPONENT)
+        .and_then(gameplay::wires::decode_motions);
+    loadout.wires = net
+        .core
+        .component(me, gameplay::wires::COMPONENT)
+        .and_then(gameplay::wires::decode);
+    loadout.door_electronics = net
+        .core
+        .component(me, gameplay::door_electronics::COMPONENT)
+        .and_then(gameplay::door_electronics::decode);
     loadout.idconsole = net
         .core
         .component(me, gameplay::IDCONSOLE_COMPONENT)
@@ -530,17 +607,43 @@ fn refresh_loadout(net: Option<NonSend<Net>>, time: Res<Time>, mut loadout: ResM
     };
 }
 
-fn hand_keys(keys: Res<ButtonInput<KeyCode>>, loadout: Res<Loadout>, net: Option<NonSendMut<Net>>) {
+fn hand_keys(
+    keys: Res<ButtonInput<KeyCode>>,
+    loadout: Res<Loadout>,
+    mut hud: ResMut<Hud>,
+    net: Option<NonSendMut<Net>>,
+) {
     let Some(mut net) = net else { return };
     let active = loadout.hands.as_ref().map_or(0, |h| h.active() as u8);
     if keys.just_pressed(KeyCode::KeyG) {
+        hud.state.construction_open = !hud.state.construction_open;
+    }
+    if keys.just_pressed(KeyCode::KeyQ) {
         net.send_command(CMD_DROP, drop_data(active));
     }
     if keys.just_pressed(KeyCode::Escape) && loadout.doafter.is_some() {
         net.send_command(gameplay::CMD_CANCEL, Vec::new());
     }
+    if keys.just_pressed(KeyCode::Escape) {
+        hud.state.placement = None;
+        hud.state.construction_open = false;
+        hud.state.rcd_open = false;
+    }
     if keys.just_pressed(KeyCode::KeyF) {
-        net.send_command(gameplay::CMD_USE, gameplay::use_data(active));
+        if loadout
+            .hands
+            .as_ref()
+            .and_then(|h| h.get(h.active()))
+            .is_some_and(|i| {
+                gameplay::crafting::rcd_modes(i.prototype.as_str())
+                    .next()
+                    .is_some()
+            })
+        {
+            hud.state.rcd_open = !hud.state.rcd_open;
+        } else {
+            net.send_command(gameplay::CMD_USE, gameplay::use_data(active));
+        }
     }
     if keys.just_pressed(KeyCode::KeyV) {
         net.send_command(gameplay::CMD_SPILL, vec![active]);
@@ -612,9 +715,14 @@ fn autoplay(
         });
         return;
     }
-    // Отладка: снимки окна в файлы (ASTRO_SHOT=каталог, кадры 260 и 340).
+    // Отладка: снимки окна; дополнительные кадры можно задать через ASTRO_SHOT_FRAMES.
     if let Some(dir) = std::env::var_os("ASTRO_SHOT")
-        && matches!(state.frame, 260 | 340)
+        && (matches!(state.frame, 260 | 340)
+            || std::env::var("ASTRO_SHOT_FRAMES").is_ok_and(|frames| {
+                frames
+                    .split(',')
+                    .any(|frame| frame.trim().parse::<u32>() == Ok(state.frame))
+            }))
     {
         let path = std::path::Path::new(&dir).join(format!("frame{}.png", state.frame));
         commands
@@ -672,6 +780,60 @@ fn autoplay(
                 gameplay::target_data(gameplay::VerbTarget::Object(id), Some("examine")),
             );
         }
+    }
+    if let Ok(cell) = std::env::var("ASTRO_AUTOPLAY_WELD") {
+        if state.frame >= 60
+            && state.frame.is_multiple_of(15)
+            && let Some((x, z)) = cell
+                .split_once(',')
+                .and_then(|(x, z)| Some((x.parse::<i32>().ok()?, z.parse::<i32>().ok()?)))
+            && let Some(world) = net.core.world()
+        {
+            let feet = net.core.position();
+            let point = [x as f32 + 0.5, feet.y, z as f32 + 0.5];
+            let objects = || {
+                world.authored().filter_map(|o| {
+                    let astrocore_world::AuthoredKind::Placement { prototype } = &o.kind else {
+                        return None;
+                    };
+                    Some((o.id, prototype.as_str(), (o.min() + o.max()) * 0.5))
+                })
+            };
+            match state.engineering_stage {
+                0 => {
+                    if let Some((id, _, _)) = objects()
+                        .filter(|(_, p, c)| *p == "ss14:welder" && c.distance(feet) < 2.0)
+                        .min_by(|a, b| a.2.distance(feet).total_cmp(&b.2.distance(feet)))
+                    {
+                        net.send_command(gameplay::CMD_PICKUP, gameplay::pickup_data(id));
+                        state.engineering_stage = 1;
+                    }
+                }
+                1 => {
+                    if let Some(h) = &loadout.hands
+                        && h.get(h.active())
+                            .is_some_and(|i| i.prototype.as_str() == "ss14:welder")
+                    {
+                        net.send_command(gameplay::CMD_USE, gameplay::use_data(h.active() as u8));
+                        net.send_command(
+                            gameplay::CMD_USE_GROUND,
+                            gameplay::drop_at_data(h.active() as u8, point),
+                        );
+                        state.engineering_stage = 2;
+                        eprintln!("ENGINEERING: welding {x},{z} from {feet:?}");
+                    }
+                }
+                2 if objects().any(|(_, p, c)| {
+                    p == "ss14:girder" && c.x.floor() as i32 == x && c.z.floor() as i32 == z
+                }) =>
+                {
+                    state.engineering_stage = 3;
+                    eprintln!("ENGINEERING: received Girder at {x},{z}");
+                }
+                _ => {}
+            }
+        }
+        return;
     }
     // Отладка: осмотреть объект с номером из ASTRO_AUTOPLAY_EXAMINE (hex, как ASTRO_OPEN_ID).
     if let Ok(hex) = std::env::var("ASTRO_AUTOPLAY_EXAMINE")
@@ -740,6 +902,113 @@ fn autoplay(
     {
         net.send_command(gameplay::CMD_LOBBY_READY, Vec::new());
         net.send_command(gameplay::CMD_JOB, job.into_bytes());
+    }
+    // Нативная проверка Repairable: только обычные команды, результат читается из реплики.
+    if let Ok(hex) = std::env::var("ASTRO_AUTOPLAY_REPAIR") {
+        if state.frame >= 100
+            && state.frame.is_multiple_of(15)
+            && let Ok(id) = u128::from_str_radix(hex.trim_start_matches("0x"), 16)
+        {
+            let id = ObjectId::from_u128(id);
+            let feet = net.core.position();
+            match state.engineering_stage {
+                0 => {
+                    let tool = net.core.world().and_then(|world| world.authored().find(|object| {
+                        matches!(&object.kind, astrocore_world::AuthoredKind::Placement {prototype} if prototype.as_str()=="ss14:welder")
+                            && ((object.min()+object.max())*0.5).distance(feet)<1.5
+                    }).map(|object|object.id));
+                    if let Some(tool) = tool {
+                        net.send_command(gameplay::CMD_PICKUP, gameplay::pickup_data(tool));
+                        state.engineering_stage = 1;
+                    }
+                }
+                1 => {
+                    if let Some(hands) = &loadout.hands
+                        && hands
+                            .get(hands.active())
+                            .is_some_and(|tool| tool.prototype.as_str() == "ss14:welder")
+                    {
+                        net.send_command(
+                            gameplay::CMD_USE,
+                            gameplay::use_data(hands.active() as u8),
+                        );
+                        state.engineering_stage = 2;
+                    }
+                }
+                2 => {
+                    net.send_command(gameplay::CMD_INTERACT, gameplay::interact_data(id));
+                    state.engineering_stage = 3;
+                }
+                3 if loadout
+                    .doafter
+                    .as_ref()
+                    .is_some_and(|(action, _)| action.kind == "repair") =>
+                {
+                    eprintln!("ASTRO_REPAIR_STARTED: {:?}", loadout.doafter);
+                    state.engineering_stage = 4;
+                }
+                4 => {
+                    let metadata = net
+                        .core
+                        .world()
+                        .and_then(|world| world.authored_object(id))
+                        .map(|object| &object.metadata);
+                    if metadata.is_some_and(|metadata| {
+                        metadata.get("damage").is_some_and(|damage| damage == "{}")
+                            && metadata.get("broken").is_some_and(|broken| broken == "0")
+                    }) {
+                        eprintln!(
+                            "ASTRO_REPAIR_COMPLETED: target={id} damage={{}} broken=0 inventory={:?}",
+                            loadout.inventory
+                        );
+                        if let Some(hands) = &loadout.hands {
+                            net.send_command(
+                                gameplay::CMD_DROP,
+                                gameplay::drop_data(hands.active() as u8),
+                            );
+                        }
+                        net.send_command(gameplay::CMD_INTERACT, gameplay::interact_data(id));
+                        state.engineering_stage = 5;
+                    }
+                }
+                5 if loadout.vending.as_ref().is_some_and(|view| !view.broken) => {
+                    eprintln!("ASTRO_REPAIR_VENDOR: broken=false");
+                    state.engineering_stage = 6;
+                }
+                _ => {}
+            }
+        }
+        return;
+    }
+    if let Ok(hex) = std::env::var("ASTRO_AUTOPLAY_WIRES") {
+        if state.frame == 150
+            && let Ok(id) = u128::from_str_radix(&hex, 16)
+        {
+            eprintln!(
+                "ASTRO_WIRES_OPEN: element={id:x} position={:?}",
+                net.core.position()
+            );
+            net.send_command(
+                gameplay::wires::CMD_OPEN,
+                gameplay::pickup_data(ObjectId::from_u128(id)),
+            );
+        }
+        if state.frame == 260 {
+            eprintln!("ASTRO_WIRES: {:?}", loadout.wires);
+        }
+        if state.frame == 320
+            && let Ok(operation) = std::env::var("ASTRO_AUTOPLAY_WIRE_ACTION")
+            && let Ok(id) = u128::from_str_radix(&hex, 16)
+        {
+            net.send_command(
+                gameplay::wires::CMD_ACTION,
+                gameplay::target_data(
+                    gameplay::VerbTarget::Object(ObjectId::from_u128(id)),
+                    Some(&format!("door_wire_{operation}")),
+                ),
+            );
+        }
+        return;
     }
     // Отладка: открыть окно ближайшей машины (ASTRO_AUTOPLAY_OPEN=ChemMaster|CryoPod); для капсулы
     // затем лечь в неё самому.
@@ -1011,6 +1280,8 @@ fn loadout_window(
             "eat" => "Едим…",
             "buckle" => "Пристёгиваемся…",
             "strip" => "Обыскиваем…",
+            "construct" => "Работаем…",
+            "repair" => "Ремонтируем…",
             _ => "Действие…",
         };
         (
@@ -1052,6 +1323,19 @@ fn loadout_window(
         }),
     );
     let mut commands = commands;
+    commands.extend(hud::crafting_window(&ctx, state, icons));
+    commands.extend(wires_ui::draw(&ctx, icons, loadout.wires.as_ref()));
+    commands.extend(hud::door_electronics_window(
+        &ctx,
+        loadout.door_electronics.as_ref(),
+    ));
+    commands.extend(hud::rcd_window(
+        &ctx,
+        state,
+        icons,
+        loadout.hands.as_ref().and_then(|h| h.get(h.active())),
+        loadout.inventory.as_ref(),
+    ));
     commands.extend(power_ui::draw(
         &ctx,
         power,

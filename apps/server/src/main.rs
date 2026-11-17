@@ -84,7 +84,14 @@ fn run(args: &[String]) -> Result<(), String> {
     let mut pending: Option<std::thread::JoinHandle<Result<Round, String>>> = None;
     let mut steps = 0u64;
     while max_ticks.is_none_or(|m| steps < m) {
+        let started = std::time::Instant::now();
         host.step();
+        if args.iter().any(|a| a == "--trace-ticks") && (steps < 10 || steps.is_multiple_of(20)) {
+            println!(
+                "server tick {steps}: {:.3} ms",
+                started.elapsed().as_secs_f64() * 1000.
+            );
+        }
         if pending.is_none() && signal.take() {
             // Раунд окончен и сводка показана. Новый раунд строится в отдельном потоке, чтобы
             // сеть не замолчала (иначе клиенты отвалятся по таймауту).

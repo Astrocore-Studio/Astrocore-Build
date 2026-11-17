@@ -42,7 +42,12 @@ pub struct Flame {
 pub struct Fx;
 
 /// Нарезать состояние RSI на кадры по `meta.json`.
-fn load_frames(root: &Path, rsi: &str, state: &str, images: &mut Assets<Image>) -> Frames {
+pub(super) fn load_frames(
+    root: &Path,
+    rsi: &str,
+    state: &str,
+    images: &mut Assets<Image>,
+) -> Frames {
     let dir = root.join("Textures").join(rsi);
     let Ok(img) = image::open(dir.join(format!("{state}.png"))) else {
         return Vec::new();

@@ -1,3 +1,23 @@
+#[path = "airlock_doors.rs"]
+mod airlock_doors;
+#[path = "airlock_wires.rs"]
+mod airlock_wires;
+#[path = "barriers.rs"]
+mod barriers;
+#[path = "computer_construction.rs"]
+mod computer_construction;
+#[path = "construction.rs"]
+mod construction;
+#[path = "floor_tiles.rs"]
+mod floor_tiles;
+#[path = "inflatables.rs"]
+mod inflatables;
+#[path = "material_stacks.rs"]
+mod material_stacks;
+#[path = "rcd.rs"]
+mod rcd;
+#[path = "repairable.rs"]
+pub(crate) mod repairable;
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
 
@@ -13,7 +33,7 @@ use prototypes::PrototypeRegistry;
 use crate::body::{Body, Environment, VITALS_COMPONENT, Vitals, encode_vitals};
 use crate::chat::ChatState;
 use crate::doafter::{
-    Action, BREAK_DISTANCE_M, DOAFTER_COMPONENT, DoAfter, DoAfterView, PRY_TIME_S, encode_doafter,
+    Action, BREAK_DISTANCE_M, DOAFTER_COMPONENT, DoAfter, DoAfterView, encode_doafter,
 };
 use crate::edibles::{EdibleSpec, openable_closed, solution_template};
 use crate::hands::{Hands, HeldItem};
@@ -42,7 +62,7 @@ use crate::wire::{
 /// до центра предмета; путь не должен перекрываться стенами и закрытыми дверями.
 pub const INTERACTION_RANGE_M: f32 = 1.5;
 /// Высота груди над ступнями, м.
-const CHEST_M: f32 = 0.55;
+pub(crate) const CHEST_M: f32 = 0.55;
 /// Взрывчатка предмета (`ExplosiveComponent`): тип взрыва, общая интенсивность, спад, предел на клетку.
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) struct Explosive {
@@ -339,6 +359,8 @@ pub(crate) struct AlarmGroup {
 /// модуля; руки видны всем (`build.hands`), инвентарь и содержимое сумок — только владельцу
 /// (`build.inventory`).
 pub struct State {
+    object_damage: BTreeMap<ObjectId, repairable::ObjectDamage>,
+    pending_object_damage: BTreeSet<ObjectId>,
     pub(crate) infos: BTreeMap<PrototypeId, ItemInfo>,
     pub(crate) range_m: f32,
     pub(crate) actors: BTreeMap<NetworkEntityId, Actor>,
@@ -369,6 +391,8 @@ pub struct State {
     /// Предметы, которые уже открыты.
     pub(crate) opened: BTreeSet<ObjectId>,
     /// Температура огня у прототипов с `IgnitionSource` (сварка, спички) и зажжённые экземпляры.
+    pub(crate) welding_tools: BTreeMap<PrototypeId, &'static construction::WelderSpec>,
+    pub(crate) burning_welders: BTreeMap<ObjectId, (PrototypeId, f32)>,
     pub(crate) igniters: BTreeMap<PrototypeId, f32>,
     pub(crate) lit: BTreeSet<ObjectId>,
     /// Какие клетки с огнём уже разосланы.
@@ -421,6 +445,7 @@ pub struct State {
     /// Очередь подсказок игрокам и звуков в мире за тик, номера пачек.
     pub(crate) fx_popups: Vec<(NetworkEntityId, String)>,
     pub(crate) fx_sounds: Vec<(String, Vec3, f32)>,
+    tool_audio_rng: crate::disposal::Rng,
     pub(crate) fx_seq: BTreeMap<NetworkEntityId, u32>,
     /// Анализаторы здоровья: прототипы, кто кого сканирует, таймер обновления.
     pub(crate) analyzers: BTreeSet<PrototypeId>,
@@ -538,6 +563,28 @@ pub struct State {
     /// Стены карты: клетка → прочность; `None` до первого взрыва.
     pub(crate) walls: Option<BTreeMap<(i32, i32), crate::explosion::Wall>>,
     pub(crate) wall_serial: u128,
+    loose_girders: BTreeSet<ObjectId>,
+    reinforced_work: BTreeMap<(i32, i32), usize>,
+    barrier_progress: BTreeMap<(i32, i32), (String, bool, usize)>,
+    window_grilles: BTreeSet<(i32, i32)>,
+    rcd_modes: BTreeMap<ObjectId, String>,
+    pub(crate) board_access: BTreeMap<ObjectId, String>,
+    pub(crate) board_windows: BTreeMap<NetworkEntityId, (ObjectId, Vec<u8>)>,
+    wire_layouts: BTreeMap<String, Vec<computer_construction::AirlockWire>>,
+    wires_open: BTreeMap<NetworkEntityId, (ObjectId, Vec<u8>)>,
+    wire_serials: BTreeMap<ObjectId, String>,
+    wire_shapes: BTreeMap<ObjectId, Vec<u8>>,
+    airlock_close_at: BTreeMap<ObjectId, f32>,
+    airlock_marker_revision: Option<u64>,
+    airlock_markers: BTreeMap<ObjectId, ObjectId>,
+    airlock_availability: BTreeMap<ObjectId, (bool, bool)>,
+    airlock_held_open: BTreeSet<ObjectId>,
+    airlock_motions: BTreeMap<ObjectId, airlock_doors::Motion>,
+    airlock_motion_sent: Vec<u8>,
+    airlock_motion_to: BTreeSet<NetworkEntityId>,
+    inflated_this_tick: BTreeSet<(FloorId, astrocore_math::GridCell)>,
+    rcd_recharge: BTreeMap<ObjectId, (u32, f32, f32)>,
+    girders: BTreeMap<(i32, i32), ObjectId>,
     /// Предметы, убранные с земли в этом тике (мир применит запрос позже).
     pub(crate) gone: BTreeSet<ObjectId>,
     pub(crate) charger_slot: BTreeMap<ObjectId, (f32, HeldItem)>,
@@ -610,6 +657,7 @@ impl State {
         let mut edibles = BTreeMap::new();
         let mut solution_templates = BTreeMap::new();
         let mut openable = BTreeMap::new();
+        let mut welding_tools = BTreeMap::new();
         let mut igniters = BTreeMap::new();
         let mut pipe_parts = BTreeMap::new();
         let mut absorbents = BTreeMap::new();
@@ -771,6 +819,19 @@ impl State {
                 }
                 if let Some(closed) = openable_closed(r) {
                     openable.insert(id.clone(), closed);
+                }
+                if let Some(spec) = construction::WELDERS.get(&name) {
+                    welding_tools.insert(id.clone(), spec);
+                    if spec.refillable {
+                        refillables.insert(id.clone());
+                    }
+                    igniters.insert(id.clone(), spec.temperature);
+                    let mut solution = Solution::new(spec.capacity);
+                    solution.add(&spec.fuel, spec.initial);
+                    solution_templates.insert(id.clone(), solution);
+                    if let Some(info) = infos.get_mut(&id) {
+                        info.qualities.insert("Welding".into());
+                    }
                 }
                 if let Some(t) = crate::fire::ignition_temperature(r) {
                     igniters.insert(id.clone(), t);
@@ -991,7 +1052,18 @@ impl State {
                 if crate::mopping::is_refillable(r) {
                     refillables.insert(id.clone());
                 }
-                if let Some(p) = crate::piping::PipePart::from_resolved(r) {
+                if let Some(mut p) = crate::piping::PipePart::from_resolved(r) {
+                    if let Some(nodes) = construction::CATALOG["pipes"][&name]["nodes"].as_array() {
+                        p.nodes = nodes
+                            .iter()
+                            .map(|node| {
+                                (
+                                    crate::piping::parse_dirs(node["dirs"].as_str().unwrap()),
+                                    node["volume"].as_f64().unwrap() as f32,
+                                )
+                            })
+                            .collect();
+                    }
                     pipe_parts.insert(id.clone(), p);
                 }
                 if let Some(t) = crate::piping::tank_template(r) {
@@ -1073,6 +1145,8 @@ impl State {
             openable,
             solutions: BTreeMap::new(),
             opened: BTreeSet::new(),
+            welding_tools,
+            burning_welders: BTreeMap::new(),
             igniters,
             lit: BTreeSet::new(),
             fires_sent: Vec::new(),
@@ -1110,6 +1184,7 @@ impl State {
             transfer_max,
             fx_popups: Vec::new(),
             fx_sounds: Vec::new(),
+            tool_audio_rng: crate::disposal::Rng(0x86ca_3b24_3aa5_f781),
             fx_seq: BTreeMap::new(),
             analyzers,
             defibs,
@@ -1216,6 +1291,30 @@ impl State {
             impact,
             walls: None,
             wall_serial: 0,
+            loose_girders: BTreeSet::new(),
+            reinforced_work: BTreeMap::new(),
+            barrier_progress: BTreeMap::new(),
+            window_grilles: BTreeSet::new(),
+            rcd_modes: BTreeMap::new(),
+            board_access: BTreeMap::new(),
+            board_windows: BTreeMap::new(),
+            wire_layouts: computer_construction::wire_layouts(),
+            wires_open: BTreeMap::new(),
+            wire_serials: BTreeMap::new(),
+            wire_shapes: BTreeMap::new(),
+            object_damage: BTreeMap::new(),
+            pending_object_damage: BTreeSet::new(),
+            airlock_close_at: BTreeMap::new(),
+            airlock_marker_revision: None,
+            airlock_markers: BTreeMap::new(),
+            airlock_availability: BTreeMap::new(),
+            airlock_held_open: BTreeSet::new(),
+            airlock_motions: BTreeMap::new(),
+            airlock_motion_sent: Vec::new(),
+            airlock_motion_to: BTreeSet::new(),
+            inflated_this_tick: Default::default(),
+            rcd_recharge: Default::default(),
+            girders: BTreeMap::new(),
             gone: BTreeSet::new(),
             charger_slot: BTreeMap::new(),
             explosion_types,
@@ -1351,7 +1450,19 @@ impl State {
         let view = InventoryView {
             inventory: a.inventory.clone(),
             bags,
-            charges: self.charges.iter().map(|(id, n)| (*id, *n)).collect(),
+            charges: a
+                .hands
+                .held()
+                .chain(a.inventory.worn())
+                .filter_map(|i| {
+                    self.charges
+                        .get(&i.id)
+                        .copied()
+                        .or_else(|| self.stack_count(i))
+                        .or_else(|| self.rcd_charge(i))
+                        .map(|n| (i.id, n))
+                })
+                .collect(),
             fills: a
                 .hands
                 .held()
@@ -1402,6 +1513,7 @@ impl State {
             id,
             prototype: prototype.clone(),
         };
+        self.remember_object_damage(ctx, id, prototype);
         let hands = &mut self.actor(actor).hands;
         let taken = if any {
             hands.pickup_any(item)
@@ -1411,18 +1523,21 @@ impl State {
         if taken.is_err() {
             return false;
         }
+        if let Some(n) = obj.metadata.get("stack_count").and_then(|s| s.parse().ok()) {
+            self.charges.entry(id).or_insert(n);
+        }
         ctx.request(WorldCommand::RemoveAuthored { id });
         self.publish(ctx, actor);
         true
     }
 
     /// Положить предмет в мир в точке `at` (ступни предмета).
-    pub(crate) fn place(ctx: &mut HookContext<'_>, item: &HeldItem, at: Vec3) -> bool {
+    pub(crate) fn place(&self, ctx: &mut HookContext<'_>, item: &HeldItem, at: Vec3) -> bool {
         let Some(floor) = floor_at(ctx, at.y) else {
             return false;
         };
         let h = DROPPED_SIZE_M * 0.5;
-        let obj = AuthoredObject::new(
+        let mut obj = AuthoredObject::new(
             item.id,
             AuthoredKind::Placement {
                 prototype: item.prototype.clone(),
@@ -1431,6 +1546,10 @@ impl State {
             Vec3::new(at.x - h, at.y, at.z - h),
             Vec3::new(at.x + h, at.y + DROPPED_SIZE_M, at.z + h),
         );
+        if let Some(count) = self.stack_count(item) {
+            obj.metadata.insert("stack_count".into(), count.to_string());
+        }
+        self.place_damage_metadata(item, &mut obj);
         ctx.request(WorldCommand::PlaceAuthored(obj));
         true
     }
@@ -1480,7 +1599,7 @@ impl State {
             return;
         };
         let at = self.drop_point(ctx, feet, target);
-        if Self::place(ctx, &item, at) {
+        if self.place(ctx, &item, at) {
             let _ = self.actor(actor).hands.drop_hand(hand);
             self.publish(ctx, actor);
         }
@@ -1552,7 +1671,7 @@ impl State {
             Err(_) => std::iter::once(item).chain(dropped).collect(),
         };
         for i in &to_floor {
-            Self::place(ctx, i, feet);
+            self.place(ctx, i, feet);
         }
         self.publish(ctx, actor);
     }
@@ -2105,7 +2224,7 @@ impl State {
         }
         if let Some(feet) = feet {
             for i in &to_floor {
-                Self::place(ctx, i, feet);
+                self.place(ctx, i, feet);
             }
             if died {
                 self.corpses += 1;
@@ -2143,7 +2262,7 @@ impl State {
         if a.doafter.is_some() || !self.can_start(ctx, actor, &action) {
             return;
         }
-        let delay = self.delay_of(actor, &action);
+        let delay = self.delay_of(ctx, actor, &action);
         if delay <= 0.0 {
             self.run(ctx, actor, action);
             return;
@@ -2164,7 +2283,9 @@ impl State {
         {
             self.strip_alert(actor, *target, *hand, slot, *take);
         }
+        let last_damage = self.actors[&actor].health.total();
         self.actor(actor).doafter = Some(DoAfter {
+            last_damage,
             action,
             delay,
             elapsed: 0.0,
@@ -2179,6 +2300,45 @@ impl State {
             return false;
         };
         match action {
+            Action::Repair(job) => self.can_repair_object(ctx, actor, job),
+            Action::BuildPipe {
+                recipe,
+                rotation,
+                floor,
+                cell,
+                stack,
+            } => self.can_build_pipe(ctx, actor, (*floor, *cell), *recipe, *rotation, *stack),
+            Action::Frame(job) => self.can_frame(ctx, actor, job),
+            Action::Barrier(job) => self.can_barrier(ctx, actor, job),
+            Action::Inflate {
+                floor,
+                cell,
+                stack,
+                proto,
+                ..
+            } => self.can_inflate(ctx, actor, *floor, *cell, *stack, proto),
+            Action::Deflate { target, .. } => self.can_deflate(ctx, actor, *target),
+            Action::Rcd(job) => self.can_rcd(ctx, actor, job),
+            Action::RemoveTile {
+                floor,
+                cell,
+                slab,
+                hand,
+                tool,
+            } => self.can_remove_tile(ctx, actor, (*floor, *cell), *slab, *hand, *tool),
+            Action::WorkStructure {
+                cell,
+                hand,
+                tool,
+                operation,
+            } => self.work_valid(ctx, actor, *cell, *hand, *tool, *operation),
+            Action::Construct {
+                cell,
+                hand,
+                stack,
+                girder,
+                reinforced,
+            } => self.can_construct(ctx, actor, *cell, *hand, *stack, (*girder, *reinforced)),
             Action::Equip { hand, slot } => a.hands.get(*hand).is_some_and(|item| {
                 self.info(&item.prototype)
                     .is_some_and(|info| a.inventory.can_equip(slot, info).is_ok())
@@ -2276,21 +2436,45 @@ impl State {
                         .is_some_and(|i| self.analyzers.contains(&i.prototype))
                     && self.in_reach(ctx, actor, *target)
             }
-            Action::Pry { element, hand } => {
-                ctx.door_open(*element) == Some(false)
-                    && a.hands.get(*hand).is_some_and(|i| {
-                        self.info(&i.prototype)
-                            .is_some_and(|x| x.qualities.contains("Prying"))
-                    })
-            }
+            Action::Pry {
+                element,
+                hand,
+                tool,
+            } => a
+                .hands
+                .get(*hand)
+                .is_some_and(|i| i.id == *tool && self.can_pry_door(ctx, *element, &i.prototype)),
         }
     }
 
-    fn delay_of(&self, actor: NetworkEntityId, action: &Action) -> f32 {
+    fn delay_of(&self, ctx: &HookContext<'_>, actor: NetworkEntityId, action: &Action) -> f32 {
         let Some(a) = self.actors.get(&actor) else {
             return 0.0;
         };
         match action {
+            Action::Repair(job) => job.delay,
+            Action::Frame(job) => job.delay,
+            Action::Barrier(job) => job.delay,
+            Action::Rcd(job) => job.delay,
+            Action::Inflate { delay, .. } | Action::Deflate { delay, .. } => *delay,
+            Action::BuildPipe { recipe, .. } => crate::crafting::pipes()[*recipe].delay,
+            Action::RemoveTile { hand, .. } => a
+                .hands
+                .get(*hand)
+                .and_then(|i| self.tile_delay(&i.prototype))
+                .unwrap_or(0.0),
+            Action::WorkStructure {
+                operation, hand, ..
+            } => {
+                construction::work_delay(*operation)
+                    / a.hands
+                        .get(*hand)
+                        .and_then(|i| self.welding_tools.get(&i.prototype))
+                        .map_or(1.0, |s| s.speed)
+            }
+            Action::Construct {
+                girder, reinforced, ..
+            } => construction::material_step(girder.is_some(), *reinforced).delay,
             Action::Equip { hand, .. } => a
                 .hands
                 .get(*hand)
@@ -2355,15 +2539,60 @@ impl State {
                 })
                 .unwrap_or(0.0),
             Action::Scan { .. } => crate::analyzer::SCAN_DELAY_S,
-            Action::Pry { .. } => PRY_TIME_S,
+            Action::Pry { element, hand, .. } => a
+                .hands
+                .get(*hand)
+                .map_or(0., |tool| self.pry_delay(ctx, *element, &tool.prototype)),
         }
     }
 
     fn run(&mut self, ctx: &mut HookContext<'_>, actor: NetworkEntityId, action: Action) {
         match action {
+            Action::Repair(job) => self.finish_object_repair(ctx, actor, job),
+            Action::BuildPipe {
+                recipe,
+                rotation,
+                floor,
+                cell,
+                stack,
+            } => self.build_pipe(ctx, actor, (floor, cell), recipe, rotation, stack),
+            Action::Frame(job) => self.finish_frame(ctx, actor, &job),
+            Action::Barrier(job) => self.finish_barrier(ctx, actor, job),
+            Action::Rcd(job) => self.finish_rcd(ctx, actor, job),
+            Action::Inflate {
+                floor,
+                cell,
+                stack,
+                proto,
+                ..
+            } => self.finish_inflate(ctx, actor, floor, cell, stack, &proto),
+            Action::Deflate { target, .. } => self.finish_deflate(ctx, actor, target),
+            Action::WorkStructure {
+                cell,
+                hand,
+                tool,
+                operation,
+            } => self.finish_work(ctx, actor, cell, hand, tool, operation),
+            Action::RemoveTile {
+                floor, cell, slab, ..
+            } => {
+                if let Some(used) = self.used_item(actor)
+                    && let Some(feet) = ctx.position_of(actor)
+                {
+                    self.tool_sound(&used.item.prototype, "use", feet);
+                }
+                self.remove_tile(ctx, floor, cell, slab);
+            }
+            Action::Construct {
+                cell,
+                hand,
+                stack,
+                girder,
+                reinforced,
+            } => self.construct(ctx, actor, cell, hand, stack, (girder, reinforced)),
             Action::Equip { hand, slot } => self.equip(ctx, actor, hand, &slot),
             Action::Unequip { slot, hand } => self.unequip(ctx, actor, &slot, hand),
-            Action::Pry { element, .. } => ctx.request_door(element, DoorAction::Open, true),
+            Action::Pry { element, hand, .. } => self.finish_pry(ctx, actor, element, hand),
             Action::Heal { hand, target } => self.heal(ctx, actor, hand, target),
             Action::Inject { hand, target } => self.inject_body(ctx, actor, hand, target),
             Action::Defib { hand, target } => self.zap(ctx, actor, hand, target),
@@ -2447,7 +2676,7 @@ impl State {
             a.hands.set_disabled(h, false);
         }
         for i in &worn {
-            Self::place(ctx, i, at);
+            self.place(ctx, i, at);
         }
         ctx.set_ghost(actor, false);
         ctx.freeze(actor, false);
@@ -2639,28 +2868,54 @@ impl State {
     }
 
     /// Зажжённый предмет в руке поджигает воздух клетки владельца (`IgnitionSourceSystem.Update`);
-    /// выпавший из рук гаснет.
+    /// сварочный инструмент также расходует топливо и поджигает воздух, лежа на полу.
     fn tick_igniters(&mut self, ctx: &mut HookContext<'_>) {
         if self.lit.is_empty() {
             return;
         }
-        let mut held = BTreeSet::new();
-        let mut burning: Vec<(NetworkEntityId, f32)> = Vec::new();
-        for (id, a) in &self.actors {
-            for item in a.hands.held() {
-                if self.lit.contains(&item.id) {
-                    held.insert(item.id);
-                    if let Some(&t) = self.igniters.get(&item.prototype) {
-                        burning.push((*id, t));
-                    }
+        let mut cells = BTreeMap::new();
+        for (&actor, person) in &self.actors {
+            for item in person.hands.held() {
+                if self.lit.contains(&item.id)
+                    && let Some(cell) = self.cell_of(ctx, actor)
+                    && let Some(&temperature) = self.igniters.get(&item.prototype)
+                {
+                    cells.insert(item.id, (cell, temperature));
                 }
             }
         }
-        self.lit.retain(|i| held.contains(i));
-        for (id, temperature) in burning {
-            if let Some(cell) = self.cell_of(ctx, id) {
-                self.atmos.ignite(cell, temperature, IGNITION_SOURCE_VOLUME);
+        let mut empty = Vec::new();
+        for (&id, (proto, next)) in &mut self.burning_welders {
+            let spec = self.welding_tools[proto];
+            if self.clock >= *next {
+                let periods = 1.0 + (self.clock - *next).floor();
+                *next += periods;
+                if let Some(solution) = self.solutions.get_mut(&id) {
+                    solution.remove(&spec.fuel, periods * spec.burn_rate);
+                    if solution.amount(&spec.fuel) <= 0. {
+                        empty.push(id);
+                        continue;
+                    }
+                }
             }
+            if let Some(obj) = ctx.world.authored_object(id) {
+                cells.insert(
+                    id,
+                    (
+                        crate::piping::cell_at(obj.floor.0, (obj.min() + obj.max()) * 0.5),
+                        spec.temperature,
+                    ),
+                );
+            }
+        }
+        for id in empty {
+            self.burning_welders.remove(&id);
+            cells.remove(&id);
+        }
+        self.lit
+            .retain(|id| cells.contains_key(id) || self.burning_welders.contains_key(id));
+        for (cell, temperature) in cells.into_values() {
+            self.atmos.ignite(cell, temperature, IGNITION_SOURCE_VOLUME);
         }
     }
 
@@ -2694,10 +2949,12 @@ impl State {
                             device: None,
                         },
                     ));
-                    sig.push((o.id, cell, dirs));
+                    sig.push((o.id, cell, dirs | crate::piping::pipe_layer(o) << 4));
                 }
                 AuthoredKind::Placement { prototype } => {
-                    if let Some(p) = self.pipe_parts.get(prototype) {
+                    if let Some(p) = self.pipe_parts.get(prototype)
+                        && !o.metadata.contains_key("loose_pipe_dirs")
+                    {
                         let rot = o
                             .metadata
                             .get("rot")
@@ -2730,7 +2987,7 @@ impl State {
                             _ => {}
                         }
                         parts.push((o.id, cell, part));
-                        sig.push((o.id, cell, rot));
+                        sig.push((o.id, cell, rot | crate::piping::pipe_layer(o) << 4));
                     }
                 }
                 _ => {}
@@ -2747,6 +3004,10 @@ impl State {
                 layout.nodes.push(atmos::NodeSpec {
                     key: node_key(key, i),
                     cell: *cell,
+                    layer: ctx
+                        .world
+                        .authored_object(*id)
+                        .map_or(0, crate::piping::pipe_layer),
                     dirs: *dirs,
                     volume: *volume,
                 });
@@ -2846,7 +3107,7 @@ impl State {
         };
         if let Some(at) = feet {
             for item in &dropped {
-                State::place(ctx, item, at);
+                self.place(ctx, item, at);
             }
         }
         self.after_health_change(ctx, id);
@@ -3010,6 +3271,29 @@ impl State {
                     if let Some(g) = o.metadata.get(CABLE_KEY).and_then(|v| CableGroup::parse(v)) {
                         cables.push((g, cell));
                         sig.push((o.id, cell, g as u8 + 1));
+                    }
+                    if let Some(id) = o
+                        .metadata
+                        .get("door_element")
+                        .and_then(|v| u128::from_str_radix(v, 16).ok())
+                    {
+                        let id = ObjectId::from_u128(id);
+                        let spec = self.airlock_spec(o);
+                        let disabled = self.door_wires_unpowered(ctx, id);
+                        parts.push((
+                            id,
+                            cell,
+                            crate::electric::PowerPart {
+                                receiver_load: Some(if disabled {
+                                    0.
+                                } else {
+                                    spec["ApcPowerReceiver"]["powerLoad"].as_f64().unwrap_or(5.)
+                                        as f32
+                                }),
+                                ..Default::default()
+                            },
+                        ));
+                        sig.push((id, cell, if disabled { 255 } else { 0 }));
                     }
                 }
                 AuthoredKind::Placement { prototype } => {
@@ -3263,7 +3547,7 @@ impl State {
             start
         };
         for item in &holder.items {
-            Self::place(ctx, item, landing);
+            self.place(ctx, item, landing);
         }
     }
 
@@ -3322,6 +3606,30 @@ impl State {
         let Placement::Edge(g) = e.placement else {
             return true;
         };
+        if let Some(assembly) = self.door_assembly(ctx, element) {
+            if let Some(access) = assembly.metadata.get("installed_access") {
+                let lists: Vec<Vec<String>> = access
+                    .split(';')
+                    .filter(|s| !s.is_empty())
+                    .map(|s| s.split(',').map(str::to_owned).collect())
+                    .collect();
+                return Self::access_ok(&lists, &self.user_access(actor));
+            }
+            if let Some(board) = assembly.metadata.get("frame_board")
+                && let Some(access) = construction::CATALOG["doorBoards"][board].as_array()
+            {
+                let lists: Vec<Vec<String>> = access
+                    .iter()
+                    .filter_map(|list| list.as_array())
+                    .map(|list| {
+                        list.iter()
+                            .filter_map(|v| v.as_str().map(str::to_owned))
+                            .collect()
+                    })
+                    .collect();
+                return Self::access_ok(&lists, &self.user_access(actor));
+            }
+        }
         let key = format!(
             "{},{},{}",
             g.x,
@@ -3417,7 +3725,7 @@ impl State {
                 && let Err(_) = self.actor(actor).hands.pickup_any(item.clone())
                 && let Some(feet) = ctx.position_of(actor)
             {
-                Self::place(ctx, &item, feet);
+                self.place(ctx, &item, feet);
             }
         }
         for (slot, names) in &spec.storage {
@@ -3527,7 +3835,7 @@ impl State {
                     id: ObjectId::from_u128(0xE5E5_0000_0000 + self.spawn_serial),
                     prototype: item.clone(),
                 };
-                Self::place(ctx, &held, at + Vec3::new(dx, 0.0, dz));
+                self.place(ctx, &held, at + Vec3::new(dx, 0.0, dz));
             }
         }
     }
@@ -3814,6 +4122,22 @@ impl State {
 
     pub(crate) fn sound_volume(&mut self, path: &str, at: Vec3, volume_db: f32) {
         self.fx_sounds.push((path.to_string(), at, volume_db));
+    }
+
+    pub(crate) fn engineering_sound(&mut self, spec: &serde_json::Value, at: Vec3) {
+        let Some(files) = spec["files"].as_array().filter(|a| !a.is_empty()) else {
+            return;
+        };
+        let index = (self.tool_audio_rng.next_f32() * files.len() as f32) as usize;
+        if let Some(path) = files[index.min(files.len() - 1)].as_str() {
+            self.sound_volume(path, at, spec["volume"].as_f64().unwrap_or(0.) as f32);
+        }
+    }
+
+    pub(crate) fn tool_sound(&mut self, tool: &PrototypeId, event: &str, at: Vec3) {
+        if let Some(name) = self.ss14_names.get(tool) {
+            self.engineering_sound(&construction::CATALOG["toolSounds"][name][event], at);
+        }
     }
 
     /// В конце тика: каждому игроку — его подсказки и звуки поблизости.
@@ -4123,7 +4447,7 @@ impl State {
         if let Err(_) = self.actor(user).hands.pickup_any(item.clone())
             && let Some(feet) = ctx.position_of(user)
         {
-            Self::place(ctx, &item, feet);
+            self.place(ctx, &item, feet);
         }
         self.publish(ctx, user);
     }
@@ -4278,7 +4602,7 @@ impl State {
         for (i, item) in items.iter().enumerate() {
             let a = i as f32 * 2.399_963; // золотой угол: равномерно по кругу
             let r = 0.15 + 0.05 * (i % 4) as f32;
-            Self::place(ctx, item, at + Vec3::new(a.cos() * r, 0.0, a.sin() * r));
+            self.place(ctx, item, at + Vec3::new(a.cos() * r, 0.0, a.sin() * r));
         }
     }
 
@@ -4458,6 +4782,7 @@ impl State {
         };
         let now = self.clock;
         let powered = !self.power_required || self.powered_map().get(&id).copied().unwrap_or(false);
+        let powered = powered && !self.repairable_broken(ctx, id);
         // Доступ к автомату (`IsAuthorized`): без нужного уровня — отказ.
         let allowed = ctx
             .world
@@ -4514,7 +4839,7 @@ impl State {
                 id: ObjectId::from_u128(0xD3AD_0000_0000 + self.vending_serial),
                 prototype: done,
             };
-            Self::place(ctx, &item, Vec3::new(c.x, o.min().y, c.z));
+            self.place(ctx, &item, Vec3::new(c.x, o.min().y, c.z));
         }
         // Окна: закрыть, если игрок ушёл от автомата; послать изменения.
         let players: Vec<NetworkEntityId> = ctx.players().collect();
@@ -4550,6 +4875,7 @@ impl State {
                         .collect(),
                     ejecting: machine.ejecting(),
                     denying: machine.denying(),
+                    broken: self.repairable_broken(ctx, id),
                 })
             });
             if view.is_none() {
@@ -4883,7 +5209,7 @@ impl State {
             let feet = ctx.position_of(id);
             if let Some(at) = feet {
                 for item in &dropped {
-                    State::place(ctx, item, at);
+                    self.place(ctx, item, at);
                 }
             }
             self.after_health_change(ctx, id);
@@ -4973,7 +5299,7 @@ impl State {
         if let Some((hand, item)) = held {
             // Выбить предмет: падает под ноги цели.
             if let Some(at) = ctx.position_of(target)
-                && Self::place(ctx, &item, at)
+                && self.place(ctx, &item, at)
             {
                 let _ = self.actor(target).hands.drop_hand(hand);
                 self.publish(ctx, target);
@@ -5285,12 +5611,12 @@ impl State {
             return;
         };
         let broke = walls.get_mut(&cell).is_some_and(|w| {
-            w.damage += w.blast_damage(&b.damage, 1.0);
-            w.damage >= w.hp
+            w.apply_hit(&b.damage, 1.0);
+            w.total_damage() >= w.hp
         });
-        if broke {
-            self.break_wall(ctx, floor, cell, &walls);
+        if broke && !self.restore_window_grille(ctx, floor, cell, &mut walls) {
             walls.remove(&cell);
+            self.break_wall(ctx, floor, cell, &walls);
         }
         self.walls = Some(walls);
     }
@@ -5400,7 +5726,7 @@ impl State {
             .pickup_to(hand, item.clone())
             .is_ok();
         if !held && let Some(at) = ctx.position_of(actor) {
-            Self::place(ctx, &item, at);
+            self.place(ctx, &item, at);
         }
     }
 
@@ -5531,8 +5857,8 @@ impl State {
                     continue;
                 }
                 let d = hit.entry(w).or_insert(0.0);
-                *d = d.max(wall.blast_damage(&per_intensity, i));
-                if wall.damage + *d >= wall.hp {
+                *d = d.max(i);
+                if wall.total_damage() + wall.blast_damage(&per_intensity, *d) >= wall.hp {
                     fresh.push(w);
                 }
             }
@@ -5551,12 +5877,19 @@ impl State {
         }
         for (w, d) in &hit {
             if let Some(wall) = walls.get_mut(w) {
-                wall.damage += d;
+                wall.apply_hit(&per_intensity, *d);
             }
         }
-        for w in &broken {
-            self.break_wall(ctx, floor, *w, &walls);
+        let breaches: Vec<_> = broken
+            .iter()
+            .copied()
+            .filter(|w| !self.restore_window_grille(ctx, floor, *w, &mut walls))
+            .collect();
+        for w in &breaches {
             walls.remove(w);
+        }
+        for w in breaches {
+            self.break_wall(ctx, floor, w, &walls);
         }
         self.walls = Some(walls);
         self.blast_items(ctx, floor, at, &blast, &per_intensity);
@@ -5590,6 +5923,19 @@ impl State {
         ctx: &HookContext<'_>,
     ) -> BTreeMap<(i32, i32), crate::explosion::Wall> {
         self.walls.take().unwrap_or_else(|| {
+            for value in ctx
+                .world
+                .authored()
+                .filter(|o| matches!(o.kind, AuthoredKind::Zone))
+                .flat_map(|o| o.metadata.iter())
+                .filter_map(|(k, v)| k.starts_with("window_grilles_").then_some(v))
+            {
+                self.window_grilles
+                    .extend(value.split_whitespace().filter_map(|v| {
+                        let (x, z) = v.split_once(':')?;
+                        Some((x.parse::<i32>().ok()?, z.parse::<i32>().ok()?))
+                    }));
+            }
             crate::explosion::parse_walls(
                 ctx.world
                     .authored()
@@ -5608,6 +5954,21 @@ impl State {
         wall: (i32, i32),
         walls: &BTreeMap<(i32, i32), crate::explosion::Wall>,
     ) {
+        self.reinforced_work.remove(&wall);
+        self.barrier_progress.remove(&wall);
+        self.open_wall_geometry(ctx, floor, wall, walls);
+        self.sound(
+            "Effects/metalbreak.ogg",
+            Vec3::new(wall.0 as f32 + 0.5, 1.0, wall.1 as f32 + 0.5),
+        );
+    }
+    fn open_wall_geometry(
+        &mut self,
+        ctx: &mut HookContext<'_>,
+        floor: FloorId,
+        wall: (i32, i32),
+        walls: &BTreeMap<(i32, i32), crate::explosion::Wall>,
+    ) {
         use astrocore_math::{GridCell, GridEdge};
         use astrocore_world::{SlotKey, StructureElement};
         let here = GridCell::new(wall.0, wall.1);
@@ -5619,16 +5980,26 @@ impl State {
             })
             .collect();
         let mut remove: Vec<ObjectId> = Vec::new();
-        let mut material = None;
         for e in ctx.world.elements().filter(|e| e.floor == floor) {
             match (&e.kind, &e.placement) {
-                (StructureKind::Freeform, Placement::Free(p)) if p.cell == here => {
+                (StructureKind::Freeform, Placement::Free(p))
+                    if p.cell == here
+                        && (e.material.as_str() == "ss14:inflatable_wall"
+                            || e.material.as_str().starts_with("ss14:wall_")
+                            || e.material.as_str().contains("window")
+                            || e.material.as_str().starts_with("ss14:grille")) =>
+                {
                     remove.push(e.id);
                 }
                 (
                     StructureKind::Wall | StructureKind::Opening(OpeningKind::Window),
                     Placement::Edge(g),
-                ) if around.iter().any(|(_, a)| a == g) => remove.push(e.id),
+                ) if around
+                    .iter()
+                    .any(|(n, a)| a == g && !walls.contains_key(&(n.x, n.z))) =>
+                {
+                    remove.push(e.id)
+                }
                 _ => {}
             }
         }
@@ -5643,7 +6014,20 @@ impl State {
             ctx.request(WorldCommand::RemoveElement { id });
         }
         for template in [floor_slab, ceiling_slab].into_iter().flatten() {
-            material.get_or_insert(template.material.clone());
+            if ctx
+                .world
+                .element_at(
+                    floor,
+                    if template.kind == StructureKind::Floor {
+                        SlotKey::FloorSlab(here)
+                    } else {
+                        SlotKey::CeilingSlab(here)
+                    },
+                )
+                .is_some()
+            {
+                continue;
+            }
             self.wall_serial += 1;
             ctx.request(WorldCommand::PlaceElement(StructureElement {
                 id: ObjectId::from_u128(0xB1A5_7000_0000 + self.wall_serial),
@@ -5666,15 +6050,25 @@ impl State {
                     ctx.request(WorldCommand::PlaceElement(StructureElement {
                         id: ObjectId::from_u128(0xB1A5_7000_0000 + self.wall_serial),
                         placement: Placement::Edge(*g),
+                        material: walls[&(n.x, n.z)]
+                            .prototype
+                            .as_deref()
+                            .and_then(|s| {
+                                if s.contains("Window")
+                                    || s.starts_with("Grille")
+                                    || s == "WallReinforced"
+                                {
+                                    prototypes::engine_id("ss14", s)
+                                } else {
+                                    None
+                                }
+                            })
+                            .unwrap_or_else(|| PrototypeId::new("ss14:wall_solid").unwrap()),
                         ..template.clone()
                     }));
                 }
             }
         }
-        self.sound(
-            "Audio/Effects/metalbreak.ogg",
-            Vec3::new(wall.0 as f32 + 0.5, 1.0, wall.1 as f32 + 0.5),
-        );
     }
 
     /// Предметы на земле в зоне взрыва: взрывчатка получает урон (запал от `start`, подрыв от
@@ -5845,7 +6239,7 @@ impl State {
                 self.explode(ctx, at + Vec3::Y * 0.1, &spec);
                 continue;
             }
-            Self::place(ctx, &item, at);
+            self.place(ctx, &item, at);
         }
     }
 
@@ -5859,7 +6253,12 @@ impl State {
             crate::verbs::VerbTarget::Object(id) => ctx
                 .world
                 .authored_object(id)
-                .map(|o| (o.min() + o.max()) * 0.5),
+                .map(|o| (o.min() + o.max()) * 0.5)
+                .or_else(|| self.inflatable_target(ctx, id).map(|(_, _, _, at)| at))
+                .or_else(|| {
+                    self.door_assembly(ctx, id)
+                        .map(|o| (o.min() + o.max()) * 0.5)
+                }),
             crate::verbs::VerbTarget::Player(p) => {
                 ctx.position_of(p).map(|f| f + Vec3::Y * CHEST_M)
             }
@@ -6369,7 +6768,7 @@ impl State {
         }
         if let Some(at) = feet {
             for i in &to_floor {
-                Self::place(ctx, i, at);
+                self.place(ctx, i, at);
             }
         }
         self.publish(ctx, actor);
@@ -6427,6 +6826,24 @@ impl State {
             return;
         };
         let mut verbs = Vec::new();
+        if let VerbTarget::Object(id) = target {
+            verbs.extend(self.stack_verbs(ctx, actor, id));
+            verbs.extend(self.airlock_wire_verbs(ctx, actor, id));
+            if self.wires_accessible(ctx, actor, id) {
+                verbs.push(Verb {
+                    id: "wires".into(),
+                    label: "Wires".into(),
+                    disabled: None,
+                });
+            }
+            if self.can_deflate(ctx, actor, id) {
+                verbs.push(Verb {
+                    id: "disassemble".into(),
+                    label: "Disassemble".into(),
+                    disabled: None,
+                });
+            }
+        }
         match self.examine_distance(ctx, actor, spot, Self::verb_slack(target)) {
             Some(d) => {
                 verbs.push(Verb {
@@ -6484,6 +6901,28 @@ impl State {
         let Some((target, verb)) = crate::verbs::parse_target(data) else {
             return;
         };
+        if let VerbTarget::Object(id) = target
+            && verb == "disassemble"
+        {
+            self.begin_deflate(ctx, actor, id);
+            return;
+        }
+        if let VerbTarget::Object(id) = target
+            && verb == "wires"
+        {
+            self.open_wires(ctx, actor, id);
+            return;
+        }
+        if let VerbTarget::Object(id) = target
+            && verb.starts_with("door_wire_")
+        {
+            self.use_airlock_wire(ctx, actor, id, verb);
+            return;
+        }
+        if let (VerbTarget::Object(id), Some(amount)) = (target, verb.strip_prefix("split_")) {
+            self.move_stack(ctx, actor, id, Some(amount));
+            return;
+        }
         let Some(spot) = self.verb_target_spot(ctx, target) else {
             return;
         };
@@ -7308,6 +7747,10 @@ impl State {
         self.clock += dt;
         self.last_dt = dt;
         self.gone.clear();
+        self.inflated_this_tick.clear();
+        self.tick_rcd_recharge(ctx);
+        self.refresh_board_windows(ctx);
+        self.tick_airlock_wires(ctx);
         self.tick_health(ctx, dt);
         let waiting: Vec<NetworkEntityId> = self
             .actors
@@ -7316,17 +7759,46 @@ impl State {
             .map(|(id, _)| *id)
             .collect();
         for id in waiting {
+            if let Some(Action::Repair(job)) = self
+                .actors
+                .get(&id)
+                .and_then(|actor| actor.doafter.as_ref())
+                .map(|action| &action.action)
+                && !self.can_repair_object(ctx, id, job)
+            {
+                let job = job.clone();
+                self.repair_tool_feedback(id, &job);
+                self.cancel(ctx, id);
+                continue;
+            }
+            if let Some(Action::Rcd(job)) = self
+                .actors
+                .get(&id)
+                .and_then(|a| a.doafter.as_ref())
+                .map(|d| &d.action)
+                && !self.can_rcd(ctx, id, job)
+            {
+                self.cancel(ctx, id);
+                continue;
+            }
             let Some(pos) = ctx.position_of(id) else {
                 self.cancel(ctx, id);
                 continue;
             };
-            let Some(d) = self.actors.get_mut(&id).and_then(|a| a.doafter.as_mut()) else {
+            let Some(actor) = self.actors.get_mut(&id) else {
                 continue;
             };
-            if d.action.breaks_on_move() && pos.distance(d.start) > BREAK_DISTANCE_M {
+            let Some(d) = actor.doafter.as_mut() else {
+                continue;
+            };
+            let damage = actor.health.total();
+            if d.action.breaks_on_move() && pos.distance(d.start) > BREAK_DISTANCE_M
+                || d.action.construction_breaks_on_damage() && damage - d.last_damage >= 1.
+            {
                 self.cancel(ctx, id);
                 continue;
             }
+            d.last_damage = damage;
             d.elapsed += dt;
             if d.elapsed < d.delay {
                 continue;
@@ -7665,6 +8137,17 @@ impl GameplayModule {
     /// Взаимодействие с целью (`UserInteraction` в SS14): дальность и видимость, затем цепочка
     /// обработчиков — пустая рука или предмет в активной руке.
     fn interact(&mut self, ctx: &mut HookContext<'_>, user: NetworkEntityId, id: ObjectId) {
+        if self.state.begin_object_repair(ctx, user, id) {
+            return;
+        }
+        if self
+            .state
+            .used_item(user)
+            .is_some_and(|u| self.state.is_balloon_popper(&u.item.prototype))
+            && self.state.begin_deflate(ctx, user, id)
+        {
+            return;
+        }
         let (Some(feet), Some(target)) = (ctx.position_of(user), self.resolve_target(ctx, id))
         else {
             return;
@@ -7692,6 +8175,48 @@ impl GameplayModule {
             return;
         }
         let used = self.state.used_item(user);
+        if let Target::Door { element, .. } = &target {
+            if self.state.shock_from_airlock(ctx, user, *element) {
+                return;
+            }
+            if used
+                .as_ref()
+                .and_then(|u| self.state.info(&u.item.prototype))
+                .is_some_and(|info| {
+                    info.qualities.contains("Cutting") || info.qualities.contains("Pulsing")
+                })
+                && self.state.open_wires(ctx, user, *element)
+            {
+                return;
+            }
+        }
+        if used.is_some()
+            && let Target::Door { element, .. } = &target
+            && let Some(id) = self.state.door_assembly(ctx, *element).map(|o| o.id)
+            && self.state.begin_frame_interaction(ctx, user, id)
+        {
+            return;
+        }
+        if let (Some(used), Target::Item { id, prototype, at }) = (&used, &target) {
+            if self.state.open_board_config(ctx, user, *id) {
+                return;
+            }
+            if self.state.refill_rcd(ctx, user, used, *id, prototype) {
+                return;
+            }
+            if self.state.begin_frame_interaction(ctx, user, *id) {
+                return;
+            }
+            if self.state.move_stack(ctx, user, *id, None) {
+                return;
+            }
+            if matches!(prototype.as_str(), "ss14:girder" | "ss14:reinforced_girder")
+                && (self.state.begin_barrier(ctx, user, *at, None)
+                    || self.state.begin_construction(ctx, user, used.hand, *at))
+            {
+                return;
+            }
+        }
         let mut handlers = std::mem::take(&mut self.handlers);
         match used {
             None => {
@@ -7735,7 +8260,29 @@ impl GameModule for GameplayModule {
 
     fn handle(&mut self, ctx: &mut HookContext<'_>, event: &HookEvent) {
         let st = &mut self.state;
+        st.pending_object_damage.clear();
+        st.sync_airlock_index(ctx);
         match event {
+            HookEvent::Collision { a, b } => {
+                let Ok(actor) = u32::try_from(a.as_uuid().as_u128()) else {
+                    return;
+                };
+                let actor = NetworkEntityId(actor);
+                if st.actors.get(&actor).is_some_and(|a| {
+                    !a.ghost && a.health.state().can_act() && a.stun_until <= st.clock
+                }) && let Some(object) = st.door_assembly(ctx, *b).cloned()
+                    && !st.shock_from_airlock(ctx, actor, *b)
+                    && st.airlock_spec(&object)["Door"]["bumpOpen"]
+                        .as_bool()
+                        .unwrap_or(true)
+                    && st.airlock_powered(ctx, *b)
+                    && !st.door_secured(ctx, *b)
+                    && st.door_allowed(ctx, actor, *b)
+                    && !st.airlock_wants_open(ctx, *b)
+                {
+                    st.open_airlock(*b, &object, true);
+                }
+            }
             HookEvent::Command { actor, kind, data } if kind == crate::wire::CMD_VERB_LIST => {
                 st.verb_list(ctx, *actor, data);
             }
@@ -7764,6 +8311,13 @@ impl GameModule for GameplayModule {
                     .get(actor)
                     .is_some_and(|a| !a.health.state().can_act() || a.stun_until > st.clock) => {}
             HookEvent::Command { actor, kind, data } => match kind.as_str() {
+                crate::wire::CMD_ATTACK_OBJECT => {
+                    if st.actors.get(actor).is_some_and(|person| person.combat)
+                        && let Some(id) = parse_object_id(data)
+                    {
+                        st.attack_repairable(ctx, *actor, id);
+                    }
+                }
                 crate::power_monitor::CMD_FOCUS => {
                     st.focus_power_monitor(ctx, *actor, data);
                 }
@@ -7775,9 +8329,56 @@ impl GameModule for GameplayModule {
                 | crate::alerts::CMD_CLOSE => {
                     st.alerts_command(ctx, *actor, kind, data);
                 }
+                crate::crafting::CMD_PLACE => st.start_placement(ctx, *actor, data),
+                crate::crafting::CMD_RCD_MODE => st.select_rcd_mode(ctx, *actor, data),
+                crate::crafting::CMD_RCD_USE => st.start_rcd(ctx, *actor, data),
+                crate::door_electronics::CMD_UPDATE => st.update_board_config(ctx, *actor, data),
+                crate::door_electronics::CMD_CLOSE => st.close_board_config(ctx, *actor),
+                crate::wires::CMD_OPEN => {
+                    if let Some(id) = crate::wire::parse_object_id(data) {
+                        st.open_wires(ctx, *actor, id);
+                    }
+                }
+                crate::wires::CMD_CLOSE => st.close_wires(ctx, *actor),
+                crate::wires::CMD_ACTION => {
+                    if let Some((crate::verbs::VerbTarget::Object(id), verb)) =
+                        crate::verbs::parse_target(data)
+                        && st
+                            .wires_open
+                            .get(actor)
+                            .is_some_and(|(element, _)| *element == id)
+                    {
+                        st.use_airlock_wire(ctx, *actor, id, verb);
+                    }
+                }
+                crate::crafting::CMD_CRAFT => st.craft_material(ctx, *actor, data),
                 CMD_USE_GROUND => {
+                    let (data, layer) = if let [position @ .., layer @ 0..=2] = data.as_slice()
+                        && position.len() == 13
+                    {
+                        (position, Some(*layer))
+                    } else {
+                        (data.as_slice(), None)
+                    };
                     if let Some((hand, Some([x, y, z]))) = crate::wire::parse_drop(data) {
-                        st.use_on_ground(ctx, *actor, usize::from(hand), Vec3::new(x, y, z));
+                        let point = Vec3::new(x, y, z);
+                        if !st.use_inflatable_at(ctx, *actor, usize::from(hand), point)
+                            && !st.use_frame_at(ctx, *actor, usize::from(hand), point)
+                            && !(st
+                                .used_item(*actor)
+                                .is_some_and(|u| u.hand == usize::from(hand))
+                                && st.begin_barrier(ctx, *actor, point, None))
+                            && !st.begin_construction_layer(
+                                ctx,
+                                *actor,
+                                usize::from(hand),
+                                point,
+                                layer,
+                            )
+                            && !st.use_floor_tile(ctx, *actor, usize::from(hand), point)
+                        {
+                            st.use_on_ground(ctx, *actor, usize::from(hand), point);
+                        }
                     }
                 }
                 CMD_SPILL => {
@@ -7846,7 +8447,7 @@ impl GameModule for GameplayModule {
                         if st.actor(*actor).hands.pickup_any(b.clone()).is_err()
                             && let Some(feet) = ctx.position_of(*actor)
                         {
-                            State::place(ctx, &b, feet);
+                            st.place(ctx, &b, feet);
                         }
                         st.publish(ctx, *actor);
                     }
@@ -8229,7 +8830,7 @@ impl GameModule for GameplayModule {
                 st.release_job(*actor);
                 if let Some(mut a) = st.actors.remove(actor) {
                     for item in a.hands.take_all().into_iter().chain(a.inventory.take_all()) {
-                        State::place(ctx, &item, *pos);
+                        st.place(ctx, &item, *pos);
                     }
                 }
             }

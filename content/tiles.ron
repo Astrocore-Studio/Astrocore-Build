@@ -94,6 +94,7 @@
     (tile: "FloorDarkMarbleMono", image: "Tiles/Marble/dark-marble-mono.png"),
     (tile: "FloorBasalt", image: "Tiles/Cave/cave.png"),
     (tile: "Plating", image: "Tiles/plating.png"),
+    (tile: "PlatingRCD", image: "Tiles/plating.png"),
     (tile: "PlatingDamaged", image: "Tiles/plating-damaged.png"),
     (tile: "FloorHullReinforced", image: "Tiles/debug-indestructible.png"),
     (tile: "PlatingAsteroid", image: "Tiles/Asteroid/asteroid-plating.png"),

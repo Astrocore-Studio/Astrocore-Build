@@ -148,6 +148,7 @@ pub fn attack_and_heal(
     transforms: Query<&Transform>,
     loadout: Res<crate::Loadout>,
     ground: Res<crate::Ground>,
+    look: Option<Res<astrocore_client::Look>>,
     mut hud: ResMut<crate::Hud>,
     net: Option<NonSendMut<Net>>,
 ) {
@@ -188,6 +189,19 @@ pub fn attack_and_heal(
     let shift = keys.pressed(KeyCode::ShiftLeft) || keys.pressed(KeyCode::ShiftRight);
     let attack =
         buttons.just_pressed(MouseButton::Left) && !shift && !wants.wants_any_pointer_input();
+    if attack && let Some((recipe, rotation)) = &hud.state.placement {
+        if let Some(point) = ground.0 {
+            net.send_command(
+                gameplay::crafting::CMD_PLACE,
+                gameplay::crafting::placement_data(
+                    gameplay::crafting::placement_variant(recipe, ground.1),
+                    *rotation,
+                    point,
+                ),
+            );
+        }
+        return;
+    }
     // Режим броска: щелчок бросает предмет из руки в точку под курсором и выключает режим.
     if attack && hud.state.throw_mode {
         hud.state.throw_mode = false;
@@ -221,11 +235,16 @@ pub fn attack_and_heal(
     let (Ok(window), Ok((camera, cam_t))) = (windows.single(), cameras.single()) else {
         return;
     };
-    let Some(cursor) = window.cursor_position() else {
-        return;
-    };
-    let Ok(ray) = camera.viewport_to_world(cam_t, cursor) else {
-        return;
+    let ray = if look.is_some_and(|l| l.first_person) {
+        Ray3d::new(cam_t.translation(), cam_t.forward())
+    } else {
+        let Some(ray) = window
+            .cursor_position()
+            .and_then(|cursor| camera.viewport_to_world(cam_t, cursor).ok())
+        else {
+            return;
+        };
+        ray
     };
     let candidates: Vec<(NetworkEntityId, Vec3)> = remote
         .0
@@ -233,12 +252,89 @@ pub fn attack_and_heal(
         .filter_map(|(id, e)| Some((*id, transforms.get(*e).ok()?.translation)))
         .collect();
     let Some((target, part)) = pick_target(ray.origin, *ray.direction, &candidates) else {
-        // Клик по полу: предмет в руке применяется к точке (швабра по луже и ведру).
-        if attack && let Some(point) = ground.0 {
+        if attack
+            && let Some(id) = hud.state.aim_id
+            && !loadout
+                .hands
+                .as_ref()
+                .and_then(|hands| hands.get(hands.active()))
+                .is_some_and(|item| {
+                    gameplay::crafting::rcd_modes(item.prototype.as_str())
+                        .next()
+                        .is_some()
+                })
+        {
             net.send_command(
-                gameplay::CMD_USE_GROUND,
-                gameplay::drop_at_data(active, point),
+                if hud.state.combat {
+                    gameplay::CMD_ATTACK_OBJECT
+                } else {
+                    gameplay::CMD_INTERACT
+                },
+                gameplay::pickup_data(id),
             );
+            return;
+        }
+        // Клик по полу: предмет в руке применяется к точке (швабра по луже и ведру).
+        if attack {
+            let feet = net.core.position();
+            let floor_point = crate::ground_point(
+                ray.origin,
+                *ray.direction,
+                feet.y + crate::hud::GROUND_LIFT_M,
+            );
+            let wall = net.core.world().and_then(|world| {
+                let step = world.config().grid_step_m;
+                world
+                    .elements()
+                    .filter_map(|e| {
+                        let astrocore_world::Placement::Free(p) = e.placement else {
+                            return None;
+                        };
+                        if !e.material.as_str().starts_with("ss14:wall_")
+                            && !e.material.as_str().contains("window")
+                            && e.material.as_str() != "ss14:grille"
+                        {
+                            return None;
+                        }
+                        let (min, max) = p.aabb(step);
+                        let t = crate::ray_box(
+                            ray.origin.to_array(),
+                            ray.direction.as_vec3().to_array(),
+                            min,
+                            max,
+                        )?;
+                        if floor_point
+                            .is_some_and(|pt| t > ray.origin.distance(Vec3::from_array(pt)))
+                        {
+                            return None;
+                        }
+                        Some((t, [p.cell.x as f32 + 0.5, feet.y, p.cell.z as f32 + 0.5]))
+                    })
+                    .min_by(|a, b| a.0.total_cmp(&b.0))
+                    .map(|(_, point)| point)
+            });
+            let Some(point) = wall.or(floor_point) else {
+                return;
+            };
+            if loadout
+                .hands
+                .as_ref()
+                .and_then(|h| h.get(h.active()))
+                .is_some_and(|i| {
+                    gameplay::crafting::rcd_modes(i.prototype.as_str())
+                        .next()
+                        .is_some()
+                })
+            {
+                net.send_command(
+                    gameplay::crafting::CMD_RCD_USE,
+                    gameplay::drop_at_data(hud.state.rcd_rotation, point),
+                );
+                return;
+            }
+            let mut data = gameplay::drop_at_data(active, point);
+            data.push(ground.1);
+            net.send_command(gameplay::CMD_USE_GROUND, data);
         }
         return;
     };

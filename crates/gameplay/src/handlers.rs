@@ -62,6 +62,9 @@ impl InteractionHandler for DoorActivate {
             return false;
         };
         // Считыватель не пускает без нужного доступа.
+        if state.door_secured(ctx, *element) || !state.airlock_powered(ctx, *element) {
+            return true;
+        }
         if !state.door_allowed(ctx, user, *element) {
             state.popup(user, "Доступ запрещён");
             if let Target::Door { at, .. } = target {
@@ -76,13 +79,31 @@ impl InteractionHandler for DoorActivate {
         if ctx.door_locked(*element) == Some(true) {
             return true; // дверь заперта: событие обработано отказом
         }
-        ctx.request_door(*element, DoorAction::Toggle, false);
+        if let Some(("InflatableDoor", _, _, at)) = state.inflatable_target(ctx, *element) {
+            let sound = if ctx.door_open(*element) == Some(true) {
+                "close"
+            } else {
+                "open"
+            };
+            state.inflatable_sound("InflatableDoor", sound, at);
+        }
+        if let Some(object) = state.door_assembly(ctx, *element).cloned() {
+            if state.airlock_wants_open(ctx, *element) {
+                state.close_airlock(ctx, *element, &object);
+            } else {
+                let auto_close = !state.airlock_spec(&object)["Airlock"]["keepOpenIfClicked"]
+                    .as_bool()
+                    .unwrap_or(false);
+                state.open_airlock(*element, &object, auto_close);
+            }
+        } else {
+            ctx.request_door(*element, DoorAction::Toggle, false);
+        }
         true
     }
 }
 
-/// Монтировка (качество `Prying`) в руке по закрытой двери — распахнуть её силой, в том числе
-/// запертую. Открытую дверь монтировкой не трогаем.
+/// `PryingSystem`: монтировка открывает и закрывает дверь с учётом питания и болтов.
 pub struct PryDoor;
 
 impl InteractionHandler for PryDoor {
@@ -101,8 +122,11 @@ impl InteractionHandler for PryDoor {
             .infos
             .get(&used.item.prototype)
             .is_some_and(|i| i.qualities.contains("Prying"));
-        if !prying || ctx.door_open(*element) != Some(false) {
+        if !prying {
             return false;
+        }
+        if !state.can_pry_door(ctx, *element, &used.item.prototype) {
+            return true;
         }
         state.begin(
             ctx,
@@ -110,6 +134,7 @@ impl InteractionHandler for PryDoor {
             Action::Pry {
                 element: *element,
                 hand: used.hand,
+                tool: used.item.id,
             },
         );
         true
@@ -169,15 +194,41 @@ impl InteractionHandler for IgniterUse {
     fn use_in_hand(
         &mut self,
         state: &mut State,
-        _ctx: &mut HookContext<'_>,
-        _user: NetworkEntityId,
+        ctx: &mut HookContext<'_>,
+        user: NetworkEntityId,
         used: &Used,
     ) -> bool {
         if !state.igniters.contains_key(&used.item.prototype) {
             return false;
         }
         if !state.lit.remove(&used.item.id) {
+            if let Some(spec) = state.welding_tools.get(&used.item.prototype).copied() {
+                let Some(solution) = state.solution_mut(&used.item) else {
+                    return true;
+                };
+                if solution.amount(&spec.fuel) < spec.lit_cost {
+                    return true;
+                }
+                solution.remove(&spec.fuel, spec.lit_cost);
+                state.burning_welders.insert(
+                    used.item.id,
+                    (used.item.prototype.clone(), state.clock + 1.0),
+                );
+            }
             state.lit.insert(used.item.id);
+        } else {
+            state.burning_welders.remove(&used.item.id);
+        }
+        if let Some(at) = ctx.position_of(user) {
+            state.tool_sound(
+                &used.item.prototype,
+                if state.lit.contains(&used.item.id) {
+                    "on"
+                } else {
+                    "off"
+                },
+                at,
+            );
         }
         true
     }

@@ -154,7 +154,7 @@ impl Icons {
         icons
     }
 
-    fn load(&mut self, ctx: &egui::Context, rel: &str) -> Option<egui::TextureId> {
+    pub(crate) fn load(&mut self, ctx: &egui::Context, rel: &str) -> Option<egui::TextureId> {
         if !self.cache.contains_key(rel) {
             let tex = image::open(self.root.join(rel)).ok().map(|img| {
                 let img = img.to_rgba8();
@@ -324,8 +324,230 @@ fn drop_to_world(d: &Drag, ground: Option<[f32; 3]>, out: &mut Commands) {
 pub type Commands = Vec<(&'static str, Vec<u8>)>;
 
 /// Состояние окон худа.
+pub(crate) fn crafting_window(
+    ctx: &egui::Context,
+    state: &mut HudState,
+    icons: &mut Icons,
+) -> Commands {
+    let mut commands = Vec::new();
+    let mut placed = false;
+    egui::Window::new("Строительство")
+        .open(&mut state.construction_open)
+        .default_width(510.0)
+        .show(ctx, |ui| {
+            ui.add(
+                egui::TextEdit::singleline(&mut state.construction_search)
+                    .hint_text("Поиск рецепта"),
+            );
+            ui.columns(2, |columns| {
+                let query = state.construction_search.to_lowercase();
+                let recipes = gameplay::crafting::recipes();
+                egui::ScrollArea::vertical()
+                    .max_height(320.0)
+                    .show(&mut columns[0], |ui| {
+                        for (group, ids) in [
+                            (
+                                "Конструкции",
+                                vec!["Girder", "Wall", "ReinforcedGirder", "ReinforcedWall"],
+                            ),
+                            ("Машины", vec!["Computer", "MachineFrame"]),
+                            ("Шлюзы", vec!["Airlock", "AirlockGlass"]),
+                            (
+                                "Материалы стен",
+                                gameplay::crafting::girder_walls()
+                                    .map(|(id, _)| id)
+                                    .collect(),
+                            ),
+                            ("Окна и решётки", gameplay::crafting::barriers().collect()),
+                            (
+                                "Атмосферное оборудование",
+                                gameplay::crafting::pipes()
+                                    .iter()
+                                    .filter(|r| r.layer == 0)
+                                    .map(|r| r.id.as_str())
+                                    .collect(),
+                            ),
+                        ] {
+                            ui.label(group);
+                            for id in ids
+                                .into_iter()
+                                .filter(|s| s.to_lowercase().contains(&query))
+                            {
+                                if ui
+                                    .selectable_label(state.construction_recipe == id, id)
+                                    .clicked()
+                                {
+                                    state.construction_recipe = id.to_string();
+                                }
+                            }
+                        }
+                        ui.label("Материалы");
+                        for r in recipes {
+                            let key = r.sprite_id();
+                            let Some(info) = icons.names.get(&key) else {
+                                continue;
+                            };
+                            if !info.name.to_lowercase().contains(&query)
+                                && !r.id.to_lowercase().contains(&query)
+                            {
+                                continue;
+                            }
+                            let label = if recipes
+                                .iter()
+                                .filter(|other| other.result == r.result)
+                                .count()
+                                > 1
+                            {
+                                format!(
+                                    "{} ({})",
+                                    info.name,
+                                    r.materials
+                                        .iter()
+                                        .map(|m| m.0.as_str())
+                                        .collect::<Vec<_>>()
+                                        .join(" + ")
+                                )
+                            } else {
+                                info.name.clone()
+                            };
+                            if ui
+                                .selectable_label(state.construction_recipe == r.id, label)
+                                .clicked()
+                            {
+                                state.construction_recipe = r.id.clone();
+                            }
+                        }
+                    });
+                if matches!(
+                    state.construction_recipe.as_str(),
+                    "Wall"
+                        | "Girder"
+                        | "ReinforcedGirder"
+                        | "ReinforcedWall"
+                        | "Computer"
+                        | "Airlock"
+                        | "AirlockGlass"
+                        | "MachineFrame"
+                ) || gameplay::crafting::barriers().any(|r| r == state.construction_recipe)
+                    || gameplay::crafting::girder_walls()
+                        .any(|(r, _)| r == state.construction_recipe)
+                    || gameplay::crafting::pipes()
+                        .iter()
+                        .any(|r| r.id == state.construction_recipe)
+                {
+                    let right = &mut columns[1];
+                    right.label(&state.construction_recipe);
+                    if let Some(r) = gameplay::crafting::pipes()
+                        .iter()
+                        .find(|r| r.id == state.construction_recipe)
+                    {
+                        right.label(format!("{} × {} · {} с", r.material, r.amount, r.delay));
+                        if right
+                            .button(format!(
+                                "Поворот {}°",
+                                90 * u16::from(state.construction_rotation)
+                            ))
+                            .clicked()
+                        {
+                            state.construction_rotation = (state.construction_rotation + 1) % 4;
+                        }
+                    } else if matches!(
+                        state.construction_recipe.as_str(),
+                        "Airlock" | "AirlockGlass"
+                    ) {
+                        right.label("Каркас · Steel × 4 · 2 с");
+                        right.label("Закрепить ключом, добавить 5 кабеля и плату DoorElectronics.");
+                        if state.construction_recipe == "AirlockGlass" {
+                            right.label("Добавить два листа армированного стекла по одному.");
+                        }
+                        right.label("Завершить отвёрткой.");
+                        if right
+                            .button(format!(
+                                "Поворот {}°",
+                                90 * u16::from(state.construction_rotation)
+                            ))
+                            .clicked()
+                        {
+                            state.construction_rotation = (state.construction_rotation + 1) % 4;
+                        }
+                    } else if let Some(edge) =
+                        gameplay::crafting::barrier_edge(&state.construction_recipe, false)
+                    {
+                        for step in edge["steps"].as_array().into_iter().flatten() {
+                            right.label(format!(
+                                "{} × {} · {} с",
+                                step["material"].as_str().unwrap_or_default(),
+                                step["amount"],
+                                step["doAfter"].as_f64().unwrap_or(0.)
+                            ));
+                        }
+                    } else {
+                        if matches!(
+                            state.construction_recipe.as_str(),
+                            "Computer" | "MachineFrame"
+                        ) {
+                            right.label("Каркас · Steel × 5 · 2,5 с");
+                        } else {
+                            right.label("Каркас · Steel × 2 · 1 с");
+                        }
+                        if state.construction_recipe == "Wall" {
+                            right.label("Обшивка · Steel × 2 · 2 с");
+                        }
+                        if state.construction_recipe.starts_with("Reinforced") {
+                            right.label("Усиление каркаса · Plasteel × 2 · 1 с");
+                        }
+                        if state.construction_recipe == "ReinforcedWall" {
+                            right.label("Обшивка · Plasteel × 2 · 1 с");
+                        }
+                    }
+                    if right.button("Разместить").clicked() {
+                        placed = true;
+                        state.placement = Some((
+                            state.construction_recipe.clone(),
+                            state.construction_rotation,
+                        ));
+                    }
+                    if state.placement.is_some() && right.button("Отменить размещение").clicked()
+                    {
+                        state.placement = None;
+                    }
+                } else if let Some(r) = recipes.iter().find(|r| r.id == state.construction_recipe) {
+                    let key = r.sprite_id();
+                    let right = &mut columns[1];
+                    if let Some(path) = icons.items.get(&key).cloned()
+                        && let Some((texture, uv)) = icons.first_frame(ctx, &path)
+                    {
+                        right.add(egui::Image::new((texture, egui::vec2(48.0, 48.0))).uv(uv));
+                    }
+                    if let Some(info) = icons.names.get(&key) {
+                        right.label(format!("{} × {}", info.name, r.count));
+                    }
+                    for (name, n) in &r.materials {
+                        right.label(format!("{name} × {n}"));
+                    }
+                    if right.button("Создать").clicked() {
+                        commands.push((gameplay::crafting::CMD_CRAFT, r.id.as_bytes().to_vec()));
+                    }
+                }
+            });
+        });
+    if placed {
+        state.construction_open = false;
+    }
+    commands
+}
+
 #[derive(Default)]
 pub struct HudState {
+    pub rcd_open: bool,
+    pub rcd_category: Option<&'static str>,
+    rcd_center: Option<egui::Pos2>,
+    pub rcd_rotation: u8,
+    pub construction_open: bool,
+    pub construction_search: String,
+    pub construction_recipe: String,
+    pub placement: Option<(String, u8)>,
+    pub construction_rotation: u8,
     /// Здоровье игрока для значка состояния в панели алертов.
     pub health: Option<gameplay::HealthView>,
     /// Состояние тела: сытость, давление, кислород.
@@ -366,6 +588,220 @@ pub struct HudState {
     pub idc_for: Option<(ObjectId, String)>,
     /// Сумки, окна которых закрыты вручную.
     pub bags_closed: std::collections::HashSet<u128>,
+}
+
+pub(crate) fn door_electronics_window(
+    ctx: &egui::Context,
+    view: Option<&gameplay::door_electronics::View>,
+) -> Commands {
+    let mut out = Vec::new();
+    let Some(view) = view else { return out };
+    let mut open = true;
+    let mut selected: std::collections::BTreeSet<_> = view.selected.iter().cloned().collect();
+    let mut changed = false;
+    egui::Window::new("Configure Access")
+        .open(&mut open)
+        .show(ctx, |ui| {
+            egui::ScrollArea::vertical()
+                .max_height(390.)
+                .show(ui, |ui| {
+                    for level in &view.levels {
+                        let mut enabled = selected.contains(level);
+                        if ui.checkbox(&mut enabled, level).changed() {
+                            changed = true;
+                            if enabled {
+                                selected.insert(level.clone());
+                            } else {
+                                selected.remove(level);
+                            }
+                        }
+                    }
+                });
+        });
+    if changed {
+        out.push((
+            gameplay::door_electronics::CMD_UPDATE,
+            serde_json::to_vec(&selected).unwrap(),
+        ));
+    }
+    if !open {
+        out.push((gameplay::door_electronics::CMD_CLOSE, Vec::new()));
+    }
+    out
+}
+
+pub(crate) fn rcd_window(
+    ctx: &egui::Context,
+    state: &mut HudState,
+    icons: &mut Icons,
+    held: Option<&gameplay::HeldItem>,
+    inventory: Option<&InventoryView>,
+) -> Commands {
+    let mut out = Vec::new();
+    let Some(held) = held.filter(|i| {
+        gameplay::crafting::rcd_modes(i.prototype.as_str())
+            .next()
+            .is_some()
+    }) else {
+        state.rcd_open = false;
+        return out;
+    };
+    if !state.rcd_open {
+        state.rcd_category = None;
+        state.rcd_center = None;
+        return out;
+    }
+    let charge = inventory
+        .and_then(|v| v.charges.iter().find(|(id, _)| *id == held.id))
+        .map_or(0, |(_, n)| *n);
+    // RCDMenuBoundUserInterface.PrototypesGroupingInfo, in SS14 menu order.
+    const GROUPS: [(&str, &str, &str); 5] = [
+        (
+            "WallsAndFlooring",
+            "Walls and flooring",
+            "walls_and_flooring",
+        ),
+        (
+            "WindowsAndGrilles",
+            "Windows and grilles",
+            "windows_and_grilles",
+        ),
+        ("Airlocks", "Airlocks", "airlocks"),
+        ("Electrical", "Electrical", "multicoil"),
+        ("Lighting", "Lighting", "lighting"),
+    ];
+    let category = state.rcd_category;
+    let mut options = Vec::new();
+    let modes = || gameplay::crafting::rcd_modes(held.prototype.as_str());
+    if category.is_none() {
+        for (order, (group, label, icon)) in GROUPS.into_iter().enumerate() {
+            if modes().any(|id| gameplay::crafting::rcd_mode_info(id)["category"] == group) {
+                options.push((
+                    order as i64,
+                    group,
+                    label.to_string(),
+                    format!("Textures/Interface/Radial/RCD/{icon}.png"),
+                    true,
+                ));
+            }
+        }
+    }
+    for id in modes() {
+        let spec = gameplay::crafting::rcd_mode_info(id);
+        if spec["category"] != category.unwrap_or("Main") {
+            continue;
+        }
+        let label = if id == "Deconstruct" {
+            id.into()
+        } else {
+            format!(
+                "{id} · {} ед. · {} с",
+                spec["cost"].as_u64().unwrap_or(1),
+                spec["delay"].as_f64().unwrap_or(1.)
+            )
+        };
+        options.push((
+            spec["menuOrder"].as_i64().unwrap_or(0),
+            id,
+            label,
+            spec["sprite"]
+                .as_str()
+                .unwrap_or("")
+                .trim_start_matches('/')
+                .to_string(),
+            false,
+        ));
+    }
+    options.sort_by_key(|option| option.0);
+    let screen = ctx.content_rect();
+    let cursor = *state
+        .rcd_center
+        .get_or_insert_with(|| ctx.pointer_hover_pos().unwrap_or(screen.center()));
+    let center = egui::pos2(
+        cursor.x.clamp(
+            screen.left() + 125.,
+            (screen.right() - 125.).max(screen.left() + 125.),
+        ),
+        cursor.y.clamp(
+            screen.top() + 125.,
+            (screen.bottom() - 165.).max(screen.top() + 125.),
+        ),
+    );
+    egui::Area::new(egui::Id::new("rcd_radial"))
+        .order(egui::Order::Foreground)
+        .fixed_pos(center - egui::vec2(125., 125.))
+        .show(ctx, |ui| {
+            let (bounds, _) = ui.allocate_exact_size(egui::vec2(250., 285.), egui::Sense::hover());
+            let middle = bounds.min + egui::vec2(125., 125.);
+            let count = options.len();
+            for (index, (_, id, label, icon, group)) in options.into_iter().enumerate() {
+                let angle = std::f32::consts::TAU * index as f32 / count as f32
+                    - std::f32::consts::FRAC_PI_2;
+                let rect = Rect::from_center_size(
+                    middle + egui::vec2(angle.cos(), angle.sin()) * 100.,
+                    egui::vec2(48., 48.),
+                );
+                let response = ui
+                    .interact(rect, ui.id().with(id), egui::Sense::click())
+                    .on_hover_text(label);
+                let background = if response.hovered() {
+                    "button_hover"
+                } else {
+                    "button_normal"
+                };
+                paint_image(
+                    ui,
+                    icons.ui(ctx, &format!("Radial/{background}")),
+                    rect,
+                    Color32::WHITE,
+                );
+                paint_image(ui, icons.load(ctx, &icon), rect.shrink(8.), Color32::WHITE);
+                if response.clicked() {
+                    if group {
+                        state.rcd_category = Some(id)
+                    } else {
+                        out.push((gameplay::crafting::CMD_RCD_MODE, id.as_bytes().to_vec()));
+                        state.rcd_open = false;
+                    }
+                }
+            }
+            let rect = Rect::from_center_size(middle, egui::vec2(48., 48.));
+            let response = ui.interact(rect, ui.id().with("back"), egui::Sense::click());
+            let action = if category.is_some() { "back" } else { "close" };
+            let hover = if response.hovered() {
+                "hover"
+            } else {
+                "normal"
+            };
+            paint_image(
+                ui,
+                icons.ui(ctx, &format!("Radial/{action}_{hover}")),
+                rect,
+                Color32::WHITE,
+            );
+            if response.clicked() {
+                if category.is_some() {
+                    state.rcd_category = None
+                } else {
+                    state.rcd_open = false
+                }
+            }
+            let rotate =
+                Rect::from_center_size(middle + egui::vec2(0., 138.), egui::vec2(188., 25.));
+            if ui
+                .put(
+                    rotate,
+                    egui::Button::new(format!(
+                        "{charge} ед. · Поворот {}°",
+                        90 * u16::from(state.rcd_rotation)
+                    )),
+                )
+                .clicked()
+            {
+                state.rcd_rotation = (state.rcd_rotation + 1) % 4;
+            }
+        });
+    out
 }
 
 fn paint_image(ui: &egui::Ui, tex: Option<egui::TextureId>, rect: Rect, tint: Color32) {
@@ -2141,7 +2577,7 @@ pub fn vending_window(
                             let (r, _) = ui.allocate_exact_size(Vec2::splat(32.0), Sense::hover());
                             let tex = icons.item(ctx, &item.proto);
                             paint_image(ui, tex, r, Color32::WHITE);
-                            let enabled = item.amount > 0 && !v.ejecting;
+                            let enabled = item.amount > 0 && !v.ejecting && !v.broken;
                             let button =
                                 egui::Button::new(format!("{} [{}]", item.name, item.amount));
                             if ui.add_enabled(enabled, button).clicked() {
@@ -2150,7 +2586,9 @@ pub fn vending_window(
                         });
                     }
                 });
-            if v.denying {
+            if v.broken {
+                ui.colored_label(Color32::LIGHT_RED, "Сломан");
+            } else if v.denying {
                 ui.colored_label(Color32::LIGHT_RED, "Отказано");
             } else if v.ejecting {
                 ui.label("Выдаю…");

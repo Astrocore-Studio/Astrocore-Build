@@ -446,7 +446,7 @@ impl State {
             if self.actor(user).hands.pickup_any(item.clone()).is_err()
                 && let Some(feet) = ctx.position_of(user)
             {
-                State::place(ctx, &item, feet);
+                self.place(ctx, &item, feet);
             }
             self.publish(ctx, user);
         }

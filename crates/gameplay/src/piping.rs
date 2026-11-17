@@ -26,6 +26,26 @@ use prototypes::{Data, Resolved};
 pub const PIPE_KEY: &str = "gas_pipe";
 pub const PIPE_VOLUME_KEY: &str = "gas_pipe_volume";
 
+pub fn pipe_layer(object: &astrocore_world::AuthoredObject) -> u8 {
+    object
+        .metadata
+        .get("pipe_layer")
+        .and_then(|v| v.parse().ok())
+        .unwrap_or_else(|| match &object.kind {
+            astrocore_world::AuthoredKind::Placement { prototype }
+                if prototype.as_str().ends_with("_alt1") =>
+            {
+                1
+            }
+            astrocore_world::AuthoredKind::Placement { prototype }
+                if prototype.as_str().ends_with("_alt2") =>
+            {
+                2
+            }
+            _ => 0,
+        })
+}
+
 /// Сколько узлов может быть у одного объекта.
 pub const MAX_NODES: u64 = 16;
 

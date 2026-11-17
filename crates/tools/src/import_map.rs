@@ -126,6 +126,7 @@ pub struct Report {
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Kind {
     Wall,
+    DirectionalWindow,
     Door,
     /// Огнезапор (`Firelock`, `FirelockGlass`): дверь со своими спрайтами.
     Firelock,
@@ -134,6 +135,12 @@ enum Kind {
 }
 
 fn classify(proto: &str) -> Kind {
+    if proto == "DoorElectronics" || proto.starts_with("AirlockAssembly") {
+        return Kind::Other;
+    }
+    if matches!(proto, "WindowDirectional" | "WindowReinforcedDirectional") {
+        return Kind::DirectionalWindow;
+    }
     if proto.starts_with("Wall")
         || proto.contains("Window") && !proto.contains("Windoor")
         || proto.contains("Grille")
@@ -262,10 +269,10 @@ fn pipe_base_dirs(proto: &str) -> Option<u8> {
     const S: u8 = 2;
     const E: u8 = 4;
     const W: u8 = 8;
-    // Дополнительные слои труб (`Alt1`, `Alt2`) — отдельные сети, их пока не переносим.
-    if proto.ends_with("Alt1") || proto.ends_with("Alt2") {
-        return None;
-    }
+    let proto = proto
+        .strip_suffix("Alt1")
+        .or_else(|| proto.strip_suffix("Alt2"))
+        .unwrap_or(proto);
     Some(match proto {
         "GasPipeStraight" => N | S,
         "GasPipeBend" => S | W,
@@ -370,7 +377,7 @@ fn parse_pair(text: &str) -> Option<(f32, f32)> {
 }
 
 fn is_floor_tile(name: &str) -> bool {
-    !(name.starts_with("Space") || name.starts_with("Lattice") || name == "Empty")
+    !(name.starts_with("Space") || name == "Empty")
 }
 
 /// Тайлы чанка: (x, y) мировые клетки → имя тайла SS14.
@@ -486,7 +493,13 @@ pub fn import(
     }
 
     let mut solid: BTreeSet<(i32, i32)> = BTreeSet::new();
+    let mut directional_windows = Vec::new();
     let mut doors: BTreeSet<(i32, i32)> = BTreeSet::new();
+    let mut standard_doors = BTreeMap::new();
+    let mut door_rotations = BTreeMap::new();
+    let airlock_defs: BTreeMap<String, BTreeMap<String, String>> =
+        serde_json::from_str(include_str!("../../../content/engineering-airlocks.json"))
+            .expect("SS14 airlock construction");
     let mut spawn: Option<(f32, f32)> = None;
     let mut items: Vec<MapItem> = Vec::new();
     let mut zones: Vec<MapZone> = Vec::new();
@@ -508,6 +521,8 @@ pub fn import(
         }
     }
     let mut wall_protos: BTreeMap<(i32, i32), &str> = BTreeMap::new();
+    let mut wall_damage = Vec::new();
+    let mut grilles = BTreeSet::new();
     let mut fire_cells: BTreeSet<(i32, i32)> = BTreeSet::new();
     let mut fire_uids: BTreeMap<(i32, i32), Vec<i64>> = BTreeMap::new();
     let mut door_lists: BTreeMap<(i32, i32), Vec<Vec<String>>> = BTreeMap::new();
@@ -534,14 +549,55 @@ pub fn import(
             };
             let cell = (x.floor() as i32, -(y.floor() as i32) - 1);
             match kind {
+                Kind::DirectionalWindow => {
+                    directional_windows.push((cell, entity_rot(entity), proto))
+                }
                 Kind::Wall => {
+                    if proto == "Grille" {
+                        grilles.insert(cell);
+                    }
                     solid.insert(cell);
                     if mats.wall_hp.contains_key(proto) {
-                        wall_protos.entry(cell).or_insert(proto);
+                        let top = wall_protos.entry(cell).or_insert(proto);
+                        if top.starts_with("Grille") && !proto.starts_with("Grille") {
+                            *top = proto;
+                        }
+                        if let Some(types) = component_field(entity, "Damageable", "damage")
+                            .and_then(|d| d.get("types"))
+                            .and_then(Value::as_mapping)
+                        {
+                            let entries: Vec<_> = types
+                                .iter()
+                                .filter_map(|(kind, value)| {
+                                    let amount =
+                                        value.as_f64().or_else(|| value.as_str()?.parse().ok())?;
+                                    let kind = kind.as_str()?;
+                                    (amount > 0.).then(|| format!("{kind}:{amount}"))
+                                })
+                                .collect();
+                            if !entries.is_empty() {
+                                wall_damage.push((
+                                    format!("wall_damage_{}:{}", cell.0, cell.1),
+                                    entries.join(","),
+                                ));
+                            }
+                        }
                     }
                 }
                 Kind::Door => {
                     doors.insert(cell);
+                    door_rotations.insert(cell, entity_rot(entity));
+                    if airlock_defs.contains_key(proto) {
+                        standard_doors.insert(
+                            cell,
+                            (
+                                proto,
+                                component_bool(entity, "Weldable", "isWelded").unwrap_or(false),
+                                component_bool(entity, "WiresPanel", "open").unwrap_or(false),
+                                component_bool(entity, "DoorBolt", "boltsDown").unwrap_or(false),
+                            ),
+                        );
+                    }
                     // Доступ: свой `AccessReader` на карте или плата прототипа.
                     let lists =
                         reader_access(entity).or_else(|| mats.door_access.get(proto).cloned());
@@ -577,7 +633,31 @@ pub fn import(
                         min: [cx + 0.01, 0.0, cz + 0.01],
                         max: [cx + 0.99, 3.0, cz + 0.99],
                         floor: 0,
-                        metadata: [("gas_pipe".to_string(), dirs_text(dirs))].into(),
+                        metadata: [
+                            ("gas_pipe".to_string(), dirs_text(dirs)),
+                            ("pipe_proto".to_string(), proto.to_string()),
+                            (
+                                "pipe_layer".to_string(),
+                                if proto.ends_with("Alt1") {
+                                    "1"
+                                } else if proto.ends_with("Alt2") {
+                                    "2"
+                                } else {
+                                    "0"
+                                }
+                                .into(),
+                            ),
+                            (
+                                "gas_pipe_volume".to_string(),
+                                if proto.starts_with("GasPipeHalf") {
+                                    "100"
+                                } else {
+                                    "200"
+                                }
+                                .to_string(),
+                            ),
+                        ]
+                        .into(),
                     });
                     report.pipes += 1;
                 }
@@ -629,7 +709,11 @@ pub fn import(
                             min: [cx + 0.01, 0.0, cz + 0.01],
                             max: [cx + 0.99, 3.0, cz + 0.99],
                             floor: 0,
-                            metadata: [("power_cable".to_string(), group.to_string())].into(),
+                            metadata: [
+                                ("power_cable".to_string(), group.to_string()),
+                                ("cable_proto".to_string(), proto.to_string()),
+                            ]
+                            .into(),
                         });
                         report.cables += 1;
                     }
@@ -654,6 +738,25 @@ pub fn import(
                         proto.to_string()
                     };
                     let mut meta = BTreeMap::new();
+                    if let Some(types) = component_field(entity, "Damageable", "damage")
+                        .and_then(|value| value.get("types"))
+                    {
+                        meta.insert("damage".into(), serde_json::to_string(types).unwrap());
+                    }
+                    if let Some(broken) = component_bool(entity, "VendingMachine", "broken") {
+                        meta.insert("broken".into(), u8::from(broken).to_string());
+                        if broken {
+                            meta.insert(
+                                "render_sprite".into(),
+                                format!("{}_broken", prototypes::engine_id("ss14", proto).unwrap()),
+                            );
+                        }
+                    }
+                    if let Some(count) =
+                        component_field(entity, "Stack", "count").and_then(Value::as_u64)
+                    {
+                        meta.insert("stack_count".into(), count.to_string());
+                    }
                     if let Some(uid) = entity.get("uid").and_then(Value::as_i64) {
                         meta.insert("ss14_uid".into(), uid.to_string());
                     }
@@ -678,6 +781,9 @@ pub fn import(
                     }
                     if let Some(locked) = component_bool(entity, "Lock", "locked") {
                         meta.insert("locked".to_string(), u8::from(locked).to_string());
+                    }
+                    if let Some(open) = component_bool(entity, "WiresPanel", "open") {
+                        meta.insert("panel_open".into(), u8::from(open).to_string());
                     }
                     // Настройки газовых устройств, заданные на карте.
                     if let Some(t) =
@@ -751,6 +857,7 @@ pub fn import(
     };
     let dirs = [(1, 0), (-1, 0), (0, 1), (0, -1)];
     let mut door_edges: BTreeSet<GridEdge> = BTreeSet::new();
+    let mut engineering_doors = BTreeMap::new();
     let mut fire_edges: BTreeSet<GridEdge> = BTreeSet::new();
     let mut fire_sources: BTreeMap<GridEdge, Vec<i64>> = BTreeMap::new();
     // Огнезапоры стоят в проходах и перекрывают его вместе со стенами и соседними огнезапорами.
@@ -773,9 +880,18 @@ pub fn import(
         let along_x = wall.contains(&(d.0 - 1, d.1)) && wall.contains(&(d.0 + 1, d.1));
         let along_z = wall.contains(&(d.0, d.1 - 1)) && wall.contains(&(d.0, d.1 + 1));
         let candidates = if along_x && !along_z {
-            [(d.0, d.1 + 1), (d.0, d.1 - 1)]
+            vec![(d.0, d.1 + 1), (d.0, d.1 - 1)]
         } else if along_z && !along_x {
-            [(d.0 + 1, d.1), (d.0 - 1, d.1)]
+            vec![(d.0 + 1, d.1), (d.0 - 1, d.1)]
+        } else if let Some(rot) = door_rotations.get(&d) {
+            // Freestanding or corner doors have no continuous wall from which to infer an axis.
+            [0, 2, 1, 3]
+                .map(|offset| {
+                    let (dx, dz) =
+                        [(0, 1), (1, 0), (0, -1), (-1, 0)][usize::from((rot + offset) % 4)];
+                    (d.0 + dx, d.1 + dz)
+                })
+                .to_vec()
         } else {
             if fire {
                 report.firelocks_unplaced += 1;
@@ -786,11 +902,19 @@ pub fn import(
         };
         let edge = candidates
             .into_iter()
-            .find(|c| walk.contains(c) && !doors.contains(c) && !fire_cells.contains(c))
+            .find(|c| {
+                walk.contains(c)
+                    && !solid.contains(c)
+                    && !doors.contains(c)
+                    && !fire_cells.contains(c)
+            })
             .and_then(|t| GridEdge::between(GridCell::new(d.0, d.1), GridCell::new(t.0, t.1)));
         match (edge, fire) {
             (Some(e), false) => {
                 door_edges.insert(e);
+                if let Some(def) = standard_doors.get(&d) {
+                    engineering_doors.insert(e, (d, *def));
+                }
                 if let Some(l) = door_lists.get(&d) {
                     edge_access.insert(e, l.clone());
                 }
@@ -806,24 +930,53 @@ pub fn import(
             (None, false) => report.doors_unplaced += 1,
         }
     }
-    let mut wall_edges: BTreeSet<GridEdge> = BTreeSet::new();
+    let barrier_materials: BTreeMap<_, _> = [
+        "WallUranium",
+        "WallSilver",
+        "WallBrass",
+        "WallPlasma",
+        "WallGold",
+        "WallMeat",
+        "WallShuttle",
+        "WallReinforced",
+        "Grille",
+        "GrilleBroken",
+        "Window",
+        "TintedWindow",
+        "PlasmaWindow",
+        "UraniumWindow",
+        "ReinforcedWindow",
+        "ReinforcedPlasmaWindow",
+        "ReinforcedUraniumWindow",
+        "ShuttleWindow",
+    ]
+    .into_iter()
+    .map(|name| (name, prototypes::engine_id("ss14", name).unwrap()))
+    .collect();
+    let wall_material = |cell: (i32, i32)| {
+        wall_protos
+            .get(&cell)
+            .and_then(|name| barrier_materials.get(name))
+            .unwrap_or(&mats.wall)
+    };
+    let mut wall_edges = BTreeMap::new();
     for &c in &walk {
         for (dx, dz) in dirs {
             let n = (c.0 + dx, c.1 + dz);
             if solid.contains(&n)
                 && let Some(e) = GridEdge::between(GridCell::new(c.0, c.1), GridCell::new(n.0, n.1))
             {
-                wall_edges.insert(e);
+                wall_edges.insert(e, n);
             }
         }
     }
     // Стена на карте SS14 занимает всю клетку. Рёбра остаются для логики (воздух, проходимость,
     // двери), но тонкие, а вид и объём даёт сплошной блок на клетку (`Freeform`).
-    for e in &wall_edges {
+    for (e, cell) in &wall_edges {
         elements.push(element(
             StructureKind::Wall,
             Placement::Edge(*e),
-            &mats.wall,
+            wall_material(*cell),
             WALL_EDGE_THICKNESS_M,
         ));
     }
@@ -846,7 +999,7 @@ pub fn import(
                     yaw_cdeg: 0,
                     half_mm: [500, WALL_BLOCK_MM, 500],
                 }),
-                &mats.wall,
+                wall_material(c),
                 0.1,
             ));
             wall_blocks += 1;
@@ -868,8 +1021,17 @@ pub fn import(
     }
     // Значение метаданных ограничено 256 знаками: класс — одна запись (`wall_class_<n>`), клетки —
     // записи по 24 клетки (`wall_cells_<n>_<k>`); в зоне не больше 32 записей.
-    let mut entries: Vec<(String, String)> = Vec::new();
+    let mut entries = wall_damage;
+    let under: Vec<_> = grilles
+        .iter()
+        .filter(|cell| wall_protos.get(cell).is_some_and(|p| p.contains("Window")))
+        .map(|(x, z)| format!("{x}:{z}"))
+        .collect();
+    for (i, chunk) in under.chunks(24).enumerate() {
+        entries.push((format!("window_grilles_{i}"), chunk.join(" ")));
+    }
     for (n, (p, cells)) in classes.iter().enumerate() {
+        entries.push((format!("wall_proto_{n}"), p.to_string()));
         entries.push((format!("wall_class_{n}"), mats.wall_hp[*p].encode()));
         for (k, chunk) in cells.chunks(24).enumerate() {
             entries.push((format!("wall_cells_{n}_{k}"), chunk.join(" ")));
@@ -884,12 +1046,62 @@ pub fn import(
         });
     }
     for e in &door_edges {
-        elements.push(element(
+        let def = engineering_doors.get(e);
+        let material = def
+            .and_then(|(_, d)| PrototypeId::new(&airlock_defs[d.0]["material"]).ok())
+            .unwrap_or_else(|| mats.door.clone());
+        let door = element(
             StructureKind::Opening(OpeningKind::Door),
             Placement::Edge(*e),
-            &mats.door,
+            &material,
             0.1,
-        ));
+        );
+        if let Some(((x, z), (name, welded, panel, bolted))) = def {
+            let cx = *x as f32 + 0.5;
+            let cz = *z as f32 + 0.5;
+            let rot = (0..4)
+                .find(|&r| {
+                    let (dx, dz) = [(0, 1), (1, 0), (0, -1), (-1, 0)][r];
+                    GridEdge::between(GridCell::new(*x, *z), GridCell::new(*x + dx, *z + dz))
+                        == Some(*e)
+                })
+                .unwrap();
+            zones.push(MapZone {
+                min: [cx - 0.35, FLOOR_TOP_M, cz - 0.35],
+                max: [cx + 0.35, FLOOR_TOP_M + 0.8, cz + 0.35],
+                floor: 0,
+                metadata: [
+                    ("construction_graph".into(), "Airlock".into()),
+                    (
+                        "construction_node".into(),
+                        airlock_defs[*name]["node"].clone(),
+                    ),
+                    ("airlock_proto".into(), (*name).into()),
+                    ("wire_layout".into(), airlock_defs[*name]["wires"].clone()),
+                    (
+                        "installed_access".into(),
+                        edge_access
+                            .get(e)
+                            .into_iter()
+                            .flatten()
+                            .map(|list| list.join(","))
+                            .collect::<Vec<_>>()
+                            .join(";"),
+                    ),
+                    ("frame_board".into(), airlock_defs[*name]["board"].clone()),
+                    ("rot".into(), rot.to_string()),
+                    (
+                        "door_element".into(),
+                        format!("{:x}", door.id.as_uuid().as_u128()),
+                    ),
+                    ("welded".into(), u8::from(*welded).to_string()),
+                    ("bolted".into(), u8::from(*bolted).to_string()),
+                    ("panel_open".into(), u8::from(*panel).to_string()),
+                ]
+                .into(),
+            });
+        }
+        elements.push(door);
     }
     for e in &fire_edges {
         let door = element(
@@ -915,11 +1127,48 @@ pub fn import(
         }
         elements.push(door);
     }
+    for (cell, rotation, proto) in directional_windows {
+        let (dx, dz) = [(0, 1), (1, 0), (0, -1), (-1, 0)][usize::from(rotation)];
+        let edge = GridEdge::between(
+            GridCell::new(cell.0, cell.1),
+            GridCell::new(cell.0 + dx, cell.1 + dz),
+        )
+        .unwrap();
+        if door_edges.contains(&edge)
+            || fire_edges.contains(&edge)
+            || wall_edges.contains_key(&edge)
+        {
+            continue;
+        }
+        let material = prototypes::engine_id(
+            "ss14",
+            if proto == "WindowDirectional" {
+                "Window"
+            } else {
+                "ReinforcedWindow"
+            },
+        )
+        .unwrap();
+        elements.push(element(
+            StructureKind::Opening(OpeningKind::Window),
+            Placement::Edge(edge),
+            &material,
+            0.21875,
+        ));
+    }
     report.firelocks = fire_edges.len();
     // Плитка каждой клетки: имя SS14 → материал (в наших координатах z = −y − 1).
     let tile_at: BTreeMap<(i32, i32), &String> =
         tiles.iter().map(|(&(x, y), n)| ((x, -y - 1), n)).collect();
-    for &c in &walk {
+    let barrier_floors = wall_protos
+        .iter()
+        .filter(|(cell, name)| {
+            barrier_materials.contains_key(*name)
+                && **name != "WallReinforced"
+                && tile_at.get(cell).is_some_and(|tile| is_floor_tile(tile))
+        })
+        .map(|(cell, _)| cell);
+    for &c in walk.iter().chain(barrier_floors) {
         let material = tile_at
             .get(&c)
             .and_then(|n| mats.tiles.get(n.as_str()))
@@ -932,6 +1181,9 @@ pub fn import(
         ));
         // Станция в один этаж: над каждой клеткой пола — потолок (пол в виде крыши) из той же плитки,
         // что и пол под ним.
+        if material.as_str() == "ss14:tile_lattice" {
+            continue;
+        }
         elements.push(element(
             StructureKind::Ceiling,
             Placement::Cell(GridCell::new(c.0, c.1)),

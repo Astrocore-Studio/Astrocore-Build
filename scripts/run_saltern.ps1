@@ -8,9 +8,11 @@ param(
     [switch]$Autoplay,
     [switch]$NoBuild,
     [switch]$Reimport,
+    [switch]$RefreshGeneratedMap,
     [ValidateSet('Auto', 'Vulkan', 'Dx12')]
     [string]$GraphicsBackend = 'Auto',
     [switch]$LocalEngine,
+    [switch]$TraceTicks,
     [string]$EngineRoot,
     [ValidatePattern('^[a-zA-Z0-9_-]+$')]
     [string]$LogName = 'saltern',
@@ -51,8 +53,14 @@ if (-not $NoBuild) {
     }
 }
 $AstroDebugRoot = Join-Path $env:CARGO_TARGET_DIR 'debug'
+$AstroMapSource = Join-Path $SourceRoot 'Resources\Maps\saltern.yml'
+if ($RefreshGeneratedMap -and (Test-Path -LiteralPath $MapPath)) {
+    $mapTime = (Get-Item -LiteralPath $MapPath).LastWriteTimeUtc
+    foreach ($inputFile in @($AstroMapSource, (Join-Path $AstroDebugRoot 'import-map.exe'))) {
+        if ((Test-Path -LiteralPath $inputFile) -and (Get-Item -LiteralPath $inputFile).LastWriteTimeUtc -gt $mapTime) { $Reimport = $true }
+    }
+}
 if ($Mode -ne 'Client' -and ($Mode -eq 'Import' -or $Reimport -or -not (Test-Path -LiteralPath $MapPath))) {
-    $AstroMapSource = Join-Path $SourceRoot 'Resources\Maps\saltern.yml'
     & (Join-Path $AstroDebugRoot 'import-map.exe') $AstroMapSource $MapPath Saltern
     if ($LASTEXITCODE -ne 0) { throw "Saltern import failed: $LASTEXITCODE" }
 }
@@ -75,6 +83,7 @@ if ($env:ASTRO_KEY) {
 if ($AstroKey -notmatch '^[0-9a-fA-F]{64}$') { throw 'ASTRO_KEY must contain 64 hexadecimal characters.' }
 $AstroServerExe = Join-Path $AstroDebugRoot 'server.exe'
 $AstroServerArgs = @('--listen', $AstroAddress, '--key', $AstroKey, '--map', $MapPath)
+if ($TraceTicks) { $AstroServerArgs += '--trace-ticks' }
 if ($Mode -eq 'Server') {
     & $AstroServerExe @AstroServerArgs
     exit $LASTEXITCODE
@@ -101,19 +110,21 @@ try {
     if ($Mode -in @('All', 'Smoke')) {
         # Start-Process joins arguments; quote the map path to support spaces.
         $AstroSpawnArgs = @('--listen', $AstroAddress, '--key', $AstroKey, '--map', ('"' + $MapPath + '"'))
+        if ($Mode -eq 'Smoke') { $AstroSpawnArgs += @('--lobby', '0') }
+        if ($TraceTicks) { $AstroSpawnArgs += '--trace-ticks' }
         $AstroServerProcess = Start-Process -FilePath $AstroServerExe -ArgumentList $AstroSpawnArgs `
             -WorkingDirectory $AstroBuildRoot -WindowStyle Hidden -PassThru `
             -RedirectStandardOutput (Join-Path $AstroLogRoot "$LogName-server.stdout.log") `
             -RedirectStandardError (Join-Path $AstroLogRoot "$LogName-server.stderr.log")
-        $AstroReadyDeadline = [DateTime]::UtcNow.AddSeconds(30)
+        $AstroReadyDeadline = [DateTime]::UtcNow.AddMinutes(3)
         $AstroServerReady = $false
         while ([DateTime]::UtcNow -lt $AstroReadyDeadline) {
-            if ($AstroServerProcess.HasExited) { throw 'Server exited; see .local/logs/saltern-server.stderr.log.' }
+            if ($AstroServerProcess.HasExited) { throw "Server exited; see .local/logs/$LogName-server.stderr.log." }
             $AstroServerOutput = Get-Content -LiteralPath (Join-Path $AstroLogRoot "$LogName-server.stdout.log") -Raw -ErrorAction SilentlyContinue
             if ($AstroServerOutput -match '(?m)^Lightyear: ') { $AstroServerReady = $true; break }
             Start-Sleep -Milliseconds 100
         }
-        if (-not $AstroServerReady) { throw 'Server initialization did not finish within 30 seconds.' }
+        if (-not $AstroServerReady) { throw "Server initialization timed out. See .local/logs/$LogName-server.stderr.log." }
         Write-Host "Saltern server PID: $($AstroServerProcess.Id)"
     }
     $AstroQuotedClientArgs = @($AstroClientArgs | Where-Object { $null -ne $_ } | ForEach-Object {
@@ -125,13 +136,22 @@ try {
         -RedirectStandardOutput (Join-Path $AstroLogRoot "$LogName-client.stdout.log") `
         -RedirectStandardError (Join-Path $AstroLogRoot "$LogName-client.stderr.log")
     $AstroClientExitCode = $AstroClientProcess.ExitCode
+    if ($null -ne $AstroClientExitCode -and $AstroClientExitCode -ne 0) {
+        throw "Client exited with code $AstroClientExitCode; see .local/logs/$LogName-client.stderr.log."
+    }
     if ($Mode -eq 'Smoke') {
         $AstroFailure = Select-String -LiteralPath (Join-Path $AstroLogRoot "$LogName-client.stderr.log") `
             -Pattern 'ConnectTokenExpired|ConnectionTimedOut|Invalid surface' -ErrorAction SilentlyContinue
         if ($AstroFailure) { throw "Client connection or renderer failed; see .local/logs/$LogName-client.stderr.log." }
+        if ($env:ASTRO_AUTOPLAY_WIRES -and -not (Select-String -LiteralPath (Join-Path $AstroLogRoot "$LogName-client.stderr.log") -SimpleMatch 'ASTRO_WIRES: Some')) {
+            throw "The wire interface did not open; see .local/logs/$LogName-client.stderr.log."
+        }
+        if ($env:ASTRO_AUTOPLAY_REPAIR -and -not (Select-String -LiteralPath (Join-Path $AstroLogRoot "$LogName-client.stderr.log") -SimpleMatch 'ASTRO_REPAIR_VENDOR: broken=false')) {
+            throw "Repair did not restore the damaged vendor; see .local/logs/$LogName-client.stderr.log."
+        }
         $AstroLastCapture = Get-Item -LiteralPath (Join-Path $env:ASTRO_SHOT 'frame340.png') -ErrorAction SilentlyContinue
         if (-not $AstroLastCapture -or $AstroLastCapture.LastWriteTimeUtc -lt $AstroCaptureStarted) {
-            throw 'The client exited without a capture of the loaded world; see .local/logs/saltern-client.stderr.log.'
+            throw "The client exited without a capture of the loaded world; see .local/logs/$LogName-client.stderr.log."
         }
     }
 } finally {

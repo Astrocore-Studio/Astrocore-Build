@@ -1,7 +1,9 @@
 mod body;
 pub mod chem;
 mod conveyor;
+pub mod door_electronics;
 pub mod vending;
+pub mod wires;
 pub use vending::{VENDING_COMPONENT, VendingItem, VendingView, decode_vending};
 pub mod dispenser;
 mod disposal;
@@ -18,6 +20,7 @@ pub use analyzer::{SCAN_COMPONENT, ScanView, decode_scan};
 pub use chemhand::{CHEMHAND_COMPONENT, ChemHandView, decode_chemhand};
 pub use chemlab::{LAB_COMPONENT, LabView, decode_lab};
 pub mod alerts;
+pub mod crafting;
 mod doafter;
 mod edibles;
 pub mod electric;
@@ -78,22 +81,23 @@ pub use module::State;
 pub use module::{GameplayModule, INTERACTION_RANGE_M, NAMESPACE};
 pub use storage::{Storage, StorageError, StorageSpec};
 pub use wire::{
-    BagView, CMD_ATTACK, CMD_CANCEL, CMD_CHAT, CMD_CHEM_AMOUNT, CMD_COMBAT, CMD_CRYO_BEAKER_EJECT,
-    CMD_CRYO_CLEAR, CMD_CRYO_CLOSE, CMD_CRYO_EJECT, CMD_CRYO_INJECT, CMD_CRYO_INSERT, CMD_CRYO_PUT,
-    CMD_DISARM, CMD_DISP_AMOUNT, CMD_DISP_CLEAR, CMD_DISP_CLOSE, CMD_DISP_DISPENSE, CMD_DISP_EJECT,
-    CMD_DISP_INSERT, CMD_DROP, CMD_EJECT_MAG, CMD_EQUIP, CMD_FEED, CMD_HEAL, CMD_ID_CLOSE,
-    CMD_ID_EJECT, CMD_ID_INSERT, CMD_ID_WRITE, CMD_INTERACT, CMD_JOB, CMD_LAB_BOTTLE,
-    CMD_LAB_CLOSE, CMD_LAB_EJECT, CMD_LAB_INSERT, CMD_LAB_MODE, CMD_LAB_PILLS, CMD_LAB_REAGENT,
-    CMD_LAB_SOURCE, CMD_LAB_START, CMD_LOBBY_READY, CMD_LOCK, CMD_MOVE_HAND, CMD_MOVE_SLOT,
-    CMD_PICKUP, CMD_PICKUP_ANY, CMD_RELOAD, CMD_RESIST, CMD_RESPAWN, CMD_REST, CMD_SCAN_CLOSE,
-    CMD_SELECT_HAND, CMD_SHAKE, CMD_SHOOT, CMD_SPILL, CMD_STORE, CMD_STRIP, CMD_SWAP_HANDS,
-    CMD_TAKE, CMD_TAKE_TO, CMD_THROW, CMD_UNEQUIP, CMD_UNEQUIP_TO, CMD_USE, CMD_USE_GROUND,
-    CMD_VEND, CMD_VEND_CLOSE, CMD_VERB_DO, CMD_VERB_LIST, CMD_WALK, HANDS_COMPONENT,
-    INVENTORY_COMPONENT, InventoryView, LYING_COMPONENT, STAMINA_COMPONENT, WORN_COMPONENT, Worn,
-    attack_data, attack_part_data, decode_hands, decode_inventory, decode_worn, drop_at_data,
-    drop_data, encode_worn, equip_data, feed_data, heal_data, interact_data, move_hand_data,
-    move_slot_data, parse_drop, parse_object_id, parse_point, pickup_data, register_replication,
-    store_data, take_data, take_to_data, throw_data, unequip_data, unequip_to_data, use_data,
+    BagView, CMD_ATTACK, CMD_ATTACK_OBJECT, CMD_CANCEL, CMD_CHAT, CMD_CHEM_AMOUNT, CMD_COMBAT,
+    CMD_CRYO_BEAKER_EJECT, CMD_CRYO_CLEAR, CMD_CRYO_CLOSE, CMD_CRYO_EJECT, CMD_CRYO_INJECT,
+    CMD_CRYO_INSERT, CMD_CRYO_PUT, CMD_DISARM, CMD_DISP_AMOUNT, CMD_DISP_CLEAR, CMD_DISP_CLOSE,
+    CMD_DISP_DISPENSE, CMD_DISP_EJECT, CMD_DISP_INSERT, CMD_DROP, CMD_EJECT_MAG, CMD_EQUIP,
+    CMD_FEED, CMD_HEAL, CMD_ID_CLOSE, CMD_ID_EJECT, CMD_ID_INSERT, CMD_ID_WRITE, CMD_INTERACT,
+    CMD_JOB, CMD_LAB_BOTTLE, CMD_LAB_CLOSE, CMD_LAB_EJECT, CMD_LAB_INSERT, CMD_LAB_MODE,
+    CMD_LAB_PILLS, CMD_LAB_REAGENT, CMD_LAB_SOURCE, CMD_LAB_START, CMD_LOBBY_READY, CMD_LOCK,
+    CMD_MOVE_HAND, CMD_MOVE_SLOT, CMD_PICKUP, CMD_PICKUP_ANY, CMD_RELOAD, CMD_RESIST, CMD_RESPAWN,
+    CMD_REST, CMD_SCAN_CLOSE, CMD_SELECT_HAND, CMD_SHAKE, CMD_SHOOT, CMD_SPILL, CMD_STORE,
+    CMD_STRIP, CMD_SWAP_HANDS, CMD_TAKE, CMD_TAKE_TO, CMD_THROW, CMD_UNEQUIP, CMD_UNEQUIP_TO,
+    CMD_USE, CMD_USE_GROUND, CMD_VEND, CMD_VEND_CLOSE, CMD_VERB_DO, CMD_VERB_LIST, CMD_WALK,
+    HANDS_COMPONENT, INVENTORY_COMPONENT, InventoryView, LYING_COMPONENT, STAMINA_COMPONENT,
+    WORN_COMPONENT, Worn, attack_data, attack_part_data, decode_hands, decode_inventory,
+    decode_worn, drop_at_data, drop_data, encode_worn, equip_data, feed_data, heal_data,
+    interact_data, move_hand_data, move_slot_data, parse_drop, parse_object_id, parse_point,
+    pickup_data, register_replication, store_data, take_data, take_to_data, throw_data,
+    unequip_data, unequip_to_data, use_data,
 };
 
 #[cfg(test)]

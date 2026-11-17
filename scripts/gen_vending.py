@@ -62,11 +62,13 @@ for i, e in sorted(ents.items()):
     delay = comp(i, 'VendingMachineEject').get('ejectDelay', 1.2)
     quality = v.get('initialStockQuality', 1.0)
     stock = ', '.join(f'{k}: {int(a)}' for k, a in sorted(packs[pack].items()))
+    broken = comp(i, 'VendingMachineVisuals').get('brokenState')
+    visuals = f', "VendingMachineVisuals": (brokenState: "{broken}")' if broken else ''
     lines.append(
         f'    (id: "{i}", name: Some("{name}"), components: {{'
         f'"Sprite": (sprite: "{rsi}", state: "{state}"), '
         f'"VendingMachine": (pack: "{pack}", initialStockQuality: {float(quality)}, ejectDelay: {float(delay)}, stock: ({stock})), '
-        f'"ApcPowerReceiver": (load: 200.0){access}}}),'
+        f'"ApcPowerReceiver": (load: 200.0){access}{visuals}}}),'
     )
     n += 1
 lines.append(']')

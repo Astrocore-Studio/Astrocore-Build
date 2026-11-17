@@ -351,6 +351,7 @@ mod piping {
         NodeSpec {
             key,
             cell: (x, z),
+            layer: 0,
             dirs,
             volume: 200.0,
         }
@@ -396,6 +397,28 @@ mod piping {
         g.set_pipe_nodes(&specs);
         g.run_cycles(1);
         assert_eq!(g.pipes().net_count(), 1);
+    }
+
+    #[test]
+    fn colocated_pipe_layers_form_independent_networks() {
+        let mut g = Grid::new();
+        let mut specs = Vec::new();
+        for layer in 0..3 {
+            let mut nodes = line(1 + 10 * u64::from(layer), 0, 2, 0);
+            for node in &mut nodes {
+                node.layer = layer;
+            }
+            specs.extend(nodes);
+        }
+        g.set_pipe_nodes(&specs);
+        assert_eq!(g.pipes().net_count(), 3);
+        g.pipes_mut()
+            .air_of_mut(11)
+            .unwrap()
+            .adjust_moles(Gas::Plasma, 15.);
+        assert_eq!(g.pipes().air_of(13).unwrap().total_moles(), 15.);
+        assert_eq!(g.pipes().air_of(3).unwrap().total_moles(), 0.);
+        assert_eq!(g.pipes().air_of(23).unwrap().total_moles(), 0.);
     }
 
     #[test]
@@ -778,6 +801,7 @@ fn a_wide_net_scrubber_also_cleans_the_neighbouring_cells() {
         g.set_pipe_nodes(&[NodeSpec {
             key: 1,
             cell: (1, 0),
+            layer: 0,
             dirs: SOUTH,
             volume: 200.0,
         }]);

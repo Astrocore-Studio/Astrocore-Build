@@ -140,6 +140,8 @@ pub struct VendingView {
     pub items: Vec<VendingItem>,
     pub ejecting: bool,
     pub denying: bool,
+    #[serde(default)]
+    pub broken: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -239,6 +241,7 @@ mod tests {
             }],
             ejecting: false,
             denying: true,
+            broken: false,
         };
         assert_eq!(decode_vending(&encode_vending(Some(&v))), Some(v));
         assert_eq!(decode_vending(&encode_vending(None)), None);

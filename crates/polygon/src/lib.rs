@@ -260,13 +260,15 @@ pub fn sprites_of(registry: &PrototypeRegistry) -> Result<Vec<SpriteSource>, Pol
             continue;
         };
         let floor_object = item.is_none()
-            && (r.component("Conveyor").is_some() || r.component("GasPipe").is_some());
+            && (name == "Catwalk"
+                || r.component("Conveyor").is_some()
+                || r.component("GasPipe").is_some());
         let e = dropped_extent(
             item.and_then(|i| i.get("size"))
                 .and_then(Data::as_str)
                 .unwrap_or("large"),
         );
-        out.push(SpriteSource {
+        let base = SpriteSource {
             id: id.to_string(),
             rsi: rsi.to_string(),
             state: state.to_string(),
@@ -277,7 +279,31 @@ pub fn sprites_of(registry: &PrototypeRegistry) -> Result<Vec<SpriteSource>, Pol
             pixel_size: item.is_none(),
             oriented: floor_object,
             name: r.name.clone(),
-        });
+        };
+        let states: &[&str] = match name.as_str() {
+            "ComputerFrame" => &["1", "2", "3", "4"],
+            "MachineFrame" => &["box_2"],
+            _ => &[],
+        };
+        for state in states {
+            out.push(SpriteSource {
+                id: format!("{}_{}", base.id, state),
+                state: state.to_string(),
+                ..base.clone()
+            });
+        }
+        if let Some(state) = r
+            .component("VendingMachineVisuals")
+            .and_then(|visuals| visuals.get("brokenState"))
+            .and_then(Data::as_str)
+        {
+            out.push(SpriteSource {
+                id: format!("{}_broken", base.id),
+                state: state.to_string(),
+                ..base.clone()
+            });
+        }
+        out.push(base);
     }
     Ok(out)
 }

@@ -18,9 +18,16 @@ pub fn layout(world: &World, door_open: &dyn Fn(ObjectId) -> bool) -> Layout {
         let fc = |x: i32, z: i32| floor_cell(f, x, z);
         match (&e.kind, &e.placement) {
             (StructureKind::Floor, Placement::Cell(c)) => {
-                l.cells.insert(fc(c.x, c.z), CellKind::Air);
+                let kind = if e.material.as_str() == "ss14:tile_lattice" {
+                    CellKind::Space
+                } else {
+                    CellKind::Air
+                };
+                l.cells.insert(fc(c.x, c.z), kind);
             }
-            (StructureKind::Wall, Placement::Edge(g)) => {
+            (StructureKind::Wall, Placement::Edge(g))
+                if !matches!(e.material.as_str(), "ss14:grille" | "ss14:grille_broken") =>
+            {
                 l.blocked.insert(edge_cells(f, g));
             }
             (StructureKind::Opening(OpeningKind::Window), Placement::Edge(g)) => {

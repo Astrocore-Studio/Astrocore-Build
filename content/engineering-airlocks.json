@@ -1,0 +1,350 @@
+{
+  "Airlock": {
+    "material": "ss14:airlock",
+    "node": "airlock",
+    "board": "DoorElectronics",
+    "wires": "Airlock"
+  },
+  "AirlockArmoryGlassLocked": {
+    "material": "ss14:airlock_armory_glass_locked",
+    "node": "glassAirlock",
+    "board": "DoorElectronicsArmory",
+    "wires": "AirlockSecurity"
+  },
+  "AirlockAtmosphericsGlassLocked": {
+    "material": "ss14:airlock_atmospherics_glass_locked",
+    "node": "glassAirlock",
+    "board": "DoorElectronicsAtmospherics",
+    "wires": "AirlockEngineering"
+  },
+  "AirlockBarLocked": {
+    "material": "ss14:airlock_bar_locked",
+    "node": "airlock",
+    "board": "DoorElectronicsBar",
+    "wires": "AirlockService"
+  },
+  "AirlockBrigGlassLocked": {
+    "material": "ss14:airlock_brig_glass_locked",
+    "node": "glassAirlock",
+    "board": "DoorElectronicsBrig",
+    "wires": "AirlockSecurity"
+  },
+  "AirlockCaptainGlassLocked": {
+    "material": "ss14:airlock_captain_glass_locked",
+    "node": "glassAirlock",
+    "board": "DoorElectronicsCaptain",
+    "wires": "AirlockCommand"
+  },
+  "AirlockCaptainLocked": {
+    "material": "ss14:airlock_captain_locked",
+    "node": "airlock",
+    "board": "DoorElectronicsCaptain",
+    "wires": "AirlockCommand"
+  },
+  "AirlockCargoGlassLocked": {
+    "material": "ss14:airlock_cargo_glass_locked",
+    "node": "glassAirlock",
+    "board": "DoorElectronicsCargo",
+    "wires": "AirlockCargo"
+  },
+  "AirlockChapelLocked": {
+    "material": "ss14:airlock_chapel_locked",
+    "node": "airlock",
+    "board": "DoorElectronicsChapel",
+    "wires": "AirlockService"
+  },
+  "AirlockChemistryLocked": {
+    "material": "ss14:airlock_chemistry_locked",
+    "node": "airlock",
+    "board": "DoorElectronicsChemistry",
+    "wires": "AirlockMedical"
+  },
+  "AirlockChiefEngineerGlassLocked": {
+    "material": "ss14:airlock_chief_engineer_glass_locked",
+    "node": "glassAirlock",
+    "board": "DoorElectronicsChiefEngineer",
+    "wires": "AirlockCommand"
+  },
+  "AirlockChiefMedicalOfficerGlassLocked": {
+    "material": "ss14:airlock_chief_medical_officer_glass_locked",
+    "node": "glassAirlock",
+    "board": "DoorElectronicsChiefMedicalOfficer",
+    "wires": "AirlockCommand"
+  },
+  "AirlockCommandGlassLocked": {
+    "material": "ss14:airlock_command_glass_locked",
+    "node": "glassAirlock",
+    "board": "DoorElectronicsCommand",
+    "wires": "AirlockCommand"
+  },
+  "AirlockCommandLocked": {
+    "material": "ss14:airlock_command_locked",
+    "node": "airlock",
+    "board": "DoorElectronicsCommand",
+    "wires": "AirlockCommand"
+  },
+  "AirlockDetectiveLocked": {
+    "material": "ss14:airlock_detective_locked",
+    "node": "airlock",
+    "board": "DoorElectronicsDetective",
+    "wires": "AirlockSecurity"
+  },
+  "AirlockEVAGlassLocked": {
+    "material": "ss14:airlock_evaglass_locked",
+    "node": "glassAirlock",
+    "board": "DoorElectronicsEVA",
+    "wires": "AirlockCommand"
+  },
+  "AirlockEngineeringGlassLocked": {
+    "material": "ss14:airlock_engineering_glass_locked",
+    "node": "glassAirlock",
+    "board": "DoorElectronicsEngineering",
+    "wires": "AirlockEngineering"
+  },
+  "AirlockEngineeringLocked": {
+    "material": "ss14:airlock_engineering_locked",
+    "node": "airlock",
+    "board": "DoorElectronicsEngineering",
+    "wires": "AirlockEngineering"
+  },
+  "AirlockExternal": {
+    "material": "ss14:airlock_external",
+    "node": "airlock",
+    "board": "DoorElectronics",
+    "wires": "AirlockExternal"
+  },
+  "AirlockExternalGlass": {
+    "material": "ss14:airlock_external_glass",
+    "node": "airlock",
+    "board": "DoorElectronics",
+    "wires": "AirlockExternal"
+  },
+  "AirlockExternalGlassAtmosphericsLocked": {
+    "material": "ss14:airlock_external_glass_atmospherics_locked",
+    "node": "airlock",
+    "board": "DoorElectronicsAtmospherics",
+    "wires": "AirlockEngineering"
+  },
+  "AirlockExternalGlassCargoLocked": {
+    "material": "ss14:airlock_external_glass_cargo_locked",
+    "node": "airlock",
+    "board": "DoorElectronicsCargo",
+    "wires": "AirlockCargo"
+  },
+  "AirlockExternalGlassEngineeringLocked": {
+    "material": "ss14:airlock_external_glass_engineering_locked",
+    "node": "airlock",
+    "board": "DoorElectronicsEngineering",
+    "wires": "AirlockEngineering"
+  },
+  "AirlockExternalGlassLocked": {
+    "material": "ss14:airlock_external_glass_locked",
+    "node": "airlock",
+    "board": "DoorElectronicsExternal",
+    "wires": "AirlockExternal"
+  },
+  "AirlockFreezer": {
+    "material": "ss14:airlock_freezer",
+    "node": "airlock",
+    "board": "DoorElectronics",
+    "wires": "AirlockService"
+  },
+  "AirlockGlass": {
+    "material": "ss14:airlock_glass",
+    "node": "glassAirlock",
+    "board": "DoorElectronics",
+    "wires": "Airlock"
+  },
+  "AirlockHeadOfPersonnelLocked": {
+    "material": "ss14:airlock_head_of_personnel_locked",
+    "node": "airlock",
+    "board": "DoorElectronicsHeadOfPersonnel",
+    "wires": "AirlockCommand"
+  },
+  "AirlockHeadOfSecurityGlassLocked": {
+    "material": "ss14:airlock_head_of_security_glass_locked",
+    "node": "glassAirlock",
+    "board": "DoorElectronicsHeadOfSecurity",
+    "wires": "AirlockCommand"
+  },
+  "AirlockHydroGlassLocked": {
+    "material": "ss14:airlock_hydro_glass_locked",
+    "node": "glassAirlock",
+    "board": "DoorElectronicsHydroponics",
+    "wires": "AirlockService"
+  },
+  "AirlockJanitorLocked": {
+    "material": "ss14:airlock_janitor_locked",
+    "node": "airlock",
+    "board": "DoorElectronicsJanitor",
+    "wires": "AirlockService"
+  },
+  "AirlockKitchenGlassLocked": {
+    "material": "ss14:airlock_kitchen_glass_locked",
+    "node": "glassAirlock",
+    "board": "DoorElectronicsKitchen",
+    "wires": "AirlockService"
+  },
+  "AirlockMaint": {
+    "material": "ss14:airlock_maint",
+    "node": "airlock",
+    "board": "DoorElectronics",
+    "wires": "Airlock"
+  },
+  "AirlockMaintAtmoLocked": {
+    "material": "ss14:airlock_maint_atmo_locked",
+    "node": "airlock",
+    "board": "DoorElectronicsAtmospherics",
+    "wires": "AirlockEngineering"
+  },
+  "AirlockMaintBarLocked": {
+    "material": "ss14:airlock_maint_bar_locked",
+    "node": "airlock",
+    "board": "DoorElectronicsBar",
+    "wires": "AirlockService"
+  },
+  "AirlockMaintCargoLocked": {
+    "material": "ss14:airlock_maint_cargo_locked",
+    "node": "airlock",
+    "board": "DoorElectronicsCargo",
+    "wires": "AirlockCargo"
+  },
+  "AirlockMaintCommandLocked": {
+    "material": "ss14:airlock_maint_command_locked",
+    "node": "airlock",
+    "board": "DoorElectronicsCommand",
+    "wires": "AirlockCommand"
+  },
+  "AirlockMaintEVALocked": {
+    "material": "ss14:airlock_maint_evalocked",
+    "node": "airlock",
+    "board": "DoorElectronicsEVA",
+    "wires": "AirlockCommand"
+  },
+  "AirlockMaintEngiLocked": {
+    "material": "ss14:airlock_maint_engi_locked",
+    "node": "airlock",
+    "board": "DoorElectronicsEngineering",
+    "wires": "AirlockEngineering"
+  },
+  "AirlockMaintGlass": {
+    "material": "ss14:airlock_maint_glass",
+    "node": "glassAirlock",
+    "board": "DoorElectronics",
+    "wires": "Airlock"
+  },
+  "AirlockMaintHOPLocked": {
+    "material": "ss14:airlock_maint_hoplocked",
+    "node": "airlock",
+    "board": "DoorElectronicsHeadOfPersonnel",
+    "wires": "AirlockCommand"
+  },
+  "AirlockMaintHydroLocked": {
+    "material": "ss14:airlock_maint_hydro_locked",
+    "node": "airlock",
+    "board": "DoorElectronicsHydroponics",
+    "wires": "AirlockService"
+  },
+  "AirlockMaintJanitorLocked": {
+    "material": "ss14:airlock_maint_janitor_locked",
+    "node": "airlock",
+    "board": "DoorElectronicsJanitor",
+    "wires": "AirlockService"
+  },
+  "AirlockMaintLocked": {
+    "material": "ss14:airlock_maint_locked",
+    "node": "airlock",
+    "board": "DoorElectronicsMaintenance",
+    "wires": "Airlock"
+  },
+  "AirlockMaintMedLocked": {
+    "material": "ss14:airlock_maint_med_locked",
+    "node": "airlock",
+    "board": "DoorElectronicsMedical",
+    "wires": "AirlockMedical"
+  },
+  "AirlockMaintRnDLocked": {
+    "material": "ss14:airlock_maint_rn_dlocked",
+    "node": "airlock",
+    "board": "DoorElectronicsResearch",
+    "wires": "AirlockScience"
+  },
+  "AirlockMaintSalvageLocked": {
+    "material": "ss14:airlock_maint_salvage_locked",
+    "node": "airlock",
+    "board": "DoorElectronicsSalvage",
+    "wires": "AirlockCargo"
+  },
+  "AirlockMaintSecLocked": {
+    "material": "ss14:airlock_maint_sec_locked",
+    "node": "airlock",
+    "board": "DoorElectronicsSecurity",
+    "wires": "AirlockSecurity"
+  },
+  "AirlockMaintTheatreLocked": {
+    "material": "ss14:airlock_maint_theatre_locked",
+    "node": "airlock",
+    "board": "DoorElectronicsTheatre",
+    "wires": "AirlockService"
+  },
+  "AirlockMedicalGlassLocked": {
+    "material": "ss14:airlock_medical_glass_locked",
+    "node": "glassAirlock",
+    "board": "DoorElectronicsMedical",
+    "wires": "AirlockMedical"
+  },
+  "AirlockMedicalLocked": {
+    "material": "ss14:airlock_medical_locked",
+    "node": "airlock",
+    "board": "DoorElectronicsMedical",
+    "wires": "AirlockMedical"
+  },
+  "AirlockQuartermasterGlassLocked": {
+    "material": "ss14:airlock_quartermaster_glass_locked",
+    "node": "glassAirlock",
+    "board": "DoorElectronicsQuartermaster",
+    "wires": "AirlockCommand"
+  },
+  "AirlockResearchDirectorGlassLocked": {
+    "material": "ss14:airlock_research_director_glass_locked",
+    "node": "glassAirlock",
+    "board": "DoorElectronicsResearchDirector",
+    "wires": "AirlockCommand"
+  },
+  "AirlockResearchDirectorLocked": {
+    "material": "ss14:airlock_research_director_locked",
+    "node": "airlock",
+    "board": "DoorElectronicsResearchDirector",
+    "wires": "AirlockCommand"
+  },
+  "AirlockSalvageGlassLocked": {
+    "material": "ss14:airlock_salvage_glass_locked",
+    "node": "glassAirlock",
+    "board": "DoorElectronicsSalvage",
+    "wires": "AirlockCargo"
+  },
+  "AirlockScienceGlassLocked": {
+    "material": "ss14:airlock_science_glass_locked",
+    "node": "glassAirlock",
+    "board": "DoorElectronicsResearch",
+    "wires": "AirlockScience"
+  },
+  "AirlockSecurityGlassLocked": {
+    "material": "ss14:airlock_security_glass_locked",
+    "node": "glassAirlock",
+    "board": "DoorElectronicsSecurity",
+    "wires": "AirlockSecurity"
+  },
+  "AirlockServiceLocked": {
+    "material": "ss14:airlock_service_locked",
+    "node": "airlock",
+    "board": "DoorElectronicsService",
+    "wires": "AirlockService"
+  },
+  "AirlockTheatreLocked": {
+    "material": "ss14:airlock_theatre_locked",
+    "node": "airlock",
+    "board": "DoorElectronicsTheatre",
+    "wires": "AirlockService"
+  }
+}

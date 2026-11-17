@@ -62,6 +62,10 @@ fn main() {
     }
     match tools::import_map::import(&yaml, &name, &known, &materials) {
         Ok((map, r)) => {
+            if let Err(error) = map.build_world("import-validation") {
+                eprintln!("Импорт создаёт некорректный мир: {error}");
+                std::process::exit(1);
+            }
             if let Err(e) = map.save(Path::new(&args[1])) {
                 eprintln!("{e}");
                 std::process::exit(1);

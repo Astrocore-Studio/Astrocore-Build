@@ -13,6 +13,12 @@ use prototypes::Data;
 /// Наборы, которые нужны клиенту независимо от прототипов.
 pub const FIXED_RSI: &[&str] = &[
     "Mobs/Species/Human/parts.rsi",
+    "Structures/Power/Cables/hv_cable.rsi",
+    "Structures/Power/Cables/mv_cable.rsi",
+    "Structures/Power/Cables/lv_cable.rsi",
+    "Structures/Piping/Atmospherics/pipe.rsi",
+    "Structures/Piping/Atmospherics/pipe_alt1.rsi",
+    "Structures/Piping/Atmospherics/pipe_alt2.rsi",
     // Значки состояния справа вверху (панель алертов SS14).
     "Interface/Alerts/human_alive.rsi",
     "Interface/Alerts/human_critical.rsi",

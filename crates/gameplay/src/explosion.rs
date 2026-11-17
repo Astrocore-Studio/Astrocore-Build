@@ -119,10 +119,11 @@ pub fn fill(layout: &Layout, start: Cell, total: f32, slope: f32, max_intensity:
 /// Стена, окно или решётка карты: порог разрушения, защита и накопленный урон.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Wall {
+    pub prototype: Option<String>,
     pub hp: f32,
     pub coefficients: std::collections::BTreeMap<String, f32>,
     pub flat: std::collections::BTreeMap<String, f32>,
-    pub damage: f32,
+    pub damage: std::collections::BTreeMap<String, f32>,
 }
 
 fn table(text: &str) -> std::collections::BTreeMap<String, f32> {
@@ -139,10 +140,20 @@ fn table(text: &str) -> std::collections::BTreeMap<String, f32> {
 pub fn parse_walls<'a>(
     meta: impl Iterator<Item = (&'a String, &'a String)>,
 ) -> std::collections::BTreeMap<(i32, i32), Wall> {
+    let mut protos = std::collections::BTreeMap::new();
+    let mut damage = std::collections::BTreeMap::new();
     let mut classes: std::collections::BTreeMap<String, Wall> = Default::default();
     let mut cells: Vec<(String, &str)> = Vec::new();
     for (key, value) in meta {
-        if let Some(n) = key.strip_prefix("wall_class_") {
+        if let Some((x, z)) = key
+            .strip_prefix("wall_damage_")
+            .and_then(|k| k.split_once(':'))
+            && let (Ok(x), Ok(z)) = (x.parse::<i32>(), z.parse::<i32>())
+        {
+            damage.insert((x, z), table(value));
+        } else if let Some(n) = key.strip_prefix("wall_proto_") {
+            protos.insert(n.to_owned(), value.clone());
+        } else if let Some(n) = key.strip_prefix("wall_class_") {
             let field = |name: &str| {
                 value
                     .split(';')
@@ -153,10 +164,11 @@ pub fn parse_walls<'a>(
                 classes.insert(
                     n.to_string(),
                     Wall {
+                        prototype: None,
                         hp,
                         coefficients: table(field("coef")),
                         flat: table(field("flat")),
-                        damage: 0.0,
+                        damage: Default::default(),
                     },
                 );
             }
@@ -167,6 +179,9 @@ pub fn parse_walls<'a>(
         }
     }
     let mut out = std::collections::BTreeMap::new();
+    for (n, wall) in &mut classes {
+        wall.prototype = protos.remove(n);
+    }
     for (n, list) in cells {
         let Some(wall) = classes.get(&n) else {
             continue;
@@ -175,7 +190,9 @@ pub fn parse_walls<'a>(
             if let Some((x, z)) = cell.split_once(':')
                 && let (Ok(x), Ok(z)) = (x.parse(), z.parse())
             {
-                out.insert((x, z), wall.clone());
+                let mut wall = wall.clone();
+                wall.damage = damage.remove(&(x, z)).unwrap_or_default();
+                out.insert((x, z), wall);
             }
         }
     }
@@ -183,6 +200,28 @@ pub fn parse_walls<'a>(
 }
 
 impl Wall {
+    pub fn total_damage(&self) -> f32 {
+        self.damage.values().sum()
+    }
+
+    pub fn apply_hit(&mut self, damage: &crate::health::DamageSpec, intensity: f32) {
+        for (kind, raw) in damage {
+            let hit = self.modified(kind, *raw * intensity);
+            if hit > 0. {
+                *self.damage.entry(kind.clone()).or_default() += hit;
+            }
+        }
+    }
+
+    fn modified(&self, kind: &str, amount: f32) -> f32 {
+        let coef = self.coefficients.get(kind).copied().unwrap_or(1.);
+        let flat = self.flat.get(kind).copied().unwrap_or(0.);
+        (amount * coef - flat).max(0.)
+    }
+
+    pub fn repair(&mut self, spec: &serde_json::Value) {
+        crate::module::repairable::repair_damage(&mut self.damage, spec);
+    }
     /// Урон взрыва интенсивности `intensity` по стене (`DamageSpecifier.ApplyModifierSet`):
     /// на каждый вид — множитель, затем вычет, не ниже нуля.
     pub fn blast_damage(
@@ -192,11 +231,7 @@ impl Wall {
     ) -> f32 {
         per_intensity
             .iter()
-            .map(|(kind, v)| {
-                let coef = self.coefficients.get(kind).copied().unwrap_or(1.0);
-                let flat = self.flat.get(kind).copied().unwrap_or(0.0);
-                (v * intensity * coef - flat).max(0.0)
-            })
+            .map(|(kind, v)| self.modified(kind, v * intensity))
             .sum()
     }
 }
@@ -254,6 +289,28 @@ mod tests {
         // Blunt 5×4−10 = 10; Structural 50×4−3 = 197; Piercing 10×4×0.7 = 28.
         assert!((w.blast_damage(&per, 4.0) - 235.0).abs() < 1e-3);
         assert_eq!(w.blast_damage(&per, 0.0), 0.0);
+    }
+
+    #[test]
+    fn repair_distributes_or_filters_damage_from_the_map_and_later_hits() {
+        let meta = [
+            ("wall_class_0".to_owned(), "hp=80;coef=;flat=".to_owned()),
+            ("wall_cells_0_0".to_owned(), "0:0".to_owned()),
+            ("wall_damage_0:0".to_owned(), "Heat:1,Blunt:9".to_owned()),
+        ]
+        .into_iter()
+        .collect::<std::collections::BTreeMap<_, _>>();
+        let mut wall = parse_walls(meta.iter()).remove(&(0, 0)).unwrap();
+        wall.apply_hit(&[("Slash".to_owned(), 5.)].into(), 1.);
+        wall.repair(&serde_json::json!({"damageValue":-7}));
+        assert_eq!(
+            wall.damage,
+            [("Blunt".into(), 6.), ("Slash".into(), 2.)].into()
+        );
+        wall.repair(&serde_json::json!({"damage":{"types":{"Slash":-20}}}));
+        assert_eq!(wall.total_damage(), 6.);
+        wall.repair(&serde_json::json!({}));
+        assert_eq!(wall.total_damage(), 0.);
     }
 
     #[test]

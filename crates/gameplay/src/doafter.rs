@@ -17,9 +17,64 @@ pub const BREAK_DISTANCE_M: f32 = 0.3;
 /// Время вскрытия двери монтировкой, с (`DoorComponent.PryTime` в SS14).
 pub const PRY_TIME_S: f32 = 1.5;
 
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub(crate) enum StructureWork {
+    CutCable(ObjectId, f32),
+    PipeAnchor(ObjectId, bool, f32),
+    PipeDismantle(ObjectId, usize, f32),
+    Repair(ObjectId, f32, f32),
+    StripWall(ObjectId),
+    StripReinforced(ObjectId, usize),
+    StripGirder(ObjectId),
+    ToggleAnchor(ObjectId, bool),
+    Dismantle(ObjectId),
+}
+
 /// Что делает действие по завершении.
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) enum Action {
+    Repair(RepairJob),
+    Inflate {
+        floor: astrocore_world::FloorId,
+        cell: astrocore_math::GridCell,
+        stack: ObjectId,
+        proto: String,
+        delay: f32,
+    },
+    Deflate {
+        target: ObjectId,
+        delay: f32,
+    },
+    Rcd(RcdJob),
+    Barrier(BarrierJob),
+    Frame(FrameJob),
+    BuildPipe {
+        recipe: usize,
+        rotation: u8,
+        floor: astrocore_world::FloorId,
+        cell: astrocore_math::GridCell,
+        stack: ObjectId,
+    },
+    RemoveTile {
+        floor: astrocore_world::FloorId,
+        cell: astrocore_math::GridCell,
+        slab: ObjectId,
+        hand: usize,
+        tool: ObjectId,
+    },
+    WorkStructure {
+        cell: (i32, i32),
+        hand: usize,
+        tool: ObjectId,
+        operation: StructureWork,
+    },
+    Construct {
+        reinforced: bool,
+        cell: (i32, i32),
+        hand: usize,
+        stack: ObjectId,
+        girder: Option<ObjectId>,
+    },
     Equip {
         hand: usize,
         slot: String,
@@ -31,6 +86,7 @@ pub(crate) enum Action {
     Pry {
         element: ObjectId,
         hand: usize,
+        tool: ObjectId,
     },
     /// Лечение предметом из руки: цель — персонаж (в том числе сам).
     Heal {
@@ -84,7 +140,67 @@ pub(crate) enum Action {
     },
 }
 
+#[derive(Debug, Clone, PartialEq)]
+pub(crate) struct RepairJob {
+    pub target: ObjectId,
+    pub prototype: astrocore_core::PrototypeId,
+    pub hand: usize,
+    pub tool: ObjectId,
+    pub delay: f32,
+    pub fuel: f32,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub(crate) struct FrameJob {
+    pub rotation: u8,
+    pub floor: astrocore_world::FloorId,
+    pub cell: astrocore_math::GridCell,
+    pub target: Option<ObjectId>,
+    pub item: ObjectId,
+    pub graph: String,
+    pub node: String,
+    pub next: String,
+    pub delay: f32,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub(crate) struct BarrierJob {
+    pub girder: Option<ObjectId>,
+    pub floor: astrocore_world::FloorId,
+    pub cell: astrocore_math::GridCell,
+    pub proto: String,
+    pub dismantle: bool,
+    pub step: usize,
+    pub item: ObjectId,
+    pub delay: f32,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub(crate) struct RcdJob {
+    pub device: ObjectId,
+    pub floor: astrocore_world::FloorId,
+    pub cell: astrocore_math::GridCell,
+    pub rotation: u8,
+    pub mode: String,
+    pub target: String,
+    pub object: Option<ObjectId>,
+    pub cost: u32,
+    pub delay: f32,
+}
 impl Action {
+    pub(crate) fn construction_breaks_on_damage(&self) -> bool {
+        matches!(
+            self,
+            Self::BuildPipe { .. }
+                | Self::Repair(_)
+                | Self::Pry { .. }
+                | Self::Inflate { .. }
+                | Self::Barrier(_)
+                | Self::Rcd(_)
+                | Self::WorkStructure { .. }
+                | Self::Construct { girder: None, .. }
+        )
+    }
     /// Прерывается ли действие шагом в сторону: есть и пить можно на ходу (`BreakOnMove` у
     /// `EatingDoAfter` включён только при кормлении другого).
     pub(crate) fn breaks_on_move(&self) -> bool {
@@ -94,6 +210,13 @@ impl Action {
 
     pub(crate) fn kind(&self) -> &'static str {
         match self {
+            Self::Repair(_) => "repair",
+            Self::Frame(_) | Self::Barrier(_) | Self::Rcd(_) | Self::Inflate { .. } => "construct",
+            Self::Deflate { .. } => "disassemble",
+            Self::BuildPipe { .. }
+            | Self::RemoveTile { .. }
+            | Self::WorkStructure { .. }
+            | Self::Construct { .. } => "construct",
             Self::Equip { .. } => "equip",
             Self::Unequip { .. } => "unequip",
             Self::Pry { .. } => "pry",
@@ -113,6 +236,7 @@ impl Action {
 
 #[derive(Debug, Clone)]
 pub(crate) struct DoAfter {
+    pub(crate) last_damage: f32,
     pub(crate) action: Action,
     pub(crate) delay: f32,
     pub(crate) elapsed: f32,

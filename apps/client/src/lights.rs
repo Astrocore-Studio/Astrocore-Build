@@ -142,7 +142,7 @@ pub fn flashlight(
         on.0 = true;
     }
     *started = true;
-    if keys.just_pressed(KeyCode::KeyQ) {
+    if keys.just_pressed(KeyCode::KeyB) {
         on.0 = !on.0;
     }
     let existing = lights.iter().next();
