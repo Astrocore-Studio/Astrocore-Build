@@ -219,6 +219,17 @@ fn walls_carry_their_strength_from_the_prototype_table() {
 }
 
 #[test]
+fn a_window_becomes_a_thin_glass_pane_instead_of_a_solid_block() {
+    let yaml = room_yaml(7).replace("proto: WallSolid", "proto: Window");
+    let (map, r) = import(&yaml, "room", &known(), &Materials::default()).unwrap();
+    assert_eq!(r.wall_blocks, 0, "сплошных блоков у окон нет");
+    assert_eq!(r.wall_edges, 17, "рёбра-панели те же, что у стен");
+    let text = format!("{:?}", map.elements);
+    assert!(text.contains("Window"), "ребро — Opening(Window)");
+    assert!(!text.contains("Freeform"), "блоков нет");
+}
+
+#[test]
 fn the_imported_map_builds_a_valid_world() {
     let (map, _) = import(&room_yaml(7), "room", &known(), &Materials::default()).unwrap();
     let world = map.build_world("room").unwrap();

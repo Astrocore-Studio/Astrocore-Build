@@ -129,6 +129,8 @@ pub struct Report {
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Kind {
     Wall,
+    /// Окно целиком в клетке (`Window`, `ReinforcedWindow`…): прозрачная панель на ребре, а не блок.
+    Window,
     DirectionalWindow,
     Door,
     /// Огнезапор (`Firelock`, `FirelockGlass`): дверь со своими спрайтами.
@@ -144,10 +146,9 @@ fn classify(proto: &str) -> Kind {
     if matches!(proto, "WindowDirectional" | "WindowReinforcedDirectional") {
         return Kind::DirectionalWindow;
     }
-    if proto.starts_with("Wall")
-        || proto.contains("Window") && !proto.contains("Windoor")
-        || proto.contains("Grille")
-    {
+    if proto.contains("Window") && !proto.contains("Windoor") && !proto.starts_with("Wall") {
+        Kind::Window
+    } else if proto.starts_with("Wall") || proto.contains("Grille") {
         Kind::Wall
     } else if proto == "Firelock" || proto == "FirelockGlass" {
         Kind::Firelock
@@ -257,6 +258,8 @@ fn entity_rot(entity: &Value) -> u8 {
 
 /// Толщина ребра-стены: рёбра нужны логике, а видимый объём даёт блок на всю клетку.
 const WALL_EDGE_THICKNESS_M: f32 = 0.02;
+/// Стеклянная панель окна: один пиксель (1/32 м).
+const WINDOW_PANE_THICKNESS_M: f32 = 1.0 / 32.0;
 /// Стена — два куба 1×1×1 м друг на друге: этаж в два тайла высотой, человек ростом в тайл.
 /// Два квадратных куба вместо одного высокого — чтобы текстура стены не растягивалась.
 const WALL_BLOCK_MM: u32 = 1000;
@@ -538,6 +541,8 @@ pub fn import(
     let mut wall_protos: BTreeMap<(i32, i32), &str> = BTreeMap::new();
     let mut wall_damage = Vec::new();
     let mut grilles = BTreeSet::new();
+    // Клетки с окном: вместо сплошного блока — прозрачная панель на ребре.
+    let mut glass: BTreeSet<(i32, i32)> = BTreeSet::new();
     let mut fire_cells: BTreeSet<(i32, i32)> = BTreeSet::new();
     let mut fire_uids: BTreeMap<(i32, i32), Vec<i64>> = BTreeMap::new();
     let mut door_lists: BTreeMap<(i32, i32), Vec<Vec<String>>> = BTreeMap::new();
@@ -567,7 +572,10 @@ pub fn import(
                 Kind::DirectionalWindow => {
                     directional_windows.push((cell, entity_rot(entity), proto))
                 }
-                Kind::Wall => {
+                Kind::Wall | Kind::Window => {
+                    if kind == Kind::Window {
+                        glass.insert(cell);
+                    }
                     if proto == "Grille" {
                         grilles.insert(cell);
                     }
@@ -988,11 +996,20 @@ pub fn import(
     // Стена на карте SS14 занимает всю клетку. Рёбра остаются для логики (воздух, проходимость,
     // двери), но тонкие, а вид и объём даёт сплошной блок на клетку (`Freeform`).
     for (e, cell) in &wall_edges {
+        // Окно — панель из прозрачного стекла (`Opening(Window)`: не пускает ни людей, ни воздух).
+        let (kind, thickness) = if glass.contains(cell) {
+            (
+                StructureKind::Opening(OpeningKind::Window),
+                WINDOW_PANE_THICKNESS_M,
+            )
+        } else {
+            (StructureKind::Wall, WALL_EDGE_THICKNESS_M)
+        };
         elements.push(element(
-            StructureKind::Wall,
+            kind,
             Placement::Edge(*e),
             wall_material(*cell),
-            WALL_EDGE_THICKNESS_M,
+            thickness,
         ));
     }
     let mut wall_blocks = 0usize;
@@ -1000,7 +1017,7 @@ pub fn import(
         let touches_floor = (-1..=1).any(|dx| {
             (-1..=1).any(|dz| (dx, dz) != (0, 0) && walk.contains(&(c.0 + dx, c.1 + dz)))
         });
-        if !touches_floor {
+        if !touches_floor || glass.contains(&c) {
             continue;
         }
         for level in 0..WALL_LEVELS {
