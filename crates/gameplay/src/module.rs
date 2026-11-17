@@ -590,8 +590,12 @@ pub struct State {
     girders: BTreeMap<(i32, i32), ObjectId>,
     /// Предметы, убранные с земли в этом тике (мир применит запрос позже).
     pub(crate) gone: BTreeSet<ObjectId>,
-    /// Допустимые причёски и бороды (прототипы с компонентом `Marking`).
-    pub(crate) catalog: crate::character::Catalog,
+    /// Правила персонажа: пределы, виды и стили (прототипы `CharacterRules`, `Species`, `Marking`).
+    pub(crate) rules: crate::character::Rules,
+    /// Кому уже отправлены правила, и какой профиль последний раз отправлен владельцу.
+    pub(crate) rules_sent: BTreeSet<NetworkEntityId>,
+    pub(crate) character_roll: u32,
+    pub(crate) profile_sent: BTreeMap<NetworkEntityId, Vec<u8>>,
     pub(crate) charger_slot: BTreeMap<ObjectId, (f32, HeldItem)>,
     pub(crate) explosion_types: BTreeMap<String, DamageSpec>,
     pub(crate) primed: BTreeMap<ObjectId, f32>,
@@ -1321,7 +1325,10 @@ impl State {
             rcd_recharge: Default::default(),
             girders: BTreeMap::new(),
             gone: BTreeSet::new(),
-            catalog: crate::character::Catalog::from_registry(&registry, NAMESPACE)?,
+            rules: crate::character::Rules::from_registry(&registry, NAMESPACE)?,
+            rules_sent: BTreeSet::new(),
+            character_roll: 0,
+            profile_sent: BTreeMap::new(),
             charger_slot: BTreeMap::new(),
             explosion_types,
             primed: BTreeMap::new(),
@@ -1376,10 +1383,10 @@ impl State {
     }
 
     pub(crate) fn actor(&mut self, id: NetworkEntityId) -> &mut Actor {
-        let catalog = &self.catalog;
+        let rules = &self.rules;
         self.actors.entry(id).or_insert_with(|| {
             let mut a = Actor::new(id.0.wrapping_mul(2_246_822_519) ^ 0x85eb_ca6b);
-            a.profile = crate::character::Profile::random(id.0 as u64, catalog);
+            a.profile = crate::character::Profile::random(id.0 as u64, rules);
             a
         })
     }
@@ -1430,7 +1437,7 @@ impl State {
         ctx.set_component(
             actor,
             crate::character::LOOK_COMPONENT,
-            crate::character::encode_look(&a.profile.look(&self.catalog)),
+            crate::character::encode_look(&a.profile.look(&self.rules)),
         );
         let worn: crate::wire::Worn = a
             .inventory
@@ -2846,6 +2853,7 @@ impl State {
         self.sync_pipes(ctx);
         self.sync_power(ctx);
         self.tick_lobby(ctx);
+        self.tick_character(ctx);
         self.tick_round(ctx);
         self.tick_chat(ctx);
         self.tick_rest_and_thrown(ctx);
@@ -5063,6 +5071,61 @@ impl State {
     }
 
     /// Лобби: новички ждут старта; по таймеру готовые выходят на станцию.
+    /// Редактор персонажа: правила — владельцу один раз, профиль — при каждом изменении.
+    fn tick_character(&mut self, ctx: &mut HookContext<'_>) {
+        let ids: Vec<NetworkEntityId> = ctx.players().collect();
+        self.rules_sent.retain(|p| ids.contains(p));
+        self.profile_sent.retain(|p, _| ids.contains(p));
+        let rules_bytes = (!ids.iter().all(|p| self.rules_sent.contains(p))).then(|| {
+            (
+                crate::character::encode_rules(&self.rules),
+                crate::character::encode_catalog(&self.rules.catalog),
+            )
+        });
+        for id in ids {
+            if let Some((rules, catalog)) = &rules_bytes
+                && self.rules_sent.insert(id)
+            {
+                ctx.set_component(id, crate::character::RULES_COMPONENT, rules.clone());
+                ctx.set_component(id, crate::character::CATALOG_COMPONENT, catalog.clone());
+            }
+            let profile = crate::character::encode_profile(&self.actor(id).profile);
+            if self.profile_sent.get(&id) != Some(&profile) {
+                ctx.set_component(id, crate::character::PROFILE_COMPONENT, profile.clone());
+                self.profile_sent.insert(id, profile);
+                self.publish(ctx, id);
+            }
+        }
+    }
+
+    /// Менять персонажа можно в лобби (и там, где лобби нет), как в SS14 — не посреди раунда.
+    fn can_edit_character(&self, actor: NetworkEntityId) -> bool {
+        self.lobby
+            .as_ref()
+            .is_none_or(|l| l.in_lobby.contains(&actor))
+    }
+
+    /// `char.save`: профиль от клиента приводится к допустимому виду и принимается; `char.random`:
+    /// новый случайный профиль.
+    fn character_command(&mut self, actor: NetworkEntityId, kind: &str, data: &[u8]) {
+        if !self.can_edit_character(actor) {
+            return;
+        }
+        match kind {
+            crate::character::CMD_CHAR_SAVE => {
+                if let Some(p) = crate::character::decode_profile(data) {
+                    self.actor(actor).profile = p.validated(&self.rules);
+                }
+            }
+            crate::character::CMD_CHAR_RANDOM => {
+                self.character_roll = self.character_roll.wrapping_add(1);
+                let seed = actor.0 as u64 ^ (u64::from(self.character_roll) << 32) ^ 0x00C0_FFEE;
+                self.actor(actor).profile = crate::character::Profile::random(seed, &self.rules);
+            }
+            _ => {}
+        }
+    }
+
     fn tick_lobby(&mut self, ctx: &mut HookContext<'_>) {
         let dt = self.last_dt;
         let ids: Vec<NetworkEntityId> = ctx.players().collect();
@@ -8302,6 +8365,12 @@ impl GameModule for GameplayModule {
             }
             HookEvent::Command { actor, kind, data } if kind == crate::wire::CMD_VERB_DO => {
                 st.verb_do(ctx, *actor, data);
+            }
+            HookEvent::Command { actor, kind, data }
+                if kind == crate::character::CMD_CHAR_SAVE
+                    || kind == crate::character::CMD_CHAR_RANDOM =>
+            {
+                st.character_command(*actor, kind, data);
             }
             HookEvent::Command { actor, kind, data } if kind == crate::wire::CMD_CHAT => {
                 st.chat_say(ctx, *actor, data);

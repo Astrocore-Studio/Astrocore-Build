@@ -251,6 +251,27 @@ pub fn register_replication(reg: &mut ReplicationRegistry) -> Result<(), Replica
             max_bytes: crate::power_monitor::MAX_BYTES,
         })?;
     }
+    for (name, max_bytes) in [
+        (
+            crate::character::RULES_COMPONENT,
+            crate::character::RULES_MAX_BYTES,
+        ),
+        (
+            crate::character::CATALOG_COMPONENT,
+            crate::character::CATALOG_MAX_BYTES,
+        ),
+        (
+            crate::character::PROFILE_COMPONENT,
+            crate::character::PROFILE_MAX_BYTES,
+        ),
+    ] {
+        reg.register(ReplicatedKind {
+            name: name.into(),
+            channel: ReplicationChannel::ReliableOrdered,
+            interest: Interest::Owner,
+            max_bytes,
+        })?;
+    }
     reg.register(ReplicatedKind {
         name: crate::character::LOOK_COMPONENT.into(),
         channel: ReplicationChannel::ReliableOrdered,

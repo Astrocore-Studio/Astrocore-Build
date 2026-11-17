@@ -7,6 +7,7 @@ mod airlock_visuals;
 mod alarm_visuals;
 mod alerts_ui;
 mod body;
+mod character_ui;
 mod combat;
 mod engineering_visuals;
 mod fire;
@@ -47,6 +48,10 @@ pub struct Loadout {
     pub jobs: Option<gameplay::JobsView>,
     /// Лобби перед раундом.
     pub lobby: Option<gameplay::LobbyView>,
+    /// Правила персонажа от сервера (разбираются, только когда байты изменились) и профиль игрока.
+    pub char_rules: Option<gameplay::character::Rules>,
+    char_rules_raw: (Vec<u8>, Vec<u8>),
+    pub char_profile: Option<gameplay::character::Profile>,
     /// Глаголы для цели и результат осмотра.
     pub verbs: Option<gameplay::VerbsView>,
     pub examine: Option<gameplay::ExamineView>,
@@ -102,6 +107,7 @@ impl Plugin for BuildClientPlugin {
             state: hud::HudState::default(),
             power: power_ui::UiState::default(),
             alerts: alerts_ui::UiState::default(),
+            character: character_ui::CharacterEditor::default(),
         })
         .insert_resource(Autoplay {
             enabled: self.autoplay,
@@ -456,6 +462,7 @@ pub(crate) struct Hud {
     state: hud::HudState,
     power: power_ui::UiState,
     alerts: alerts_ui::UiState,
+    character: character_ui::CharacterEditor,
 }
 
 #[derive(Resource)]
@@ -592,6 +599,27 @@ fn refresh_loadout(net: Option<NonSend<Net>>, time: Res<Time>, mut loadout: ResM
         .core
         .component(me, gameplay::LOBBY_COMPONENT)
         .and_then(gameplay::decode_lobby);
+    {
+        use gameplay::character::{CATALOG_COMPONENT, PROFILE_COMPONENT, RULES_COMPONENT};
+        let raw = (
+            net.core
+                .component(me, RULES_COMPONENT)
+                .map(<[u8]>::to_vec)
+                .unwrap_or_default(),
+            net.core
+                .component(me, CATALOG_COMPONENT)
+                .map(<[u8]>::to_vec)
+                .unwrap_or_default(),
+        );
+        if raw != loadout.char_rules_raw {
+            loadout.char_rules = gameplay::character::decode_rules(&raw.0, &raw.1);
+            loadout.char_rules_raw = raw;
+        }
+        loadout.char_profile = net
+            .core
+            .component(me, PROFILE_COMPONENT)
+            .and_then(gameplay::character::decode_profile);
+    }
     loadout.jobs = net
         .core
         .component(me, gameplay::JOBS_COMPONENT)
@@ -1216,6 +1244,7 @@ fn ghost_camera(
     *was_ghost = ghost;
 }
 
+#[allow(clippy::too_many_arguments)]
 fn loadout_window(
     mut contexts: EguiContexts,
     mut loadout: ResMut<Loadout>,
@@ -1224,6 +1253,7 @@ fn loadout_window(
     ground: Res<Ground>,
     time: Res<Time>,
     net: Option<NonSendMut<Net>>,
+    mut outfits: Option<ResMut<outfit::Outfits>>,
 ) -> Result {
     let ctx = contexts.ctx_mut()?.clone();
     let Some(mut net) = net else {
@@ -1259,7 +1289,22 @@ fn loadout_window(
     // Лобби: экран на весь кадр, пока игрок не вышел на станцию.
     if let Some(lobby) = loadout.lobby.as_ref().filter(|l| l.in_lobby) {
         let at = egui::pos2(16.0, (ctx.content_rect().max.y - 230.0).max(16.0));
-        let mut cmds = hud::lobby_screen(&ctx, lobby);
+        if std::env::var_os("ASTRO_AUTOPLAY_CHAR").is_some() {
+            hud.character.open = true;
+        }
+        let mut cmds = hud::lobby_screen(&ctx, lobby, &mut hud.character.open);
+        if let Some(rules) = loadout.char_rules.as_ref() {
+            hud.character.sync(loadout.char_profile.as_ref());
+            let preview = outfits
+                .as_deref_mut()
+                .and_then(|o| hud.character.preview(&ctx, o, rules));
+            cmds.extend(character_ui::character_window(
+                &ctx,
+                &mut hud.character,
+                rules,
+                preview,
+            ));
+        }
         cmds.extend(hud::chat_panel(
             &ctx,
             &mut hud.state,
@@ -1294,6 +1339,7 @@ fn loadout_window(
         state,
         power,
         alerts,
+        character: _,
     } = &mut *hud;
     state.health = loadout.health.clone();
     state.stamina = net

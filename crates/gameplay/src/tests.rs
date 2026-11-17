@@ -3305,6 +3305,91 @@ mod disposal_tests {
         assert!(look_of(&h, b, a).is_some());
     }
 
+    fn profile_of(h: &Harness, who: ConnId) -> Option<crate::character::Profile> {
+        let net = h.client(who).net_id()?;
+        crate::character::decode_profile(
+            h.client(who)
+                .component(net, crate::character::PROFILE_COMPONENT)?,
+        )
+    }
+
+    #[test]
+    fn the_editor_gets_the_rules_and_the_profile_and_the_server_validates_what_it_saves() {
+        let mut h = harness();
+        let a = h.join("a");
+        h.ticks(10);
+        let net = h.client(a).net_id().unwrap();
+        let rules = crate::character::decode_rules(
+            h.client(a)
+                .component(net, crate::character::RULES_COMPONENT)
+                .expect("правила пришли владельцу"),
+            h.client(a)
+                .component(net, crate::character::CATALOG_COMPONENT)
+                .expect("каталог стилей пришёл владельцу"),
+        )
+        .unwrap();
+        assert_eq!(rules.limits.max_slots, 5);
+        let mut mine = profile_of(&h, a).expect("профиль пришёл");
+        // Что бы ни прислал клиент, сервер приводит к допустимому виду.
+        mine.name = "  анна   иванова!  ".into();
+        mine.age = 3;
+        mine.appearance.skin_tone = 900.0;
+        mine.appearance.hair = "NoSuchHair".into();
+        command(
+            &mut h,
+            a,
+            crate::character::CMD_CHAR_SAVE,
+            crate::character::encode_profile(&mine),
+        );
+        h.ticks(5);
+        let saved = profile_of(&h, a).unwrap();
+        assert_eq!(saved.name, "Анна   Иванова");
+        assert_eq!(saved.age, 18);
+        assert_eq!(saved.appearance.skin_tone, 100.0);
+        assert_eq!(saved.appearance.hair, "");
+        // Внешность в мире обновилась вместе с профилем.
+        let look = h
+            .client(a)
+            .component(net, crate::character::LOOK_COMPONENT)
+            .and_then(crate::character::decode_look)
+            .unwrap();
+        assert_eq!(look.skin, crate::character::skin_color(100.0));
+        // Мусор не принимается.
+        command(
+            &mut h,
+            a,
+            crate::character::CMD_CHAR_SAVE,
+            b"not json".to_vec(),
+        );
+        h.ticks(3);
+        assert_eq!(profile_of(&h, a), Some(saved.clone()));
+        // Случайный профиль меняет внешность.
+        command(&mut h, a, crate::character::CMD_CHAR_RANDOM, Vec::new());
+        h.ticks(5);
+        assert_ne!(profile_of(&h, a), Some(saved));
+    }
+
+    #[test]
+    fn a_character_can_only_be_changed_in_the_lobby() {
+        let mut h = harness_with(|m| m.with_lobby(1000.0, 1));
+        let a = h.join("a");
+        h.ticks(10);
+        let before = profile_of(&h, a).unwrap();
+        let mut changed = before.clone();
+        changed.age = 40;
+        command(
+            &mut h,
+            a,
+            crate::character::CMD_CHAR_SAVE,
+            crate::character::encode_profile(&changed),
+        );
+        h.ticks(5);
+        assert_eq!(profile_of(&h, a).unwrap().age, 40, "в лобби можно");
+        // Готов — всё ещё лобби; после старта раунда менять нельзя.
+        command(&mut h, a, crate::CMD_LOBBY_READY, Vec::new());
+        h.ticks(5);
+    }
+
     #[test]
     fn a_charger_refills_an_energy_gun_left_in_its_slot() {
         let mut h = harness();

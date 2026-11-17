@@ -129,6 +129,11 @@ impl Outfits {
         }
     }
 
+    /// Лист для превью в редакторе: внешность без одежды.
+    pub(crate) fn preview_sheet(&mut self, look: &Look) -> image::RgbaImage {
+        self.compose_look(Some(look), &[])
+    }
+
     /// Лист персонажа: тело цвета кожи, глаза, борода и причёска (цвета из профиля), затем одежда.
     fn compose_look(&mut self, look: Option<&Look>, layers: &[PathBuf]) -> image::RgbaImage {
         let Some(look) = look else {
@@ -322,7 +327,7 @@ mod tests {
             )
             .unwrap();
         registry.validate().unwrap();
-        let catalog = gameplay::character::Catalog::from_registry(&registry, "ss14").unwrap();
+        let rules = gameplay::character::Rules::from_registry(&registry, "ss14").unwrap();
         let mut o = outfits();
         let (cols, rows) = (8u32, 4u32);
         let scale = 3u32;
@@ -332,8 +337,8 @@ mod tests {
             image::Rgba([60, 60, 60, 255]),
         );
         for i in 0..cols * rows {
-            let p = gameplay::character::Profile::random(u64::from(i) + 1, &catalog);
-            let look = p.look(&catalog);
+            let p = gameplay::character::Profile::random(u64::from(i) + 1, &rules);
+            let look = p.look(&rules);
             let body = o.compose_look(Some(&look), &[]);
             // Лицом к зрителю: первое направление листа.
             let front = image::imageops::crop_imm(&body, 0, 0, CELL, CELL).to_image();

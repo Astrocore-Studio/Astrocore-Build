@@ -1775,7 +1775,11 @@ pub fn chat_panel(
 }
 
 /// Экран лобби (`LobbyGui`): заголовок, раунд, таймер и кнопка «Готов» / «Присоединиться».
-pub fn lobby_screen(ctx: &egui::Context, v: &gameplay::LobbyView) -> Commands {
+pub fn lobby_screen(
+    ctx: &egui::Context,
+    v: &gameplay::LobbyView,
+    editor_open: &mut bool,
+) -> Commands {
     let mut out: Commands = Vec::new();
     let screen = ctx.content_rect();
     egui::Area::new(egui::Id::new("lobby"))
@@ -1821,6 +1825,12 @@ pub fn lobby_screen(ctx: &egui::Context, v: &gameplay::LobbyView) -> Commands {
                     .min_size(egui::vec2(240.0, 52.0));
                 if ui.add(button).clicked() {
                     out.push((gameplay::CMD_LOBBY_READY, Vec::new()));
+                }
+                ui.add_space(8.0);
+                let character = egui::Button::new(egui::RichText::new("Персонаж").size(20.0))
+                    .min_size(egui::vec2(240.0, 40.0));
+                if ui.add(character).clicked() {
+                    *editor_open = !*editor_open;
                 }
                 if !v.started {
                     ui.add_space(10.0);
