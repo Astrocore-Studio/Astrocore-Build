@@ -13,6 +13,10 @@ use prototypes::Data;
 /// Наборы, которые нужны клиенту независимо от прототипов.
 pub const FIXED_RSI: &[&str] = &[
     "Mobs/Species/Human/parts.rsi",
+    // Внешность человека: причёски, бороды, глаза.
+    "Mobs/Customization/human_hair.rsi",
+    "Mobs/Customization/human_facial_hair.rsi",
+    "Mobs/Customization/eyes.rsi",
     "Structures/Power/Cables/hv_cable.rsi",
     "Structures/Power/Cables/mv_cable.rsi",
     "Structures/Power/Cables/lv_cable.rsi",
