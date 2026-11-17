@@ -60,6 +60,13 @@ fn main() {
             },
         );
     }
+    if let Some(registry) = &registry
+        && let Ok(volumes) = polygon::volumes_of(registry)
+    {
+        for (name, v) in volumes {
+            materials.volume_m.insert(name, v.height_px / 32.0);
+        }
+    }
     match tools::import_map::import(&yaml, &name, &known, &materials) {
         Ok((map, r)) => {
             if let Err(error) = map.build_world("import-validation") {

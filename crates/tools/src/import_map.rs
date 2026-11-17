@@ -46,6 +46,8 @@ pub struct Materials {
     pub tiles: BTreeMap<String, PrototypeId>,
     /// Списки доступа считывателей по имени прототипа SS14 (`door_access.ron`).
     pub door_access: BTreeMap<String, Vec<Vec<String>>>,
+    /// Высота объёма мебели, м, по имени прототипа SS14 (компонент `SpriteVolume`).
+    pub volume_m: BTreeMap<String, f32>,
     /// Прочность стен по имени прототипа SS14 (`wall_hp.ron`).
     pub wall_hp: BTreeMap<String, WallClass>,
 }
@@ -88,6 +90,7 @@ impl Default for Materials {
             tiles: BTreeMap::new(),
             door_access: BTreeMap::new(),
             wall_hp: BTreeMap::new(),
+            volume_m: BTreeMap::new(),
         }
     }
 }
@@ -284,7 +287,7 @@ fn pipe_base_dirs(proto: &str) -> Option<u8> {
 }
 
 /// Мебель-ящик по прототипу SS14: материал и высота, м (`Table*`, `Rack`, шкафы с книгами).
-fn furniture_box(proto: &str) -> Option<(&'static str, f32)> {
+fn furniture_box(proto: &str, volume_m: &BTreeMap<String, f32>) -> Option<(&'static str, f32)> {
     if proto.starts_with("Table") {
         let material = if proto.contains("Wood") || proto.contains("Carpet") {
             "ss14:table_wood"
@@ -295,14 +298,26 @@ fn furniture_box(proto: &str) -> Option<(&'static str, f32)> {
         } else {
             "ss14:table_generic"
         };
-        // Стол ниже пояса: 0,6 м (было 0,78, выглядело сплошным кубом).
-        return Some((material, 0.6));
+        // Высота — из компонента `SpriteVolume` прототипа (у стола 20 пикселей); запасная — 0,6 м.
+        let own = match material {
+            "ss14:table_wood" => "TableWood",
+            "ss14:table_reinforced" => "TableReinforced",
+            "ss14:table_glass" => "TableGlass",
+            _ => "Table",
+        };
+        let height = volume_m
+            .get(proto)
+            .or_else(|| volume_m.get(own))
+            .copied()
+            .unwrap_or(0.6);
+        return Some((material, height));
     }
-    match proto {
-        "Rack" => Some(("ss14:rack", 0.9)),
-        "BookshelfFilled" | "Bookshelf" => Some(("ss14:bookshelf", 1.6)),
-        _ => None,
-    }
+    let (material, default) = match proto {
+        "Rack" => ("ss14:rack", 0.9),
+        "BookshelfFilled" | "Bookshelf" => ("ss14:bookshelf", 1.6),
+        _ => return None,
+    };
+    Some((material, volume_m.get(proto).copied().unwrap_or(default)))
 }
 
 /// Стул SS14 → прототип Build из `furniture.ron`.
@@ -682,8 +697,8 @@ pub fn import(
                     });
                     report.disposal_tubes += 1;
                 }
-                Kind::Other if furniture_box(proto).is_some() => {
-                    if let Some((m, h)) = furniture_box(proto) {
+                Kind::Other if furniture_box(proto, &mats.volume_m).is_some() => {
+                    if let Some((m, h)) = furniture_box(proto, &mats.volume_m) {
                         boxes.push((cell, m, h));
                     }
                 }

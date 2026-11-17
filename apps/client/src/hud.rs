@@ -65,8 +65,35 @@ pub struct Icons {
     /// Размер текстуры в пикселях, нужен для раскладки кадров.
     sizes: HashMap<String, (u32, u32)>,
     first_frames: HashMap<String, Rect>,
+    /// Лист кадров значка предмета: ячейки `[столбцов, строк]` и задержки кадров (из манифеста).
+    sheets: HashMap<String, IconSheet>,
     /// Названия прототипов для подсказки под прицелом.
     names: HashMap<String, AimInfo>,
+}
+
+/// Лист кадров значка: ячейки по строкам слева направо, первое направление.
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) struct IconSheet {
+    cols: u32,
+    rows: u32,
+    delays: Vec<f32>,
+}
+
+/// Номер кадра анимации в момент `t` секунд: по кругу, с задержкой каждого кадра (как
+/// `AdvanceFrameAnimation` в RobustToolbox).
+pub(crate) fn frame_at(delays: &[f32], t: f64) -> u32 {
+    let cycle: f32 = delays.iter().sum();
+    if delays.len() < 2 || cycle <= 0.0 {
+        return 0;
+    }
+    let mut left = (t as f32).rem_euclid(cycle);
+    for (i, d) in delays.iter().enumerate() {
+        if left < *d {
+            return i as u32;
+        }
+        left -= d;
+    }
+    delays.len() as u32 - 1
 }
 
 /// Название и размер спрайта прототипа: по ним выбирается объект под прицелом.
@@ -90,6 +117,7 @@ impl Icons {
             delays: HashMap::new(),
             sizes: HashMap::new(),
             first_frames: HashMap::new(),
+            sheets: HashMap::new(),
             names: HashMap::new(),
         }
     }
@@ -149,8 +177,37 @@ impl Icons {
                 })
             })
             .unwrap_or_default();
+        let sheets = std::fs::read(path)
+            .ok()
+            .and_then(|b| serde_json::from_slice::<serde_json::Value>(&b).ok())
+            .and_then(|v| {
+                v.get("sprites")?.as_object().map(|m| {
+                    m.iter()
+                        .filter_map(|(k, e)| {
+                            let grid = e.get("grid")?.as_array()?;
+                            let delays: Vec<f32> = e
+                                .get("delays")
+                                .and_then(|d| d.as_array())
+                                .map(|d| {
+                                    d.iter()
+                                        .filter_map(|x| x.as_f64().map(|f| f as f32))
+                                        .collect()
+                                })
+                                .unwrap_or_default();
+                            let sheet = IconSheet {
+                                cols: grid.first()?.as_u64()?.max(1) as u32,
+                                rows: grid.get(1)?.as_u64()?.max(1) as u32,
+                                delays,
+                            };
+                            Some((k.clone(), sheet))
+                        })
+                        .collect()
+                })
+            })
+            .unwrap_or_default();
         let mut icons = Self::new(root, items);
         icons.names = names;
+        icons.sheets = sheets;
         icons
     }
 
@@ -271,9 +328,36 @@ impl Icons {
         self.load(ctx, &format!("Textures/Interface/{name}.png"))
     }
 
+    /// Значок предмета: у анимированного — текущий кадр, у листа без анимации — первая ячейка
+    /// (а не весь лист с кадрами и направлениями).
     fn item(&mut self, ctx: &egui::Context, proto: &str) -> Option<egui::TextureId> {
         let rel = self.items.get(proto)?.clone();
-        self.load(ctx, &rel)
+        let Some(sheet) = self.sheets.get(proto).cloned() else {
+            return self.load(ctx, &rel);
+        };
+        if sheet.cols * sheet.rows <= 1 {
+            return self.load(ctx, &rel);
+        }
+        let frame = frame_at(&sheet.delays, ctx.input(|i| i.time));
+        let key = format!("{rel}#{frame}");
+        if !self.cache.contains_key(&key) {
+            let tex = image::open(self.root.join(&rel)).ok().and_then(|img| {
+                let img = img.to_rgba8();
+                let (cw, ch) = (img.width() / sheet.cols, img.height() / sheet.rows);
+                if cw == 0 || ch == 0 || frame >= sheet.cols * sheet.rows {
+                    return None;
+                }
+                let (cx, cy) = (frame % sheet.cols, frame / sheet.cols);
+                let cell = image::imageops::crop_imm(&img, cx * cw, cy * ch, cw, ch).to_image();
+                let color = egui::ColorImage::from_rgba_unmultiplied(
+                    [cw as usize, ch as usize],
+                    cell.as_raw(),
+                );
+                Some(ctx.load_texture(key.clone(), color, egui::TextureOptions::NEAREST))
+            });
+            self.cache.insert(key.clone(), tex);
+        }
+        self.cache.get(&key)?.as_ref().map(|t| t.id())
     }
 }
 
@@ -514,10 +598,8 @@ pub(crate) fn crafting_window(
                 } else if let Some(r) = recipes.iter().find(|r| r.id == state.construction_recipe) {
                     let key = r.sprite_id();
                     let right = &mut columns[1];
-                    if let Some(path) = icons.items.get(&key).cloned()
-                        && let Some((texture, uv)) = icons.first_frame(ctx, &path)
-                    {
-                        right.add(egui::Image::new((texture, egui::vec2(48.0, 48.0))).uv(uv));
+                    if let Some(texture) = icons.item(ctx, &key) {
+                        right.add(egui::Image::new((texture, egui::vec2(48.0, 48.0))));
                     }
                     if let Some(info) = icons.names.get(&key) {
                         right.label(format!("{} × {}", info.name, r.count));
@@ -2981,5 +3063,22 @@ mod tests {
             to_slot.contains(&(CMD_MOVE_SLOT, move_slot_data("belt", "back"))),
             "{to_slot:?}"
         );
+    }
+}
+
+#[cfg(test)]
+mod icon_animation_tests {
+    use super::frame_at;
+
+    #[test]
+    fn an_icon_steps_through_its_frames_and_loops() {
+        let d = [0.1, 0.2, 0.3];
+        assert_eq!(frame_at(&d, 0.0), 0);
+        assert_eq!(frame_at(&d, 0.1), 1);
+        assert_eq!(frame_at(&d, 0.3), 2);
+        assert_eq!(frame_at(&d, 0.6), 0, "цикл замкнулся");
+        assert_eq!(frame_at(&d, 12.35), 2);
+        assert_eq!(frame_at(&[], 5.0), 0, "без анимации — первый кадр");
+        assert_eq!(frame_at(&[0.5], 5.0), 0, "один кадр");
     }
 }

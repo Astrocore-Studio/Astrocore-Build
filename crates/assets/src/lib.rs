@@ -126,8 +126,10 @@ pub struct SpriteSource {
     pub rsi: String,
     pub state: String,
     pub size: [f32; 2],
-    /// Лежит ли спрайт на полу плашмя (с толщиной) вместо стоячего объёма.
+    /// Лежит ли спрайт горизонтально (иначе стоит).
     pub flat: bool,
+    /// Высота объёма в пикселях из компонента `SpriteVolume`; без него — один пиксель.
+    pub depth_px: Option<f32>,
     /// Размер берётся из ячейки RSI (32 пикселя на метр), а не из поля `size`.
     pub pixel_size: bool,
     /// Лежащий спрайт поворачивается по `rot` карты (конвейеры, трубы).
@@ -282,12 +284,12 @@ pub fn build_manifest(
                 "grid": grid,
                 "oriented": s.oriented,
                 "name": s.name,
-                // Все спрайты плоские: лежат на полу или стоят лицом к камере.
+                // Все спрайты плоские с небольшим объёмом: лежат горизонтально или стоят.
                 "layout": if s.flat { "flat" } else { "billboard" },
                 "frames": frames,
                 "delays": delays,
-                // Толщина лежащего предмета — два пикселя (2/32 м); стоячие объёма не имеют.
-                "thickness": 2.0 / PIXELS_PER_METER,
+                // Объём в пикселях (32 на метр): из `SpriteVolume` прототипа, по умолчанию один.
+                "thickness": s.depth_px.unwrap_or(1.0) / PIXELS_PER_METER,
             }),
         );
     }
@@ -350,6 +352,7 @@ mod tests {
             state: state.into(),
             size: [0.4, 0.4],
             flat: false,
+            depth_px: None,
             pixel_size: false,
             oriented: false,
             name: None,

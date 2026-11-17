@@ -259,6 +259,7 @@ pub fn sprites_of(registry: &PrototypeRegistry) -> Result<Vec<SpriteSource>, Pol
         ) else {
             continue;
         };
+        let volume = volume_of(&r);
         let floor_object = item.is_none()
             && (name == "Catwalk"
                 || r.component("Conveyor").is_some()
@@ -275,7 +276,8 @@ pub fn sprites_of(registry: &PrototypeRegistry) -> Result<Vec<SpriteSource>, Pol
             size: [e.max(0.25) * 1.2, e.max(0.25) * 1.2],
             // Предметы лежат на полу плашмя, декорации и устройства стоят; конвейеры и трубные
             // устройства — объекты пола: лежат, повёрнуты по карте и имеют размер своей ячейки.
-            flat: item.is_some() || floor_object,
+            flat: volume.map_or(item.is_some() || floor_object, |v| v.flat),
+            depth_px: volume.map(|v| v.height_px),
             pixel_size: item.is_none(),
             oriented: floor_object,
             name: r.name.clone(),
@@ -304,6 +306,44 @@ pub fn sprites_of(registry: &PrototypeRegistry) -> Result<Vec<SpriteSource>, Pol
             });
         }
         out.push(base);
+    }
+    Ok(out)
+}
+
+/// Объём спрайта из компонента прототипа `SpriteVolume` (как компоненты SS14): `layout`
+/// (`"Flat"` — лежит горизонтально, `"Upright"` — стоит) и `height` — высота объёма в пикселях
+/// (32 пикселя на метр). Нет компонента — вид по умолчанию, объём в один пиксель.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Volume {
+    pub flat: bool,
+    pub height_px: f32,
+}
+
+fn volume_of(r: &prototypes::Resolved) -> Option<Volume> {
+    let c = r.component("SpriteVolume")?;
+    let flat = !c
+        .get("layout")
+        .and_then(Data::as_str)
+        .is_some_and(|l| l.eq_ignore_ascii_case("upright"));
+    let height_px = c
+        .get("height")
+        .and_then(Data::as_f64)
+        .map_or(1.0, |h| h as f32)
+        .clamp(1.0, 64.0);
+    Some(Volume { flat, height_px })
+}
+
+/// Объём прототипов, у которых он задан: имя прототипа SS14 → объём.
+pub fn volumes_of(
+    registry: &PrototypeRegistry,
+) -> Result<std::collections::BTreeMap<String, Volume>, PolygonError> {
+    let mut out = std::collections::BTreeMap::new();
+    for (_, name) in registry.engine_index(NAMESPACE)? {
+        if let Ok(r) = registry.spawnable(&name)
+            && let Some(v) = volume_of(&r)
+        {
+            out.insert(name, v);
+        }
     }
     Ok(out)
 }
