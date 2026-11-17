@@ -6,3 +6,5 @@ if [ -z "${ASTRO_KEY:-}" ]; then
   [ -f .astro-key ] || head -c 32 /dev/urandom | od -An -tx1 | tr -d ' \n' > .astro-key
   ASTRO_KEY="$(cat .astro-key)"
 fi
+# Карта: по умолчанию Reach; другую задают ASTRO_MAP=<файл.ron> (читают и сервер, и клиент).
+export ASTRO_MAP="${ASTRO_MAP:-content/maps/reach.ron}"
