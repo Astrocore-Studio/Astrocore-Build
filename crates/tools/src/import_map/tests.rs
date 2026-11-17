@@ -230,6 +230,78 @@ fn a_window_becomes_a_thin_glass_pane_instead_of_a_solid_block() {
 }
 
 #[test]
+fn the_game_map_prototype_gives_the_station_name_and_job_seats_without_map_names_in_code() {
+    let dir = std::env::temp_dir().join(format!("gamemap_{}", std::process::id()));
+    let maps = dir.join("Prototypes").join("Maps").join("Deep");
+    std::fs::create_dir_all(&maps).unwrap();
+    std::fs::write(
+        maps.join("any.yml"),
+        "- type: gameMap\n  id: Other\n  mapName: Other\n  mapPath: /Maps/other.yml\n  stations: {}\n\
+         - type: gameMap\n  id: Sandbox\n  mapName: Sandbox\n  mapPath: /Maps/Test/sandbox.yml\n  stations:\n    S:\n      components:\n      - type: StationNameSetup\n      - type: StationJobs\n        availableJobs:\n          Captain: [ -1, -1 ]\n          Engineer: [ 2, 4 ]\n",
+    )
+    .unwrap();
+    let proto = dir.join("Prototypes");
+    let info = game_map_info(&proto, Path::new("/x/Resources/Maps/Test/sandbox.yml")).unwrap();
+    assert_eq!(info.name, "Sandbox");
+    assert_eq!(
+        info.jobs,
+        vec![("Captain".into(), -1, -1), ("Engineer".into(), 2, 4)]
+    );
+    assert!(game_map_info(&proto, Path::new("/x/Resources/Maps/nope.yml")).is_none());
+    // Должности попадают в зону карты записями `job_slot_<n>`.
+    let mats = Materials {
+        station_jobs: info.jobs,
+        ..Materials::default()
+    };
+    let (map, _) = import(&room_yaml(7), "room", &known(), &mats).unwrap();
+    let all: Vec<(&String, &String)> = map.zones.iter().flat_map(|z| z.metadata.iter()).collect();
+    assert!(
+        all.iter()
+            .any(|(k, v)| k.as_str() == "job_slot_1" && v.as_str() == "Engineer:2:4")
+    );
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn entities_and_tiles_of_a_shifted_and_rotated_grid_share_one_world_frame() {
+    // Сетка 7 сдвинута на (10, 4) и повёрнута на 180°; её сущность лежит в её координатах.
+    let mut root: Value = serde_yaml::from_str(
+        "entities:\n\
+         - proto: ''\n  entities:\n  - uid: 7\n    components:\n    - type: MapGrid\n      chunks: {}\n    - type: Transform\n      pos: 10,4\n      rot: 3.141592653589793 rad\n\
+         - proto: Crowbar\n  entities:\n  - uid: 8\n    components:\n    - type: Transform\n      parent: 7\n      pos: 2.5,1.5\n      rot: 1.5707963267948966 rad\n\
+         - proto: Pen\n  entities:\n  - uid: 9\n    components:\n    - type: Transform\n      parent: 99\n      pos: 2.5,1.5\n",
+    )
+    .unwrap();
+    let frames = to_world_frame(&mut root);
+    let f = frames[&7];
+    assert_eq!((f.x, f.y, f.q), (10.0, 4.0, 2));
+    // Клетка (2, 1) сетки → центр (2.5, 1.5) → поворот на 180° (−2.5, −1.5) → +(10, 4) = (7.5, 2.5).
+    assert_eq!(f.cell_to_world((2, 1)), (7, 2));
+    let at = |uid: i64| {
+        let groups = root["entities"].as_sequence().unwrap();
+        let e = groups
+            .iter()
+            .flat_map(|g| g["entities"].as_sequence().unwrap().iter())
+            .find(|e| e["uid"].as_i64() == Some(uid))
+            .unwrap();
+        let t = e["components"][0].clone();
+        (
+            t["pos"].as_str().map(str::to_string),
+            t["rot"].as_str().map(str::to_string),
+        )
+    };
+    let (pos, rot) = at(8);
+    assert_eq!(pos.as_deref(), Some("7.5,2.5"), "позиция в мире");
+    let rad: f64 = rot.unwrap().trim_end_matches(" rad").parse().unwrap();
+    assert!(
+        (rad - 1.5 * std::f64::consts::PI).abs() < 1e-9,
+        "повороты складываются"
+    );
+    // Сущность с неизвестным родителем (карта, контейнер) не трогается.
+    assert_eq!(at(9).0.as_deref(), Some("2.5,1.5"));
+}
+
+#[test]
 fn the_imported_map_builds_a_valid_world() {
     let (map, _) = import(&room_yaml(7), "room", &known(), &Materials::default()).unwrap();
     let world = map.build_world("room").unwrap();

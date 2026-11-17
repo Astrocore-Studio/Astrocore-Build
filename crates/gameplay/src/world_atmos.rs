@@ -61,6 +61,34 @@ pub fn layout(world: &World, door_open: &dyn Fn(ObjectId) -> bool) -> Layout {
             l.links.insert((lo, hi));
         }
     }
+    // Рёбра, запертые для воздуха сущностями `Airtight` (импортёр: записи `airtight_<n>` с
+    // `<X|Z>:<x>:<z>`): проходу людей они не мешают, воздух не пропускают.
+    for o in world.authored() {
+        if !matches!(o.kind, AuthoredKind::Zone) {
+            continue;
+        }
+        for (key, value) in &o.metadata {
+            if !key.starts_with("airtight_") {
+                continue;
+            }
+            for token in value.split(' ') {
+                let mut parts = token.split(':');
+                let (Some(dir), Some(Ok(x)), Some(Ok(z))) = (
+                    parts.next(),
+                    parts.next().map(str::parse::<i32>),
+                    parts.next().map(str::parse::<i32>),
+                ) else {
+                    continue;
+                };
+                let g = match dir {
+                    "X" => astrocore_math::GridEdge::along_x(x, z),
+                    "Z" => astrocore_math::GridEdge::along_z(x, z),
+                    _ => continue,
+                };
+                l.blocked.insert(edge_cells(o.floor.0, &g));
+            }
+        }
+    }
     // Области без атмосферы: клетки внутри становятся космосом.
     for o in world.authored() {
         if !matches!(o.kind, AuthoredKind::Zone) {

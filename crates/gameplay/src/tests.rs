@@ -2524,6 +2524,45 @@ mod disposal_tests {
     }
 
     #[test]
+    fn the_map_decides_which_jobs_exist_and_how_many_seats_they_have() {
+        let mut h = harness();
+        let mut zone = AuthoredObject::new(
+            oid(995),
+            AuthoredKind::Zone,
+            FloorId(0),
+            Vec3::ZERO,
+            Vec3::splat(0.1),
+        );
+        zone.metadata.insert("job_slot_0".into(), "Free:2:5".into());
+        zone.metadata
+            .insert("job_slot_1".into(), "NoSuchJob:1:1".into());
+        spawn(&mut h, zone);
+        let a = h.join("a");
+        h.ticks(10);
+        let view = jobs_view(&h, a).unwrap();
+        let ids: Vec<&str> = view.jobs.iter().map(|j| j.id.as_str()).collect();
+        assert_eq!(
+            ids,
+            vec!["Free"],
+            "остальные должности контента карте не нужны"
+        );
+        assert_eq!(view.jobs[0].max, 5, "число мест — из карты");
+        // Редактор тоже предлагает только должности карты.
+        let net = h.client(a).net_id().unwrap();
+        let rules = crate::character::decode_rules(
+            h.client(a)
+                .component(net, crate::character::RULES_COMPONENT)
+                .unwrap(),
+            h.client(a)
+                .component(net, crate::character::CATALOG_COMPONENT)
+                .unwrap(),
+        )
+        .unwrap();
+        let editor_jobs: Vec<&str> = rules.jobs.iter().map(|j| j.id.as_str()).collect();
+        assert_eq!(editor_jobs, vec!["Free"]);
+    }
+
+    #[test]
     fn the_round_start_gives_each_ready_player_a_job_by_their_priorities() {
         use crate::character::{Priority, Unavailable};
         let mut h = harness_with(|m| m.with_lobby(3.0, 1));

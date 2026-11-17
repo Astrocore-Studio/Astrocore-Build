@@ -604,6 +604,8 @@ pub struct State {
     /// Куда сохранять профили и токены игроков, которые назвались (`user.hello`).
     pub(crate) store: Option<Box<dyn crate::character::ProfileStore>>,
     pub(crate) tokens: BTreeMap<NetworkEntityId, String>,
+    /// Должности станции из карты уже применены.
+    pub(crate) map_jobs_applied: bool,
     pub(crate) charger_slot: BTreeMap<ObjectId, (f32, HeldItem)>,
     pub(crate) explosion_types: BTreeMap<String, DamageSpec>,
     pub(crate) primed: BTreeMap<ObjectId, f32>,
@@ -1340,6 +1342,7 @@ impl State {
             slots_sent: BTreeMap::new(),
             store: None,
             tokens: BTreeMap::new(),
+            map_jobs_applied: false,
             charger_slot: BTreeMap::new(),
             explosion_types,
             primed: BTreeMap::new(),
@@ -5135,6 +5138,43 @@ impl State {
         }
     }
 
+    /// Должности станции берутся из карты: зоны с метаданными `job_slot_<n>` = `<id>:<на старте>:<всего>`
+    /// (импортёр кладёт их из прототипа `gameMap`). Карта задаёт, какие должности есть и сколько
+    /// мест; остальные из контента не доступны ни в раздаче, ни в редакторе. Нет записей — работает
+    /// список контента как есть.
+    fn apply_map_jobs(&mut self, ctx: &HookContext<'_>) {
+        let mut slots: BTreeMap<String, (i32, i32)> = BTreeMap::new();
+        for o in ctx.world.authored() {
+            if !matches!(o.kind, AuthoredKind::Zone) {
+                continue;
+            }
+            for (key, value) in &o.metadata {
+                if !key.starts_with("job_slot_") {
+                    continue;
+                }
+                let mut parts = value.split(':');
+                if let (Some(id), Some(start), Some(max)) = (
+                    parts.next(),
+                    parts.next().and_then(|v| v.parse::<i32>().ok()),
+                    parts.next().and_then(|v| v.parse::<i32>().ok()),
+                ) {
+                    slots.insert(id.to_string(), (start, max));
+                }
+            }
+        }
+        if slots.is_empty() {
+            return;
+        }
+        self.jobs.retain(|j| slots.contains_key(&j.id));
+        for j in &mut self.jobs {
+            if let Some(&(start, max)) = slots.get(&j.id) {
+                j.start = start;
+                j.max = max;
+            }
+        }
+        self.rules.jobs.retain(|j| slots.contains_key(&j.id));
+    }
+
     /// Менять персонажа можно в лобби (и там, где лобби нет), как в SS14 — не посреди раунда.
     fn can_edit_character(&self, actor: NetworkEntityId) -> bool {
         self.lobby
@@ -8046,6 +8086,10 @@ impl State {
 
     /// Шаг времени: отсчёт, прерывание движением и потерей условий, завершение.
     pub(crate) fn tick(&mut self, ctx: &mut HookContext<'_>, dt: f32) {
+        if !self.map_jobs_applied {
+            self.map_jobs_applied = true;
+            self.apply_map_jobs(ctx);
+        }
         self.clock += dt;
         self.last_dt = dt;
         self.gone.clear();

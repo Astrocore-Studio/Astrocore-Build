@@ -5,6 +5,9 @@ param(
     [string]$Mode = 'All',
     [string]$SourceRoot,
     [string]$MapPath,
+    # Карта SS14 относительно Resources\Maps (saltern.yml, Test\dev_map.yml, ...); из её имени
+    # берутся имя карты, файл импорта и имя журнала.
+    [string]$Map = 'saltern.yml',
     [switch]$Autoplay,
     [switch]$NoBuild,
     [switch]$Reimport,
@@ -15,7 +18,7 @@ param(
     [switch]$TraceTicks,
     [string]$EngineRoot,
     [ValidatePattern('^[a-zA-Z0-9_-]+$')]
-    [string]$LogName = 'saltern',
+    [string]$LogName,
     [Parameter(ValueFromRemainingArguments = $true)]
     [string[]]$ClientArguments
 )
@@ -25,7 +28,9 @@ Set-Location $AstroBuildRoot
 if (-not $SourceRoot) {
     $SourceRoot = [IO.Path]::GetFullPath((Join-Path $AstroBuildRoot '..\..\space-station-14'))
 }
-if (-not $MapPath) { $MapPath = Join-Path $AstroLocalRoot 'maps\saltern.ron' }
+$AstroMapStem = [IO.Path]::GetFileNameWithoutExtension($Map)
+if (-not $LogName) { $LogName = $AstroMapStem -replace '[^a-zA-Z0-9_-]', '_' }
+if (-not $MapPath) { $MapPath = Join-Path $AstroLocalRoot ('maps\' + $AstroMapStem + '.ron') }
 $MapPath = [IO.Path]::GetFullPath($MapPath)
 $AstroLogRoot = Join-Path $AstroLocalRoot 'logs'
 New-Item -ItemType Directory -Force -Path (Split-Path -Parent $MapPath),$AstroLogRoot | Out-Null
@@ -53,7 +58,7 @@ if (-not $NoBuild) {
     }
 }
 $AstroDebugRoot = Join-Path $env:CARGO_TARGET_DIR 'debug'
-$AstroMapSource = Join-Path $SourceRoot 'Resources\Maps\saltern.yml'
+$AstroMapSource = Join-Path $SourceRoot (Join-Path 'Resources\Maps' $Map)
 if ($RefreshGeneratedMap -and (Test-Path -LiteralPath $MapPath)) {
     $mapTime = (Get-Item -LiteralPath $MapPath).LastWriteTimeUtc
     foreach ($inputFile in @($AstroMapSource, (Join-Path $AstroDebugRoot 'import-map.exe'))) {
@@ -61,8 +66,9 @@ if ($RefreshGeneratedMap -and (Test-Path -LiteralPath $MapPath)) {
     }
 }
 if ($Mode -ne 'Client' -and ($Mode -eq 'Import' -or $Reimport -or -not (Test-Path -LiteralPath $MapPath))) {
-    & (Join-Path $AstroDebugRoot 'import-map.exe') $AstroMapSource $MapPath Saltern
-    if ($LASTEXITCODE -ne 0) { throw "Saltern import failed: $LASTEXITCODE" }
+    # Должности станции берутся из прототипа карты (`gameMap`) в Resources\Prototypes\Maps.
+    & (Join-Path $AstroDebugRoot 'import-map.exe') $AstroMapSource $MapPath $AstroMapStem --proto-root (Join-Path $SourceRoot 'Resources\Prototypes')
+    if ($LASTEXITCODE -ne 0) { throw "Import of $Map failed: $LASTEXITCODE" }
 }
 if (-not (Test-Path -LiteralPath $MapPath)) { throw "Map not found: $MapPath" }
 if ($Mode -eq 'Import') { return }
@@ -102,7 +108,7 @@ if ($Mode -eq 'Smoke') {
     if (-not $env:ASTRO_SHOT) { $env:ASTRO_SHOT = $AstroCaptureRoot }
     New-Item -ItemType Directory -Force -Path $env:ASTRO_SHOT | Out-Null
     $AstroCaptureStarted = [DateTime]::UtcNow
-    $AstroClientArgs += @('--screenshot', (Join-Path $AstroCaptureRoot 'saltern.png'), '--frames', '5000')
+    $AstroClientArgs += @('--screenshot', (Join-Path $AstroCaptureRoot ($AstroMapStem + '.png')), '--frames', '5000')
 }
 $AstroClientArgs += $ClientArguments
 $AstroServerProcess = $null

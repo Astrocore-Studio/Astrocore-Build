@@ -14,6 +14,7 @@
 //! версия 6 — 6, ранее — 4; идентификатор тайла в первых 4 (или 2) байтах, порядок построчный.
 
 use std::collections::{BTreeMap, BTreeSet, HashMap};
+use std::path::Path;
 
 use astrocore_core::{ObjectId, PrototypeId};
 use astrocore_math::{GridCell, GridEdge};
@@ -50,6 +51,12 @@ pub struct Materials {
     pub volume_m: BTreeMap<String, f32>,
     /// Прочность стен по имени прототипа SS14 (`wall_hp.ron`).
     pub wall_hp: BTreeMap<String, WallClass>,
+    /// Воздухонепроницаемые сущности (`Airtight`): имя прототипа → стороны без поворота, битами
+    /// 1 юг, 2 восток, 4 север, 8 запад (оси SS14: север — вверх по карте).
+    pub airtight: BTreeMap<String, u8>,
+    /// Должности станции из прототипа карты (`gameMap` → `StationJobs.availableJobs`): идентификатор,
+    /// мест на старте и всего (меньше нуля — без предела). Пусто — карта не ограничивает должности.
+    pub station_jobs: Vec<(String, i32, i32)>,
 }
 
 /// Прочность стены: порог разрушения, множители и вычеты урона по видам.
@@ -90,6 +97,8 @@ impl Default for Materials {
             tiles: BTreeMap::new(),
             door_access: BTreeMap::new(),
             wall_hp: BTreeMap::new(),
+            station_jobs: Vec::new(),
+            airtight: BTreeMap::new(),
             volume_m: BTreeMap::new(),
         }
     }
@@ -123,6 +132,8 @@ pub struct Report {
     /// Столы, стойки и шкафы (ящики-конструкции) и стулья.
     pub furniture: usize,
     pub chairs: usize,
+    /// Рёбра, запертые для воздуха сущностями `Airtight`.
+    pub airtight_edges: usize,
     pub skipped_entities: usize,
 }
 
@@ -236,6 +247,124 @@ fn device_list(entity: &Value) -> Vec<i64> {
         out.extend(ports.keys().filter_map(Value::as_i64));
     }
     out
+}
+
+/// Кадр сетки карты: положение начала сетки в мире и поворот в четвертях оборота против часовой.
+#[derive(Debug, Clone, Copy, Default)]
+struct Frame {
+    x: f64,
+    y: f64,
+    q: i64,
+}
+
+fn rotate(x: f64, y: f64, q: i64) -> (f64, f64) {
+    match q.rem_euclid(4) {
+        0 => (x, y),
+        1 => (-y, x),
+        2 => (-x, -y),
+        _ => (y, -x),
+    }
+}
+
+impl Frame {
+    /// Клетка сетки (индексы тайла) → клетка мира: центр клетки поворачивается и сдвигается.
+    fn cell_to_world(self, cell: (i32, i32)) -> (i32, i32) {
+        let (rx, ry) = rotate(f64::from(cell.0) + 0.5, f64::from(cell.1) + 0.5, self.q);
+        ((rx + self.x).floor() as i32, (ry + self.y).floor() as i32)
+    }
+}
+
+fn transform_mut(entity: &mut Value) -> Option<&mut Value> {
+    entity
+        .get_mut("components")?
+        .as_sequence_mut()?
+        .iter_mut()
+        .find(|c| c.get("type").and_then(Value::as_str) == Some("Transform"))
+}
+
+fn rad_of(t: &Value) -> f64 {
+    t.get("rot")
+        .and_then(Value::as_str)
+        .and_then(|t| t.trim().trim_end_matches("rad").trim().parse::<f64>().ok())
+        .unwrap_or(0.0)
+}
+
+/// Кадры сеток (по `uid` сущности с `MapGrid`) и приведение сущностей этих сеток к мировым
+/// координатам: положение поворачивается и сдвигается вместе с сеткой, поворот складывается.
+fn to_world_frame(root: &mut Value) -> HashMap<i64, Frame> {
+    let mut frames: HashMap<i64, Frame> = HashMap::new();
+    let Some(groups) = root.get_mut("entities").and_then(Value::as_sequence_mut) else {
+        return frames;
+    };
+    for group in groups.iter_mut() {
+        let Some(list) = group.get_mut("entities").and_then(Value::as_sequence_mut) else {
+            continue;
+        };
+        for entity in list.iter_mut() {
+            let Some(uid) = entity.get("uid").and_then(Value::as_i64) else {
+                continue;
+            };
+            let is_grid = entity
+                .get("components")
+                .and_then(Value::as_sequence)
+                .is_some_and(|c| {
+                    c.iter()
+                        .any(|c| c.get("type").and_then(Value::as_str) == Some("MapGrid"))
+                });
+            if !is_grid {
+                continue;
+            }
+            let (x, y) =
+                entity_pos(entity).map_or((0.0, 0.0), |(x, y)| (f64::from(x), f64::from(y)));
+            let rad = transform_mut(entity).map_or(0.0, |t| rad_of(t));
+            frames.insert(
+                uid,
+                Frame {
+                    x,
+                    y,
+                    q: (rad / std::f64::consts::FRAC_PI_2).round() as i64,
+                },
+            );
+        }
+    }
+    for group in groups.iter_mut() {
+        let Some(list) = group.get_mut("entities").and_then(Value::as_sequence_mut) else {
+            continue;
+        };
+        for entity in list.iter_mut() {
+            let Some(t) = transform_mut(entity) else {
+                continue;
+            };
+            let Some(frame) = t
+                .get("parent")
+                .and_then(Value::as_i64)
+                .and_then(|p| frames.get(&p).copied())
+            else {
+                continue;
+            };
+            let Some((lx, ly)) = t.get("pos").and_then(Value::as_str).and_then(parse_pair) else {
+                continue;
+            };
+            if frame.q == 0 && frame.x == 0.0 && frame.y == 0.0 {
+                continue;
+            }
+            let (rx, ry) = rotate(f64::from(lx), f64::from(ly), frame.q);
+            let rad = rad_of(t) + frame.q as f64 * std::f64::consts::FRAC_PI_2;
+            if let Value::Mapping(m) = t {
+                m.insert(
+                    Value::String("pos".into()),
+                    Value::String(format!("{},{}", rx + frame.x, ry + frame.y)),
+                );
+                if frame.q != 0 {
+                    m.insert(
+                        Value::String("rot".into()),
+                        Value::String(format!("{rad} rad")),
+                    );
+                }
+            }
+        }
+    }
+    frames
 }
 
 /// Поворот сущности в четвертях оборота против часовой стрелки (`rot: 1.57… rad`).
@@ -401,7 +530,7 @@ fn is_floor_tile(name: &str) -> bool {
 /// Тайлы чанка: (x, y) мировые клетки → имя тайла SS14.
 fn decode_chunk(
     chunk: &Value,
-    offset: (i32, i32),
+    frame: Frame,
     tilemap: &HashMap<i64, String>,
     out: &mut BTreeMap<(i32, i32), String>,
 ) {
@@ -440,8 +569,14 @@ fn decode_chunk(
             };
             at += stride;
             if let Some(name) = tilemap.get(&id) {
+                // Пустой космос другой сетки не затирает пол, который уже лежит в этой клетке.
+                if name == "Space"
+                    && out.contains_key(&frame.cell_to_world((cx * size + x, cy * size + y)))
+                {
+                    continue;
+                }
                 out.insert(
-                    (cx * size + x + offset.0, cy * size + y + offset.1),
+                    frame.cell_to_world((cx * size + x, cy * size + y)),
                     name.clone(),
                 );
             }
@@ -468,7 +603,10 @@ pub fn import(
     known_items: &BTreeSet<String>,
     mats: &Materials,
 ) -> Result<(MapFile, Report), ImportError> {
-    let root: Value = serde_yaml::from_str(yaml)?;
+    let mut root: Value = serde_yaml::from_str(yaml)?;
+    // Карта может состоять из нескольких сеток со смещением и поворотом: сущности лежат в
+    // координатах своей сетки. Всё приводится к общему (мировому) кадру до разбора.
+    let frames = to_world_frame(&mut root);
     let tilemap: HashMap<i64, String> = root
         .get("tilemap")
         .and_then(Value::as_mapping)
@@ -500,11 +638,14 @@ pub fn import(
             else {
                 continue;
             };
-            let off =
-                entity_pos(entity).map_or((0, 0), |(x, y)| (x.floor() as i32, y.floor() as i32));
+            let frame = entity
+                .get("uid")
+                .and_then(Value::as_i64)
+                .and_then(|uid| frames.get(&uid).copied())
+                .unwrap_or_default();
             if let Some(chunks) = grid.get("chunks").and_then(Value::as_mapping) {
                 for (_, chunk) in chunks {
-                    decode_chunk(chunk, off, &tilemap, &mut tiles);
+                    decode_chunk(chunk, frame, &tilemap, &mut tiles);
                 }
             }
         }
@@ -543,6 +684,7 @@ pub fn import(
     let mut grilles = BTreeSet::new();
     // Клетки с окном: вместо сплошного блока — прозрачная панель на ребре.
     let mut glass: BTreeSet<(i32, i32)> = BTreeSet::new();
+    let mut airtight_edges: BTreeSet<GridEdge> = BTreeSet::new();
     let mut fire_cells: BTreeSet<(i32, i32)> = BTreeSet::new();
     let mut fire_uids: BTreeMap<(i32, i32), Vec<i64>> = BTreeMap::new();
     let mut door_lists: BTreeMap<(i32, i32), Vec<Vec<String>>> = BTreeMap::new();
@@ -568,6 +710,34 @@ pub fn import(
                 continue;
             };
             let cell = (x.floor() as i32, -(y.floor() as i32) - 1);
+            // Воздухонепроницаемая сущность (вентилятор-заслон, створки): запирает рёбра клетки,
+            // стороны поворачиваются вместе с сущностью.
+            if kind == Kind::Other
+                && let Some(&mask) = mats.airtight.get(proto)
+            {
+                let turn = entity_rot(entity) as u32;
+                for bit in 0..4u32 {
+                    if mask & (1 << bit) == 0 {
+                        continue;
+                    }
+                    // Поворот против часовой: юг → восток → север → запад.
+                    let side = (bit + turn) % 4;
+                    let (dx, dz) = match side {
+                        0 => (0, 1),  // юг: вниз по карте SS14, то есть +z
+                        1 => (1, 0),  // восток
+                        2 => (0, -1), // север
+                        _ => (-1, 0), // запад
+                    };
+                    if let Some(e) = GridEdge::between(
+                        GridCell::new(cell.0, cell.1),
+                        GridCell::new(cell.0 + dx, cell.1 + dz),
+                    ) {
+                        airtight_edges.insert(e);
+                    }
+                }
+                // Заслон воздуха — не предмет: на карте его не будет, остаётся запертое ребро.
+                continue;
+            }
             match kind {
                 Kind::DirectionalWindow => {
                     directional_windows.push((cell, entity_rot(entity), proto))
@@ -1054,6 +1224,25 @@ pub fn import(
     // Значение метаданных ограничено 256 знаками: класс — одна запись (`wall_class_<n>`), клетки —
     // записи по 24 клетки (`wall_cells_<n>_<k>`); в зоне не больше 32 записей.
     let mut entries = wall_damage;
+    // Запертые для воздуха рёбра: записи `airtight_<n>` по 18 рёбер, `<X|Z>:<x>:<z>`.
+    let air: Vec<String> = airtight_edges
+        .iter()
+        .map(|e| {
+            let dir = match e.dir {
+                astrocore_math::EdgeDir::AlongX => 'X',
+                astrocore_math::EdgeDir::AlongZ => 'Z',
+            };
+            format!("{dir}:{}:{}", e.x, e.z)
+        })
+        .collect();
+    for (n, chunk) in air.chunks(18).enumerate() {
+        entries.push((format!("airtight_{n}"), chunk.join(" ")));
+    }
+    report.airtight_edges = airtight_edges.len();
+    // Должности станции: по записи на должность, `<id>:<на старте>:<всего>`.
+    for (n, (job, start, max)) in mats.station_jobs.iter().enumerate() {
+        entries.push((format!("job_slot_{n}"), format!("{job}:{start}:{max}")));
+    }
     let under: Vec<_> = grilles
         .iter()
         .filter(|cell| wall_protos.get(cell).is_some_and(|p| p.contains("Window")))
@@ -1290,3 +1479,78 @@ pub fn import(
 
 #[cfg(test)]
 mod tests;
+
+/// Что карта SS14 говорит о станции в своём прототипе `gameMap`.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct GameMapInfo {
+    pub name: String,
+    /// Должности: идентификатор, мест на старте, мест всего.
+    pub jobs: Vec<(String, i32, i32)>,
+}
+
+/// Найти прототип `gameMap` для файла карты и прочитать его: прототипы карт лежат в
+/// `<proto_root>/Maps/**/*.yml`, у каждого `mapPath` вида `/Maps/<путь>.yml`. Какой это файл,
+/// определяется по пути карты после `Resources`, без имён карт в коде.
+pub fn game_map_info(proto_root: &Path, map_file: &Path) -> Option<GameMapInfo> {
+    let text = map_file.to_string_lossy().replace('\\', "/");
+    let rel = format!("/Maps/{}", text.split_once("Resources/Maps/")?.1);
+    let mut files = Vec::new();
+    let mut stack = vec![proto_root.join("Maps")];
+    while let Some(dir) = stack.pop() {
+        for entry in std::fs::read_dir(&dir).ok()?.flatten() {
+            let path = entry.path();
+            if path.is_dir() {
+                stack.push(path);
+            } else if path.extension().is_some_and(|e| e == "yml") {
+                files.push(path);
+            }
+        }
+    }
+    for file in files {
+        let Ok(body) = std::fs::read_to_string(&file) else {
+            continue;
+        };
+        let Ok(Value::Sequence(items)) = serde_yaml::from_str::<Value>(&body) else {
+            continue;
+        };
+        for item in items {
+            if item.get("type").and_then(Value::as_str) != Some("gameMap")
+                || item.get("mapPath").and_then(Value::as_str) != Some(rel.as_str())
+            {
+                continue;
+            }
+            let mut info = GameMapInfo {
+                name: item
+                    .get("mapName")
+                    .and_then(Value::as_str)
+                    .unwrap_or_default()
+                    .to_string(),
+                jobs: Vec::new(),
+            };
+            let stations = item.get("stations").and_then(Value::as_mapping);
+            for (_, station) in stations.into_iter().flatten() {
+                let comps = station.get("components").and_then(Value::as_sequence);
+                for c in comps.into_iter().flatten() {
+                    if c.get("type").and_then(Value::as_str) != Some("StationJobs") {
+                        continue;
+                    }
+                    let jobs = c.get("availableJobs").and_then(Value::as_mapping);
+                    for (id, slots) in jobs.into_iter().flatten() {
+                        let n = |i: usize| {
+                            slots
+                                .as_sequence()
+                                .and_then(|s| s.get(i))
+                                .and_then(Value::as_i64)
+                                .map_or(-1, |v| v as i32)
+                        };
+                        if let Some(id) = id.as_str() {
+                            info.jobs.push((id.to_string(), n(0), n(1)));
+                        }
+                    }
+                }
+            }
+            return Some(info);
+        }
+    }
+    None
+}

@@ -1,4 +1,5 @@
-//! `import-map <карта.yml> <выход.ron> [имя]` — карта SS14 → формат карты Build.
+//! `import-map <карта.yml> <выход.ron> [имя] [--proto-root <Resources/Prototypes>]` — карта SS14 →
+//! формат карты Build. С `--proto-root` из прототипа `gameMap` берутся должности станции.
 
 use std::collections::BTreeSet;
 use std::path::Path;
@@ -9,13 +10,22 @@ fn main() {
         eprintln!("использование: import-map <карта.yml> <выход.ron> [имя]");
         std::process::exit(2);
     }
-    let name = args.get(2).cloned().unwrap_or_else(|| {
-        Path::new(&args[0])
-            .file_stem()
-            .and_then(|s| s.to_str())
-            .unwrap_or("map")
-            .to_string()
-    });
+    let proto_root = args
+        .iter()
+        .position(|a| a == "--proto-root")
+        .and_then(|i| args.get(i + 1))
+        .map(std::path::PathBuf::from);
+    let name = args
+        .get(2)
+        .filter(|a| !a.starts_with("--"))
+        .cloned()
+        .unwrap_or_else(|| {
+            Path::new(&args[0])
+                .file_stem()
+                .and_then(|s| s.to_str())
+                .unwrap_or("map")
+                .to_string()
+        });
     let yaml = std::fs::read_to_string(&args[0]).unwrap_or_else(|e| {
         eprintln!("{}: {e}", args[0]);
         std::process::exit(1);
@@ -67,6 +77,48 @@ fn main() {
             materials.volume_m.insert(name, v.height_px / 32.0);
         }
     }
+    if let Some(registry) = &registry {
+        for name in registry.ids().map(str::to_string).collect::<Vec<_>>() {
+            let Ok(r) = registry.spawnable(&name) else {
+                continue;
+            };
+            let Some(air) = r.component("Airtight") else {
+                continue;
+            };
+            let mask = air
+                .get("directions")
+                .and_then(prototypes::Data::as_list)
+                .unwrap_or_default()
+                .iter()
+                .filter_map(|d| match d.as_str()? {
+                    "South" => Some(1u8),
+                    "East" => Some(2),
+                    "North" => Some(4),
+                    "West" => Some(8),
+                    _ => None,
+                })
+                .fold(0, |a, b| a | b);
+            if mask != 0 {
+                materials.airtight.insert(name, mask);
+            }
+        }
+    }
+    if let Some(root) = &proto_root {
+        match tools::import_map::game_map_info(root, Path::new(&args[0])) {
+            Some(info) => {
+                println!(
+                    "прототип карты «{}»: должностей станции {}",
+                    info.name,
+                    info.jobs.len()
+                );
+                materials.station_jobs = info.jobs;
+            }
+            None => eprintln!(
+                "прототип gameMap для этой карты не найден в {}",
+                root.display()
+            ),
+        }
+    }
     match tools::import_map::import(&yaml, &name, &known, &materials) {
         Ok((map, r)) => {
             if let Err(error) = map.build_world("import-validation") {
@@ -99,6 +151,7 @@ fn main() {
                 r.chairs,
                 r.skipped_entities
             );
+            println!("  запертых для воздуха рёбер: {}", r.airtight_edges);
         }
         Err(e) => {
             eprintln!("{e}");
