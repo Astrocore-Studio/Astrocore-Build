@@ -5,7 +5,11 @@
 //! игроки выходят на станцию (выбирают должность), остальные остаются в лобби и могут
 //! присоединиться позже кнопкой «Присоединиться» (`LateJoin`).
 //!
-//! Не перенесено: чат лобби, выбор персонажа, список игроков по именам, наблюдатели.
+//! В лобби, как в `LobbyGui`: список игроков с именами и готовностью, кнопка «Наблюдать» (призрак
+//! без должности), поздний вход с выбором должности (`LateJoin`), превью персонажа, чат.
+//!
+//! Не перенесено: имя учётной записи (в списке — имя персонажа), фон лобби и «совет дня»,
+//! голосование за режим, таймеры паузы.
 
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -13,7 +17,12 @@ use astrocore_core::NetworkEntityId;
 use serde::{Deserialize, Serialize};
 
 pub const LOBBY_COMPONENT: &str = "build.lobby";
-pub const LOBBY_MAX_BYTES: usize = 1024;
+pub const LOBBY_MAX_BYTES: usize = 8192;
+/// Игроков в списке лобби не больше (список идёт одним компонентом).
+pub const LOBBY_MAX_PLAYERS: usize = 64;
+/// Команды лобби: стать наблюдателем; присоединиться к идущему раунду на должности (id в байтах).
+pub const CMD_LOBBY_OBSERVE: &str = "lobby.observe";
+pub const CMD_LOBBY_LATEJOIN: &str = "lobby.latejoin";
 
 /// Состояние лобби на сервере.
 #[derive(Debug, Clone)]
@@ -43,6 +52,22 @@ impl Lobby {
     }
 }
 
+/// Что делает игрок (`PlayerStatus`): в лобби готов или нет, играет, наблюдает.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum PlayerStatus {
+    NotReady,
+    Ready,
+    Playing,
+    Observing,
+}
+
+/// Строка списка игроков.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct LobbyPlayer {
+    pub name: String,
+    pub status: PlayerStatus,
+}
+
 /// Для клиента: состояние лобби этого игрока.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct LobbyView {
@@ -57,6 +82,9 @@ pub struct LobbyView {
     pub total: u32,
     pub round: u32,
     pub station: String,
+    /// Все игроки сервера с именами персонажей и статусом.
+    #[serde(default)]
+    pub players: Vec<LobbyPlayer>,
 }
 
 pub fn encode_lobby(v: &LobbyView) -> Vec<u8> {
@@ -85,6 +113,16 @@ mod tests {
             total: 3,
             round: 1,
             station: "Saltern".into(),
+            players: vec![
+                LobbyPlayer {
+                    name: "Иван Иванов".into(),
+                    status: PlayerStatus::Ready,
+                },
+                LobbyPlayer {
+                    name: "Анна".into(),
+                    status: PlayerStatus::Observing,
+                },
+            ],
         };
         assert_eq!(decode_lobby(&encode_lobby(&v)), Some(v));
         assert_eq!(decode_lobby(&[]), None);

@@ -138,6 +138,32 @@ pub struct CharacterEditor {
     pub autoplay_done: bool,
     /// Текстура превью и то, для чего она построена.
     preview: Option<((gameplay::character::Look, u8), egui::TextureHandle)>,
+    /// То же для превью в лобби (профиль, принятый сервером).
+    lobby_preview: Option<((gameplay::character::Look, u8), egui::TextureHandle)>,
+}
+
+/// Текстура превью профиля с выбранной стороны; перестраивается, только когда меняется вид.
+fn preview_texture(
+    ctx: &egui::Context,
+    outfits: &mut crate::outfit::Outfits,
+    rules: &Rules,
+    profile: &Profile,
+    side: u8,
+    name: &str,
+    cache: &mut Option<((gameplay::character::Look, u8), egui::TextureHandle)>,
+) -> egui::TextureId {
+    let key = (profile.validated(rules).look(rules), side);
+    if cache.as_ref().map(|(k, _)| k) != Some(&key) {
+        let sheet = outfits.preview_sheet(&key.0);
+        let cell = sheet.height();
+        let img = image::imageops::crop_imm(&sheet, u32::from(side).min(3) * cell, 0, cell, cell)
+            .to_image();
+        let color =
+            egui::ColorImage::from_rgba_unmultiplied([cell as usize, cell as usize], img.as_raw());
+        let tex = ctx.load_texture(name, color, egui::TextureOptions::NEAREST);
+        *cache = Some((key, tex));
+    }
+    cache.as_ref().map(|(_, t)| t.id()).expect("текстура есть")
 }
 
 fn sex_label(s: Sex) -> &'static str {
@@ -168,7 +194,7 @@ impl CharacterEditor {
     }
 
     /// Текстура превью черновика с выбранной стороны: лист собирает `outfits` (тело, цвет кожи,
-    /// глаза, причёска, борода), одежды в превью нет. Перестраивается, только когда меняется вид.
+    /// глаза, причёска, борода), одежды в превью нет.
     pub fn preview(
         &mut self,
         ctx: &egui::Context,
@@ -178,21 +204,40 @@ impl CharacterEditor {
         if !self.open {
             return None;
         }
-        let look = self.draft.as_ref()?.validated(rules).look(rules);
-        let key = (look, self.preview_side);
-        if self.preview.as_ref().map(|(k, _)| k) != Some(&key) {
-            let sheet = outfits.preview_sheet(&key.0);
-            let cell = sheet.height();
-            let side = u32::from(key.1).min(3);
-            let img = image::imageops::crop_imm(&sheet, side * cell, 0, cell, cell).to_image();
-            let color = egui::ColorImage::from_rgba_unmultiplied(
-                [cell as usize, cell as usize],
-                img.as_raw(),
-            );
-            let tex = ctx.load_texture("character_preview", color, egui::TextureOptions::NEAREST);
-            self.preview = Some((key, tex));
-        }
-        self.preview.as_ref().map(|(_, t)| t.id())
+        let draft = self.draft.clone()?;
+        Some(preview_texture(
+            ctx,
+            outfits,
+            rules,
+            &draft,
+            self.preview_side,
+            "character_preview",
+            &mut self.preview,
+        ))
+    }
+
+    /// Превью принятого сервером профиля для лобби (лицом к зрителю).
+    pub fn lobby_preview(
+        &mut self,
+        ctx: &egui::Context,
+        outfits: &mut crate::outfit::Outfits,
+        rules: &Rules,
+    ) -> Option<egui::TextureId> {
+        let server = self.server.clone()?;
+        Some(preview_texture(
+            ctx,
+            outfits,
+            rules,
+            &server,
+            0,
+            "lobby_preview",
+            &mut self.lobby_preview,
+        ))
+    }
+
+    /// Имя персонажа, принятое сервером.
+    pub fn server_name(&self) -> Option<&str> {
+        self.server.as_ref().map(|p| p.name.as_str())
     }
 
     /// Есть правки, которых сервер ещё не видел.

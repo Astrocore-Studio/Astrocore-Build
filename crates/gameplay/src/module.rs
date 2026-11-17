@@ -5259,6 +5259,29 @@ impl State {
         }
         let total = ids.len() as u32;
         let ready_count = l.ready.len() as u32;
+        // Список игроков: имя персонажа и что он делает.
+        let roster: Vec<crate::lobby::LobbyPlayer> = ids
+            .iter()
+            .take(crate::lobby::LOBBY_MAX_PLAYERS)
+            .map(|p| {
+                let actor = self.actors.get(p);
+                let status = if l.in_lobby.contains(p) {
+                    if l.ready.contains(p) {
+                        crate::lobby::PlayerStatus::Ready
+                    } else {
+                        crate::lobby::PlayerStatus::NotReady
+                    }
+                } else if actor.is_some_and(|a| a.ghost) && !self.player_job.contains_key(p) {
+                    crate::lobby::PlayerStatus::Observing
+                } else {
+                    crate::lobby::PlayerStatus::Playing
+                };
+                crate::lobby::LobbyPlayer {
+                    name: actor.map_or_else(String::new, |a| a.slots.current().name.clone()),
+                    status,
+                }
+            })
+            .collect();
         for p in ids {
             let view = crate::lobby::LobbyView {
                 in_lobby: l.in_lobby.contains(&p),
@@ -5269,6 +5292,7 @@ impl State {
                 total,
                 round: l.round,
                 station: self.alerts.station.clone(),
+                players: roster.clone(),
             };
             let bytes = crate::lobby::encode_lobby(&view);
             if l.sent.get(&p) != Some(&bytes) {
@@ -7381,6 +7405,47 @@ impl State {
     }
 
     /// «Готов»/«Не готов» до старта, «Присоединиться» после.
+    /// «Наблюдать»: игрок выходит из лобби призраком без должности (`Observe`).
+    fn lobby_observe(&mut self, ctx: &mut HookContext<'_>, actor: NetworkEntityId) {
+        let Some(l) = self.lobby.as_mut() else {
+            return;
+        };
+        if !l.in_lobby.remove(&actor) {
+            return;
+        }
+        l.ready.remove(&actor);
+        self.placed.remove(&actor);
+        let clock = self.clock;
+        let a = self.actor(actor);
+        a.ghost = true;
+        a.respawn_at = clock;
+        ctx.set_ghost(actor, true);
+        self.publish(ctx, actor);
+    }
+
+    /// Поздний вход: раунд идёт, должность свободна — выйти на станцию сразу с ней.
+    fn lobby_latejoin(&mut self, ctx: &mut HookContext<'_>, actor: NetworkEntityId, job: &str) {
+        if !self
+            .lobby
+            .as_ref()
+            .is_some_and(|l| l.started && l.in_lobby.contains(&actor))
+        {
+            return;
+        }
+        let free = self.jobs.iter().find(|j| j.id == job).is_some_and(|spec| {
+            spec.max < 0 || self.job_taken.get(job).copied().unwrap_or(0) < spec.max as u32
+        });
+        if !free {
+            return;
+        }
+        if let Some(l) = self.lobby.as_mut() {
+            l.in_lobby.remove(&actor);
+            l.ready.remove(&actor);
+        }
+        self.placed.remove(&actor);
+        self.pick_job(ctx, actor, job);
+    }
+
     fn lobby_ready(&mut self, _ctx: &mut HookContext<'_>, actor: NetworkEntityId) {
         let Some(l) = self.lobby.as_mut() else {
             return;
@@ -8546,7 +8611,7 @@ impl GameModule for GameplayModule {
             HookEvent::Command { actor, kind, data } if kind == crate::wire::CMD_CHAT => {
                 st.chat_say(ctx, *actor, data);
             }
-            HookEvent::Command { actor, kind, .. }
+            HookEvent::Command { actor, kind, data }
                 if st
                     .lobby
                     .as_ref()
@@ -8554,6 +8619,12 @@ impl GameModule for GameplayModule {
             {
                 if kind == crate::wire::CMD_LOBBY_READY {
                     st.lobby_ready(ctx, *actor);
+                } else if kind == crate::lobby::CMD_LOBBY_OBSERVE {
+                    st.lobby_observe(ctx, *actor);
+                } else if kind == crate::lobby::CMD_LOBBY_LATEJOIN
+                    && let Ok(job) = std::str::from_utf8(data)
+                {
+                    st.lobby_latejoin(ctx, *actor, job);
                 }
             }
             HookEvent::Command { actor, kind, .. } if kind == CMD_RESPAWN => {

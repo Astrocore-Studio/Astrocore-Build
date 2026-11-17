@@ -49,7 +49,10 @@ pub use chat::{CHAT_COMPONENT, Channel, ChatLine, ChatView, chat_data, decode_ch
 pub mod lobby;
 pub mod round_end;
 pub use jobs::{JOBS_COMPONENT, JobEntry, JobsView, decode_jobs};
-pub use lobby::{LOBBY_COMPONENT, LobbyView, decode_lobby};
+pub use lobby::{
+    CMD_LOBBY_LATEJOIN, CMD_LOBBY_OBSERVE, LOBBY_COMPONENT, LobbyPlayer, LobbyView, PlayerStatus,
+    decode_lobby,
+};
 pub use round_end::{
     CrewEntry, EndReason, RESTART_DELAY_S, ROUNDEND_COMPONENT, RoundEndView, RoundSignal,
     decode_end,

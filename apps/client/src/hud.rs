@@ -621,6 +621,8 @@ pub(crate) fn crafting_window(
 
 #[derive(Default)]
 pub struct HudState {
+    /// Панель позднего входа в лобби открыта.
+    pub lobby_late_open: bool,
     pub rcd_open: bool,
     pub rcd_category: Option<&'static str>,
     rcd_center: Option<egui::Pos2>,
@@ -1774,66 +1776,259 @@ pub fn chat_panel(
     out
 }
 
-/// Экран лобби (`LobbyGui`): заголовок, раунд, таймер и кнопка «Готов» / «Присоединиться».
+/// Что экрану лобби нужно от клиента, кроме самого состояния лобби.
+pub struct LobbyUi<'a> {
+    /// Окно редактора персонажа открыто.
+    pub editor_open: &'a mut bool,
+    /// Панель позднего входа открыта.
+    pub late_open: &'a mut bool,
+    /// Превью принятого сервером персонажа и его имя.
+    pub preview: Option<(egui::TextureId, &'a str)>,
+    /// Должности со счётчиками мест и правила (отделы) для окна позднего входа.
+    pub jobs: Option<&'a gameplay::jobs::JobsView>,
+    pub rules: Option<&'a gameplay::character::Rules>,
+}
+
+fn status_text(s: gameplay::PlayerStatus) -> (&'static str, Color32) {
+    use gameplay::PlayerStatus::{NotReady, Observing, Playing, Ready};
+    match s {
+        Ready => ("Готов", Color32::from_rgb(110, 200, 130)),
+        NotReady => ("Не готов", Color32::from_gray(150)),
+        Playing => ("Играет", Color32::from_rgb(120, 170, 240)),
+        Observing => ("Наблюдает", Color32::from_rgb(190, 140, 230)),
+    }
+}
+
+/// Строка окна позднего входа: подпись с числом мест, идентификатор, свободна ли.
+pub type LateJoinRow = (String, String, bool);
+/// Отдел и его должности в окне позднего входа.
+pub type LateJoinDept = (String, Vec<LateJoinRow>);
+
+/// Должности, которые можно взять сейчас, по отделам (для окна позднего входа): отдел, название и
+/// число мест, идентификатор, свободна ли. Порядок как у правил персонажа.
+pub fn late_join_rows(
+    jobs: &gameplay::jobs::JobsView,
+    rules: Option<&gameplay::character::Rules>,
+) -> Vec<LateJoinDept> {
+    let dept_of = |id: &str| {
+        rules
+            .and_then(|r| r.jobs.iter().find(|j| j.id == id))
+            .map_or(String::new(), |j| j.dept.clone())
+    };
+    let mut order: Vec<String> = rules
+        .map(|r| r.departments.iter().map(|d| d.id.clone()).collect())
+        .unwrap_or_default();
+    order.push(String::new());
+    let name_of = |d: &str| {
+        rules
+            .and_then(|r| r.departments.iter().find(|x| x.id == d))
+            .map_or_else(|| "Другое".to_string(), |x| x.name.clone())
+    };
+    let rank = |id: &str| {
+        rules
+            .and_then(|r| r.jobs.iter().position(|j| j.id == id))
+            .unwrap_or(usize::MAX)
+    };
+    let mut out = Vec::new();
+    for d in order {
+        let mut rows: Vec<&gameplay::jobs::JobEntry> = jobs
+            .jobs
+            .iter()
+            .filter(|j| dept_of(&j.id) == d || (d.is_empty() && !order_has(rules, &dept_of(&j.id))))
+            .collect();
+        rows.sort_by_key(|j| rank(&j.id));
+        if rows.is_empty() {
+            continue;
+        }
+        out.push((
+            name_of(&d),
+            rows.into_iter()
+                .map(|j| {
+                    let places = if j.max < 0 {
+                        format!("{}", j.taken)
+                    } else {
+                        format!("{}/{}", j.taken, j.max)
+                    };
+                    let free = j.max < 0 || (j.taken as i32) < j.max;
+                    (format!("{} ({places})", j.title), j.id.clone(), free)
+                })
+                .collect(),
+        ));
+    }
+    out
+}
+
+fn order_has(rules: Option<&gameplay::character::Rules>, dept: &str) -> bool {
+    !dept.is_empty() && rules.is_some_and(|r| r.departments.iter().any(|d| d.id == dept))
+}
+
+/// Экран лобби (`LobbyGui`): слева название, таймер, кнопки и превью персонажа; в центре чат и
+/// (после старта) окно позднего входа; справа игроки с готовностью.
 pub fn lobby_screen(
     ctx: &egui::Context,
     v: &gameplay::LobbyView,
-    editor_open: &mut bool,
+    ui_state: LobbyUi<'_>,
 ) -> Commands {
     let mut out: Commands = Vec::new();
     let screen = ctx.content_rect();
+    let LobbyUi {
+        editor_open,
+        late_open,
+        preview,
+        jobs,
+        rules,
+    } = ui_state;
     egui::Area::new(egui::Id::new("lobby"))
         .order(egui::Order::Foreground)
         .fixed_pos(screen.min)
         .show(ctx, |ui| {
-            ui.painter()
-                .rect_filled(screen, 0.0, Color32::from_rgb(10, 12, 18));
+            // Фон на самом нижнем слое, иначе он закрыл бы чат и окна, лежащие на этом же слое.
+            ctx.layer_painter(egui::LayerId::new(
+                egui::Order::Background,
+                egui::Id::new("lobby_background"),
+            ))
+            .rect_filled(screen, 0.0, Color32::from_rgb(10, 12, 18));
             ui.set_min_size(screen.size());
-            ui.vertical_centered(|ui| {
-                ui.add_space((ui.available_height() * 0.2).max(24.0));
+            let margin = 28.0;
+            let left = egui::Rect::from_min_size(
+                screen.min + egui::vec2(margin, margin),
+                egui::vec2(300.0, screen.height() - margin * 2.0),
+            );
+            let right_w = 260.0_f32.min(screen.width() * 0.25);
+            let right = egui::Rect::from_min_size(
+                egui::pos2(screen.max.x - margin - right_w, screen.min.y + margin),
+                egui::vec2(right_w, screen.height() - margin * 2.0),
+            );
+            let centre = egui::Rect::from_min_max(
+                egui::pos2(left.max.x + margin, screen.min.y + margin),
+                egui::pos2(right.min.x - margin, screen.max.y - margin),
+            );
+            ui.scope_builder(egui::UiBuilder::new().max_rect(left), |ui| {
                 ui.label(
                     egui::RichText::new("ASTROCORE BUILD")
-                        .size(48.0)
+                        .size(30.0)
                         .strong()
                         .color(Color32::from_rgb(170, 200, 255)),
                 );
-                ui.add_space(6.0);
                 ui.label(
                     egui::RichText::new(format!("Станция {} · раунд {}", v.station, v.round))
-                        .size(20.0)
                         .color(Color32::from_gray(190)),
                 );
-                ui.add_space(28.0);
+                ui.add_space(10.0);
                 let timer = if v.started {
                     "Раунд идёт".to_string()
                 } else {
                     format!("До начала раунда: {}:{:02}", v.left / 60, v.left % 60)
                 };
-                ui.label(egui::RichText::new(timer).size(28.0));
-                ui.add_space(8.0);
-                ui.label(format!("Игроков: {} · готовы: {}", v.total, v.ready_count));
-                ui.add_space(24.0);
-                let (text, fill) = if v.started {
-                    ("Присоединиться", Color32::from_rgb(40, 110, 70))
-                } else if v.ready {
-                    ("Готов ✓", Color32::from_rgb(40, 110, 70))
-                } else {
-                    ("Не готов", Color32::from_rgb(90, 50, 50))
+                ui.label(egui::RichText::new(timer).size(22.0));
+                ui.label(
+                    egui::RichText::new(format!(
+                        "Игроков: {} · готовы: {}",
+                        v.total, v.ready_count
+                    ))
+                    .small()
+                    .color(Color32::from_gray(150)),
+                );
+                ui.add_space(12.0);
+                let wide = |text: &str, fill: Color32| {
+                    egui::Button::new(egui::RichText::new(text).size(20.0))
+                        .fill(fill)
+                        .min_size(egui::vec2(300.0, 44.0))
                 };
-                let button = egui::Button::new(egui::RichText::new(text).size(24.0))
-                    .fill(fill)
-                    .min_size(egui::vec2(240.0, 52.0));
-                if ui.add(button).clicked() {
-                    out.push((gameplay::CMD_LOBBY_READY, Vec::new()));
+                if v.started {
+                    let text = if *late_open {
+                        "Присоединиться (выбор ниже)"
+                    } else {
+                        "Присоединиться"
+                    };
+                    if ui.add(wide(text, Color32::from_rgb(40, 110, 70))).clicked() {
+                        *late_open = !*late_open;
+                    }
+                } else {
+                    let (text, fill) = if v.ready {
+                        ("Готов ✓", Color32::from_rgb(40, 110, 70))
+                    } else {
+                        ("Не готов", Color32::from_rgb(90, 50, 50))
+                    };
+                    if ui.add(wide(text, fill)).clicked() {
+                        out.push((gameplay::CMD_LOBBY_READY, Vec::new()));
+                    }
                 }
-                ui.add_space(8.0);
-                let character = egui::Button::new(egui::RichText::new("Персонаж").size(20.0))
-                    .min_size(egui::vec2(240.0, 40.0));
-                if ui.add(character).clicked() {
+                ui.add_space(6.0);
+                if ui
+                    .add(wide("Наблюдать", Color32::from_rgb(60, 50, 90)))
+                    .clicked()
+                {
+                    out.push((gameplay::CMD_LOBBY_OBSERVE, Vec::new()));
+                }
+                ui.add_space(6.0);
+                if ui.add(wide("Персонаж", Color32::from_gray(60))).clicked() {
                     *editor_open = !*editor_open;
                 }
-                if !v.started {
-                    ui.add_space(10.0);
+                ui.add_space(14.0);
+                if let Some((tex, name)) = preview {
+                    ui.vertical_centered(|ui| {
+                        ui.image((tex, egui::vec2(160.0, 160.0)));
+                        ui.label(egui::RichText::new(name).strong());
+                    });
+                }
+            });
+            ui.scope_builder(egui::UiBuilder::new().max_rect(right), |ui| {
+                ui.label(egui::RichText::new("Игроки").size(20.0).strong());
+                ui.separator();
+                egui::ScrollArea::vertical()
+                    .id_salt("lobby_players")
+                    .show(ui, |ui| {
+                        for p in &v.players {
+                            let (text, color) = status_text(p.status);
+                            ui.horizontal(|ui| {
+                                ui.label(&p.name);
+                                ui.with_layout(
+                                    egui::Layout::right_to_left(egui::Align::Center),
+                                    |ui| {
+                                        ui.label(egui::RichText::new(text).color(color).small());
+                                    },
+                                );
+                            });
+                        }
+                    });
+            });
+            ui.scope_builder(egui::UiBuilder::new().max_rect(centre), |ui| {
+                if v.started && *late_open {
+                    ui.label(
+                        egui::RichText::new("Выберите должность")
+                            .size(20.0)
+                            .strong(),
+                    );
+                    ui.separator();
+                    match jobs {
+                        Some(jobs) => {
+                            egui::ScrollArea::vertical()
+                                .id_salt("late_join")
+                                .max_height((centre.height() - 260.0).max(120.0))
+                                .show(ui, |ui| {
+                                    for (dept, rows) in late_join_rows(jobs, rules) {
+                                        ui.add_space(4.0);
+                                        ui.label(egui::RichText::new(dept).strong());
+                                        for (label, id, free) in rows {
+                                            if ui
+                                                .add_enabled(free, egui::Button::new(label))
+                                                .clicked()
+                                            {
+                                                out.push((
+                                                    gameplay::CMD_LOBBY_LATEJOIN,
+                                                    id.into_bytes(),
+                                                ));
+                                            }
+                                        }
+                                    }
+                                });
+                        }
+                        None => {
+                            ui.label("Список должностей загружается…");
+                        }
+                    }
+                } else if !v.started {
                     ui.label(
                         egui::RichText::new(
                             "Готовые игроки выйдут на станцию, когда таймер дойдёт до нуля",
@@ -2830,6 +3025,68 @@ pub fn chemhand_bar(ctx: &egui::Context, view: Option<&gameplay::ChemHandView>) 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    #[allow(clippy::field_reassign_with_default)]
+    fn the_late_join_list_groups_jobs_by_department_and_marks_full_ones() {
+        use gameplay::character::{Dept, JobPref, Rules};
+        use gameplay::jobs::{JobEntry, JobsView};
+        let mut rules = Rules::default();
+        rules.departments = vec![
+            Dept {
+                id: "Command".into(),
+                name: "Командование".into(),
+                weight: 100,
+                color: [0; 3],
+            },
+            Dept {
+                id: "Service".into(),
+                name: "Сервис".into(),
+                weight: 0,
+                color: [0; 3],
+            },
+        ];
+        let job = |id: &str, dept: &str| JobPref {
+            id: id.into(),
+            title: id.into(),
+            dept: dept.into(),
+            weight: 0,
+        };
+        rules.jobs = vec![
+            job("Captain", "Command"),
+            job("Chef", "Service"),
+            job("Clown", "Service"),
+        ];
+        let entry = |id: &str, taken: u32, max: i32| JobEntry {
+            id: id.into(),
+            title: id.into(),
+            taken,
+            max,
+        };
+        let view = JobsView {
+            jobs: vec![
+                entry("Chef", 1, 1),
+                entry("Captain", 0, 1),
+                entry("Clown", 0, 1),
+                entry("Odd", 0, -1),
+            ],
+            current: None,
+        };
+        let rows = late_join_rows(&view, Some(&rules));
+        let names: Vec<&str> = rows.iter().map(|(d, _)| d.as_str()).collect();
+        assert_eq!(names, vec!["Командование", "Сервис", "Другое"]);
+        let service = &rows[1].1;
+        assert_eq!(
+            service[0],
+            ("Chef (1/1)".to_string(), "Chef".to_string(), false),
+            "место занято"
+        );
+        assert!(service[1].2, "клоун свободен");
+        assert_eq!(
+            rows[2].1[0].0, "Odd (0)",
+            "без предела мест — только число занятых"
+        );
+    }
 
     fn frame(ctx: &egui::Context, f: impl FnOnce(&egui::Context)) -> usize {
         let mut f = Some(f);

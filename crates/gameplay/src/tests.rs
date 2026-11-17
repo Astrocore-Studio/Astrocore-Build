@@ -2426,6 +2426,104 @@ mod disposal_tests {
     }
 
     #[test]
+    fn the_lobby_lists_every_player_with_a_name_and_a_status_and_observers_are_ghosts() {
+        use crate::lobby::PlayerStatus::{NotReady, Observing, Ready};
+        let mut h = harness_with(|m| m.with_lobby(1000.0, 1));
+        let (a, b) = (h.join("a"), h.join("b"));
+        h.ticks(10);
+        save_profile(&mut h, a, |p| p.name = "Первый Игрок".into());
+        save_profile(&mut h, b, |p| p.name = "Второй Игрок".into());
+        command(&mut h, a, crate::CMD_LOBBY_READY, vec![]);
+        h.ticks(5);
+        let name_of = |h: &Harness, who| profile_of(h, who).unwrap().name;
+        let view = lobby_view(&h, b).unwrap();
+        assert_eq!(view.players.len(), 2);
+        let mine = view
+            .players
+            .iter()
+            .find(|p| p.name == name_of(&h, a))
+            .unwrap();
+        let theirs = view
+            .players
+            .iter()
+            .find(|p| p.name == name_of(&h, b))
+            .unwrap();
+        assert_eq!((mine.status, theirs.status), (Ready, NotReady));
+        // Наблюдать: вышел из лобби призраком без должности; остальные видят его статус.
+        command(&mut h, b, crate::lobby::CMD_LOBBY_OBSERVE, Vec::new());
+        h.ticks(10);
+        assert!(!lobby_view(&h, b).unwrap().in_lobby);
+        assert_eq!(jobs_view(&h, b).unwrap().current, None);
+        let seen = lobby_view(&h, a).unwrap();
+        assert!(
+            seen.players.iter().any(|p| p.status == Observing),
+            "{:?}",
+            seen.players
+        );
+        let net = h.client(b).net_id().unwrap();
+        let ghost = h
+            .client(b)
+            .component(net, crate::HEALTH_COMPONENT)
+            .and_then(crate::decode_health)
+            .is_some_and(|v| v.ghost);
+        assert!(ghost, "наблюдатель — призрак");
+    }
+
+    #[test]
+    fn a_late_join_takes_a_free_job_only_after_the_start_and_never_a_full_one() {
+        let mut h = harness_with(|m| m.with_lobby(3.0, 1));
+        let (a, b, c) = (h.join("a"), h.join("b"), h.join("c"));
+        h.ticks(5);
+        // До старта поздний вход невозможен.
+        command(
+            &mut h,
+            a,
+            crate::lobby::CMD_LOBBY_LATEJOIN,
+            b"Tester".to_vec(),
+        );
+        h.ticks(3);
+        assert!(lobby_view(&h, a).unwrap().in_lobby);
+        h.ticks(80);
+        assert!(lobby_view(&h, a).unwrap().started);
+        // Тестер — одно место: первый его занимает, второму отказ, он остаётся в лобби.
+        command(
+            &mut h,
+            a,
+            crate::lobby::CMD_LOBBY_LATEJOIN,
+            b"Tester".to_vec(),
+        );
+        h.ticks(5);
+        assert_eq!(jobs_view(&h, a).unwrap().current.as_deref(), Some("Tester"));
+        assert!(!lobby_view(&h, a).unwrap().in_lobby);
+        command(
+            &mut h,
+            b,
+            crate::lobby::CMD_LOBBY_LATEJOIN,
+            b"Tester".to_vec(),
+        );
+        h.ticks(5);
+        assert!(lobby_view(&h, b).unwrap().in_lobby, "место занято");
+        assert_eq!(jobs_view(&h, b).unwrap().current, None);
+        // Неизвестная должность — тоже отказ; свободная — вход.
+        command(
+            &mut h,
+            b,
+            crate::lobby::CMD_LOBBY_LATEJOIN,
+            b"NoSuchJob".to_vec(),
+        );
+        h.ticks(3);
+        assert!(lobby_view(&h, b).unwrap().in_lobby);
+        command(
+            &mut h,
+            c,
+            crate::lobby::CMD_LOBBY_LATEJOIN,
+            b"Free".to_vec(),
+        );
+        h.ticks(5);
+        assert_eq!(jobs_view(&h, c).unwrap().current.as_deref(), Some("Free"));
+    }
+
+    #[test]
     fn the_round_start_gives_each_ready_player_a_job_by_their_priorities() {
         use crate::character::{Priority, Unavailable};
         let mut h = harness_with(|m| m.with_lobby(3.0, 1));

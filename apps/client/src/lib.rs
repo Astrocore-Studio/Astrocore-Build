@@ -1304,9 +1304,13 @@ fn loadout_window(
     }
     // Лобби: экран на весь кадр, пока игрок не вышел на станцию.
     if let Some(lobby) = loadout.lobby.as_ref().filter(|l| l.in_lobby) {
-        let at = egui::pos2(16.0, (ctx.content_rect().max.y - 230.0).max(16.0));
+        // Чат лобби: в центральной колонке, внизу (левая колонка — кнопки, правая — игроки).
+        let at = egui::pos2(356.0, (ctx.content_rect().max.y - 230.0).max(16.0));
         if let Some(mode) = std::env::var_os("ASTRO_AUTOPLAY_CHAR") {
-            hud.character.open = true;
+            hud.character.open = mode != "late";
+            if mode == "late" {
+                hud.state.lobby_late_open = true;
+            }
             if mode == "jobs" {
                 hud.character.tab = character_ui::Tab::Jobs;
             }
@@ -1317,18 +1321,36 @@ fn loadout_window(
                 net.send_command(gameplay::character::CMD_CHAR_CREATE, Vec::new());
             }
         }
-        let mut cmds = hud::lobby_screen(&ctx, lobby, &mut hud.character.open);
+        hud.character.sync(loadout.char_profile.as_ref());
+        let name = hud.character.server_name().unwrap_or_default().to_string();
+        let preview = match (loadout.char_rules.as_ref(), outfits.as_deref_mut()) {
+            (Some(rules), Some(o)) => hud.character.lobby_preview(&ctx, o, rules),
+            _ => None,
+        };
+        let Hud {
+            character, state, ..
+        } = &mut *hud;
+        let mut cmds = hud::lobby_screen(
+            &ctx,
+            lobby,
+            hud::LobbyUi {
+                editor_open: &mut character.open,
+                late_open: &mut state.lobby_late_open,
+                preview: preview.map(|t| (t, name.as_str())),
+                jobs: loadout.jobs.as_ref(),
+                rules: loadout.char_rules.as_ref(),
+            },
+        );
         if let Some(rules) = loadout.char_rules.as_ref() {
-            hud.character.sync(loadout.char_profile.as_ref());
-            let preview = outfits
+            let editor_preview = outfits
                 .as_deref_mut()
-                .and_then(|o| hud.character.preview(&ctx, o, rules));
+                .and_then(|o| character.preview(&ctx, o, rules));
             cmds.extend(character_ui::character_window(
                 &ctx,
-                &mut hud.character,
+                character,
                 rules,
                 loadout.char_slots.as_ref(),
-                preview,
+                editor_preview,
             ));
         }
         cmds.extend(hud::chat_panel(
