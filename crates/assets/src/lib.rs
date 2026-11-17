@@ -262,14 +262,13 @@ pub fn build_manifest(
         } else {
             [1, 1]
         };
-        let (dirs, frames) = set.meta.state(&s.state).map_or((1, 1), |st| {
+        // Кадры и их задержки (первое направление): по ним движок анимирует спрайт, как RobustToolbox.
+        let (frames, delays) = set.meta.state(&s.state).map_or((1, Vec::new()), |st| {
             (
-                u8::from(st.directions == astrocore_sprites::DirectionSet::Four) * 4,
                 st.frame_count() as u32,
+                st.delays.first().cloned().unwrap_or_default(),
             )
         });
-        // Стоячая вещь с четырьмя направлениями собирается брусом из четырёх видов.
-        let box4 = !s.flat && dirs == 4 && grid[0] * grid[1] >= 4 * frames;
         let size = if s.pixel_size && cw > 0 && ch > 0 {
             [cw as f32 / PIXELS_PER_METER, ch as f32 / PIXELS_PER_METER]
         } else {
@@ -283,21 +282,12 @@ pub fn build_manifest(
                 "grid": grid,
                 "oriented": s.oriented,
                 "name": s.name,
-                "layout": if s.flat {
-                    "flat"
-                } else if box4 {
-                    "box4"
-                } else {
-                    "voxel"
-                },
+                // Все спрайты плоские: лежат на полу или стоят лицом к камере.
+                "layout": if s.flat { "flat" } else { "billboard" },
                 "frames": frames,
-                // Глубина объёма стоячего спрайта: половина меньшей стороны, от 10 до 50 см.
-                // Лежащие предметы — объём в два пикселя (2/32 м); стоячие — половина меньшей стороны.
-                "thickness": if s.flat {
-                    2.0 / PIXELS_PER_METER
-                } else {
-                    (size[0].min(size[1]) * 0.5).clamp(0.1, 0.5)
-                },
+                "delays": delays,
+                // Толщина лежащего предмета — два пикселя (2/32 м); стоячие объёма не имеют.
+                "thickness": 2.0 / PIXELS_PER_METER,
             }),
         );
     }
