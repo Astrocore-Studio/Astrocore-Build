@@ -42,6 +42,27 @@ def seeds():
     for fn in ('spawners.ron', 'storage.ron', 'dispensers.ron'):
         if os.path.exists('content/prototypes/' + fn):
             out |= set(re.findall(r'"(\w+)"', open('content/prototypes/' + fn).read()))
+    # Варианты одежды и рюкзака по предпочтениям профиля (`CharacterRules`: приставки имён):
+    # юбка вместо комбинезона, сумка и вещмешок вместо рюкзака, если такой предмет есть.
+    variants = set()
+    for name in out:
+        if name.startswith('ClothingUniformJumpsuit'):
+            variants.add('ClothingUniformJumpskirt' + name[len('ClothingUniformJumpsuit'):])
+        if name.startswith('ClothingBackpack') and not name.startswith(('ClothingBackpackSatchel', 'ClothingBackpackDuffel')):
+            rest = name[len('ClothingBackpack'):]
+            variants.add('ClothingBackpackSatchel' + rest)
+            variants.add('ClothingBackpackDuffel' + rest)
+    # Берём вариант, только если у него есть спрайты в текстурах (`ASTRO_TEXTURES` — каталог
+    # `Textures` форка): прототипы SS14 и текстуры форка бывают разных ревизий.
+    tex = os.environ.get('ASTRO_TEXTURES')
+
+    def has_art(v):
+        if not tex:
+            return True
+        rsi = (P.entity_components(v).get('Sprite') or {}).get('sprite')
+        return bool(rsi) and os.path.isdir(os.path.join(tex, rsi))
+
+    out |= {v for v in variants if P.get('entity', v) and not P.is_abstract(v) and has_art(v)}
     t = open(MAP).read()
     out |= set(re.findall(r'^- proto: (\w+)$', t, re.M))
     # Результаты ХимМастера и все предметы-смесители.

@@ -78,6 +78,32 @@ def main():
     for m in re.finditer(r'^(job-name-[\w-]+) = (.+)$', ftl, re.M):
         names[m.group(1)] = m.group(2)
     weights = P.get('jobWeight', 'Default')['weights']
+    # Отделы (`DepartmentPrototype`): порядок по весу (больше — выше), основной отдел должности —
+    # первый из подходящих. Служебные (`editorHidden`) в редактор не попадают.
+    dnames = {}
+    for m in re.finditer(r'^(department-[\w]+) = (.+)$', open(root + '/Resources/Locale/en-US/job/department.ftl').read(), re.M):
+        dnames[m.group(1)] = m.group(2)
+    depts = []
+    for did in P.by_type.get('department', []):
+        d = P.get('department', did)
+        depts.append((-(d.get('weight') or 0), did, d))
+    depts.sort(key=lambda x: (x[0], x[1]))
+
+    def primary_dept(jid):
+        for _, did, d in depts:
+            if jid in (d.get('roles') or []):
+                return did
+        return ''
+
+    dept_lines = ['// Отделы SS14 (Resources/Prototypes/Roles/Jobs/departments.yml). Создано scripts/gen_roles.py.', '[']
+    for _, did, d in depts:
+        col = d.get('color') or '#7F7F7F'
+        rgb = [int(col[i:i + 2], 16) for i in (1, 3, 5)]
+        dept_lines.append('    (id: "Department%s", components: {"Department": (name: %s, weight: %d, hidden: %s, color: [%d, %d, %d])}),' % (
+            did, ron_str(dnames.get('department-' + did, did)), int(d.get('weight') or 0),
+            'true' if d.get('editorHidden') else 'false', *rgb))
+    dept_lines.append(']')
+    open('content/prototypes/departments.ron', 'w').write('\n'.join(dept_lines) + '\n')
     n = 0
     for jid, (start, mx) in avail.items():
         job = P.get('job', jid)
@@ -124,8 +150,10 @@ def main():
         ihs = ', '.join(ron_str(x) for x in inhand)
         sts = ', '.join('%s: [%s]' % (ron_str(k), ', '.join(ron_str(x) for x in v)) for k, v in sorted(storage.items()))
         lines.append(
-            '    (id: "Job%s", name: Some(%s), components: {"Job": (title: %s, start: %d, max: %d, weight: %d, access: [%s], equipment: {%s}, inhand: [%s], storage: {%s})}),'
-            % (jid, ron_str(title), ron_str(title), start, mx, int(weights.get(jid, 0)), ', '.join(ron_str(a) for a in access), eqs, ihs, sts)
+            '    (id: "Job%s", name: Some(%s), components: {"Job": (title: %s, start: %d, max: %d, weight: %d, pref: %s, dept: %s, access: [%s], equipment: {%s}, inhand: [%s], storage: {%s})}),'
+            % (jid, ron_str(title), ron_str(title), start, mx, int(weights.get(jid, 0)),
+               'true' if job.get('setPreference', True) else 'false', ron_str(primary_dept(jid)),
+               ', '.join(ron_str(a) for a in access), eqs, ihs, sts)
         )
         n += 1
     lines.append(']')

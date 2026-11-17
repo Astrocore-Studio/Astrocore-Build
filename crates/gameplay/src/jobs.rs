@@ -23,6 +23,8 @@ pub struct JobSpec {
     pub id: String,
     pub title: String,
     pub max: i32,
+    /// Мест, которые на старте раунда занимаются в первую очередь (`start`).
+    pub start: i32,
     /// Порядок в списке: больше — выше (`JobUIComparer`).
     pub weight: i32,
     /// Уровни доступа удостоверения должности (`access` и группы).
@@ -49,6 +51,7 @@ impl JobSpec {
             id: id.strip_prefix("Job").unwrap_or(id).to_string(),
             title: d.get("title").and_then(Data::as_str)?.to_string(),
             max: d.get("max").and_then(Data::as_int).unwrap_or(-1) as i32,
+            start: d.get("start").and_then(Data::as_int).unwrap_or(0) as i32,
             weight: d.get("weight").and_then(Data::as_int).unwrap_or(0) as i32,
             access: strings("access"),
             equipment: map

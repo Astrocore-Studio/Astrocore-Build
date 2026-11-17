@@ -3,7 +3,17 @@
 [
     // Пределы профиля: слотов на игрока, длина имени и описания (`ic.name_length`, `ic.flavor_text_length`).
     (id: "CharacterRules", components: {
-        "CharacterRules": (maxSlots: 5, maxNameLength: 32, maxFlavorLength: 512),
+        "CharacterRules": (
+            maxSlots: 5,
+            maxNameLength: 32,
+            maxFlavorLength: 512,
+            // Предпочтения одежды и рюкзака: приставка имени предмета меняется на вариант, если он есть.
+            jumpsuitPrefix: "ClothingUniformJumpsuit",
+            jumpskirtPrefix: "ClothingUniformJumpskirt",
+            backpackPrefix: "ClothingBackpack",
+            satchelPrefix: "ClothingBackpackSatchel",
+            duffelPrefix: "ClothingBackpackDuffel",
+        ),
     }),
     // Человек (`Species/human.yml`): возраст, пол, цвет кожи тоном (`HumanToned`), цвета глаз и волос.
     (id: "Human", components: {

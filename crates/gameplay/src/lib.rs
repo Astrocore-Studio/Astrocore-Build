@@ -43,6 +43,7 @@ pub use verbs::{
     EXAMINE_COMPONENT, ExamineView, STRIP_COMPONENT, StripView, VERBS_COMPONENT, Verb, VerbTarget,
     VerbsView, decode_examine, decode_strip, decode_verbs, strip_data, target_data,
 };
+pub mod assign;
 pub mod jobs;
 pub use chat::{CHAT_COMPONENT, Channel, ChatLine, ChatView, chat_data, decode_chat};
 pub mod lobby;

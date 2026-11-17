@@ -1307,6 +1307,9 @@ fn loadout_window(
         let at = egui::pos2(16.0, (ctx.content_rect().max.y - 230.0).max(16.0));
         if let Some(mode) = std::env::var_os("ASTRO_AUTOPLAY_CHAR") {
             hud.character.open = true;
+            if mode == "jobs" {
+                hud.character.tab = character_ui::Tab::Jobs;
+            }
             // Отладка: `slots` — завести два дополнительных слота (один раз).
             if mode == "slots" && !hud.character.autoplay_done && loadout.hello_sent {
                 hud.character.autoplay_done = true;

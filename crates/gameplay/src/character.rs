@@ -13,6 +13,8 @@
 //! Не перенесено: другие стратегии цвета кожи, маркировки, черты, предпочтения антагонистов,
 //! голос, приоритеты должностей (этап 5 плана), сохранение (этап 4).
 
+use std::collections::BTreeMap;
+
 use serde::{Deserialize, Serialize};
 
 /// Имя, если игрок оставил поле пустым (в SS14 — случайное по списку имён вида).
@@ -78,6 +80,23 @@ impl Sex {
     }
 }
 
+/// Приоритет должности в профиле (`JobPriority` SS14); «никогда» — значение по умолчанию и в
+/// профиле не хранится.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+pub enum Priority {
+    Low,
+    Medium,
+    High,
+}
+
+/// Что делать, если не нашлось ни одной желаемой должности (`PreferenceUnavailableMode`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub enum Unavailable {
+    StayInLobby,
+    #[default]
+    SpawnAsOverflow,
+}
+
 /// Одежда по предпочтению (`ClothingPreference`): комбинезон или юбка.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Clothing {
@@ -134,6 +153,11 @@ pub struct Profile {
     pub appearance: Appearance,
     pub clothing: Clothing,
     pub backpack: Backpack,
+    /// Приоритеты должностей: идентификатор должности → приоритет (без записи — «никогда»).
+    #[serde(default)]
+    pub job_priorities: BTreeMap<String, Priority>,
+    #[serde(default)]
+    pub unavailable: Unavailable,
 }
 
 impl Default for Profile {
@@ -148,6 +172,8 @@ impl Default for Profile {
             appearance: Appearance::default(),
             clothing: Clothing::Jumpsuit,
             backpack: Backpack::Backpack,
+            job_priorities: BTreeMap::new(),
+            unavailable: Unavailable::SpawnAsOverflow,
         }
     }
 }
@@ -202,6 +228,66 @@ impl Catalog {
     }
 }
 
+/// Должность для редактора приоритетов (`JobPrototype` с `setPreference`).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct JobPref {
+    pub id: String,
+    pub title: String,
+    /// Основной отдел (идентификатор из `Department`); пусто — без отдела.
+    pub dept: String,
+    /// Порядок внутри отдела: больше — выше.
+    pub weight: i32,
+}
+
+/// Отдел для группировки должностей (`DepartmentPrototype`).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Dept {
+    pub id: String,
+    pub name: String,
+    pub weight: i32,
+    pub color: Rgb,
+}
+
+/// Приставки имён предметов для выбора комбинезона или юбки и вида рюкзака: настоящая одежда
+/// должности меняет приставку на вариант по предпочтению, если такой предмет есть.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub struct Variants {
+    pub jumpsuit: String,
+    pub jumpskirt: String,
+    pub backpack: String,
+    pub satchel: String,
+    pub duffel: String,
+}
+
+impl Variants {
+    /// Имя предмета по предпочтениям: `ClothingUniformJumpsuitX` → `ClothingUniformJumpskirtX`,
+    /// `ClothingBackpackX` → `ClothingBackpackSatchelX`. Остальное и уже выбранное не меняется.
+    pub fn preferred(&self, name: &str, clothing: Clothing, backpack: Backpack) -> String {
+        if clothing == Clothing::Jumpskirt
+            && !self.jumpsuit.is_empty()
+            && let Some(rest) = name.strip_prefix(&self.jumpsuit)
+        {
+            return format!("{}{rest}", self.jumpskirt);
+        }
+        let target = match backpack {
+            Backpack::Backpack => return name.to_string(),
+            Backpack::Satchel => &self.satchel,
+            Backpack::Duffel => &self.duffel,
+        };
+        let already = [&self.satchel, &self.duffel]
+            .iter()
+            .any(|p| !p.is_empty() && name.starts_with(p.as_str()));
+        if !already
+            && !self.backpack.is_empty()
+            && !target.is_empty()
+            && let Some(rest) = name.strip_prefix(&self.backpack)
+        {
+            return format!("{target}{rest}");
+        }
+        name.to_string()
+    }
+}
+
 /// Все правила персонажа: пределы, виды, стили. Собираются из прототипов; без них действуют
 /// значения SS14 по умолчанию (`Rules::default`).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -209,6 +295,9 @@ pub struct Rules {
     pub limits: Limits,
     pub species: Vec<Species>,
     pub catalog: Catalog,
+    pub jobs: Vec<JobPref>,
+    pub departments: Vec<Dept>,
+    pub variants: Variants,
 }
 
 impl Default for Rules {
@@ -231,8 +320,18 @@ impl Default for Rules {
                 hair_colors: vec![[26, 20, 16], [90, 58, 34], [194, 154, 90]],
             }],
             catalog: Catalog::default(),
+            jobs: Vec::new(),
+            departments: Vec::new(),
+            variants: Variants::default(),
         }
     }
+}
+
+/// Один цвет `[r, g, b]`.
+fn rgb_of(d: Option<&prototypes::Data>) -> Option<Rgb> {
+    let c = d?.as_list()?;
+    let ch = |i: usize| c.get(i)?.as_int().map(|v| v.clamp(0, 255) as u8);
+    Some([ch(0)?, ch(1)?, ch(2)?])
 }
 
 fn color_list(d: Option<&prototypes::Data>) -> Vec<Rgb> {
@@ -311,6 +410,40 @@ impl Rules {
                     hair_colors: color_list(c.get("hairColors")),
                 });
             }
+            if let Some(c) = resolved.component("CharacterRules") {
+                rules.variants = Variants {
+                    jumpsuit: text(c, "jumpsuitPrefix"),
+                    jumpskirt: text(c, "jumpskirtPrefix"),
+                    backpack: text(c, "backpackPrefix"),
+                    satchel: text(c, "satchelPrefix"),
+                    duffel: text(c, "duffelPrefix"),
+                };
+            }
+            if let Some(j) = resolved.component("Job")
+                && j.get("pref")
+                    .and_then(prototypes::Data::as_bool)
+                    .unwrap_or(true)
+            {
+                rules.jobs.push(JobPref {
+                    id: name.strip_prefix("Job").unwrap_or(&name).to_string(),
+                    title: text(j, "title"),
+                    dept: text(j, "dept"),
+                    weight: int(j, "weight", 0) as i32,
+                });
+            }
+            if let Some(d) = resolved.component("Department")
+                && !d
+                    .get("hidden")
+                    .and_then(prototypes::Data::as_bool)
+                    .unwrap_or(false)
+            {
+                rules.departments.push(Dept {
+                    id: name.strip_prefix("Department").unwrap_or(&name).to_string(),
+                    name: text(d, "name"),
+                    weight: int(d, "weight", 0) as i32,
+                    color: rgb_of(d.get("color")).unwrap_or([127, 127, 127]),
+                });
+            }
             if let Some(m) = resolved.component("Marking") {
                 let style = Style {
                     id: name.clone(),
@@ -328,6 +461,24 @@ impl Rules {
             species.sort_by(|a, b| a.id.cmp(&b.id));
             rules.species = species;
         }
+        rules
+            .departments
+            .sort_by(|a, b| b.weight.cmp(&a.weight).then_with(|| a.id.cmp(&b.id)));
+        let order = |d: &str| {
+            rules
+                .departments
+                .iter()
+                .position(|x| x.id == d)
+                .unwrap_or(usize::MAX)
+        };
+        let mut jobs = std::mem::take(&mut rules.jobs);
+        jobs.sort_by(|a, b| {
+            order(&a.dept)
+                .cmp(&order(&b.dept))
+                .then_with(|| b.weight.cmp(&a.weight))
+                .then_with(|| a.title.cmp(&b.title))
+        });
+        rules.jobs = jobs;
         rules.catalog.hair.sort_by(|a, b| a.name.cmp(&b.name));
         rules
             .catalog
@@ -484,8 +635,33 @@ impl Profile {
             },
             clothing: self.clothing,
             backpack: self.backpack,
+            job_priorities: validated_priorities(&self.job_priorities, rules),
+            unavailable: self.unavailable,
         }
     }
+}
+
+/// Приоритеты по правилам SS14 (`EnsureValid`): только должности, у которых можно выбирать
+/// предпочтение; больше одного «высокого» нельзя — лишние становятся «средними».
+fn validated_priorities(
+    given: &BTreeMap<String, Priority>,
+    rules: &Rules,
+) -> BTreeMap<String, Priority> {
+    let mut out: BTreeMap<String, Priority> = given
+        .iter()
+        .filter(|(id, _)| rules.jobs.iter().any(|j| &j.id == *id))
+        .map(|(id, p)| (id.clone(), *p))
+        .collect();
+    let mut seen_high = false;
+    for p in out.values_mut() {
+        if *p == Priority::High {
+            if seen_high {
+                *p = Priority::Medium;
+            }
+            seen_high = true;
+        }
+    }
+    out
 }
 
 /// Слой внешности для клиента: картинка (путь внутри `Textures`) и цвет.
@@ -538,6 +714,9 @@ pub fn decode_look(bytes: &[u8]) -> Option<Look> {
 struct RulesWire {
     limits: Limits,
     species: Vec<Species>,
+    jobs: Vec<JobPref>,
+    departments: Vec<Dept>,
+    variants: Variants,
 }
 
 /// Каталог стилей: картинки сгруппированы по набору RSI, у стиля — идентификатор и состояние.
@@ -576,6 +755,9 @@ pub fn encode_rules(rules: &Rules) -> Vec<u8> {
     serde_json::to_vec(&RulesWire {
         limits: rules.limits.clone(),
         species: rules.species.clone(),
+        jobs: rules.jobs.clone(),
+        departments: rules.departments.clone(),
+        variants: rules.variants.clone(),
     })
     .unwrap_or_default()
 }
@@ -602,6 +784,9 @@ pub fn decode_rules(rules: &[u8], catalog: &[u8]) -> Option<Rules> {
     let out = Rules {
         limits: wire.limits,
         species: wire.species,
+        jobs: wire.jobs,
+        departments: wire.departments,
+        variants: wire.variants,
         catalog: Catalog {
             hair: ungroup(cat.hair),
             facial_hair: ungroup(cat.facial_hair),
@@ -856,6 +1041,11 @@ mod tests {
                 include_str!("../../../content/prototypes/character.ron"),
                 "character",
             ),
+            (include_str!("../../../content/prototypes/jobs.ron"), "jobs"),
+            (
+                include_str!("../../../content/prototypes/departments.ron"),
+                "departments",
+            ),
         ] {
             registry.load_ron_str(text, name).unwrap();
         }
@@ -885,6 +1075,21 @@ mod tests {
         assert_eq!(human.hair_colors.len(), 7);
         assert_eq!(r.catalog.hair.len(), 203);
         assert_eq!(r.catalog.facial_hair.len(), 35);
+        assert!(r.catalog.hair_style("HumanHairAfro").is_some());
+        // Должности и отделы из прототипов, сгруппированы и упорядочены как в SS14.
+        assert!(r.jobs.len() >= 30, "{}", r.jobs.len());
+        let captain = r.jobs.iter().position(|j| j.id == "Captain").unwrap();
+        let passenger = r.jobs.iter().position(|j| j.id == "Passenger").unwrap();
+        assert!(captain < passenger, "командование выше гражданских");
+        assert_eq!(
+            r.departments.first().map(|d| d.id.as_str()),
+            Some("Command")
+        );
+        assert!(
+            r.departments.iter().all(|d| d.id != "CentralCommand"),
+            "служебные скрыты"
+        );
+        assert_eq!(r.variants.satchel, "ClothingBackpackSatchel");
         assert!(r.catalog.hair_style("HumanHairAfro").is_some());
         assert!(r.catalog.facial_style("HumanFacialHairChin").is_some());
     }
@@ -919,6 +1124,78 @@ mod tests {
         assert_eq!(p.sex, Sex::Female, "пол из списка вида");
         assert_eq!(p.name.chars().count(), 10, "предел имени из правил");
         assert_eq!(Profile::default_for(&r).appearance.skin_tone, 50.0);
+    }
+
+    #[test]
+    fn job_priorities_keep_one_high_and_only_known_jobs() {
+        let mut r = rules();
+        r.jobs = ["Captain", "Chef", "Janitor"]
+            .iter()
+            .map(|id| JobPref {
+                id: (*id).into(),
+                title: (*id).into(),
+                dept: String::new(),
+                weight: 0,
+            })
+            .collect();
+        let p = Profile {
+            job_priorities: [
+                ("Captain".to_string(), Priority::High),
+                ("Chef".to_string(), Priority::High),
+                ("Janitor".to_string(), Priority::Low),
+                ("NoSuchJob".to_string(), Priority::High),
+            ]
+            .into(),
+            ..Profile::default()
+        };
+        let ok = p.validated(&r);
+        assert_eq!(ok.job_priorities.len(), 3, "неизвестная должность убрана");
+        let highs = ok
+            .job_priorities
+            .values()
+            .filter(|p| **p == Priority::High)
+            .count();
+        assert_eq!(highs, 1, "«высокий» только один");
+        assert_eq!(ok.validated(&r), ok);
+    }
+
+    #[test]
+    fn clothing_and_backpack_preferences_rewrite_item_names_by_prefix() {
+        let v = Variants {
+            jumpsuit: "ClothingUniformJumpsuit".into(),
+            jumpskirt: "ClothingUniformJumpskirt".into(),
+            backpack: "ClothingBackpack".into(),
+            satchel: "ClothingBackpackSatchel".into(),
+            duffel: "ClothingBackpackDuffel".into(),
+        };
+        let pick = |n: &str, c, b| v.preferred(n, c, b);
+        let (j, s, d) = (Clothing::Jumpsuit, Backpack::Satchel, Backpack::Duffel);
+        assert_eq!(
+            pick(
+                "ClothingUniformJumpsuitJanitor",
+                Clothing::Jumpskirt,
+                Backpack::Backpack
+            ),
+            "ClothingUniformJumpskirtJanitor"
+        );
+        assert_eq!(
+            pick("ClothingUniformJumpsuitJanitor", j, Backpack::Backpack),
+            "ClothingUniformJumpsuitJanitor"
+        );
+        assert_eq!(
+            pick("ClothingBackpackMedical", j, s),
+            "ClothingBackpackSatchelMedical"
+        );
+        assert_eq!(pick("ClothingBackpack", j, d), "ClothingBackpackDuffel");
+        assert_eq!(
+            pick("ClothingBackpackSatchelMedical", j, d),
+            "ClothingBackpackSatchelMedical",
+            "уже сумка — не трогаем"
+        );
+        assert_eq!(
+            pick("ClothingHeadHatCap", Clothing::Jumpskirt, s),
+            "ClothingHeadHatCap"
+        );
     }
 
     #[test]

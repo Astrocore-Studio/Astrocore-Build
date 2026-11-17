@@ -8581,6 +8581,23 @@
       ],
       "thickness": 0.03125
     },
+    "ss14:clothing_backpack_duffel_captain": {
+      "delays": [],
+      "frames": 1,
+      "grid": [
+        1,
+        1
+      ],
+      "image": "Textures/Clothing/Back/Duffels/captain.rsi/icon.png",
+      "layout": "flat",
+      "name": "captain's duffel bag",
+      "oriented": false,
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ],
+      "thickness": 0.03125
+    },
     "ss14:clothing_backpack_duffel_cargo": {
       "delays": [],
       "frames": 1,
@@ -8608,6 +8625,23 @@
       "image": "Textures/Clothing/Back/Duffels/chemistry.rsi/icon.png",
       "layout": "flat",
       "name": "chemistry duffel bag",
+      "oriented": false,
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ],
+      "thickness": 0.03125
+    },
+    "ss14:clothing_backpack_duffel_clown": {
+      "delays": [],
+      "frames": 1,
+      "grid": [
+        1,
+        1
+      ],
+      "image": "Textures/Clothing/Back/Duffels/clown.rsi/icon.png",
+      "layout": "flat",
+      "name": "clown duffel bag",
       "oriented": false,
       "size": [
         0.6000000238418579,
@@ -8676,6 +8710,40 @@
       "image": "Textures/Clothing/Back/Duffels/medical.rsi/icon.png",
       "layout": "flat",
       "name": "medical duffel bag",
+      "oriented": false,
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ],
+      "thickness": 0.03125
+    },
+    "ss14:clothing_backpack_duffel_mime": {
+      "delays": [],
+      "frames": 1,
+      "grid": [
+        1,
+        1
+      ],
+      "image": "Textures/Clothing/Back/Duffels/mime.rsi/icon.png",
+      "layout": "flat",
+      "name": "mime duffel bag",
+      "oriented": false,
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ],
+      "thickness": 0.03125
+    },
+    "ss14:clothing_backpack_duffel_salvage": {
+      "delays": [],
+      "frames": 1,
+      "grid": [
+        1,
+        1
+      ],
+      "image": "Textures/Clothing/Back/Duffels/salvage.rsi/icon.png",
+      "layout": "flat",
+      "name": "salvage duffel bag",
       "oriented": false,
       "size": [
         0.6000000238418579,
@@ -8942,6 +9010,23 @@
       ],
       "thickness": 0.03125
     },
+    "ss14:clothing_backpack_satchel_captain": {
+      "delays": [],
+      "frames": 1,
+      "grid": [
+        1,
+        1
+      ],
+      "image": "Textures/Clothing/Back/Satchels/captain.rsi/icon.png",
+      "layout": "flat",
+      "name": "captain's satchel",
+      "oriented": false,
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ],
+      "thickness": 0.03125
+    },
     "ss14:clothing_backpack_satchel_cargo": {
       "delays": [],
       "frames": 1,
@@ -8969,6 +9054,23 @@
       "image": "Textures/Clothing/Back/Satchels/chemistry.rsi/icon.png",
       "layout": "flat",
       "name": "chemistry satchel",
+      "oriented": false,
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ],
+      "thickness": 0.03125
+    },
+    "ss14:clothing_backpack_satchel_clown": {
+      "delays": [],
+      "frames": 1,
+      "grid": [
+        1,
+        1
+      ],
+      "image": "Textures/Clothing/Back/Satchels/clown.rsi/icon.png",
+      "layout": "flat",
+      "name": "clown satchel",
       "oriented": false,
       "size": [
         0.6000000238418579,
@@ -9054,6 +9156,40 @@
       "image": "Textures/Clothing/Back/Satchels/medical.rsi/icon.png",
       "layout": "flat",
       "name": "medical satchel",
+      "oriented": false,
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ],
+      "thickness": 0.03125
+    },
+    "ss14:clothing_backpack_satchel_mime": {
+      "delays": [],
+      "frames": 1,
+      "grid": [
+        1,
+        1
+      ],
+      "image": "Textures/Clothing/Back/Satchels/mime.rsi/icon.png",
+      "layout": "flat",
+      "name": "mime satchel",
+      "oriented": false,
+      "size": [
+        0.6000000238418579,
+        0.6000000238418579
+      ],
+      "thickness": 0.03125
+    },
+    "ss14:clothing_backpack_satchel_salvage": {
+      "delays": [],
+      "frames": 1,
+      "grid": [
+        1,
+        1
+      ],
+      "image": "Textures/Clothing/Back/Satchels/salvage.rsi/icon.png",
+      "layout": "flat",
+      "name": "salvage satchel",
       "oriented": false,
       "size": [
         0.6000000238418579,

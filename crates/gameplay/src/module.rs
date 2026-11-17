@@ -3734,6 +3734,7 @@ impl State {
         if spec.max >= 0 && taken >= spec.max as u32 {
             return;
         }
+        let profile = self.actor(actor).slots.current().clone();
         *self.job_taken.entry(job.to_string()).or_default() += 1;
         self.player_job.insert(actor, job.to_string());
         self.round.crew.insert(actor, job.to_string());
@@ -3742,7 +3743,8 @@ impl State {
             let Some(name) = spec.equipment.get(&slot.name) else {
                 continue;
             };
-            if let Some(item) = self.create_item(name) {
+            let name = self.preferred_item(name, &profile);
+            if let Some(item) = self.create_item(&name) {
                 self.actor(actor).inventory.equip_forced(&slot.name, item);
             }
         }
@@ -3751,7 +3753,7 @@ impl State {
             self.card_access
                 .insert(card.id, spec.access.iter().cloned().collect());
             self.card_names
-                .insert(card.id, ("Новичок".to_string(), spec.title.clone()));
+                .insert(card.id, (profile.name.clone(), spec.title.clone()));
         }
         for name in &spec.inhand {
             if let Some(item) = self.create_item(name)
@@ -3786,6 +3788,20 @@ impl State {
             }
         }
         self.publish(ctx, actor);
+    }
+
+    /// Имя предмета с учётом предпочтений одежды и рюкзака: вариант берётся, только если такой
+    /// предмет есть в контенте.
+    fn preferred_item(&self, name: &str, profile: &crate::character::Profile) -> String {
+        let wanted = self
+            .rules
+            .variants
+            .preferred(name, profile.clothing, profile.backpack);
+        if wanted != name && self.proto_by_name.contains_key(&wanted) {
+            wanted
+        } else {
+            name.to_string()
+        }
     }
 
     /// Освободить место должности (игрок ушёл или возродился).
@@ -5213,6 +5229,7 @@ impl State {
         let dt = self.last_dt;
         let ids: Vec<NetworkEntityId> = ctx.players().collect();
         let hold = self.spawn;
+        let mut go: Vec<NetworkEntityId> = Vec::new();
         let Some(l) = self.lobby.as_mut() else {
             return;
         };
@@ -5231,11 +5248,7 @@ impl State {
             l.left -= dt;
             if l.left <= 0.0 {
                 l.started = true;
-                let go: Vec<NetworkEntityId> = l.ready.iter().copied().collect();
-                for p in go {
-                    l.in_lobby.remove(&p);
-                    self.placed.remove(&p);
-                }
+                go = l.ready.iter().copied().collect();
             }
         }
         // Ожидающие стоят на месте.
@@ -5263,6 +5276,62 @@ impl State {
                 l.sent.insert(p, bytes);
             }
         }
+        if !go.is_empty() {
+            self.start_round(ctx, go);
+        }
+    }
+
+    /// Старт раунда: готовым игрокам раздаются должности по приоритетам профилей
+    /// (`AssignJobs`); получившие должность выходят на станцию с ней, остальные остаются в лобби.
+    /// Если должностей в контенте нет, на станцию выходят все готовые.
+    fn start_round(&mut self, ctx: &mut HookContext<'_>, ready: Vec<NetworkEntityId>) {
+        let assigned: Vec<(NetworkEntityId, Option<String>)> = if self.jobs.is_empty() {
+            ready.iter().map(|p| (*p, None)).collect()
+        } else {
+            let openings: Vec<crate::assign::Opening> = self
+                .jobs
+                .iter()
+                .map(|j| crate::assign::Opening {
+                    id: j.id.clone(),
+                    start: j.start,
+                    max: j.max,
+                    weight: j.weight,
+                })
+                .collect();
+            let candidates: Vec<crate::assign::Candidate> = ready
+                .iter()
+                .map(|p| {
+                    let profile = self.actor(*p).slots.current().clone();
+                    crate::assign::Candidate {
+                        who: *p,
+                        priorities: profile.job_priorities,
+                        unavailable: profile.unavailable,
+                    }
+                })
+                .collect();
+            let seed = (self.clock * 1000.0) as u64 ^ (u64::from(self.round_number()) << 32);
+            crate::assign::assign(&openings, &candidates, &mut crate::disposal::Rng(seed | 1))
+        };
+        for (p, job) in assigned {
+            if job.is_none() && !self.jobs.is_empty() {
+                // Для этого игрока места нет: остаётся в лобби и может присоединиться позже.
+                if let Some(l) = self.lobby.as_mut() {
+                    l.ready.remove(&p);
+                }
+                continue;
+            }
+            if let Some(l) = self.lobby.as_mut() {
+                l.in_lobby.remove(&p);
+            }
+            self.placed.remove(&p);
+            if let Some(job) = job {
+                self.pick_job(ctx, p, &job);
+            }
+        }
+    }
+
+    fn round_number(&self) -> u32 {
+        self.lobby.as_ref().map_or(0, |l| l.round)
     }
 
     /// Конец раунда: весь экипаж погиб или вышло время; затем сводка и сигнал перезапуска.
@@ -7336,31 +7405,39 @@ impl State {
         if fresh.is_empty() {
             return;
         }
-        let mut points: Vec<Vec3> = ctx
-            .world
-            .authored()
-            .filter(|o| {
-                matches!(o.kind, AuthoredKind::Zone)
-                    && matches!(
-                        o.metadata.get("spawn_job").map(String::as_str),
-                        Some("Latejoin")
-                    )
-            })
-            .map(|o| {
-                let c = (o.min() + o.max()) * 0.5;
-                Vec3::new(c.x, o.min().y + 0.05, c.z)
-            })
-            .collect();
-        points.sort_by(|a, b| {
-            a.to_array()
-                .partial_cmp(&b.to_array())
-                .unwrap_or(std::cmp::Ordering::Equal)
-        });
-        for p in fresh {
-            self.placed.insert(p);
-            if points.is_empty() {
+        // Точки появления по названию должности (`SpawnPoint<должность>`), как в SS14.
+        let mut by_job: BTreeMap<String, Vec<Vec3>> = BTreeMap::new();
+        for o in ctx.world.authored() {
+            if !matches!(o.kind, AuthoredKind::Zone) {
                 continue;
             }
+            if let Some(job) = o.metadata.get("spawn_job") {
+                let c = (o.min() + o.max()) * 0.5;
+                by_job
+                    .entry(job.clone())
+                    .or_default()
+                    .push(Vec3::new(c.x, o.min().y + 0.05, c.z));
+            }
+        }
+        for list in by_job.values_mut() {
+            list.sort_by(|a, b| {
+                a.to_array()
+                    .partial_cmp(&b.to_array())
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            });
+        }
+        for p in fresh {
+            self.placed.insert(p);
+            // Своя точка должности, иначе точка позднего входа.
+            let own = self
+                .player_job
+                .get(&p)
+                .and_then(|j| by_job.get(j.as_str()))
+                .filter(|l| !l.is_empty());
+            let Some(points) = own.or_else(|| by_job.get("Latejoin").filter(|l| !l.is_empty()))
+            else {
+                continue;
+            };
             let at = points[self.spawn_next % points.len()];
             self.spawn_next += 1;
             ctx.teleport(p, at);

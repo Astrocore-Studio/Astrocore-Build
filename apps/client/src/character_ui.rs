@@ -9,7 +9,8 @@
 use bevy_egui::egui::{self, Color32};
 use gameplay::character::{
     Backpack, CMD_CHAR_CREATE, CMD_CHAR_DELETE, CMD_CHAR_RANDOM, CMD_CHAR_SAVE, CMD_CHAR_SELECT,
-    Clothing, Gender, Profile, Rules, Sex, SlotsView, Style, encode_profile, skin_color,
+    Clothing, Gender, Priority, Profile, Rules, Sex, SlotsView, Style, Unavailable, encode_profile,
+    skin_color,
 };
 
 use crate::hud::Commands;
@@ -17,6 +18,107 @@ use crate::hud::Commands;
 /// Ширина колонки превью и формы, пиксели.
 const PREVIEW_WIDTH: f32 = 140.0;
 const FORM_WIDTH: f32 = 460.0;
+
+/// Вкладки редактора.
+#[derive(Default, Clone, Copy, PartialEq, Eq, Debug)]
+pub enum Tab {
+    #[default]
+    Look,
+    Jobs,
+}
+
+/// Приоритет должности в профиле: `None` — «никогда» (записи нет). «Высокий» всегда один: прежний
+/// становится «средним», как в `EnsureValid` SS14.
+pub fn set_priority(p: &mut Profile, job: &str, priority: Option<Priority>) {
+    match priority {
+        None => {
+            p.job_priorities.remove(job);
+        }
+        Some(Priority::High) => {
+            for v in p.job_priorities.values_mut() {
+                if *v == Priority::High {
+                    *v = Priority::Medium;
+                }
+            }
+            p.job_priorities.insert(job.to_string(), Priority::High);
+        }
+        Some(pr) => {
+            p.job_priorities.insert(job.to_string(), pr);
+        }
+    }
+}
+
+fn priority_label(p: Option<Priority>) -> &'static str {
+    match p {
+        Some(Priority::High) => "Высокий",
+        Some(Priority::Medium) => "Средний",
+        Some(Priority::Low) => "Низкий",
+        None => "Никогда",
+    }
+}
+
+/// Вкладка «Должности»: по отделам, у каждой должности четыре приоритета, внизу — что делать, если
+/// ничего не подошло.
+fn jobs_tab(ui: &mut egui::Ui, p: &mut Profile, rules: &Rules) {
+    egui::ScrollArea::vertical()
+        .max_height(420.0)
+        .auto_shrink([false, true])
+        .show(ui, |ui| {
+            ui.vertical(|ui| {
+                for dept in &rules.departments {
+                    let jobs: Vec<_> = rules.jobs.iter().filter(|j| j.dept == dept.id).collect();
+                    if jobs.is_empty() {
+                        continue;
+                    }
+                    ui.add_space(4.0);
+                    ui.label(
+                        egui::RichText::new(&dept.name)
+                            .strong()
+                            .color(Color32::from_rgb(
+                                dept.color[0],
+                                dept.color[1],
+                                dept.color[2],
+                            )),
+                    );
+                    for job in jobs {
+                        ui.horizontal(|ui| {
+                            ui.allocate_ui_with_layout(
+                                egui::vec2(170.0, 18.0),
+                                egui::Layout::left_to_right(egui::Align::Center),
+                                |ui| ui.label(&job.title),
+                            );
+                            let now = p.job_priorities.get(&job.id).copied();
+                            for choice in [
+                                Some(Priority::High),
+                                Some(Priority::Medium),
+                                Some(Priority::Low),
+                                None,
+                            ] {
+                                if ui
+                                    .selectable_label(now == choice, priority_label(choice))
+                                    .clicked()
+                                {
+                                    set_priority(p, &job.id, choice);
+                                }
+                            }
+                        });
+                    }
+                }
+                ui.separator();
+                ui.label("Если не досталось желаемой должности:");
+                ui.radio_value(
+                    &mut p.unavailable,
+                    Unavailable::StayInLobby,
+                    "Остаться в лобби",
+                );
+                ui.radio_value(
+                    &mut p.unavailable,
+                    Unavailable::SpawnAsOverflow,
+                    "Появиться на любой свободной (пассажиром)",
+                );
+            });
+        });
+}
 
 /// Состояние окна редактора.
 #[derive(Default)]
@@ -30,6 +132,8 @@ pub struct CharacterEditor {
     facial_search: String,
     /// Сторона превью: 0 — юг (лицом), 1 — север, 2 — восток, 3 — запад.
     pub preview_side: u8,
+    /// Вкладка: внешность или должности.
+    pub tab: Tab,
     /// Отладочный автоплей уже отправил свои команды.
     pub autoplay_done: bool,
     /// Текстура превью и то, для чего она построена.
@@ -201,6 +305,7 @@ pub fn character_window(
         hair_search,
         facial_search,
         preview_side,
+        tab,
         ..
     } = editor;
     let mut want_save = false;
@@ -222,6 +327,23 @@ pub fn character_window(
             if let Some(v) = slots {
                 slot_commands = slot_tabs(ui, v);
                 ui.separator();
+            }
+            ui.horizontal(|ui| {
+                ui.selectable_value(tab, Tab::Look, "Внешность");
+                ui.selectable_value(tab, Tab::Jobs, "Должности");
+            });
+            if *tab == Tab::Jobs {
+                jobs_tab(ui, p, rules);
+                ui.separator();
+                ui.horizontal(|ui| {
+                    if ui.button("Сохранить").clicked() {
+                        want_save = true;
+                    }
+                    if ui.button("Сбросить").clicked() {
+                        want_reset = true;
+                    }
+                });
+                return;
             }
             ui.horizontal_top(|ui| {
                 ui.vertical(|ui| {
@@ -415,6 +537,26 @@ mod tests {
         });
         out.textures_delta.clear();
         out.shapes.len()
+    }
+
+    #[test]
+    fn setting_a_high_priority_demotes_the_previous_one_and_never_removes_the_entry() {
+        let mut p = Profile::default();
+        set_priority(&mut p, "Captain", Some(Priority::High));
+        set_priority(&mut p, "Chef", Some(Priority::Low));
+        set_priority(&mut p, "Janitor", Some(Priority::High));
+        assert_eq!(p.job_priorities["Janitor"], Priority::High);
+        assert_eq!(
+            p.job_priorities["Captain"],
+            Priority::Medium,
+            "прежний «высокий» ослаблен"
+        );
+        assert_eq!(p.job_priorities["Chef"], Priority::Low);
+        set_priority(&mut p, "Chef", None);
+        assert!(
+            !p.job_priorities.contains_key("Chef"),
+            "«никогда» — записи нет"
+        );
     }
 
     #[test]

@@ -2388,9 +2388,12 @@ mod disposal_tests {
         let (va, vb) = (lobby_view(&h, a).unwrap(), lobby_view(&h, b).unwrap());
         assert!(va.started && !va.in_lobby);
         assert!(vb.started && vb.in_lobby);
-        command(&mut h, a, crate::CMD_JOB, b"Free".to_vec());
-        h.ticks(5);
-        assert_eq!(jobs_view(&h, a).unwrap().current.as_deref(), Some("Free"));
+        // Должность раздана на старте: желаний у профиля нет, поэтому переполняющая (без предела мест).
+        let given = jobs_view(&h, a).unwrap().current;
+        assert!(
+            matches!(given.as_deref(), Some("Guard" | "Free")),
+            "раздача на старте: {given:?}"
+        );
         // «Присоединиться» после старта выводит на станцию.
         command(&mut h, b, crate::CMD_LOBBY_READY, vec![]);
         h.ticks(5);
@@ -2398,6 +2401,86 @@ mod disposal_tests {
         command(&mut h, b, crate::CMD_JOB, b"Free".to_vec());
         h.ticks(5);
         assert_eq!(jobs_view(&h, b).unwrap().current.as_deref(), Some("Free"));
+    }
+
+    fn save_profile(
+        h: &mut Harness,
+        who: ConnId,
+        edit: impl FnOnce(&mut crate::character::Profile),
+    ) {
+        let net = h.client(who).net_id().unwrap();
+        let mut p = crate::character::decode_profile(
+            h.client(who)
+                .component(net, crate::character::PROFILE_COMPONENT)
+                .unwrap(),
+        )
+        .unwrap();
+        edit(&mut p);
+        command(
+            h,
+            who,
+            crate::character::CMD_CHAR_SAVE,
+            crate::character::encode_profile(&p),
+        );
+        h.ticks(3);
+    }
+
+    #[test]
+    fn the_round_start_gives_each_ready_player_a_job_by_their_priorities() {
+        use crate::character::{Priority, Unavailable};
+        let mut h = harness_with(|m| m.with_lobby(3.0, 1));
+        let (a, b, c) = (h.join("a"), h.join("b"), h.join("c"));
+        h.ticks(5);
+        // Тестер — одно обязательное место: тот, кто хочет его сильнее, его получает.
+        save_profile(&mut h, a, |p| {
+            p.job_priorities.insert("Tester".into(), Priority::Low);
+        });
+        save_profile(&mut h, b, |p| {
+            p.job_priorities.insert("Tester".into(), Priority::High);
+        });
+        // Этому нечего желать, и переполнения он не хочет: останется в лобби.
+        save_profile(&mut h, c, |p| p.unavailable = Unavailable::StayInLobby);
+        for who in [a, b, c] {
+            command(&mut h, who, crate::CMD_LOBBY_READY, vec![]);
+        }
+        h.ticks(80);
+        assert_eq!(jobs_view(&h, b).unwrap().current.as_deref(), Some("Tester"));
+        assert_ne!(
+            jobs_view(&h, a).unwrap().current.as_deref(),
+            Some("Tester"),
+            "место одно, и оно занято более желающим"
+        );
+        assert!(
+            jobs_view(&h, a).unwrap().current.is_some(),
+            "а получает переполняющую"
+        );
+        assert!(!lobby_view(&h, a).unwrap().in_lobby && !lobby_view(&h, b).unwrap().in_lobby);
+        let vc = lobby_view(&h, c).unwrap();
+        assert!(
+            vc.in_lobby && !vc.ready,
+            "без должности и без переполнения — в лобби"
+        );
+        assert_eq!(jobs_view(&h, c).unwrap().current, None);
+    }
+
+    #[test]
+    fn a_job_priority_edit_is_validated_by_the_server() {
+        use crate::character::Priority;
+        let mut h = harness();
+        let a = h.join("a");
+        h.ticks(5);
+        save_profile(&mut h, a, |p| {
+            p.job_priorities.insert("Tester".into(), Priority::High);
+            p.job_priorities.insert("Guard".into(), Priority::High);
+            p.job_priorities.insert("NoSuchJob".into(), Priority::High);
+        });
+        let got = profile_of(&h, a).unwrap().job_priorities;
+        assert_eq!(got.len(), 2, "неизвестная должность отброшена: {got:?}");
+        assert_eq!(
+            got.values().filter(|p| **p == Priority::High).count(),
+            1,
+            "«высокий» только один"
+        );
     }
 
     fn roundend_view(h: &Harness, who: ConnId) -> Option<crate::RoundEndView> {
