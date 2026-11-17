@@ -69,6 +69,62 @@ fn everything_that_happened_in_a_round_stays_in_that_round() {
 }
 
 #[test]
+fn a_saved_character_comes_back_in_the_next_round_through_a_real_sqlite_file() {
+    use gameplay::character::{
+        CMD_CHAR_SAVE, CMD_USER_HELLO, PROFILE_COMPONENT, decode_profile, encode_profile,
+    };
+    let dir = std::env::temp_dir().join(format!("round_prefs_{}", std::process::id()));
+    let cfg = RoundConfig {
+        prefs_db: Some(dir.join("preferences.sqlite3")),
+        ..RoundConfig::default()
+    };
+    let token = "0123456789abcdef0123456789abcdef";
+    let profile_of = |h: &Harness, who| {
+        let me = h.client(who).net_id().unwrap();
+        decode_profile(h.client(who).component(me, PROFILE_COMPONENT).unwrap()).unwrap()
+    };
+    // Первый раунд: игрок называется, правит имя и возраст — всё пишется в файл.
+    let mut h = Harness::with_server(Round::start(1, &content(), &cfg).unwrap().server);
+    let a = h.join("a");
+    h.ticks(10);
+    let p = h
+        .client(a)
+        .command_packet(CMD_USER_HELLO, token.as_bytes().to_vec())
+        .unwrap();
+    h.send(a, p);
+    h.ticks(5);
+    let mut mine = profile_of(&h, a);
+    mine.name = "Постоянный Игрок".into();
+    mine.age = 51;
+    let p = h
+        .client(a)
+        .command_packet(CMD_CHAR_SAVE, encode_profile(&mine))
+        .unwrap();
+    h.send(a, p);
+    h.ticks(5);
+    assert_eq!(profile_of(&h, a).name, "Постоянный Игрок");
+    drop(h);
+    // Новый раунд (и новый сервер): профиль подхватывается из файла по токену.
+    let mut h = Harness::with_server(Round::start(2, &content(), &cfg).unwrap().server);
+    let b = h.join("b");
+    h.ticks(10);
+    assert_ne!(
+        profile_of(&h, b).name,
+        "Постоянный Игрок",
+        "до «hello» профиль случайный"
+    );
+    let p = h
+        .client(b)
+        .command_packet(CMD_USER_HELLO, token.as_bytes().to_vec())
+        .unwrap();
+    h.send(b, p);
+    h.ticks(5);
+    let back = profile_of(&h, b);
+    assert_eq!((back.name.as_str(), back.age), ("Постоянный Игрок", 51));
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
 fn restart_replaces_the_server_and_bumps_the_round_number() {
     let cfg = RoundConfig::default();
     let mut r = Round::start(5, &content(), &cfg).unwrap();

@@ -264,6 +264,10 @@ pub fn register_replication(reg: &mut ReplicationRegistry) -> Result<(), Replica
             crate::character::PROFILE_COMPONENT,
             crate::character::PROFILE_MAX_BYTES,
         ),
+        (
+            crate::character::SLOTS_COMPONENT,
+            crate::character::SLOTS_MAX_BYTES,
+        ),
     ] {
         reg.register(ReplicatedKind {
             name: name.into(),

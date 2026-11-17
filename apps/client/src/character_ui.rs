@@ -8,8 +8,8 @@
 
 use bevy_egui::egui::{self, Color32};
 use gameplay::character::{
-    Backpack, CMD_CHAR_RANDOM, CMD_CHAR_SAVE, Clothing, Gender, Profile, Rules, Sex, Style,
-    encode_profile, skin_color,
+    Backpack, CMD_CHAR_CREATE, CMD_CHAR_DELETE, CMD_CHAR_RANDOM, CMD_CHAR_SAVE, CMD_CHAR_SELECT,
+    Clothing, Gender, Profile, Rules, Sex, SlotsView, Style, encode_profile, skin_color,
 };
 
 use crate::hud::Commands;
@@ -30,6 +30,8 @@ pub struct CharacterEditor {
     facial_search: String,
     /// Сторона превью: 0 — юг (лицом), 1 — север, 2 — восток, 3 — запад.
     pub preview_side: u8,
+    /// Отладочный автоплей уже отправил свои команды.
+    pub autoplay_done: bool,
     /// Текстура превью и то, для чего она построена.
     preview: Option<((gameplay::character::Look, u8), egui::TextureHandle)>,
 }
@@ -106,6 +108,38 @@ impl CharacterEditor {
     }
 }
 
+/// Какие кнопки слотов доступны: (создать, удалить).
+fn slot_buttons(v: &SlotsView) -> (bool, bool) {
+    (v.names.len() < v.max, v.names.len() > 1)
+}
+
+/// Вкладки слотов: выбрать, создать (пока не достигнут предел), удалить выбранный (пока он не
+/// единственный).
+fn slot_tabs(ui: &mut egui::Ui, v: &SlotsView) -> Commands {
+    let mut out: Commands = Vec::new();
+    ui.horizontal_wrapped(|ui| {
+        for (i, name) in v.names.iter().enumerate() {
+            let label = format!("{}: {}", i + 1, name);
+            if ui.selectable_label(i == v.selected, label).clicked() && i != v.selected {
+                out.push((CMD_CHAR_SELECT, vec![i as u8]));
+            }
+        }
+        let (can_create, can_delete) = slot_buttons(v);
+        if can_create && ui.button("+").on_hover_text("Новый персонаж").clicked() {
+            out.push((CMD_CHAR_CREATE, Vec::new()));
+        }
+        if can_delete
+            && ui
+                .button("Удалить")
+                .on_hover_text("Удалить выбранного персонажа")
+                .clicked()
+        {
+            out.push((CMD_CHAR_DELETE, vec![v.selected as u8]));
+        }
+    });
+    out
+}
+
 /// Список стилей с поиском; `current` — выбранный идентификатор (пусто — без стиля).
 fn style_picker(
     ui: &mut egui::Ui,
@@ -154,6 +188,7 @@ pub fn character_window(
     ctx: &egui::Context,
     editor: &mut CharacterEditor,
     rules: &Rules,
+    slots: Option<&SlotsView>,
     preview: Option<egui::TextureId>,
 ) -> Commands {
     let mut out: Commands = Vec::new();
@@ -171,6 +206,7 @@ pub fn character_window(
     let mut want_save = false;
     let mut want_reset = false;
     let mut want_random = false;
+    let mut slot_commands: Commands = Vec::new();
     egui::Window::new("Персонаж")
         // Экран лобби лежит на слое «Передний план» и закрыл бы обычное окно.
         .order(egui::Order::Foreground)
@@ -183,6 +219,10 @@ pub fn character_window(
                 ui.label("Профиль загружается…");
                 return;
             };
+            if let Some(v) = slots {
+                slot_commands = slot_tabs(ui, v);
+                ui.separator();
+            }
             ui.horizontal_top(|ui| {
                 ui.vertical(|ui| {
                     ui.set_width(PREVIEW_WIDTH);
@@ -332,6 +372,7 @@ pub fn character_window(
     if !open {
         editor.open = false;
     }
+    out.extend(slot_commands);
     if want_random {
         out.push((CMD_CHAR_RANDOM, Vec::new()));
     }
@@ -401,6 +442,37 @@ mod tests {
     }
 
     #[test]
+    fn slot_tabs_offer_select_create_and_delete_within_the_limits() {
+        let ctx = egui::Context::default();
+        let one = SlotsView {
+            selected: 0,
+            names: vec!["Иван".into()],
+            max: 3,
+        };
+        let mut commands = Commands::new();
+        frame(&ctx, |c| {
+            egui::Area::new(egui::Id::new("t")).show(c, |ui| commands = slot_tabs(ui, &one));
+        });
+        assert!(commands.is_empty(), "без кликов команд нет");
+        let view = |n: usize, max: usize| SlotsView {
+            selected: 0,
+            names: (0..n).map(|i| format!("n{i}")).collect(),
+            max,
+        };
+        assert_eq!(
+            slot_buttons(&view(1, 5)),
+            (true, false),
+            "единственного не удалить"
+        );
+        assert_eq!(slot_buttons(&view(3, 5)), (true, true));
+        assert_eq!(
+            slot_buttons(&view(5, 5)),
+            (false, true),
+            "на пределе нового нет"
+        );
+    }
+
+    #[test]
     fn the_window_draws_from_the_rules_and_stays_quiet_without_input() {
         let ctx = egui::Context::default();
         let mut e = CharacterEditor {
@@ -410,18 +482,18 @@ mod tests {
         let r = rules();
         // Без профиля — только надпись.
         let shapes = frame(&ctx, |c| {
-            assert!(character_window(c, &mut e, &r, None).is_empty());
+            assert!(character_window(c, &mut e, &r, None, None).is_empty());
         });
         assert!(shapes > 0);
         e.sync(Some(&Profile::default()));
         let shapes = frame(&ctx, |c| {
             assert!(
-                character_window(c, &mut e, &r, None).is_empty(),
+                character_window(c, &mut e, &r, None, None).is_empty(),
                 "без кликов команд нет"
             );
         });
         assert!(shapes > 10, "поля редактора нарисованы: {shapes}");
         e.open = false;
-        assert!(character_window(&ctx, &mut e, &r, None).is_empty());
+        assert!(character_window(&ctx, &mut e, &r, None, None).is_empty());
     }
 }

@@ -6,7 +6,7 @@ use round::{Round, RoundConfig};
 const USAGE: &str = "\
 server — сервер Astrocore Build (раунд на нейтральном полигоне)
 
-  server --listen 127.0.0.1:7779 --key <hex32> [--tick-hz 20] [--ticks N] [--map карта.ron] [--lobby секунд, 0 = без лобби] [--round-secs секунд]
+  server --listen 127.0.0.1:7779 --key <hex32> [--tick-hz 20] [--ticks N] [--map карта.ron] [--lobby секунд, 0 = без лобби] [--round-secs секунд] [--prefs файл.sqlite3 (по умолчанию data/preferences.sqlite3; --no-prefs — без сохранения профилей)]
   server --write-manifest <файл.json>   записать манифест рендера для клиента и выйти
 ";
 
@@ -65,9 +65,16 @@ fn run(args: &[String]) -> Result<(), String> {
     let round_secs: Option<f32> = arg(args, "--round-secs")
         .map(|v| v.parse().map_err(|e| format!("--round-secs: {e}")))
         .transpose()?;
+    // Профили персонажей: SQLite (`--prefs <файл>`, по умолчанию `data/preferences.sqlite3`).
+    let prefs_db = (!args.iter().any(|a| a == "--no-prefs")).then(|| {
+        std::path::PathBuf::from(
+            arg(args, "--prefs").unwrap_or_else(|| "data/preferences.sqlite3".into()),
+        )
+    });
     let config = RoundConfig {
         tick_hz,
         round_secs,
+        prefs_db,
         lobby_secs: (lobby_secs > 0.0).then_some(lobby_secs),
         ..RoundConfig::default()
     };

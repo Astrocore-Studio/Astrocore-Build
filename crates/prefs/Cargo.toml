@@ -1,0 +1,17 @@
+[package]
+name = "prefs"
+description = "Настройки игроков в SQLite (профили персонажей), как PreferencesManager и база сервера SS14"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+license.workspace = true
+
+[dependencies]
+gameplay.workspace = true
+rusqlite = { version = "0.43", features = ["bundled"] }
+serde_json.workspace = true
+sha2 = "0.10"
+thiserror.workspace = true
+
+[lints]
+workspace = true

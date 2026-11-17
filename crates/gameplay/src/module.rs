@@ -140,8 +140,9 @@ pub(crate) struct Actor {
     pub(crate) buckled: Option<ObjectId>,
     /// Когда в следующий раз разослать здоровье из-за кровотечения или удушья, с.
     pub(crate) next_health_publish: f32,
-    /// Профиль персонажа: внешность и имя (новичок получает случайный, как в SS14).
-    pub(crate) profile: crate::character::Profile,
+    /// Слоты персонажей игрока; текущий слот — тот, с которым он выходит в раунд (новичок получает
+    /// случайный профиль, как в SS14).
+    pub(crate) slots: crate::character::Slots,
     /// Здоровье изменилось сидящими внутри процессами, а разослать ещё не успели.
     pub(crate) health_dirty: bool,
     /// Умерший летает призраком; тело осталось лежать на месте смерти.
@@ -185,7 +186,10 @@ impl Actor {
             stun_until: 0.0,
             buckled: None,
             next_health_publish: 0.0,
-            profile: crate::character::Profile::default(),
+            slots: crate::character::Slots {
+                profiles: vec![crate::character::Profile::default()],
+                selected: 0,
+            },
             health_dirty: false,
             ghost: false,
             respawn_at: 0.0,
@@ -596,6 +600,10 @@ pub struct State {
     pub(crate) rules_sent: BTreeSet<NetworkEntityId>,
     pub(crate) character_roll: u32,
     pub(crate) profile_sent: BTreeMap<NetworkEntityId, Vec<u8>>,
+    pub(crate) slots_sent: BTreeMap<NetworkEntityId, Vec<u8>>,
+    /// Куда сохранять профили и токены игроков, которые назвались (`user.hello`).
+    pub(crate) store: Option<Box<dyn crate::character::ProfileStore>>,
+    pub(crate) tokens: BTreeMap<NetworkEntityId, String>,
     pub(crate) charger_slot: BTreeMap<ObjectId, (f32, HeldItem)>,
     pub(crate) explosion_types: BTreeMap<String, DamageSpec>,
     pub(crate) primed: BTreeMap<ObjectId, f32>,
@@ -1329,6 +1337,9 @@ impl State {
             rules_sent: BTreeSet::new(),
             character_roll: 0,
             profile_sent: BTreeMap::new(),
+            slots_sent: BTreeMap::new(),
+            store: None,
+            tokens: BTreeMap::new(),
             charger_slot: BTreeMap::new(),
             explosion_types,
             primed: BTreeMap::new(),
@@ -1386,7 +1397,7 @@ impl State {
         let rules = &self.rules;
         self.actors.entry(id).or_insert_with(|| {
             let mut a = Actor::new(id.0.wrapping_mul(2_246_822_519) ^ 0x85eb_ca6b);
-            a.profile = crate::character::Profile::random(id.0 as u64, rules);
+            *a.slots.current_mut() = crate::character::Profile::random(id.0 as u64, rules);
             a
         })
     }
@@ -1437,7 +1448,7 @@ impl State {
         ctx.set_component(
             actor,
             crate::character::LOOK_COMPONENT,
-            crate::character::encode_look(&a.profile.look(&self.rules)),
+            crate::character::encode_look(&a.slots.current().look(&self.rules)),
         );
         let worn: crate::wire::Worn = a
             .inventory
@@ -5076,6 +5087,8 @@ impl State {
         let ids: Vec<NetworkEntityId> = ctx.players().collect();
         self.rules_sent.retain(|p| ids.contains(p));
         self.profile_sent.retain(|p, _| ids.contains(p));
+        self.slots_sent.retain(|p, _| ids.contains(p));
+        self.tokens.retain(|p, _| ids.contains(p));
         let rules_bytes = (!ids.iter().all(|p| self.rules_sent.contains(p))).then(|| {
             (
                 crate::character::encode_rules(&self.rules),
@@ -5089,7 +5102,15 @@ impl State {
                 ctx.set_component(id, crate::character::RULES_COMPONENT, rules.clone());
                 ctx.set_component(id, crate::character::CATALOG_COMPONENT, catalog.clone());
             }
-            let profile = crate::character::encode_profile(&self.actor(id).profile);
+            let profile = crate::character::encode_profile(self.actor(id).slots.current());
+            let slots_view = {
+                let rules = self.rules.clone();
+                crate::character::encode_slots_view(&self.actor(id).slots.view(&rules))
+            };
+            if self.slots_sent.get(&id) != Some(&slots_view) {
+                ctx.set_component(id, crate::character::SLOTS_COMPONENT, slots_view.clone());
+                self.slots_sent.insert(id, slots_view);
+            }
             if self.profile_sent.get(&id) != Some(&profile) {
                 ctx.set_component(id, crate::character::PROFILE_COMPONENT, profile.clone());
                 self.profile_sent.insert(id, profile);
@@ -5105,24 +5126,86 @@ impl State {
             .is_none_or(|l| l.in_lobby.contains(&actor))
     }
 
-    /// `char.save`: профиль от клиента приводится к допустимому виду и принимается; `char.random`:
-    /// новый случайный профиль.
+    /// Команды редактора. `char.save` — профиль выбранного слота от клиента приводится к
+    /// допустимому виду и принимается; `char.random` — новый случайный профиль в слот;
+    /// `char.select`, `char.create`, `char.delete` — слоты (не больше предела, последний не
+    /// удаляется); `user.hello` — клиент называет токен, и сохранённые профили подгружаются.
+    /// Всё, кроме `user.hello`, только в лобби. Каждое изменение пишется в хранилище.
     fn character_command(&mut self, actor: NetworkEntityId, kind: &str, data: &[u8]) {
+        use crate::character as ch;
+        if kind == ch::CMD_USER_HELLO {
+            self.user_hello(actor, data);
+            return;
+        }
         if !self.can_edit_character(actor) {
             return;
         }
-        match kind {
-            crate::character::CMD_CHAR_SAVE => {
-                if let Some(p) = crate::character::decode_profile(data) {
-                    self.actor(actor).profile = p.validated(&self.rules);
-                }
-            }
-            crate::character::CMD_CHAR_RANDOM => {
+        let rules = self.rules.clone();
+        let rules = &rules;
+        let slot_arg = data.first().map(|b| usize::from(*b));
+        let changed = match kind {
+            ch::CMD_CHAR_SAVE => ch::decode_profile(data).is_some_and(|p| {
+                let valid = p.validated(rules);
+                *self.actor(actor).slots.current_mut() = valid;
+                true
+            }),
+            ch::CMD_CHAR_RANDOM => {
                 self.character_roll = self.character_roll.wrapping_add(1);
                 let seed = actor.0 as u64 ^ (u64::from(self.character_roll) << 32) ^ 0x00C0_FFEE;
-                self.actor(actor).profile = crate::character::Profile::random(seed, &self.rules);
+                *self.actor(actor).slots.current_mut() = ch::Profile::random(seed, &self.rules);
+                true
             }
-            _ => {}
+            ch::CMD_CHAR_SELECT => slot_arg.is_some_and(|i| self.actor(actor).slots.select(i)),
+            ch::CMD_CHAR_CREATE => {
+                self.character_roll = self.character_roll.wrapping_add(1);
+                let seed = actor.0 as u64 ^ (u64::from(self.character_roll) << 32) ^ 0x00C0_FFEE;
+                let fresh = ch::Profile::random(seed, &self.rules);
+                let rules = self.rules.clone();
+                let slots = &mut self.actor(actor).slots;
+                let next = slots.profiles.len();
+                let made = slots.set(next, &fresh, &rules);
+                if made {
+                    slots.select(next);
+                }
+                made
+            }
+            ch::CMD_CHAR_DELETE => slot_arg.is_some_and(|i| self.actor(actor).slots.delete(i)),
+            _ => false,
+        };
+        if changed {
+            self.persist_slots(actor);
+        }
+    }
+
+    /// `user.hello`: токен запоминается; если по нему в хранилище есть профили, они заменяют
+    /// текущие (проверенные по правилам), иначе текущие сохраняются как первые.
+    fn user_hello(&mut self, actor: NetworkEntityId, data: &[u8]) {
+        let Ok(token) = std::str::from_utf8(data) else {
+            return;
+        };
+        if !crate::character::token_ok(token) || self.tokens.contains_key(&actor) {
+            return;
+        }
+        self.tokens.insert(actor, token.to_string());
+        let Some(store) = self.store.as_mut() else {
+            return;
+        };
+        match store.load(token) {
+            Some(saved) => {
+                let valid = saved.validated(&self.rules);
+                self.actor(actor).slots = valid;
+            }
+            None => self.persist_slots(actor),
+        }
+    }
+
+    /// Записать слоты игрока, если он назвался и есть хранилище.
+    fn persist_slots(&mut self, actor: NetworkEntityId) {
+        let (Some(token), Some(a)) = (self.tokens.get(&actor), self.actors.get(&actor)) else {
+            return;
+        };
+        if let Some(store) = self.store.as_mut() {
+            store.save(token, &a.slots);
         }
     }
 
@@ -8137,6 +8220,13 @@ impl GameplayModule {
         self
     }
 
+    /// Хранилище профилей игроков (SQLite в крейте `prefs`).
+    #[must_use]
+    pub fn with_profile_store(mut self, store: Box<dyn crate::character::ProfileStore>) -> Self {
+        self.state.store = Some(store);
+        self
+    }
+
     /// Включить лобби: до старта раунда игроки ждут `secs` секунд (`game.lobbyduration`).
     #[must_use]
     pub fn with_lobby(mut self, secs: f32, round: u32) -> Self {
@@ -8368,7 +8458,11 @@ impl GameModule for GameplayModule {
             }
             HookEvent::Command { actor, kind, data }
                 if kind == crate::character::CMD_CHAR_SAVE
-                    || kind == crate::character::CMD_CHAR_RANDOM =>
+                    || kind == crate::character::CMD_CHAR_RANDOM
+                    || kind == crate::character::CMD_CHAR_SELECT
+                    || kind == crate::character::CMD_CHAR_CREATE
+                    || kind == crate::character::CMD_CHAR_DELETE
+                    || kind == crate::character::CMD_USER_HELLO =>
             {
                 st.character_command(*actor, kind, data);
             }

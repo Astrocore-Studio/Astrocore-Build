@@ -3369,6 +3369,153 @@ mod disposal_tests {
         assert_ne!(profile_of(&h, a), Some(saved));
     }
 
+    /// Хранилище профилей в памяти; общее с тестом, чтобы смотреть, что записано.
+    #[derive(Clone, Default)]
+    struct MemStore(
+        std::sync::Arc<
+            std::sync::Mutex<std::collections::BTreeMap<String, crate::character::Slots>>,
+        >,
+    );
+
+    impl crate::character::ProfileStore for MemStore {
+        fn load(&mut self, token: &str) -> Option<crate::character::Slots> {
+            self.0.lock().unwrap().get(token).cloned()
+        }
+        fn save(&mut self, token: &str, slots: &crate::character::Slots) {
+            self.0.lock().unwrap().insert(token.into(), slots.clone());
+        }
+    }
+
+    const TOKEN: &str = "0123456789abcdef0123456789abcdef";
+
+    fn slots_view_of(h: &Harness, who: ConnId) -> Option<crate::character::SlotsView> {
+        let net = h.client(who).net_id()?;
+        crate::character::decode_slots_view(
+            h.client(who)
+                .component(net, crate::character::SLOTS_COMPONENT)?,
+        )
+    }
+
+    #[test]
+    fn saved_slots_follow_the_token_and_every_change_is_written_back() {
+        let store = MemStore::default();
+        let mut saved = crate::character::Slots::new(&crate::character::Rules::default());
+        saved.profiles[0].name = "Сохранённый Иван".into();
+        saved.profiles[0].age = 77;
+        store.0.lock().unwrap().insert(TOKEN.into(), saved);
+        let mut h = harness_with(|m| m.with_profile_store(Box::new(store.clone())));
+        let a = h.join("a");
+        h.ticks(10);
+        // Пока игрок не назвался, у него случайный профиль, а в базу ничего не пишется.
+        assert_ne!(profile_of(&h, a).unwrap().name, "Сохранённый Иван");
+        command(
+            &mut h,
+            a,
+            crate::character::CMD_USER_HELLO,
+            TOKEN.as_bytes().to_vec(),
+        );
+        h.ticks(5);
+        let p = profile_of(&h, a).unwrap();
+        assert_eq!((p.name.as_str(), p.age), ("Сохранённый Иван", 77));
+        assert_eq!(
+            slots_view_of(&h, a).unwrap().names,
+            vec!["Сохранённый Иван"]
+        );
+        // Новый слот: создаётся, выбирается и пишется в базу.
+        command(&mut h, a, crate::character::CMD_CHAR_CREATE, Vec::new());
+        h.ticks(5);
+        let view = slots_view_of(&h, a).unwrap();
+        assert_eq!((view.names.len(), view.selected), (2, 1));
+        assert_eq!(store.0.lock().unwrap()[TOKEN].profiles.len(), 2);
+        // Правка второго слота пишется туда же, первый не трогается.
+        let mut second = profile_of(&h, a).unwrap();
+        second.name = "Второй Игрок".into();
+        command(
+            &mut h,
+            a,
+            crate::character::CMD_CHAR_SAVE,
+            crate::character::encode_profile(&second),
+        );
+        h.ticks(5);
+        {
+            let db = store.0.lock().unwrap();
+            assert_eq!(db[TOKEN].profiles[1].name, "Второй Игрок");
+            assert_eq!(db[TOKEN].profiles[0].name, "Сохранённый Иван");
+        }
+        // Выбор слота меняет профиль, с которым игрок выйдет в раунд.
+        command(&mut h, a, crate::character::CMD_CHAR_SELECT, vec![0]);
+        h.ticks(5);
+        assert_eq!(profile_of(&h, a).unwrap().name, "Сохранённый Иван");
+        assert_eq!(store.0.lock().unwrap()[TOKEN].selected, 0);
+        // Удалить слот можно, последний — нет.
+        command(&mut h, a, crate::character::CMD_CHAR_DELETE, vec![1]);
+        h.ticks(5);
+        assert_eq!(slots_view_of(&h, a).unwrap().names.len(), 1);
+        command(&mut h, a, crate::character::CMD_CHAR_DELETE, vec![0]);
+        h.ticks(5);
+        assert_eq!(
+            slots_view_of(&h, a).unwrap().names.len(),
+            1,
+            "последний остаётся"
+        );
+    }
+
+    #[test]
+    fn slots_are_capped_and_bad_tokens_do_nothing() {
+        let store = MemStore::default();
+        let mut h = harness_with(|m| m.with_profile_store(Box::new(store.clone())));
+        let a = h.join("a");
+        h.ticks(10);
+        for bad in [
+            "short",
+            "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz",
+            "'; DROP TABLE profile;--",
+        ] {
+            command(
+                &mut h,
+                a,
+                crate::character::CMD_USER_HELLO,
+                bad.as_bytes().to_vec(),
+            );
+        }
+        h.ticks(3);
+        command(&mut h, a, crate::character::CMD_CHAR_CREATE, Vec::new());
+        h.ticks(3);
+        assert!(
+            store.0.lock().unwrap().is_empty(),
+            "без токена ничего не пишется"
+        );
+        command(
+            &mut h,
+            a,
+            crate::character::CMD_USER_HELLO,
+            TOKEN.as_bytes().to_vec(),
+        );
+        h.ticks(3);
+        for _ in 0..10 {
+            command(&mut h, a, crate::character::CMD_CHAR_CREATE, Vec::new());
+            h.ticks(2);
+        }
+        let max = slots_view_of(&h, a).unwrap().max;
+        assert_eq!(slots_view_of(&h, a).unwrap().names.len(), max);
+        assert_eq!(store.0.lock().unwrap()[TOKEN].profiles.len(), max);
+        // Второе «hello» с другим токеном игнорируется: игрока нельзя подменить на лету.
+        command(
+            &mut h,
+            a,
+            crate::character::CMD_USER_HELLO,
+            "fedcba9876543210fedcba9876543210".as_bytes().to_vec(),
+        );
+        h.ticks(3);
+        assert!(
+            !store
+                .0
+                .lock()
+                .unwrap()
+                .contains_key("fedcba9876543210fedcba9876543210")
+        );
+    }
+
     #[test]
     fn a_character_can_only_be_changed_in_the_lobby() {
         let mut h = harness_with(|m| m.with_lobby(1000.0, 1));

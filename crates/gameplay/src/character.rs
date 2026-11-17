@@ -29,9 +29,18 @@ pub const CATALOG_MAX_BYTES: usize = 16_384;
 /// Текущий профиль игрока (только владельцу).
 pub const PROFILE_COMPONENT: &str = "build.profile";
 pub const PROFILE_MAX_BYTES: usize = 4096;
-/// Команды редактора: сохранить профиль (JSON) и бросить случайный.
+/// Команды редактора: сохранить профиль выбранного слота (JSON), бросить случайный, выбрать,
+/// создать и удалить слот (номер слота — один байт).
 pub const CMD_CHAR_SAVE: &str = "char.save";
 pub const CMD_CHAR_RANDOM: &str = "char.random";
+pub const CMD_CHAR_SELECT: &str = "char.select";
+pub const CMD_CHAR_CREATE: &str = "char.create";
+pub const CMD_CHAR_DELETE: &str = "char.delete";
+/// Клиент называет себя: токен, по которому сервер находит сохранённые профили.
+pub const CMD_USER_HELLO: &str = "user.hello";
+/// Слоты игрока для вкладок редактора (только владельцу).
+pub const SLOTS_COMPONENT: &str = "build.slots";
+pub const SLOTS_MAX_BYTES: usize = 2048;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum Sex {
@@ -699,6 +708,38 @@ impl Profile {
     }
 }
 
+/// Куда сохраняются профили игроков (реализует SQLite в крейте `prefs`). Игрока определяет
+/// токен; хранилище само решает, как его прятать.
+pub trait ProfileStore: Send {
+    fn load(&mut self, token: &str) -> Option<Slots>;
+    fn save(&mut self, token: &str, slots: &Slots);
+}
+
+/// Годится ли токен игрока: 16…64 шестнадцатеричных знака.
+pub fn token_ok(token: &str) -> bool {
+    (16..=64).contains(&token.len()) && token.bytes().all(|b| b.is_ascii_hexdigit())
+}
+
+/// Слоты для вкладок: выбранный, имена, предел.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SlotsView {
+    pub selected: usize,
+    pub names: Vec<String>,
+    pub max: usize,
+}
+
+pub fn encode_slots_view(v: &SlotsView) -> Vec<u8> {
+    serde_json::to_vec(v).unwrap_or_default()
+}
+
+pub fn decode_slots_view(bytes: &[u8]) -> Option<SlotsView> {
+    if bytes.is_empty() || bytes.len() > SLOTS_MAX_BYTES {
+        return None;
+    }
+    let v: SlotsView = serde_json::from_slice(bytes).ok()?;
+    (!v.names.is_empty() && v.selected < v.names.len() && v.names.len() <= v.max).then_some(v)
+}
+
 /// Профили игрока: не больше `Limits::max_slots` и выбранный слот в их пределах.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Slots {
@@ -716,6 +757,37 @@ impl Slots {
 
     pub fn current(&self) -> &Profile {
         &self.profiles[self.selected.min(self.profiles.len() - 1)]
+    }
+
+    pub fn current_mut(&mut self) -> &mut Profile {
+        let i = self.selected.min(self.profiles.len() - 1);
+        &mut self.profiles[i]
+    }
+
+    pub fn view(&self, rules: &Rules) -> SlotsView {
+        SlotsView {
+            selected: self.selected.min(self.profiles.len() - 1),
+            names: self.profiles.iter().map(|p| p.name.clone()).collect(),
+            max: rules.limits.max_slots,
+        }
+    }
+
+    /// Привести загруженные слоты к текущим правилам: профили проверяются, лишние сверх предела
+    /// отбрасываются, выбранный слот остаётся в пределах.
+    pub fn validated(&self, rules: &Rules) -> Slots {
+        let mut profiles: Vec<Profile> = self
+            .profiles
+            .iter()
+            .take(rules.limits.max_slots)
+            .map(|p| p.validated(rules))
+            .collect();
+        if profiles.is_empty() {
+            profiles.push(Profile::default_for(rules));
+        }
+        Slots {
+            selected: self.selected.min(profiles.len() - 1),
+            profiles,
+        }
     }
 
     /// Заменить профиль слота `slot` (или добавить новый, если слот следующий по порядку и есть
@@ -997,6 +1069,44 @@ mod tests {
         }
         assert!(!s.delete(0));
         assert!(!s.select(1));
+    }
+
+    #[test]
+    fn loaded_slots_are_brought_to_the_current_rules() {
+        let r = rules();
+        let loaded = Slots {
+            profiles: (0..9)
+                .map(|i| Profile {
+                    age: 3,
+                    name: format!("n{i}"),
+                    ..Profile::default()
+                })
+                .collect(),
+            selected: 8,
+        };
+        let ok = loaded.validated(&r);
+        assert_eq!(ok.profiles.len(), r.limits.max_slots);
+        assert_eq!(ok.selected, r.limits.max_slots - 1);
+        assert!(ok.profiles.iter().all(|p| p.age == 18));
+        let empty = Slots {
+            profiles: Vec::new(),
+            selected: 3,
+        }
+        .validated(&r);
+        assert_eq!((empty.profiles.len(), empty.selected), (1, 0));
+    }
+
+    #[test]
+    fn tokens_and_the_slot_view_are_validated() {
+        assert!(token_ok("0123456789abcdef0123456789abcdef"));
+        assert!(!token_ok("xyz"));
+        assert!(!token_ok(&"z".repeat(32)));
+        let r = rules();
+        let v = Slots::new(&r).view(&r);
+        assert_eq!(decode_slots_view(&encode_slots_view(&v)), Some(v.clone()));
+        let mut bad = v;
+        bad.selected = 7;
+        assert!(decode_slots_view(&encode_slots_view(&bad)).is_none());
     }
 
     #[test]

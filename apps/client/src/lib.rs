@@ -19,6 +19,7 @@ mod players;
 mod power_ui;
 mod sounds;
 mod statusfx;
+mod user_token;
 mod wires_ui;
 use gameplay::{
     CMD_DROP, CMD_EQUIP, CMD_SELECT_HAND, CMD_SWAP_HANDS, HANDS_COMPONENT, Hands,
@@ -52,6 +53,9 @@ pub struct Loadout {
     pub char_rules: Option<gameplay::character::Rules>,
     char_rules_raw: (Vec<u8>, Vec<u8>),
     pub char_profile: Option<gameplay::character::Profile>,
+    pub char_slots: Option<gameplay::character::SlotsView>,
+    /// Клиент уже назвал серверу свой токен.
+    hello_sent: bool,
     /// Глаголы для цели и результат осмотра.
     pub verbs: Option<gameplay::VerbsView>,
     pub examine: Option<gameplay::ExamineView>,
@@ -619,6 +623,10 @@ fn refresh_loadout(net: Option<NonSend<Net>>, time: Res<Time>, mut loadout: ResM
             .core
             .component(me, PROFILE_COMPONENT)
             .and_then(gameplay::character::decode_profile);
+        loadout.char_slots = net
+            .core
+            .component(me, gameplay::character::SLOTS_COMPONENT)
+            .and_then(gameplay::character::decode_slots_view);
     }
     loadout.jobs = net
         .core
@@ -1260,6 +1268,14 @@ fn loadout_window(
         return Ok(());
     };
     // Призрак летает сквозь стены: клиент предсказывает движение так же, как сервер.
+    // Назвать серверу свой токен: по нему приходят сохранённые профили персонажей.
+    if !loadout.hello_sent && net.core.net_id().is_some() {
+        loadout.hello_sent = true;
+        net.send_command(
+            gameplay::character::CMD_USER_HELLO,
+            user_token::load_or_create().into_bytes(),
+        );
+    }
     let ghost = loadout.health.as_ref().is_some_and(|h| h.ghost);
     net.core.set_noclip(ghost);
     net.core.set_speed(if ghost {
@@ -1289,8 +1305,14 @@ fn loadout_window(
     // Лобби: экран на весь кадр, пока игрок не вышел на станцию.
     if let Some(lobby) = loadout.lobby.as_ref().filter(|l| l.in_lobby) {
         let at = egui::pos2(16.0, (ctx.content_rect().max.y - 230.0).max(16.0));
-        if std::env::var_os("ASTRO_AUTOPLAY_CHAR").is_some() {
+        if let Some(mode) = std::env::var_os("ASTRO_AUTOPLAY_CHAR") {
             hud.character.open = true;
+            // Отладка: `slots` — завести два дополнительных слота (один раз).
+            if mode == "slots" && !hud.character.autoplay_done && loadout.hello_sent {
+                hud.character.autoplay_done = true;
+                net.send_command(gameplay::character::CMD_CHAR_CREATE, Vec::new());
+                net.send_command(gameplay::character::CMD_CHAR_CREATE, Vec::new());
+            }
         }
         let mut cmds = hud::lobby_screen(&ctx, lobby, &mut hud.character.open);
         if let Some(rules) = loadout.char_rules.as_ref() {
@@ -1302,6 +1324,7 @@ fn loadout_window(
                 &ctx,
                 &mut hud.character,
                 rules,
+                loadout.char_slots.as_ref(),
                 preview,
             ));
         }

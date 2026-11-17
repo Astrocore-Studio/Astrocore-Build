@@ -25,6 +25,8 @@ pub struct RoundConfig {
     pub lobby_secs: Option<f32>,
     /// Предел времени раунда, с; `None` — раунд заканчивается только гибелью экипажа.
     pub round_secs: Option<f32>,
+    /// База настроек игроков (профили персонажей, SQLite); `None` — профили не сохраняются.
+    pub prefs_db: Option<std::path::PathBuf>,
 }
 
 impl Default for RoundConfig {
@@ -34,6 +36,7 @@ impl Default for RoundConfig {
             allow_edit: false,
             lobby_secs: None,
             round_secs: None,
+            prefs_db: None,
         }
     }
 }
@@ -71,6 +74,12 @@ impl Round {
             .with_descriptions(polygon::load_descriptions(content))
             .with_spawn(astrocore_math::glam::Vec3::from_array(polygon::spawn()))
             .with_station_name(polygon::map().name);
+        let module = match &config.prefs_db {
+            Some(path) => module.with_profile_store(Box::new(
+                prefs::PrefsDb::open(path).map_err(|e| RoundError::Module(e.to_string()))?,
+            )),
+            None => module,
+        };
         let signal = gameplay::RoundSignal::new();
         let module = module.with_round_end(signal.clone(), config.round_secs);
         let module = match config.lobby_secs {
