@@ -4,8 +4,10 @@
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
-use astrocore_client::{LocalBody, Net, RemoteSprites};
-use astrocore_render::BillboardQuad;
+use astrocore_client::{LocalBody, Net, PlayerSprite, RemoteSprites};
+use astrocore_math::glam::Vec3 as MathVec3;
+use astrocore_render::{BillboardQuad, DirectionalSprite, voxel_mesh};
+use astrocore_sprites::select_direction;
 use bevy::asset::RenderAssetUsages;
 use bevy::image::ImageSampler;
 use bevy::prelude::*;
@@ -38,14 +40,88 @@ pub struct Outfits {
     /// Прототип предмета → картинка значка (путь относительно `root`), из манифеста рендера.
     icons: HashMap<String, String>,
     png: HashMap<PathBuf, Option<image::RgbaImage>>,
-    composed: HashMap<Key, Handle<Image>>,
+    composed: HashMap<Option<Look>, Handle<Image>>,
     applied: HashMap<Entity, Key>,
     /// Тело, покрашенное цветом кожи (по цвету).
     bodies: HashMap<[u8; 3], Option<image::RgbaImage>>,
+    /// Толщина надетого из манифеста (`worn_volume`).
+    worn: WornVolume,
+    /// Объёмные слои по описанию: сетки и материалы четырёх направлений.
+    volumes: HashMap<Layer, Option<LayerAssets>>,
+}
+
+/// Толщина надетого: на сколько пикселей слой выступает за тело с каждой стороны. По слоту и по
+/// предмету (предмет перекрывает слот); данные — компонент `WornVolume` в прототипах.
+#[derive(Default, Clone)]
+pub struct WornVolume {
+    slots: HashMap<String, f32>,
+    items: HashMap<String, f32>,
+}
+
+impl WornVolume {
+    /// Прочитать из манифеста рендера (поле `worn_volume`); нет поля — всё тонкое, один пиксель.
+    pub fn from_manifest(path: Option<&Path>) -> Self {
+        let value = path
+            .and_then(|p| std::fs::read(p).ok())
+            .and_then(|b| serde_json::from_slice::<serde_json::Value>(&b).ok());
+        let table = |key: &str| -> HashMap<String, f32> {
+            value
+                .as_ref()
+                .and_then(|v| v.get("worn_volume")?.get(key)?.as_object())
+                .map(|m| {
+                    m.iter()
+                        .filter_map(|(k, v)| Some((k.clone(), v.as_f64()? as f32)))
+                        .collect()
+                })
+                .unwrap_or_default()
+        };
+        Self {
+            slots: table("slots"),
+            items: table("items"),
+        }
+    }
+
+    fn shell(&self, slot: &str, proto: &str) -> u8 {
+        self.items
+            .get(proto)
+            .or_else(|| self.slots.get(slot))
+            .map_or(1, |px| px.round().clamp(0.0, 16.0) as u8)
+    }
+}
+
+/// Чем нарисован слой.
+#[derive(Clone, PartialEq, Eq, Hash)]
+pub enum Source {
+    /// Тело с внешностью: плита в один пиксель.
+    Body(Option<Look>),
+    /// Картинка надетого или предмета в руке (2×2 направления).
+    Worn(PathBuf),
+}
+
+/// Слой персонажа: что рисовать, насколько он выступает за тело и в каком порядке лежит.
+#[derive(Clone, PartialEq, Eq, Hash)]
+pub struct Layer {
+    source: Source,
+    shell: u8,
+    order: u8,
+}
+
+/// Сетки и материалы слоя по четырём направлениям; `None` — в этом направлении нечего рисовать.
+#[derive(Clone)]
+struct LayerAssets {
+    meshes: [Option<Handle<Mesh>>; 4],
+    materials: [Handle<StandardMaterial>; 4],
+}
+
+/// Объёмный слой на персонаже: смена направления меняет сетку и материал.
+#[derive(Component)]
+pub struct WornLayer {
+    assets_meshes: [Option<Handle<Mesh>>; 4],
+    assets_materials: [Handle<StandardMaterial>; 4],
 }
 
 /// Что определяет вид листа: внешность и надетые слои.
-type Key = (Option<Look>, Vec<PathBuf>);
+type Key = (Option<Look>, Vec<Layer>);
 
 impl Outfits {
     pub fn new(root: PathBuf, base: image::RgbaImage, icons: HashMap<String, String>) -> Self {
@@ -57,7 +133,16 @@ impl Outfits {
             composed: HashMap::new(),
             applied: HashMap::new(),
             bodies: HashMap::new(),
+            worn: WornVolume::default(),
+            volumes: HashMap::new(),
         }
+    }
+
+    /// Задать толщину надетого (из манифеста).
+    #[must_use]
+    pub fn with_worn(mut self, worn: WornVolume) -> Self {
+        self.worn = worn;
+        self
     }
 
     /// Путь картинки состояния рядом со значком предмета, если такой файл есть.
@@ -71,13 +156,21 @@ impl Outfits {
             .find(|p| self.root.join(p).is_file())
     }
 
-    fn layers(&self, worn: &[(String, String)], hands: &gameplay::Hands) -> Vec<PathBuf> {
+    fn layers(&self, worn: &[(String, String)], hands: &gameplay::Hands) -> Vec<Layer> {
         let mut out = Vec::new();
+        let push = |out: &mut Vec<Layer>, path: PathBuf, shell: u8| {
+            let order = u8::try_from(out.len() + 1).unwrap_or(u8::MAX);
+            out.push(Layer {
+                source: Source::Worn(path),
+                shell,
+                order,
+            });
+        };
         for (slot, suffix) in SLOT_ORDER {
             if let Some((_, proto)) = worn.iter().find(|(s, _)| s == slot)
                 && let Some(p) = self.sibling(proto, |_| vec![format!("equipped-{suffix}.png")])
             {
-                out.push(p);
+                push(&mut out, p, self.worn.shell(slot, proto));
             }
         }
         for (_, name, item) in hands.iter() {
@@ -94,10 +187,68 @@ impl Outfits {
                     format!("inhand-{side}.png"),
                 ]
             }) {
-                out.push(p);
+                push(&mut out, p, self.worn.shell("hand", proto));
             }
         }
         out
+    }
+
+    /// Сетки и материалы слоя: по одной на направление, плита глубиной `2 * shell + 1` пикселей
+    /// (тело — один). Слои с равной толщиной разнесены на доли миллиметра, чтобы не мерцали.
+    fn layer_assets(
+        &mut self,
+        layer: &Layer,
+        size: Vec2,
+        meshes: &mut Assets<Mesh>,
+        images: &mut Assets<Image>,
+        materials: &mut Assets<StandardMaterial>,
+    ) -> Option<LayerAssets> {
+        if let Some(c) = self.volumes.get(layer) {
+            return c.clone();
+        }
+        let cells: Option<[image::RgbaImage; 4]> = match &layer.source {
+            Source::Body(look) => {
+                let sheet = self.compose_look(look.as_ref(), &[]);
+                Some(std::array::from_fn(|d| {
+                    image::imageops::crop_imm(&sheet, d as u32 * CELL, 0, CELL, CELL).to_image()
+                }))
+            }
+            Source::Worn(rel) => self
+                .load(rel)
+                .filter(|part| part.width() >= CELL * 2 && part.height() >= CELL * 2)
+                .map(|part| {
+                    std::array::from_fn(|d| {
+                        let d = d as u32;
+                        image::imageops::crop_imm(part, (d % 2) * CELL, (d / 2) * CELL, CELL, CELL)
+                            .to_image()
+                    })
+                }),
+        };
+        let built = cells.map(|cells| {
+            let depth =
+                f32::from(layer.shell * 2 + 1) / CELL as f32 + f32::from(layer.order) * 0.0006;
+            let mut mesh_of = |c: &image::RgbaImage| {
+                voxel_mesh(c.as_raw(), CELL as usize, CELL as usize, size, depth)
+                    .map(|m| meshes.add(m))
+            };
+            let meshes_by_dir: [Option<Handle<Mesh>>; 4] =
+                std::array::from_fn(|d| mesh_of(&cells[d]));
+            let materials_by_dir: [Handle<StandardMaterial>; 4] = std::array::from_fn(|d| {
+                materials.add(StandardMaterial {
+                    base_color_texture: Some(images.add(to_image(cells[d].clone()))),
+                    reflectance: 0.05,
+                    alpha_mode: AlphaMode::Opaque,
+                    cull_mode: Some(bevy::render::render_resource::Face::Back),
+                    ..default()
+                })
+            });
+            LayerAssets {
+                meshes: meshes_by_dir,
+                materials: materials_by_dir,
+            }
+        });
+        self.volumes.insert(layer.clone(), built.clone());
+        built
     }
 
     fn load(&mut self, rel: &Path) -> Option<&image::RgbaImage> {
@@ -197,21 +348,28 @@ fn to_image(sheet: image::RgbaImage) -> Image {
     image
 }
 
-/// Привести спрайты игроков в соответствие с тем, что на них надето и что у них в руках.
+/// Привести спрайты игроков в соответствие с тем, что на них надето и что у них в руках: плоский
+/// лист остаётся основой (его видят призраки), а тело и каждый слой одежды становятся объёмными
+/// плитами, толще тела на `WornVolume`.
 #[allow(clippy::too_many_arguments)]
 pub fn sync_outfits(
     net: Option<NonSend<Net>>,
     remote: Res<RemoteSprites>,
     local: Res<LocalBody>,
+    player: Option<Res<PlayerSprite>>,
     outfits: Option<ResMut<Outfits>>,
     mut images: ResMut<Assets<Image>>,
+    mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
+    mut commands: Commands,
     children: Query<&Children>,
     quads: Query<&MeshMaterial3d<StandardMaterial>, With<BillboardQuad>>,
+    old_layers: Query<(), With<WornLayer>>,
 ) {
     let (Some(net), Some(mut outfits)) = (net, outfits) else {
         return;
     };
+    let size = player.map_or(Vec2::ONE, |p| p.size);
     let mut targets: Vec<(astrocore_core::NetworkEntityId, Entity)> =
         remote.0.iter().map(|(i, e)| (*i, *e)).collect();
     if let (Some(me), Some(e)) = (net.core.net_id(), local.0) {
@@ -231,21 +389,31 @@ pub fn sync_outfits(
             .component(id, HANDS_COMPONENT)
             .and_then(decode_hands);
         let look = net.core.component(id, LOOK_COMPONENT).and_then(decode_look);
-        let key: Key = (
-            look,
-            hands
-                .as_ref()
-                .map_or_else(Vec::new, |h| outfits.layers(&worn, h)),
-        );
+        let ghost = net
+            .core
+            .component(id, gameplay::GHOST_COMPONENT)
+            .is_some_and(|b| b.first() == Some(&1));
+        let mut layers = Vec::new();
+        if !ghost {
+            layers.push(Layer {
+                source: Source::Body(look.clone()),
+                shell: 0,
+                order: 0,
+            });
+            if let Some(h) = &hands {
+                layers.extend(outfits.layers(&worn, h));
+            }
+        }
+        let key: Key = (look, layers);
         if outfits.applied.get(&entity) == Some(&key) {
             continue;
         }
-        let handle = match outfits.composed.get(&key) {
+        let handle = match outfits.composed.get(&key.0) {
             Some(h) => h.clone(),
             None => {
-                let sheet = outfits.compose_look(key.0.as_ref(), &key.1);
+                let sheet = outfits.compose_look(key.0.as_ref(), &[]);
                 let h = images.add(to_image(sheet));
-                outfits.composed.insert(key.clone(), h.clone());
+                outfits.composed.insert(key.0.clone(), h.clone());
                 h
             }
         };
@@ -259,10 +427,97 @@ pub fn sync_outfits(
             {
                 mat.base_color_texture = Some(handle.clone());
                 applied = true;
+            } else {
+                continue;
+            }
+            {
+                // Объёмные слои живут на плоской основе: те же поворот и покачивание.
+                if let Ok(old) = children.get(child) {
+                    for &l in old {
+                        if old_layers.contains(l) {
+                            commands.entity(l).despawn();
+                        }
+                    }
+                }
+                for layer in &key.1 {
+                    let Some(a) =
+                        outfits.layer_assets(layer, size, &mut meshes, &mut images, &mut materials)
+                    else {
+                        continue;
+                    };
+                    let first = a.meshes[0].clone();
+                    commands.entity(child).with_children(|p| {
+                        let mut e = p.spawn((
+                            WornLayer {
+                                assets_meshes: a.meshes.clone(),
+                                assets_materials: a.materials.clone(),
+                            },
+                            MeshMaterial3d(a.materials[0].clone()),
+                            Transform::IDENTITY,
+                        ));
+                        match first {
+                            Some(m) => {
+                                e.insert((Mesh3d(m), Visibility::Inherited));
+                            }
+                            None => {
+                                e.insert(Visibility::Hidden);
+                            }
+                        }
+                    });
+                }
             }
         }
         if applied {
             outfits.applied.insert(entity, key);
+        }
+    }
+}
+
+/// Выбрать для каждого слоя сетку по направлению, в котором персонаж виден камере (как у плоской
+/// основы: столбец листа — индекс направления).
+pub fn update_worn_layers(
+    cameras: Query<&GlobalTransform, With<Camera3d>>,
+    mut layers: Query<(
+        &WornLayer,
+        &ChildOf,
+        &mut Mesh3d,
+        &mut MeshMaterial3d<StandardMaterial>,
+        &mut Visibility,
+    )>,
+    quads: Query<&ChildOf, With<BillboardQuad>>,
+    roots: Query<(&GlobalTransform, &DirectionalSprite)>,
+) {
+    let Ok(cam) = cameras.single() else { return };
+    let cam = cam.translation();
+    for (layer, parent, mut mesh, mut material, mut visibility) in &mut layers {
+        let Ok(root) = quads.get(parent.parent()) else {
+            continue;
+        };
+        let Ok((global, sprite)) = roots.get(root.parent()) else {
+            continue;
+        };
+        let pos = global.translation();
+        let dir = select_direction(
+            MathVec3::new(sprite.facing.x, sprite.facing.y, sprite.facing.z),
+            MathVec3::new(pos.x, pos.y, pos.z),
+            MathVec3::new(cam.x, cam.y, cam.z),
+            sprite.set,
+        )
+        .index()
+        .min(3);
+        match &layer.assets_meshes[dir] {
+            Some(m) => {
+                if mesh.0 != *m {
+                    mesh.0 = m.clone();
+                }
+                if material.0 != layer.assets_materials[dir] {
+                    material.0 = layer.assets_materials[dir].clone();
+                }
+                visibility.set_if_neq(Visibility::Inherited);
+            }
+            None => {
+                visibility.set_if_neq(Visibility::Hidden);
+            }
         }
     }
 }
@@ -356,5 +611,73 @@ mod tests {
             );
         }
         sheet.save(out).unwrap();
+    }
+
+    /// Глубина плиты слоя — `2 * shell + 1` пикселей (по 1/32 м), у тела — один пиксель, и более
+    /// толстый слой выступает дальше тонкого.
+    #[test]
+    fn a_worn_layer_is_a_slab_thicker_than_the_body_by_its_shell() {
+        let mut o = outfits();
+        let manifest =
+            Path::new(env!("CARGO_MANIFEST_DIR")).join("../../assets/ss14/render-manifest.json");
+        let worn = WornVolume::from_manifest(Some(&manifest));
+        assert_eq!(
+            worn.shell("outerClothing", "Nothing"),
+            3,
+            "верхняя одежда из данных"
+        );
+        assert_eq!(worn.shell("belt", "Nothing"), 2, "пояс из данных");
+        assert!(worn.shell("outerClothing", "Nothing") > worn.shell("belt", "Nothing"));
+        let (mut meshes, mut images, mut materials) = (
+            Assets::<Mesh>::default(),
+            Assets::<Image>::default(),
+            Assets::<StandardMaterial>::default(),
+        );
+        let mut depth = |layer: &Layer, o: &mut Outfits| -> f32 {
+            let a = o
+                .layer_assets(layer, Vec2::ONE, &mut meshes, &mut images, &mut materials)
+                .expect("слой строится");
+            let mesh = meshes
+                .get(a.meshes.iter().flatten().next().expect("есть сетка"))
+                .expect("сетка");
+            let z: Vec<f32> = mesh
+                .attribute(Mesh::ATTRIBUTE_POSITION)
+                .and_then(|v| v.as_float3())
+                .expect("вершины")
+                .iter()
+                .map(|v| v[2])
+                .collect();
+            z.iter().cloned().fold(f32::MIN, f32::max) - z.iter().cloned().fold(f32::MAX, f32::min)
+        };
+        let body = depth(
+            &Layer {
+                source: Source::Body(None),
+                shell: 0,
+                order: 0,
+            },
+            &mut o,
+        );
+        let suit = Layer {
+            source: Source::Worn(
+                "Textures/Clothing/Uniforms/Jumpskirts/Security/security.rsi/equipped-INNERCLOTHING.png".into(),
+            ),
+            shell: 1,
+            order: 1,
+        };
+        let jumpsuit = depth(&suit, &mut o);
+        let outer = depth(
+            &Layer {
+                shell: 3,
+                order: 2,
+                ..suit.clone()
+            },
+            &mut o,
+        );
+        assert!((body - 1.0 / 32.0).abs() < 0.002, "тело {body}");
+        assert!(
+            (jumpsuit - 3.0 / 32.0).abs() < 0.002,
+            "комбинезон {jumpsuit}"
+        );
+        assert!((outer - 7.0 / 32.0).abs() < 0.002, "верхняя одежда {outer}");
     }
 }

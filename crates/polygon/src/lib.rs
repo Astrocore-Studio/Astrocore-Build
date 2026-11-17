@@ -356,13 +356,43 @@ pub fn render_manifest(
     let materials = load_materials(content)?;
     let sprites = sprites_of(registry)?;
     let doors = load_doors(content)?;
-    Ok(build_manifest(
-        &assets_dir(),
-        "Textures",
-        &materials,
-        &sprites,
-        &doors,
-    )?)
+    let json = build_manifest(&assets_dir(), "Textures", &materials, &sprites, &doors)?;
+    // Толщина надетого лежит рядом со спрайтами: клиент читает один файл.
+    let mut value: serde_json::Value = serde_json::from_str(&json).map_err(|e| {
+        PolygonError::Assets(assets::AssetError::Attribution(assets_dir(), e.to_string()))
+    })?;
+    if let Some(obj) = value.as_object_mut() {
+        obj.insert("worn_volume".into(), worn_volume_of(registry));
+    }
+    serde_json::to_string_pretty(&value).map_err(|e| {
+        PolygonError::Assets(assets::AssetError::Attribution(assets_dir(), e.to_string()))
+    })
+}
+
+/// Толщина надетого из компонента `WornVolume`: у слота (`slots`, на сколько пикселей слой выступает
+/// за тело с каждой стороны) и у отдельного предмета (`shell`, перекрывает слот).
+fn worn_volume_of(registry: &PrototypeRegistry) -> serde_json::Value {
+    let mut slots = std::collections::BTreeMap::new();
+    let mut items = std::collections::BTreeMap::new();
+    for name in registry.ids().map(str::to_string).collect::<Vec<_>>() {
+        let Ok(r) = registry.spawnable(&name) else {
+            continue;
+        };
+        let Some(c) = r.component("WornVolume") else {
+            continue;
+        };
+        if let Some(shell) = c.get("shell").and_then(Data::as_f64) {
+            items.insert(name.clone(), shell.clamp(0.0, 16.0));
+        }
+        if let Some(map) = c.get("slots").and_then(Data::as_map) {
+            for (slot, v) in map {
+                if let Some(px) = v.as_f64() {
+                    slots.insert(slot.clone(), px.clamp(0.0, 16.0));
+                }
+            }
+        }
+    }
+    serde_json::json!({ "slots": slots, "items": items })
 }
 
 #[cfg(test)]
