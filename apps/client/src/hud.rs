@@ -1011,10 +1011,10 @@ pub fn draw(
             });
     }
     // Щелчок по надетой сумке открывает или закрывает её окно (слот просит об этом через память egui).
-    if let Some(id) = ctx.memory_mut(|m| m.data.remove_temp::<u128>(egui::Id::new("bag_toggle"))) {
-        if !state.bags_open.remove(&id) {
-            state.bags_open.insert(id);
-        }
+    if let Some(id) = ctx.memory_mut(|m| m.data.remove_temp::<u128>(egui::Id::new("bag_toggle")))
+        && !state.bags_open.remove(&id)
+    {
+        state.bags_open.insert(id);
     }
     if let Some(v) = view {
         let carried: std::collections::HashSet<u128> = v.bags.iter().map(bag_id).collect();
