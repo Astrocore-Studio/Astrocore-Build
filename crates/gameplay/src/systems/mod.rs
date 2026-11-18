@@ -38,6 +38,29 @@ pub trait GameSystem: Send + Any {
     ) {
     }
 
+    /// Любая команда клиента, до того как её разберут (не перехватывает её): так система
+    /// реагирует на общие команды вроде «сопротивляться».
+    fn before_command(
+        &mut self,
+        _st: &mut State,
+        _ctx: &mut HookContext<'_>,
+        _actor: NetworkEntityId,
+        _kind: &str,
+        _data: &[u8],
+    ) {
+    }
+
+    /// Действие с задержкой этой системы дошло до конца (`Action::System`). Ход, прерывание шагом
+    /// и полосу у клиента ведёт `State`; проверить, что действие ещё возможно, — дело системы.
+    fn finish_job(
+        &mut self,
+        _st: &mut State,
+        _ctx: &mut HookContext<'_>,
+        _actor: NetworkEntityId,
+        _job: &crate::doafter::SystemJob,
+    ) {
+    }
+
     /// Щелчок пустой рукой по цели — до общих обработчиков взаимодействия; `true`, если система
     /// его обработала.
     fn interact_hand(
@@ -86,6 +109,7 @@ impl Systems {
             Box::new(console::ConsoleSystem::from_registry(registry)?),
             Box::new(crate::power_monitor::Monitoring::load(registry)),
             Box::new(crate::door_electronics::DoorElectronics::default()),
+            Box::new(crate::cryo::CryoSystem::from_registry(registry)?),
         ]))
     }
 
@@ -129,6 +153,31 @@ impl Systems {
         };
         s.command(st, ctx, actor, kind, data);
         true
+    }
+
+    pub(crate) fn before_command(
+        &mut self,
+        st: &mut State,
+        ctx: &mut HookContext<'_>,
+        actor: NetworkEntityId,
+        kind: &str,
+        data: &[u8],
+    ) {
+        for s in &mut self.0 {
+            s.before_command(st, ctx, actor, kind, data);
+        }
+    }
+
+    /// Подвести итог действиям систем, завершившимся за событие. Действие отключённой системы
+    /// пропадает.
+    pub(crate) fn finish_jobs(&mut self, st: &mut State, ctx: &mut HookContext<'_>) {
+        while !st.system_jobs.is_empty() {
+            for (actor, job) in std::mem::take(&mut st.system_jobs) {
+                if let Some(s) = self.0.iter_mut().find(|s| s.id() == job.system) {
+                    s.finish_job(st, ctx, actor, &job);
+                }
+            }
+        }
     }
 
     pub(crate) fn interact_hand(

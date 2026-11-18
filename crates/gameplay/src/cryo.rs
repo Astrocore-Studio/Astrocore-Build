@@ -142,64 +142,253 @@ impl crate::body::Environment for CryoEnv<'_> {
     }
 }
 
-impl State {
-    pub(crate) fn sync_cryo(&mut self, ctx: &HookContext<'_>) {
+/// Система криокапсул: капсулы карты, окна, впрыск из буфера, укладывание пациента (действие с
+/// задержкой), выход по кнопке или «сопротивлением» самого пациента.
+#[derive(Default)]
+pub struct CryoSystem {
+    specs: std::collections::BTreeMap<astrocore_core::PrototypeId, CryoSpec>,
+    pods: std::collections::BTreeMap<ObjectId, CryoPod>,
+    open: std::collections::BTreeMap<NetworkEntityId, ObjectId>,
+    sent: std::collections::BTreeMap<NetworkEntityId, Vec<u8>>,
+}
+
+const SYSTEM: &str = "cryo";
+
+impl CryoSystem {
+    /// Описания капсул из прототипов с компонентом `CryoPod`.
+    pub(crate) fn from_registry(
+        registry: &prototypes::PrototypeRegistry,
+    ) -> Result<Self, prototypes::ProtoError> {
+        let mut specs = std::collections::BTreeMap::new();
+        for (id, name) in registry.engine_index(crate::module::NAMESPACE)? {
+            if let Ok(r) = registry.spawnable(&name)
+                && let Some(c) = CryoSpec::parse(&r)
+            {
+                specs.insert(id, c);
+            }
+        }
+        Ok(Self {
+            specs,
+            ..Self::default()
+        })
+    }
+}
+
+impl crate::systems::GameSystem for CryoSystem {
+    fn id(&self) -> &'static str {
+        SYSTEM
+    }
+
+    fn commands(&self) -> &'static [&'static str] {
+        use crate::wire::*;
+        &[
+            CMD_CRYO_PUT,
+            CMD_CRYO_EJECT,
+            CMD_CRYO_BEAKER_EJECT,
+            CMD_CRYO_INSERT,
+            CMD_CRYO_INJECT,
+            CMD_CRYO_CLEAR,
+            CMD_CRYO_CLOSE,
+        ]
+    }
+
+    fn command(
+        &mut self,
+        st: &mut State,
+        ctx: &mut HookContext<'_>,
+        actor: NetworkEntityId,
+        kind: &str,
+        data: &[u8],
+    ) {
+        use crate::wire::*;
+        if kind == CMD_CRYO_CLOSE {
+            self.open.remove(&actor);
+            return;
+        }
+        // Как и прочие команды, окно капсулы слушается только того, кто может действовать.
+        if !st.can_act_now(actor) {
+            return;
+        }
+        let Some(id) = self.open.get(&actor).copied() else {
+            return;
+        };
+        match kind {
+            CMD_CRYO_PUT => {
+                if let Ok(b) = <[u8; 4]>::try_from(data) {
+                    let target = NetworkEntityId(u32::from_le_bytes(b));
+                    let delay = self.specs.values().next().map_or(2.0, |s| s.entry_delay);
+                    st.begin(
+                        ctx,
+                        actor,
+                        crate::doafter::Action::System(crate::doafter::SystemJob {
+                            system: SYSTEM,
+                            kind: "cryo",
+                            delay,
+                            breaks_on_move: true,
+                            object: Some(id),
+                            target: Some(target),
+                            hand: None,
+                        }),
+                    );
+                }
+            }
+            CMD_CRYO_EJECT => self.cryo_eject_patient(st, ctx, id),
+            CMD_CRYO_BEAKER_EJECT => self.cryo_eject_beaker(st, ctx, actor, id),
+            CMD_CRYO_INSERT => {
+                if let [hand] = data[..] {
+                    self.cryo_insert(st, ctx, actor, id, usize::from(hand));
+                }
+            }
+            CMD_CRYO_INJECT => {
+                if let [i] = data[..]
+                    && let Some(a) = INJECT_AMOUNTS.get(usize::from(i))
+                {
+                    self.cryo_inject(st, id, *a);
+                }
+            }
+            CMD_CRYO_CLEAR => self.cryo_clear(id),
+            _ => {}
+        }
+    }
+
+    fn before_command(
+        &mut self,
+        st: &mut State,
+        ctx: &mut HookContext<'_>,
+        actor: NetworkEntityId,
+        kind: &str,
+        _data: &[u8],
+    ) {
+        // Пациент выходит из капсулы «сопротивлением» (`TryEjectBody`).
+        if kind == crate::wire::CMD_RESIST
+            && let Some(pod) = st.actors.get(&actor).and_then(|a| a.cryo)
+        {
+            self.cryo_eject_patient(st, ctx, pod);
+        }
+    }
+
+    fn finish_job(
+        &mut self,
+        st: &mut State,
+        ctx: &mut HookContext<'_>,
+        actor: NetworkEntityId,
+        job: &crate::doafter::SystemJob,
+    ) {
+        let (Some(pod), Some(target)) = (job.object, job.target) else {
+            return;
+        };
+        // Рядом ли ещё капсула и с тем, кто кладёт, и с тем, кого кладут.
+        let near = |who: NetworkEntityId| {
+            Self::cryo_pos(ctx, pod).is_some_and(|p| {
+                ctx.position_of(who)
+                    .is_some_and(|f| (p - f).length() <= REACH_M)
+            })
+        };
+        if near(actor) && near(target) {
+            self.cryo_put(st, ctx, pod, target);
+        }
+    }
+
+    fn interact_hand(
+        &mut self,
+        st: &mut State,
+        _ctx: &mut HookContext<'_>,
+        user: NetworkEntityId,
+        target: &crate::interact::Target,
+    ) -> bool {
+        let crate::interact::Target::Item { id, .. } = target else {
+            return false;
+        };
+        self.open_cryo(st, user, *id)
+    }
+
+    fn interact_using(
+        &mut self,
+        st: &mut State,
+        ctx: &mut HookContext<'_>,
+        user: NetworkEntityId,
+        used: &crate::interact::Used,
+        target: &crate::interact::Target,
+    ) -> bool {
+        let crate::interact::Target::Item { id, .. } = target else {
+            return false;
+        };
+        self.pods.contains_key(id) && self.cryo_insert(st, ctx, user, *id, used.hand)
+    }
+
+    fn tick(&mut self, st: &mut State, ctx: &mut HookContext<'_>, _dt: f32) {
+        self.tick_cryo(st, ctx);
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+        self
+    }
+}
+
+impl CryoSystem {
+    pub(crate) fn sync_cryo(&mut self, st: &mut State, ctx: &HookContext<'_>) {
         let mut seen = std::collections::BTreeSet::new();
         for o in ctx.world.authored() {
             if let AuthoredKind::Placement { prototype } = &o.kind
-                && self.cryo_specs.contains_key(prototype)
+                && self.specs.contains_key(prototype)
             {
                 seen.insert(o.id);
-                self.cryo.entry(o.id).or_default();
+                self.pods.entry(o.id).or_default();
             }
         }
         let gone: Vec<ObjectId> = self
-            .cryo
+            .pods
             .keys()
             .filter(|i| !seen.contains(i))
             .copied()
             .collect();
         for id in gone {
-            if let Some(pod) = self.cryo.remove(&id)
+            if let Some(pod) = self.pods.remove(&id)
                 && let Some(p) = pod.patient
             {
-                self.actor(p).cryo = None;
+                st.actor(p).cryo = None;
             }
         }
     }
 
-    pub(crate) fn cryo_pos(&self, ctx: &HookContext<'_>, id: ObjectId) -> Option<Vec3> {
+    pub(crate) fn cryo_pos(ctx: &HookContext<'_>, id: ObjectId) -> Option<Vec3> {
         let o = ctx.world.authored_object(id)?;
         Some((o.min() + o.max()) * 0.5)
     }
 
     /// Ключ воздушного узла капсулы в сети труб.
-    pub(crate) fn cryo_key(&mut self, id: ObjectId) -> u64 {
-        self.pipe_keys.key_of(id)
+    pub(crate) fn cryo_key(st: &mut State, id: ObjectId) -> u64 {
+        st.pipe_keys.key_of(id)
     }
 
     /// Пустая рука по капсуле открывает окно.
-    pub(crate) fn open_cryo(&mut self, user: NetworkEntityId, id: ObjectId) -> bool {
-        if !self.cryo.contains_key(&id) {
+    pub(crate) fn open_cryo(
+        &mut self,
+        st: &mut State,
+        user: NetworkEntityId,
+        id: ObjectId,
+    ) -> bool {
+        if !self.pods.contains_key(&id) {
             return false;
         }
-        if self.actors.get(&user).is_some_and(|a| a.cryo == Some(id)) {
+        if st.actors.get(&user).is_some_and(|a| a.cryo == Some(id)) {
             // Пациент не открывает собственное окно (`OnActivateUIAttempt`).
             return true;
         }
-        self.cryo_open.insert(user, id);
+        self.open.insert(user, id);
         true
     }
 
     /// Мензурка из руки в слот (`beakerSlot`: `FitsInDispenser`).
     pub(crate) fn cryo_insert(
         &mut self,
+        st: &mut State,
         ctx: &mut HookContext<'_>,
         user: NetworkEntityId,
         id: ObjectId,
         hand: usize,
     ) -> bool {
-        let Some(item) = self
+        let Some(item) = st
             .actors
             .get(&user)
             .and_then(|a| a.hands.get(hand))
@@ -207,41 +396,42 @@ impl State {
         else {
             return false;
         };
-        if !self.fits_in_dispenser.contains(&item.prototype) {
+        if !st.fits_in_dispenser.contains(&item.prototype) {
             return false;
         }
-        let Some(pod) = self.cryo.get_mut(&id) else {
+        let Some(pod) = self.pods.get_mut(&id) else {
             return false;
         };
         if pod.beaker.is_some() {
             return false;
         }
         pod.beaker = Some(item);
-        let _ = self.actor(user).hands.drop_hand(hand);
-        self.publish(ctx, user);
+        let _ = st.actor(user).hands.drop_hand(hand);
+        st.publish(ctx, user);
         true
     }
 
     pub(crate) fn cryo_eject_beaker(
         &mut self,
+        st: &mut State,
         ctx: &mut HookContext<'_>,
         user: NetworkEntityId,
         id: ObjectId,
     ) {
-        let Some(b) = self.cryo.get_mut(&id).and_then(|p| p.beaker.take()) else {
+        let Some(b) = self.pods.get_mut(&id).and_then(|p| p.beaker.take()) else {
             return;
         };
-        if self.actor(user).hands.pickup_any(b.clone()).is_err()
+        if st.actor(user).hands.pickup_any(b.clone()).is_err()
             && let Some(feet) = ctx.position_of(user)
         {
-            self.place(ctx, &b, feet);
+            st.place(ctx, &b, feet);
         }
-        self.publish(ctx, user);
+        st.publish(ctx, user);
     }
 
     /// `TryInject`: из мензурки в буфер, пока в буфере есть место и в капсуле есть пациент.
-    pub(crate) fn cryo_inject(&mut self, id: ObjectId, amount: f32) {
-        let Some(pod) = self.cryo.get(&id) else {
+    pub(crate) fn cryo_inject(&mut self, st: &mut State, id: ObjectId, amount: f32) {
+        let Some(pod) = self.pods.get(&id) else {
             return;
         };
         if pod.patient.is_none() {
@@ -253,17 +443,17 @@ impl State {
         if room <= 0.0 {
             return;
         }
-        let Some(src) = self.solution_mut(&beaker) else {
+        let Some(src) = st.solution_mut(&beaker) else {
             return;
         };
         let part = src.split(amount.min(room));
-        if let Some(pod) = self.cryo.get_mut(&id) {
+        if let Some(pod) = self.pods.get_mut(&id) {
             pod.buffer.merge(&part);
         }
     }
 
     pub(crate) fn cryo_clear(&mut self, id: ObjectId) {
-        if let Some(pod) = self.cryo.get_mut(&id) {
+        if let Some(pod) = self.pods.get_mut(&id) {
             pod.buffer.contents.clear();
         }
     }
@@ -271,40 +461,41 @@ impl State {
     /// `InsertBody`: пациент встаёт в капсулу и замирает.
     pub(crate) fn cryo_put(
         &mut self,
+        st: &mut State,
         ctx: &mut HookContext<'_>,
         id: ObjectId,
         target: NetworkEntityId,
     ) {
-        let Some(at) = self.cryo_pos(ctx, id) else {
+        let Some(at) = Self::cryo_pos(ctx, id) else {
             return;
         };
-        let free = self.cryo.get(&id).is_some_and(|p| p.patient.is_none());
-        let alone = self
+        let free = self.pods.get(&id).is_some_and(|p| p.patient.is_none());
+        let alone = st
             .actors
             .get(&target)
             .is_some_and(|a| a.cryo.is_none() && !a.ghost);
         if !free || !alone {
             return;
         }
-        let next = self.clock + self.cryo_specs_for(ctx, id).transfer_time;
-        if let Some(pod) = self.cryo.get_mut(&id) {
+        let next = st.clock + self.cryo_specs_for(ctx, id).transfer_time;
+        if let Some(pod) = self.pods.get_mut(&id) {
             pod.patient = Some(target);
             pod.next_inject = next;
         }
-        self.actor(target).cryo = Some(id);
+        st.actor(target).cryo = Some(id);
         ctx.teleport(
             target,
             Vec3::new(at.x, ctx.position_of(target).map_or(at.y, |p| p.y), at.z),
         );
-        self.cancel(ctx, target);
-        self.after_health_change(ctx, target);
+        st.cancel(ctx, target);
+        st.after_health_change(ctx, target);
     }
 
     fn cryo_specs_for(&self, ctx: &HookContext<'_>, id: ObjectId) -> CryoSpec {
         ctx.world
             .authored_object(id)
             .and_then(|o| match &o.kind {
-                AuthoredKind::Placement { prototype } => self.cryo_specs.get(prototype).cloned(),
+                AuthoredKind::Placement { prototype } => self.specs.get(prototype).cloned(),
                 _ => None,
             })
             .unwrap_or(CryoSpec {
@@ -315,31 +506,37 @@ impl State {
     }
 
     /// `EjectBody`: пациент выходит из капсулы.
-    pub(crate) fn cryo_eject_patient(&mut self, ctx: &mut HookContext<'_>, id: ObjectId) {
-        let Some(p) = self.cryo.get_mut(&id).and_then(|c| c.patient.take()) else {
+    pub(crate) fn cryo_eject_patient(
+        &mut self,
+        st: &mut State,
+        ctx: &mut HookContext<'_>,
+        id: ObjectId,
+    ) {
+        let Some(p) = self.pods.get_mut(&id).and_then(|c| c.patient.take()) else {
             return;
         };
-        self.actor(p).cryo = None;
-        self.after_health_change(ctx, p);
+        st.actor(p).cryo = None;
+        st.after_health_change(ctx, p);
     }
 
     /// Окно капсулы для `p`.
     pub(crate) fn cryo_view(
         &mut self,
+        st: &mut State,
         ctx: &HookContext<'_>,
         p: NetworkEntityId,
     ) -> Option<CryoView> {
-        let id = self.cryo_open.get(&p).copied()?;
-        let pos = self.cryo_pos(ctx, id)?;
+        let id = self.open.get(&p).copied()?;
+        let pos = Self::cryo_pos(ctx, id)?;
         let feet = ctx.position_of(p)?;
-        if (pos - feet).length() > self.range_m + 1.0 {
+        if (pos - feet).length() > st.range_m + 1.0 {
             return None;
         }
-        let pod = self.cryo.get(&id)?.clone();
-        let key = self.cryo_key(id);
-        let air = self.atmos.pipes().cryo_air(key).cloned();
+        let pod = self.pods.get(&id)?.clone();
+        let key = Self::cryo_key(st, id);
+        let air = st.atmos.pipes().cryo_air(key).cloned();
         let patient = pod.patient.and_then(|n| {
-            let a = self.actors.get(&n)?;
+            let a = st.actors.get(&n)?;
             let v = a.body.as_ref()?.vitals();
             Some(PatientInfo {
                 state: format!("{:?}", a.health.state()),
@@ -374,7 +571,7 @@ impl State {
         let nearby = ctx
             .players()
             .filter(|n| {
-                self.actors
+                st.actors
                     .get(n)
                     .is_some_and(|a| a.cryo.is_none() && !a.ghost)
                     && ctx
@@ -392,13 +589,13 @@ impl State {
             .collect();
         Some(CryoView {
             machine: id,
-            powered: self.machine_powered(id),
+            powered: st.machine_powered(id),
             patient,
             air_temperature_k: air.as_ref().map_or(0.0, |a| a.temperature()),
             air_pressure_kpa: air.as_ref().map_or(0.0, |a| a.pressure()),
             gases,
-            beaker: pod.beaker.as_ref().map(|b| self.container_info(b)),
-            buffer: self.named(&pod.buffer.contents),
+            beaker: pod.beaker.as_ref().map(|b| st.container_info(b)),
+            buffer: st.named(&pod.buffer.contents),
             buffer_volume: pod.buffer.volume(),
             nearby,
             amounts: INJECT_AMOUNTS.to_vec(),
@@ -406,17 +603,17 @@ impl State {
     }
 
     /// Шаг: впрыск из буфера и рассылка окон.
-    pub(crate) fn tick_cryo(&mut self, ctx: &mut HookContext<'_>) {
-        if self.cryo_specs.is_empty() {
+    pub(crate) fn tick_cryo(&mut self, st: &mut State, ctx: &mut HookContext<'_>) {
+        if self.specs.is_empty() {
             return;
         }
-        self.sync_cryo(ctx);
-        let ids: Vec<ObjectId> = self.cryo.keys().copied().collect();
+        self.sync_cryo(st, ctx);
+        let ids: Vec<ObjectId> = self.pods.keys().copied().collect();
         for id in ids {
-            let powered = self.machine_powered(id);
+            let powered = st.machine_powered(id);
             let spec = self.cryo_specs_for(ctx, id);
-            let clock = self.clock;
-            let Some(pod) = self.cryo.get_mut(&id) else {
+            let clock = st.clock;
+            let Some(pod) = self.pods.get_mut(&id) else {
                 continue;
             };
             let Some(patient) = pod.patient else { continue };
@@ -426,7 +623,7 @@ impl State {
             pod.next_inject = clock + spec.transfer_time;
             let part = pod.buffer.split(spec.transfer_amount);
             if part.volume() > 0.0
-                && let Some(body) = self.actor(patient).body.as_mut()
+                && let Some(body) = st.actor(patient).body.as_mut()
             {
                 for (r, q) in &part.contents {
                     body.chemicals.add(r, *q);
@@ -434,14 +631,14 @@ impl State {
             }
         }
         for p in ctx.players().collect::<Vec<_>>() {
-            let view = self.cryo_view(ctx, p);
+            let view = self.cryo_view(st, ctx, p);
             if view.is_none() {
-                self.cryo_open.remove(&p);
+                self.open.remove(&p);
             }
             let bytes = encode_cryo(view.as_ref());
-            if self.cryo_sent.get(&p) != Some(&bytes) {
+            if self.sent.get(&p) != Some(&bytes) {
                 ctx.set_component(p, CRYO_COMPONENT, bytes.clone());
-                self.cryo_sent.insert(p, bytes);
+                self.sent.insert(p, bytes);
             }
         }
     }

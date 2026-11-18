@@ -19,6 +19,14 @@ GameplayModule::new(registry)?
 `GameplayModule::system_ids()` — какие системы включены. Команду клиента разбирает первая
 система, у которой она в `commands()`; остальное разбирает модуль по-старому.
 
+## Действия с задержкой
+
+Система начинает действие через `State::begin(ctx, actor, Action::System(SystemJob { system, kind, delay, breaks_on_move, object, target, hand }))`.
+Ход, прерывание шагом и полосу у клиента ведёт `State`; когда время вышло, `SystemJob` уходит
+назад системе (`GameSystem::finish_job`) — она проверяет, что действие ещё возможно, и подводит
+итог. Действие отключённой системы просто пропадает. Команды, которые разбирает модуль (например,
+«сопротивляться»), система видит раньше через `before_command`, не перехватывая их.
+
 ## Как добавить систему
 
 1. Файл `systems/<имя>.rs`: тип системы со своим состоянием, `impl GameSystem` (`id`, `commands`,
@@ -36,12 +44,13 @@ GameplayModule::new(registry)?
 | --- | --- | --- | --- |
 | Чат (`chat`) | `systems/chat.rs` | `chat` | `build.chat` |
 | Консоль и права (`console`) | `systems/console.rs`, `admin.rs` | `console.exec` | `build.console`, `build.admin` |
+| Криокапсулы (`cryo`) | `cryo.rs` | `cryo.*`, «сопротивляться» пациента, щелчок по капсуле, мензурка в капсулу | `build.cryo` |
 | Настройка плат дверей (`door_electronics`) | `door_electronics.rs` | `door_electronics.update`, `door_electronics.close`, настройщик по плате | `build.door_electronics` |
 | Мониторинг питания (`power_monitor`) | `power_monitor.rs` | `power.focus`, `power.close`, щелчок по консоли | `build.powermonitor*` |
 
 Ещё в `State` (переносятся по одной, с зелёными тестами на каждом шаге): лобби и раздача
 должностей, персонажи и здоровье, руки и инвентарь, хранилища, бой и оружие, химия
-(`chemlab`, раздатчики, шприцы), медицина (`cryo`, дефибриллятор), атмосфера и сигнализации
+(`chemlab`, раздатчики, шприцы), медицина (дефибриллятор), атмосфера и сигнализации
 (`alerts`), питание, двери (`airlock_doors`, `airlock_wires`,
 строительство (`construction`, `computer_construction`, `rcd`, `floor_tiles`,
 `material_stacks`, `barriers`, `inflatables`, `repairable`), торговые автоматы, утилизация,

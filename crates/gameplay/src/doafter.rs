@@ -114,11 +114,9 @@ pub(crate) enum Action {
         target: Option<ObjectId>,
         shake: bool,
     },
-    /// Положить человека в криокапсулу (`CryoPodDragFinished`).
-    CryoPut {
-        pod: ObjectId,
-        target: astrocore_core::NetworkEntityId,
-    },
+    /// Действие игровой системы (`systems/`): ход и прерывание — общие, проверку и итог делает
+    /// сама система (`GameSystem::finish_job`).
+    System(SystemJob),
     /// Обыск: снять предмет с цели (`take`) или надеть на неё активный из руки.
     Strip {
         target: astrocore_core::NetworkEntityId,
@@ -205,7 +203,10 @@ impl Action {
     /// `EatingDoAfter` включён только при кормлении другого).
     pub(crate) fn breaks_on_move(&self) -> bool {
         // Дефибриллятор: `AllowDoAfterMovement` включён, шаг не прерывает разряд.
-        !matches!(self, Self::Eat { target: None, .. } | Self::Defib { .. })
+        match self {
+            Self::System(job) => job.breaks_on_move,
+            _ => !matches!(self, Self::Eat { target: None, .. } | Self::Defib { .. }),
+        }
     }
 
     pub(crate) fn kind(&self) -> &'static str {
@@ -224,7 +225,7 @@ impl Action {
             Self::Inject { .. } => "inject",
             Self::Scan { .. } => "scan",
             Self::Defib { .. } => "defib",
-            Self::CryoPut { .. } => "cryo",
+            Self::System(job) => job.kind,
             Self::Mix { shake: true, .. } => "shake",
             Self::Mix { .. } => "mix",
             Self::Eat { .. } => "eat",
@@ -232,6 +233,23 @@ impl Action {
             Self::Strip { .. } => "strip",
         }
     }
+}
+
+/// Действие системы с задержкой: какая система его завершит, что показать клиенту и над чем
+/// оно идёт.
+#[derive(Debug, Clone, PartialEq)]
+pub struct SystemJob {
+    /// `GameSystem::id` системы, которая завершит действие.
+    pub system: &'static str,
+    /// Название для полосы действия у клиента (`DoAfterView::kind`).
+    pub kind: &'static str,
+    pub delay: f32,
+    pub breaks_on_move: bool,
+    /// Предмет или устройство, над которым идёт действие.
+    pub object: Option<ObjectId>,
+    /// Персонаж-цель.
+    pub target: Option<astrocore_core::NetworkEntityId>,
+    pub hand: Option<usize>,
 }
 
 #[derive(Debug, Clone)]

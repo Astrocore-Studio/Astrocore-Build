@@ -2,6 +2,7 @@ pub mod admin;
 mod body;
 pub mod chem;
 pub mod systems;
+pub use doafter::SystemJob;
 pub use systems::chat;
 mod conveyor;
 pub mod door_electronics;

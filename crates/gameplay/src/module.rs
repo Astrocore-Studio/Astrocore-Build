@@ -458,10 +458,6 @@ pub struct State {
     /// Анализаторы здоровья: прототипы, кто кого сканирует, таймер обновления.
     pub(crate) analyzers: BTreeSet<PrototypeId>,
     pub(crate) lab: crate::chemlab::LabSpecs,
-    pub(crate) cryo_specs: BTreeMap<PrototypeId, crate::cryo::CryoSpec>,
-    pub(crate) cryo: BTreeMap<ObjectId, crate::cryo::CryoPod>,
-    pub(crate) cryo_open: BTreeMap<NetworkEntityId, ObjectId>,
-    pub(crate) cryo_sent: BTreeMap<NetworkEntityId, Vec<u8>>,
     pub(crate) mixer_machines: BTreeMap<ObjectId, crate::chemlab::MixerMachine>,
     pub(crate) masters: BTreeMap<ObjectId, crate::chemlab::Master>,
     pub(crate) lab_open: BTreeMap<NetworkEntityId, ObjectId>,
@@ -606,6 +602,8 @@ pub struct State {
     /// Куда сохранять профили и токены игроков, которые назвались (`user.hello`).
     pub(crate) store: Option<Box<dyn crate::character::ProfileStore>>,
     pub(crate) tokens: BTreeMap<NetworkEntityId, String>,
+    /// Завершённые действия систем: их итог подводит система после события (`Systems::finish_jobs`).
+    pub(crate) system_jobs: Vec<(NetworkEntityId, crate::doafter::SystemJob)>,
     /// Должности станции из карты уже применены.
     pub(crate) map_jobs_applied: bool,
     pub(crate) charger_slot: BTreeMap<ObjectId, (f32, HeldItem)>,
@@ -655,7 +653,6 @@ impl State {
         let mut analyzers = BTreeSet::new();
         let mut defibs = BTreeMap::new();
         let mut lab = crate::chemlab::LabSpecs::default();
-        let mut cryo_specs = BTreeMap::new();
         let mut titles = BTreeMap::new();
         let mut dispenser_tables = BTreeMap::new();
         let mut fits_in_dispenser = BTreeSet::new();
@@ -895,9 +892,6 @@ impl State {
                     dispenser_tables.insert(id.clone(), t);
                 }
                 lab.load(&id, r);
-                if let Some(c) = crate::cryo::CryoSpec::parse(r) {
-                    cryo_specs.insert(id.clone(), c);
-                }
                 if let Some(n) = r.name.as_ref() {
                     titles.insert(id.clone(), n.clone());
                 }
@@ -1210,10 +1204,6 @@ impl State {
             defibs,
             defib_state: BTreeMap::new(),
             lab,
-            cryo_specs,
-            cryo: BTreeMap::new(),
-            cryo_open: BTreeMap::new(),
-            cryo_sent: BTreeMap::new(),
             mixer_machines: BTreeMap::new(),
             masters: BTreeMap::new(),
             lab_open: BTreeMap::new(),
@@ -1342,6 +1332,7 @@ impl State {
             slots_sent: BTreeMap::new(),
             store: None,
             tokens: BTreeMap::new(),
+            system_jobs: Vec::new(),
             map_jobs_applied: false,
             charger_slot: BTreeMap::new(),
             explosion_types,
@@ -1394,6 +1385,14 @@ impl State {
             hand,
             item: i.clone(),
         })
+    }
+
+    /// Может ли игрок сейчас отдавать команды: жив, в сознании и не оглушён (то же условие, по
+    /// которому модуль отбрасывает команды обездвиженных).
+    pub(crate) fn can_act_now(&self, id: NetworkEntityId) -> bool {
+        self.actors
+            .get(&id)
+            .is_some_and(|a| a.health.state().can_act() && a.stun_until <= self.clock)
     }
 
     pub(crate) fn actor(&mut self, id: NetworkEntityId) -> &mut Actor {
@@ -2439,16 +2438,8 @@ impl State {
                 target,
                 shake,
             } => self.mix_can(ctx, actor, *hand, *target, *shake),
-            Action::CryoPut { pod, target } => {
-                self.cryo.get(pod).is_some_and(|c| c.patient.is_none())
-                    && self.cryo_pos(ctx, *pod).is_some_and(|p| {
-                        ctx.position_of(actor)
-                            .is_some_and(|f| (p - f).length() <= crate::cryo::REACH_M)
-                            && ctx
-                                .position_of(*target)
-                                .is_some_and(|t| (p - t).length() <= crate::cryo::REACH_M)
-                    })
-            }
+            // Система проверяет своё действие сама, при завершении.
+            Action::System(_) => true,
             Action::Defib { hand, target } => {
                 let Some(held) = a.hands.get(*hand) else {
                     return false;
@@ -2541,11 +2532,7 @@ impl State {
             Action::Strip { .. } => STRIP_DELAY_S,
             // Время пристёгивания одинаково у сидений билда (`BuckleDoafterTime` 2 с).
             Action::Buckle { .. } => self.straps.values().next().copied().unwrap_or(2.0),
-            Action::CryoPut { .. } => self
-                .cryo_specs
-                .values()
-                .next()
-                .map_or(2.0, |s| s.entry_delay),
+            Action::System(job) => job.delay,
             Action::Defib { hand, .. } => a
                 .hands
                 .get(*hand)
@@ -2631,7 +2618,7 @@ impl State {
             Action::Heal { hand, target } => self.heal(ctx, actor, hand, target),
             Action::Inject { hand, target } => self.inject_body(ctx, actor, hand, target),
             Action::Defib { hand, target } => self.zap(ctx, actor, hand, target),
-            Action::CryoPut { pod, target } => self.cryo_put(ctx, pod, target),
+            Action::System(job) => self.system_jobs.push((actor, job)),
             Action::Buckle { strap } => self.buckle(ctx, actor, strap),
             Action::Strip {
                 target,
@@ -2890,7 +2877,6 @@ impl State {
         let dt = self.last_dt;
         self.tick_defibs(dt);
         self.tick_lab(ctx, dt);
-        self.tick_cryo(ctx);
         self.publish_chemhand(ctx);
         self.publish_jobs(ctx);
         self.resolve_spawners(ctx);
@@ -8608,14 +8594,23 @@ impl GameModule for GameplayModule {
     }
 
     fn handle(&mut self, ctx: &mut HookContext<'_>, event: &HookEvent) {
+        self.handle_event(ctx, event);
+        // Действия систем, дошедшие до конца за это событие, завершает их система.
+        self.systems.finish_jobs(&mut self.state, ctx);
+    }
+}
+
+impl GameplayModule {
+    fn handle_event(&mut self, ctx: &mut HookContext<'_>, event: &HookEvent) {
         let st = &mut self.state;
         st.pending_object_damage.clear();
         st.sync_airlock_index(ctx);
-        // Системы разбирают свои команды сами; тик систем — после общей симуляции.
-        if let HookEvent::Command { actor, kind, data } = event
-            && self.systems.command(st, ctx, *actor, kind, data)
-        {
-            return;
+        // Системы видят каждую команду, свои разбирают сами; тик систем — после общей симуляции.
+        if let HookEvent::Command { actor, kind, data } = event {
+            self.systems.before_command(st, ctx, *actor, kind, data);
+            if self.systems.command(st, ctx, *actor, kind, data) {
+                return;
+            }
         }
         match event {
             HookEvent::Collision { a, b } => {
@@ -8820,47 +8815,6 @@ impl GameModule for GameplayModule {
                         s.contents.clear();
                     }
                 }
-                crate::wire::CMD_CRYO_PUT => {
-                    if let Ok(b) = <[u8; 4]>::try_from(&data[..])
-                        && let Some(id) = st.cryo_open.get(actor).copied()
-                    {
-                        let target = NetworkEntityId(u32::from_le_bytes(b));
-                        st.begin(ctx, *actor, Action::CryoPut { pod: id, target });
-                    }
-                }
-                crate::wire::CMD_CRYO_EJECT => {
-                    if let Some(id) = st.cryo_open.get(actor).copied() {
-                        st.cryo_eject_patient(ctx, id);
-                    }
-                }
-                crate::wire::CMD_CRYO_BEAKER_EJECT => {
-                    if let Some(id) = st.cryo_open.get(actor).copied() {
-                        st.cryo_eject_beaker(ctx, *actor, id);
-                    }
-                }
-                crate::wire::CMD_CRYO_INSERT => {
-                    if let [hand] = data[..]
-                        && let Some(id) = st.cryo_open.get(actor).copied()
-                    {
-                        st.cryo_insert(ctx, *actor, id, usize::from(hand));
-                    }
-                }
-                crate::wire::CMD_CRYO_INJECT => {
-                    if let [i] = data[..]
-                        && let Some(id) = st.cryo_open.get(actor).copied()
-                        && let Some(a) = crate::cryo::INJECT_AMOUNTS.get(usize::from(i))
-                    {
-                        st.cryo_inject(id, *a);
-                    }
-                }
-                crate::wire::CMD_CRYO_CLEAR => {
-                    if let Some(id) = st.cryo_open.get(actor).copied() {
-                        st.cryo_clear(id);
-                    }
-                }
-                crate::wire::CMD_CRYO_CLOSE => {
-                    st.cryo_open.remove(actor);
-                }
                 crate::wire::CMD_SHAKE => {
                     let hand = st.actors.get(actor).map(|a| a.hands.active());
                     if let Some(hand) = hand {
@@ -8962,10 +8916,6 @@ impl GameModule for GameplayModule {
                     st.vending_open.remove(actor);
                 }
                 CMD_RESIST => {
-                    // Пациент криокапсулы выходит из неё (`TryEjectBody`).
-                    if let Some(pod) = st.actors.get(actor).and_then(|a| a.cryo) {
-                        st.cryo_eject_patient(ctx, pod);
-                    }
                     let resisted = st
                         .actors
                         .get_mut(actor)
