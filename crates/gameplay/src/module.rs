@@ -579,7 +579,6 @@ pub struct State {
     window_grilles: BTreeSet<(i32, i32)>,
     rcd_modes: BTreeMap<ObjectId, String>,
     pub(crate) board_access: BTreeMap<ObjectId, String>,
-    pub(crate) board_windows: BTreeMap<NetworkEntityId, (ObjectId, Vec<u8>)>,
     wire_layouts: BTreeMap<String, Vec<computer_construction::AirlockWire>>,
     wires_open: BTreeMap<NetworkEntityId, (ObjectId, Vec<u8>)>,
     wire_serials: BTreeMap<ObjectId, String>,
@@ -1318,7 +1317,6 @@ impl State {
             window_grilles: BTreeSet::new(),
             rcd_modes: BTreeMap::new(),
             board_access: BTreeMap::new(),
-            board_windows: BTreeMap::new(),
             wire_layouts: computer_construction::wire_layouts(),
             wires_open: BTreeMap::new(),
             wire_serials: BTreeMap::new(),
@@ -8039,7 +8037,6 @@ impl State {
         self.gone.clear();
         self.inflated_this_tick.clear();
         self.tick_rcd_recharge(ctx);
-        self.refresh_board_windows(ctx);
         self.tick_airlock_wires(ctx);
         self.tick_health(ctx, dt);
         let waiting: Vec<NetworkEntityId> = self
@@ -8540,7 +8537,10 @@ impl GameplayModule {
             return;
         }
         if let (Some(used), Target::Item { id, prototype, at }) = (&used, &target) {
-            if self.state.open_board_config(ctx, user, *id) {
+            if self
+                .systems
+                .interact_using(&mut self.state, ctx, user, used, &target)
+            {
                 return;
             }
             if self.state.refill_rcd(ctx, user, used, *id, prototype) {
@@ -8694,8 +8694,6 @@ impl GameModule for GameplayModule {
                 crate::crafting::CMD_PLACE => st.start_placement(ctx, *actor, data),
                 crate::crafting::CMD_RCD_MODE => st.select_rcd_mode(ctx, *actor, data),
                 crate::crafting::CMD_RCD_USE => st.start_rcd(ctx, *actor, data),
-                crate::door_electronics::CMD_UPDATE => st.update_board_config(ctx, *actor, data),
-                crate::door_electronics::CMD_CLOSE => st.close_board_config(ctx, *actor),
                 crate::wires::CMD_OPEN => {
                     if let Some(id) = crate::wire::parse_object_id(data) {
                         st.open_wires(ctx, *actor, id);

@@ -50,6 +50,19 @@ pub trait GameSystem: Send + Any {
         false
     }
 
+    /// Предмет в руке применён к цели (там, где модуль проверяет предметы-цели); `true`, если
+    /// система его обработала.
+    fn interact_using(
+        &mut self,
+        _st: &mut State,
+        _ctx: &mut HookContext<'_>,
+        _user: NetworkEntityId,
+        _used: &crate::interact::Used,
+        _target: &crate::interact::Target,
+    ) -> bool {
+        false
+    }
+
     /// Игрок отключился.
     fn player_left(&mut self, _st: &mut State, _actor: NetworkEntityId) {}
 
@@ -72,6 +85,7 @@ impl Systems {
             Box::new(chat::ChatSystem::default()),
             Box::new(console::ConsoleSystem::from_registry(registry)?),
             Box::new(crate::power_monitor::Monitoring::load(registry)),
+            Box::new(crate::door_electronics::DoorElectronics::default()),
         ]))
     }
 
@@ -127,6 +141,19 @@ impl Systems {
         self.0
             .iter_mut()
             .any(|s| s.interact_hand(st, ctx, user, target))
+    }
+
+    pub(crate) fn interact_using(
+        &mut self,
+        st: &mut State,
+        ctx: &mut HookContext<'_>,
+        user: NetworkEntityId,
+        used: &crate::interact::Used,
+        target: &crate::interact::Target,
+    ) -> bool {
+        self.0
+            .iter_mut()
+            .any(|s| s.interact_using(st, ctx, user, used, target))
     }
 
     pub(crate) fn player_left(&mut self, st: &mut State, actor: NetworkEntityId) {
