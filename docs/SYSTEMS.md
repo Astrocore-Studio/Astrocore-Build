@@ -27,6 +27,13 @@ GameplayModule::new(registry)?
 итог. Действие отключённой системы просто пропадает. Команды, которые разбирает модуль (например,
 «сопротивляться»), система видит раньше через `before_command`, не перехватывая их.
 
+## События
+
+Когда общий код или одна система должна сообщить другой о случившемся, она кладёт
+`GameEvent` в `State::events`; модуль после события раздаёт их всем системам
+(`GameSystem::on_event`). Пример: поломка (`repairable.rs`) сообщает `EjectVendorItems`, а запас
+выбрасывает система автоматов. Без системы автоматов событие просто никто не разбирает.
+
 ## Как добавить систему
 
 1. Файл `systems/<имя>.rs`: тип системы со своим состоянием, `impl GameSystem` (`id`, `commands`,
@@ -44,6 +51,7 @@ GameplayModule::new(registry)?
 | --- | --- | --- | --- |
 | Чат (`chat`) | `systems/chat.rs` | `chat` | `build.chat` |
 | Консоль и права (`console`) | `systems/console.rs`, `admin.rs` | `console.exec` | `build.console`, `build.admin` |
+| Торговые автоматы (`vending`) | `vending.rs` | `vend`, `vend.close`, щелчок по автомату, событие поломки | `build.vending` |
 | Криокапсулы (`cryo`) | `cryo.rs` | `cryo.*`, «сопротивляться» пациента, щелчок по капсуле, мензурка в капсулу | `build.cryo` |
 | Настройка плат дверей (`door_electronics`) | `door_electronics.rs` | `door_electronics.update`, `door_electronics.close`, настройщик по плате | `build.door_electronics` |
 | Мониторинг питания (`power_monitor`) | `power_monitor.rs` | `power.focus`, `power.close`, щелчок по консоли | `build.powermonitor*` |
@@ -53,6 +61,6 @@ GameplayModule::new(registry)?
 (`chemlab`, раздатчики, шприцы), медицина (дефибриллятор), атмосфера и сигнализации
 (`alerts`), питание, двери (`airlock_doors`, `airlock_wires`,
 строительство (`construction`, `computer_construction`, `rcd`, `floor_tiles`,
-`material_stacks`, `barriers`, `inflatables`, `repairable`), торговые автоматы, утилизация,
+`material_stacks`, `barriers`, `inflatables`, `repairable`), утилизация,
 конвейеры, раунд и его конец. Механики, у которых уже свой файл с `impl State`, переносятся
 первыми: им нужно лишь забрать своё состояние из `State` и стать `GameSystem`.

@@ -332,14 +332,6 @@ pub(crate) struct Locker {
 }
 
 /// Торговый автомат по прототипу.
-#[derive(Debug, Clone)]
-pub(crate) struct VendSpec {
-    pub(crate) title: String,
-    pub(crate) stock: Vec<(String, PrototypeId, u32)>,
-    pub(crate) quality: f32,
-    pub(crate) eject_delay: f32,
-    pub(crate) access: Vec<Vec<String>>,
-}
 
 /// Ёмкость диспозала в мире: состояние, клетка и точка.
 #[derive(Debug, Clone)]
@@ -517,12 +509,6 @@ pub struct State {
     pub(crate) spawn_serial: u128,
     pub(crate) spawn_rng: crate::disposal::Rng,
     /// Торговые автоматы: описания по прототипам, автоматы в мире, кто какой смотрит.
-    pub(crate) vending_specs: BTreeMap<PrototypeId, VendSpec>,
-    pub(crate) vending: BTreeMap<ObjectId, crate::vending::Machine>,
-    pub(crate) vending_open: BTreeMap<NetworkEntityId, ObjectId>,
-    pub(crate) vending_sent: BTreeMap<NetworkEntityId, Vec<u8>>,
-    pub(crate) vending_serial: u128,
-    pub(crate) vending_rng: crate::disposal::Rng,
     /// Конвейеры: прототипы лент (скорость), выключатели, состояние лент и включённые выключатели.
     pub(crate) conveyor_protos: BTreeMap<PrototypeId, f32>,
     pub(crate) switch_protos: BTreeSet<PrototypeId>,
@@ -604,6 +590,8 @@ pub struct State {
     pub(crate) tokens: BTreeMap<NetworkEntityId, String>,
     /// Завершённые действия систем: их итог подводит система после события (`Systems::finish_jobs`).
     pub(crate) system_jobs: Vec<(NetworkEntityId, crate::doafter::SystemJob)>,
+    /// События для систем (`GameEvent`): их разбирают системы после события модуля.
+    pub(crate) events: Vec<crate::systems::GameEvent>,
     /// Должности станции из карты уже применены.
     pub(crate) map_jobs_applied: bool,
     pub(crate) charger_slot: BTreeMap<ObjectId, (f32, HeldItem)>,
@@ -648,7 +636,6 @@ impl State {
             .iter()
             .map(|(id, n)| (n.clone(), id.clone()))
             .collect();
-        let mut vending_specs = BTreeMap::new();
         let mut transfer_max = BTreeMap::new();
         let mut analyzers = BTreeSet::new();
         let mut defibs = BTreeMap::new();
@@ -1007,40 +994,6 @@ impl State {
                 {
                     spawner_tables.insert(table_id.to_string(), t);
                 }
-                if let Some(c) = r.component("VendingMachine") {
-                    let stock = c
-                        .get("stock")
-                        .and_then(prototypes::Data::as_map)
-                        .map(|s| {
-                            s.iter()
-                                .filter_map(|(k, v)| {
-                                    // Нет такого прототипа в Build — позиция пропускается (`HasIndex`).
-                                    registry.spawnable(k).ok()?;
-                                    Some((k.clone(), by_name.get(k)?.clone(), v.as_f64()? as u32))
-                                })
-                                .collect()
-                        })
-                        .unwrap_or_default();
-                    vending_specs.insert(
-                        id.clone(),
-                        VendSpec {
-                            title: name.clone(),
-                            stock,
-                            quality: c
-                                .get("initialStockQuality")
-                                .and_then(prototypes::Data::as_f64)
-                                .unwrap_or(1.0) as f32,
-                            access: r
-                                .component("AccessReader")
-                                .map(access_lists)
-                                .unwrap_or_default(),
-                            eject_delay: c
-                                .get("ejectDelay")
-                                .and_then(prototypes::Data::as_f64)
-                                .unwrap_or(1.2) as f32,
-                        },
-                    );
-                }
                 if let Some(c) = r.component("Conveyor") {
                     conveyor_protos.insert(
                         id.clone(),
@@ -1255,12 +1208,6 @@ impl State {
             last_dt: 0.0,
             spawn_serial: 0,
             spawn_rng: crate::disposal::Rng(0x1234_5678_9abc_def1),
-            vending_specs,
-            vending: BTreeMap::new(),
-            vending_open: BTreeMap::new(),
-            vending_sent: BTreeMap::new(),
-            vending_serial: 0,
-            vending_rng: crate::disposal::Rng(0x2545_f491_4f6c_dd1d),
             conveyor_protos,
             switch_protos,
             conveyor_state: BTreeMap::new(),
@@ -1333,6 +1280,7 @@ impl State {
             store: None,
             tokens: BTreeMap::new(),
             system_jobs: Vec::new(),
+            events: Vec::new(),
             map_jobs_applied: false,
             charger_slot: BTreeMap::new(),
             explosion_types,
@@ -2869,7 +2817,6 @@ impl State {
         self.place_joiners(ctx);
         self.tick_disposal(ctx, dt);
         self.tick_conveyors(ctx, dt);
-        self.tick_vending(ctx);
         self.tick_lockers(ctx);
         self.tick_id_consoles(ctx);
         self.tick_dispensers(ctx);
@@ -4145,7 +4092,7 @@ impl State {
     }
 
     /// Центр объекта мира.
-    fn center_of(ctx: &HookContext<'_>, id: ObjectId) -> Option<Vec3> {
+    pub(crate) fn center_of(ctx: &HookContext<'_>, id: ObjectId) -> Option<Vec3> {
         let o = ctx.world.authored_object(id)?;
         Some((o.min() + o.max()) * 0.5)
     }
@@ -4777,159 +4724,6 @@ impl State {
             .filter(|(_, d)| *d <= self.range_m)
             .min_by(|a, b| a.1.total_cmp(&b.1))
             .map(|(id, _)| id)
-    }
-
-    /// Автоматы из карты получают начальный запас при первом появлении (`MapInit`).
-    fn sync_vending(&mut self, ctx: &HookContext<'_>) {
-        let mut seen = BTreeSet::new();
-        for o in ctx.world.authored() {
-            let AuthoredKind::Placement { prototype } = &o.kind else {
-                continue;
-            };
-            let Some(spec) = self.vending_specs.get(prototype) else {
-                continue;
-            };
-            seen.insert(o.id);
-            if !self.vending.contains_key(&o.id) {
-                let machine = crate::vending::Machine::new(
-                    spec.stock.iter().cloned(),
-                    spec.quality,
-                    spec.eject_delay,
-                    &mut self.vending_rng,
-                );
-                self.vending.insert(o.id, machine);
-            }
-        }
-        self.vending.retain(|id, _| seen.contains(id));
-    }
-
-    /// Окно автомата открывается пустой рукой, если есть ток (`ActivatableUIRequiresPower`).
-    pub(crate) fn open_vending(&mut self, user: NetworkEntityId, id: ObjectId) -> bool {
-        if !self.vending.contains_key(&id) {
-            return false;
-        }
-        if self.power_required && !self.powered_map().get(&id).copied().unwrap_or(false) {
-            return true;
-        }
-        self.vending_open.insert(user, id);
-        true
-    }
-
-    /// Заказ товара из открытого автомата.
-    pub(crate) fn vend(&mut self, ctx: &HookContext<'_>, user: NetworkEntityId, item: &str) {
-        let Some(id) = self.vending_open.get(&user).copied() else {
-            return;
-        };
-        let now = self.clock;
-        let powered = !self.power_required || self.powered_map().get(&id).copied().unwrap_or(false);
-        let powered = powered && !self.repairable_broken(ctx, id);
-        // Доступ к автомату (`IsAuthorized`): без нужного уровня — отказ.
-        let allowed = ctx
-            .world
-            .authored_object(id)
-            .and_then(|o| match &o.kind {
-                AuthoredKind::Placement { prototype } => self.vending_specs.get(prototype),
-                _ => None,
-            })
-            .is_none_or(|s| Self::access_ok(&s.access, &self.user_access(user)));
-        let at = Self::center_of(ctx, id);
-        let mut say: Option<(&str, &str)> = None;
-        if let Some(machine) = self.vending.get_mut(&id) {
-            if allowed {
-                say = match machine.order(now, item, powered) {
-                    Ok(()) => Some(("Machines/machine_vend.ogg", "")),
-                    Err(crate::vending::Refusal::Denied) => Some((
-                        "Machines/buzz-sigh.ogg",
-                        "Нет такого товара или он кончился",
-                    )),
-                    Err(_) => None,
-                };
-            } else {
-                machine.refuse(now);
-                say = Some(("Machines/buzz-sigh.ogg", "Доступ запрещён"));
-            }
-        }
-        if let (Some((path, text)), Some(at)) = (say, at) {
-            self.sound(path, at);
-            if !text.is_empty() {
-                self.popup(user, text);
-            }
-        }
-    }
-
-    /// Автоматы каждый кадр: выдача готовых товаров, окна у игроков.
-    fn tick_vending(&mut self, ctx: &mut HookContext<'_>) {
-        if self.vending_specs.is_empty() {
-            return;
-        }
-        self.sync_vending(ctx);
-        let now = self.clock;
-        let ids: Vec<ObjectId> = self.vending.keys().copied().collect();
-        for id in ids {
-            let Some(done) = self.vending.get_mut(&id).and_then(|m| m.update(now)) else {
-                continue;
-            };
-            let Some(o) = ctx.world.authored_object(id) else {
-                continue;
-            };
-            // Товар ложится у автомата, на полу перед ним.
-            let c = (o.min() + o.max()) * 0.5;
-            self.vending_serial += 1;
-            let item = HeldItem {
-                id: ObjectId::from_u128(0xD3AD_0000_0000 + self.vending_serial),
-                prototype: done,
-            };
-            self.place(ctx, &item, Vec3::new(c.x, o.min().y, c.z));
-        }
-        // Окна: закрыть, если игрок ушёл от автомата; послать изменения.
-        let players: Vec<NetworkEntityId> = ctx.players().collect();
-        let mut views: Vec<(NetworkEntityId, Vec<u8>)> = Vec::new();
-        for p in players {
-            let open = self.vending_open.get(&p).copied();
-            let view = open.and_then(|id| {
-                let o = ctx.world.authored_object(id)?;
-                let feet = ctx.position_of(p)?;
-                let c = (o.min() + o.max()) * 0.5;
-                if (c - feet).length() > self.range_m + 1.0 {
-                    return None;
-                }
-                let machine = self.vending.get(&id)?;
-                let AuthoredKind::Placement { prototype } = &o.kind else {
-                    return None;
-                };
-                Some(crate::vending::VendingView {
-                    machine: id,
-                    name: self
-                        .vending_specs
-                        .get(prototype)
-                        .map(|s| s.title.clone())
-                        .unwrap_or_default(),
-                    items: machine
-                        .entries
-                        .iter()
-                        .map(|e| crate::vending::VendingItem {
-                            name: e.name.clone(),
-                            proto: e.proto.to_string(),
-                            amount: e.amount,
-                        })
-                        .collect(),
-                    ejecting: machine.ejecting(),
-                    denying: machine.denying(),
-                    broken: self.repairable_broken(ctx, id),
-                })
-            });
-            if view.is_none() {
-                self.vending_open.remove(&p);
-            }
-            let bytes = crate::vending::encode_vending(view.as_ref());
-            if self.vending_sent.get(&p) != Some(&bytes) {
-                views.push((p, bytes));
-            }
-        }
-        for (p, bytes) in views {
-            ctx.set_component(p, crate::vending::VENDING_COMPONENT, bytes.clone());
-            self.vending_sent.insert(p, bytes);
-        }
     }
 
     /// Нажатие выключателя (`SignalSwitchSystem.OnActivated`): состояние переключается, порт `On` или
@@ -8274,7 +8068,7 @@ fn vitals_differ(a: &Vitals, b: &Vitals) -> bool {
 
 /// Этаж, в который попадает высота `y` (ступни стоят на нижней границе).
 /// `AccessReader.access`: списки уровней доступа.
-fn access_lists(c: &prototypes::Data) -> Vec<Vec<String>> {
+pub(crate) fn access_lists(c: &prototypes::Data) -> Vec<Vec<String>> {
     c.get("access")
         .and_then(prototypes::Data::as_list)
         .map(|ls| {
@@ -8741,11 +8535,6 @@ impl GameplayModule {
                         st.spill_item(ctx, *actor, usize::from(hand));
                     }
                 }
-                crate::wire::CMD_VEND => {
-                    if let Ok(item) = std::str::from_utf8(data) {
-                        st.vend(ctx, *actor, item);
-                    }
-                }
                 crate::wire::CMD_ID_INSERT => {
                     if let [slot, hand] = data[..]
                         && let Some(console) = st.console_open.get(actor).copied()
@@ -8911,9 +8700,6 @@ impl GameplayModule {
                     if let Ok(job) = std::str::from_utf8(data) {
                         st.pick_job(ctx, *actor, job);
                     }
-                }
-                crate::wire::CMD_VEND_CLOSE => {
-                    st.vending_open.remove(actor);
                 }
                 CMD_RESIST => {
                     let resisted = st

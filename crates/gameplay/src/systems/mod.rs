@@ -17,6 +17,20 @@ use astrocore_core::NetworkEntityId;
 
 use crate::module::State;
 
+/// Событие для систем: общий код или другая система сообщает о том, что случилось, а
+/// заинтересованная система решает, что с этим делать. Разбираются после события модуля, в том же
+/// тике.
+#[derive(Debug, Clone, PartialEq)]
+pub enum GameEvent {
+    /// Автомат сломан и выбрасывает часть запаса (`EjectVendorItems` в `Destructible`).
+    EjectVendorItems {
+        object: astrocore_core::ObjectId,
+        percent: f32,
+        max: f32,
+        at: astrocore_math::glam::Vec3,
+    },
+}
+
 /// Одна игровая механика.
 pub trait GameSystem: Send + Any {
     /// Имя системы: по нему её отключают и заменяют.
@@ -60,6 +74,9 @@ pub trait GameSystem: Send + Any {
         _job: &crate::doafter::SystemJob,
     ) {
     }
+
+    /// Событие для систем (`GameEvent`).
+    fn on_event(&mut self, _st: &mut State, _ctx: &mut HookContext<'_>, _event: &GameEvent) {}
 
     /// Щелчок пустой рукой по цели — до общих обработчиков взаимодействия; `true`, если система
     /// его обработала.
@@ -110,6 +127,7 @@ impl Systems {
             Box::new(crate::power_monitor::Monitoring::load(registry)),
             Box::new(crate::door_electronics::DoorElectronics::default()),
             Box::new(crate::cryo::CryoSystem::from_registry(registry)?),
+            Box::new(crate::vending::VendingSystem::from_registry(registry)?),
         ]))
     }
 
@@ -168,13 +186,18 @@ impl Systems {
         }
     }
 
-    /// Подвести итог действиям систем, завершившимся за событие. Действие отключённой системы
-    /// пропадает.
+    /// Подвести итог действиям систем, завершившимся за событие, и раздать события систем.
+    /// Действие отключённой системы пропадает, событие без заинтересованных — тоже.
     pub(crate) fn finish_jobs(&mut self, st: &mut State, ctx: &mut HookContext<'_>) {
-        while !st.system_jobs.is_empty() {
+        while !st.system_jobs.is_empty() || !st.events.is_empty() {
             for (actor, job) in std::mem::take(&mut st.system_jobs) {
                 if let Some(s) = self.0.iter_mut().find(|s| s.id() == job.system) {
                     s.finish_job(st, ctx, actor, &job);
+                }
+            }
+            for event in std::mem::take(&mut st.events) {
+                for s in &mut self.0 {
+                    s.on_event(st, ctx, &event);
                 }
             }
         }

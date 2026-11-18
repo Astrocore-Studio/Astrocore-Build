@@ -430,7 +430,7 @@ impl State {
         }
     }
 
-    pub(super) fn repairable_broken(&self, ctx: &HookContext<'_>, id: ObjectId) -> bool {
+    pub(crate) fn repairable_broken(&self, ctx: &HookContext<'_>, id: ObjectId) -> bool {
         ctx.world.authored_object(id).is_some_and(|object| {
             object
                 .metadata
@@ -542,46 +542,22 @@ impl State {
         destroyed
     }
 
+    /// `EjectVendorItems`: автомат при поломке выбрасывает часть запаса. Запас — у системы
+    /// автоматов, поэтому здесь только событие для неё.
     fn eject_damaged_vendor(
         &mut self,
-        ctx: &mut HookContext<'_>,
+        _ctx: &mut HookContext<'_>,
         id: ObjectId,
         spec: &Value,
         at: Vec3,
     ) {
-        self.sync_vending(ctx);
-        let available = self.vending.get(&id).map_or(0, |vendor| {
-            vendor
-                .entries
-                .iter()
-                .filter(|entry| entry.amount > 0)
-                .count()
-        });
-        let count = ((available as f32 * spec["percent"].as_f64().unwrap_or(0.25) as f32)
-            .min(spec["max"].as_f64().unwrap_or(3.) as f32))
-        .ceil() as usize;
-        for _ in 0..count {
-            let choices: Vec<_> = self
-                .vending
-                .get(&id)
-                .into_iter()
-                .flat_map(|vendor| vendor.entries.iter().enumerate())
-                .filter(|(_, entry)| entry.amount > 0)
-                .map(|(index, _)| index)
-                .collect();
-            if choices.is_empty() {
-                break;
-            }
-            let index = choices[(self.spawn_rng.next_f32() * choices.len() as f32) as usize];
-            let entry = &mut self.vending.get_mut(&id).unwrap().entries[index];
-            entry.amount -= 1;
-            let prototype = entry.proto.clone();
-            if let Some(name) = self.ss14_names.get(&prototype).cloned()
-                && let Some(item) = self.create_item(&name)
-            {
-                self.place(ctx, &item, at);
-            }
-        }
+        self.events
+            .push(crate::systems::GameEvent::EjectVendorItems {
+                object: id,
+                percent: spec["percent"].as_f64().unwrap_or(0.25) as f32,
+                max: spec["max"].as_f64().unwrap_or(3.) as f32,
+                at,
+            });
     }
 
     fn destroy_repairable(
