@@ -4,7 +4,8 @@
 Для каждой должности из `availableJobs` карты: название, число мест, снаряжение. Снаряжение —
 как в `StationSpawningSystem.SpawnPlayerMob`: сначала набор по умолчанию (`RoleLoadout.SetDefault`:
 первые подходящие варианты каждой группы), потом `startingGear` должности поверх. Использование:
-gen_roles.py <корень SS14> <имя карты в Maps>."""
+gen_roles.py <корень SS14> <имя карты в Maps>. Должности, которых нет на карте, но которые можно
+выбрать в редакторе, добавляются с местами (0, 1)."""
 import re
 import sys
 import json
@@ -21,7 +22,13 @@ def main():
     gm = P.get('gameMap', mapid)
     station = list(gm['stations'].values())[0]
     jobs_comp = next(c for c in station['components'] if c['type'] == 'StationJobs')
-    avail = jobs_comp['availableJobs']
+    avail = dict(jobs_comp['availableJobs'])
+    # Все должности, которые игрок может выбрать в редакторе (`setPreference`, по умолчанию true):
+    # места для тех, кого нет на карте, — по умолчанию (0, 1); число мест решает карта (`job_slot_*`).
+    for jid, job in sorted(P.by_type.get('job', {}).items()):
+        # StationAi нужен ядру ИИ (шасси, камеры, законы) — у нас их нет, пока не берём.
+        if job.get('setPreference', True) and jid not in avail and jid != 'StationAi':
+            avail[jid] = [0, 1]
 
     def gear_of(gid):
         g = P.get('startingGear', gid)

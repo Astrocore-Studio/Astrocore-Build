@@ -6,7 +6,7 @@ use round::{Round, RoundConfig};
 const USAGE: &str = "\
 server — сервер Astrocore Build (раунд на нейтральном полигоне)
 
-  server --listen 127.0.0.1:7779 --key <hex32> [--tick-hz 20] [--ticks N] [--map карта.ron] [--lobby секунд, 0 = без лобби] [--round-secs секунд] [--prefs файл.sqlite3 (по умолчанию data/preferences.sqlite3; --no-prefs — без сохранения профилей)]
+  server --listen 127.0.0.1:7779 --key <hex32> [--tick-hz 20] [--ticks N] [--map карта.ron] [--lobby секунд, 0 = без лобби] [--round-secs секунд] [--admins файл.ron] [--admin-all ранг] [--hash-token токен] [--prefs файл.sqlite3 (по умолчанию data/preferences.sqlite3; --no-prefs — без сохранения профилей)]
   server --write-manifest <файл.json>   записать манифест рендера для клиента и выйти
 ";
 
@@ -41,6 +41,10 @@ fn run(args: &[String]) -> Result<(), String> {
         println!("манифест рендера записан: {path}");
         return Ok(());
     }
+    if let Some(token) = arg(args, "--hash-token") {
+        println!("{}", gameplay::admin::hash_token(&token));
+        return Ok(());
+    }
     if let Some(map) = arg(args, "--map") {
         polygon::use_map_file(std::path::Path::new(&map));
     }
@@ -71,7 +75,29 @@ fn run(args: &[String]) -> Result<(), String> {
             arg(args, "--prefs").unwrap_or_else(|| "data/preferences.sqlite3".into()),
         )
     });
+    // Админы: `--admins <файл>` (по умолчанию `data/admins.ron`, если он есть) — RON-список пар
+    // (SHA-256 токена, ранг); `--hash-token <токен>` печатает SHA-256. `--admin-all <ранг>` даёт
+    // ранг всем игрокам: только для локальной игры.
+    let admins_path = arg(args, "--admins").or_else(|| {
+        std::path::Path::new("data/admins.ron")
+            .is_file()
+            .then(|| "data/admins.ron".to_string())
+    });
+    let mut admins = match &admins_path {
+        Some(path) => {
+            let text = std::fs::read_to_string(path).map_err(|e| format!("{path}: {e}"))?;
+            gameplay::admin::AdminRoster::parse(&text).map_err(|e| format!("{path}: {e}"))?
+        }
+        None => gameplay::admin::AdminRoster::default(),
+    };
+    admins.everyone = arg(args, "--admin-all");
+    if admins.everyone.is_some() {
+        println!(
+            "ВНИМАНИЕ: все игроки получили админ-ранг (--admin-all); только для локальной игры"
+        );
+    }
     let config = RoundConfig {
+        admins,
         tick_hz,
         round_secs,
         prefs_db,

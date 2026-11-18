@@ -1,5 +1,7 @@
+pub mod admin;
 mod body;
 pub mod chem;
+mod console;
 mod conveyor;
 pub mod door_electronics;
 pub mod vending;

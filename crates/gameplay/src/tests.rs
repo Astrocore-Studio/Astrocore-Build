@@ -336,6 +336,11 @@ fn registry() -> Arc<PrototypeRegistry> {
         .unwrap();
     r.load_ron_str(atmos_alerts::PROTOS, "atmos alerts test")
         .unwrap();
+    r.load_ron_str(
+        include_str!("../../../content/prototypes/admin.ron"),
+        "admin ranks",
+    )
+    .unwrap();
     r.validate().unwrap();
     Arc::new(r)
 }
@@ -2524,6 +2529,23 @@ mod disposal_tests {
     }
 
     #[test]
+    fn nobody_picks_a_job_in_the_game_the_server_hands_it_out_from_the_profile() {
+        let mut h = harness_with(|m| m.with_auto_jobs());
+        let a = h.join("a");
+        h.ticks(30);
+        let view = jobs_view(&h, a).unwrap();
+        assert!(
+            view.current.is_some(),
+            "должность выдана без команды выбора: {view:?}"
+        );
+        // Без автораздачи (как в тестах и без этого флага) игрок остаётся без должности.
+        let mut plain = harness();
+        let b = plain.join("b");
+        plain.ticks(30);
+        assert!(jobs_view(&plain, b).unwrap().current.is_none());
+    }
+
+    #[test]
     fn the_map_decides_which_jobs_exist_and_how_many_seats_they_have() {
         let mut h = harness();
         let mut zone = AuthoredObject::new(
@@ -2663,6 +2685,124 @@ mod disposal_tests {
         let v = roundend_view(&h, a).expect("сводка");
         assert_eq!(v.reason, "Время раунда вышло");
         assert!(v.crew.is_empty());
+    }
+
+    fn admin_roster(token: &str, rank: &str) -> crate::admin::AdminRoster {
+        crate::admin::AdminRoster::parse(&format!(
+            r#"[("{}", "{rank}")]"#,
+            crate::admin::hash_token(token)
+        ))
+        .unwrap()
+    }
+
+    fn console(h: &mut Harness, who: ConnId, line: &str) -> Vec<crate::admin::ConsoleLine> {
+        command(h, who, crate::admin::CMD_CONSOLE, line.as_bytes().to_vec());
+        h.ticks(4);
+        let net = h.client(who).net_id().unwrap();
+        h.client(who)
+            .component(net, crate::admin::CONSOLE_COMPONENT)
+            .and_then(crate::admin::decode_console)
+            .map(|v| v.lines)
+            .unwrap_or_default()
+    }
+
+    fn hello(h: &mut Harness, who: ConnId, token: &str) {
+        command(
+            h,
+            who,
+            crate::character::CMD_USER_HELLO,
+            token.as_bytes().to_vec(),
+        );
+        h.ticks(4);
+    }
+
+    #[test]
+    fn the_console_answers_everyone_but_runs_privileged_commands_only_for_admins() {
+        let mut h = harness_with(|m| {
+            m.with_admins(admin_roster("0123456789abcdef0123456789abcdef", "Host"))
+        });
+        let a = h.join("a");
+        h.ticks(10);
+        hello(&mut h, a, "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
+        let lines = console(&mut h, a, "spawn Crowbar");
+        assert!(lines.last().unwrap().error, "{lines:?}");
+        assert!(lines.last().unwrap().text.contains("Нет прав"));
+        let lines = console(&mut h, a, "frobnicate");
+        assert!(lines.last().unwrap().text.contains("Неизвестная команда"));
+        let help = console(&mut h, a, "help");
+        let text: String = help
+            .iter()
+            .rev()
+            .take(3)
+            .map(|l| l.text.clone())
+            .collect::<Vec<_>>()
+            .join("\n");
+        assert!(text.contains("whoami") && !text.contains("spawn"), "{text}");
+        // Клиент получает вид своих прав: гость без ранга, команды без флага.
+        let net = h.client(a).net_id().unwrap();
+        let view = h
+            .client(a)
+            .component(net, crate::admin::ADMIN_COMPONENT)
+            .and_then(crate::admin::decode_admin)
+            .unwrap();
+        assert!(view.rank.is_none() && view.commands.iter().all(|c| c.name != "spawn"));
+    }
+
+    #[test]
+    fn an_admin_spawns_items_teleports_and_flies_as_an_admin_ghost() {
+        let token = "0123456789abcdef0123456789abcdef";
+        let mut h = harness_with(|m| m.with_admins(admin_roster(token, "Host")));
+        let a = h.join("a");
+        h.ticks(10);
+        hello(&mut h, a, token);
+        let who = console(&mut h, a, "whoami");
+        assert!(who.last().unwrap().text.contains("Хозяин"), "{who:?}");
+        let lines = console(&mut h, a, "spawn Crowbar 2");
+        assert_eq!(
+            lines.last().unwrap().text,
+            "Создано 2 × Crowbar.",
+            "{lines:?}"
+        );
+        assert!(
+            console(&mut h, a, "spawn NoSuchThing")
+                .last()
+                .unwrap()
+                .error
+        );
+        assert!(console(&mut h, a, "spawn Crowbar 99").last().unwrap().error);
+        // Телепорт по координатам.
+        console(&mut h, a, "tp 3 4");
+        h.ticks(10);
+        let net = h.client(a).net_id().unwrap();
+        let p = h.client(a).position();
+        assert!((p.x - 3.0).abs() < 0.6 && (p.z - 4.0).abs() < 0.6, "{p:?}");
+        assert!(console(&mut h, a, "tp 1 nope").last().unwrap().error);
+        // Админ-призрак: летает; повторная команда возвращает в тело; возродиться нельзя.
+        let ghost = |h: &Harness| {
+            h.client(a)
+                .component(net, crate::GHOST_COMPONENT)
+                .map(|b| b[0])
+        };
+        assert_eq!(ghost(&h), Some(0));
+        console(&mut h, a, "aghost");
+        assert_eq!(ghost(&h), Some(1), "стал призраком");
+        command(&mut h, a, crate::CMD_RESPAWN, Vec::new());
+        h.ticks(10);
+        assert_eq!(ghost(&h), Some(1), "админ-призрак не возрождается");
+        console(&mut h, a, "aghost");
+        assert_eq!(ghost(&h), Some(0), "вернулся в тело");
+    }
+
+    #[test]
+    fn the_rank_decides_which_flags_a_player_has() {
+        let token = "fedcba9876543210fedcba9876543210";
+        let mut h = harness_with(|m| m.with_admins(admin_roster(token, "Mapper")));
+        let a = h.join("a");
+        h.ticks(10);
+        hello(&mut h, a, token);
+        assert!(!console(&mut h, a, "spawn Crowbar").last().unwrap().error);
+        let denied = console(&mut h, a, "endround");
+        assert!(denied.last().unwrap().error && denied.last().unwrap().text.contains("Round"));
     }
 
     fn chat_of(h: &Harness, who: ConnId) -> Vec<crate::ChatLine> {

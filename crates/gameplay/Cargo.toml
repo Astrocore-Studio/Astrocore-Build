@@ -17,6 +17,8 @@ astrocore-runtime.workspace = true
 astrocore-world.workspace = true
 prototypes.workspace = true
 serde.workspace = true
+ron.workspace = true
+sha2 = "0.10"
 serde_json.workspace = true
 thiserror.workspace = true
 

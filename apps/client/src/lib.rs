@@ -8,7 +8,11 @@ mod alarm_visuals;
 mod alerts_ui;
 mod body;
 mod character_ui;
+/// Расстояние камеры призрака при входе в призрака, м (дальше зум клавишами +/−).
+const GHOST_VIEW_DISTANCE_M: f32 = 14.0;
+
 mod combat;
+mod console_ui;
 mod engineering_visuals;
 mod fire;
 mod held;
@@ -64,6 +68,9 @@ pub struct Loadout {
     pub ammo: Option<gameplay::AmmoView>,
     /// Чат: то, что слышал игрок.
     pub chat: Option<gameplay::ChatView>,
+    /// Консоль: ответы сервера и права игрока.
+    pub console: Option<gameplay::admin::ConsoleView>,
+    pub admin: Option<gameplay::admin::AdminView>,
     /// Сводка конца раунда.
     pub roundend: Option<gameplay::RoundEndView>,
     /// Открытая консоль выдачи ID.
@@ -596,6 +603,14 @@ fn refresh_loadout(net: Option<NonSend<Net>>, time: Res<Time>, mut loadout: ResM
         .core
         .component(me, gameplay::CHAT_COMPONENT)
         .and_then(gameplay::decode_chat);
+    loadout.console = net
+        .core
+        .component(me, gameplay::admin::CONSOLE_COMPONENT)
+        .and_then(gameplay::admin::decode_console);
+    loadout.admin = net
+        .core
+        .component(me, gameplay::admin::ADMIN_COMPONENT)
+        .and_then(gameplay::admin::decode_admin);
     loadout.roundend = net
         .core
         .component(me, gameplay::ROUNDEND_COMPONENT)
@@ -798,6 +813,21 @@ fn autoplay(
             gameplay::CMD_CHAT,
             gameplay::chat_data(gameplay::Channel::Say, &text),
         );
+    }
+    // Отладка: команды консоли через «;» (ASTRO_AUTOPLAY_CONSOLE=whoami;aghost) уходят по одной
+    // с кадра 60 с шагом 10 кадров, ASTRO_CONSOLE_OPEN=1 открывает окно консоли.
+    if let Ok(list) = std::env::var("ASTRO_AUTOPLAY_CONSOLE") {
+        for (i, line) in list.split(';').enumerate() {
+            if state.frame == 60 + 10 * i as u32 {
+                net.send_command(
+                    gameplay::admin::CMD_CONSOLE,
+                    line.trim().as_bytes().to_vec(),
+                );
+            }
+        }
+        if std::env::var_os("ASTRO_CONSOLE_OPEN").is_some() && state.frame == 50 {
+            hud.state.console.open = true;
+        }
     }
     // Отладка: ASTRO_AUTOPLAY_EXAMINE=aim — осмотреть первый объект, на который попадёт прицел,
     // а при ASTRO_SPIN камера медленно крутится, пока что-нибудь не попадёт под прицел.
@@ -1227,9 +1257,9 @@ fn autoplay(
 }
 
 /// Худ: руки и быстрые слоты внизу, окно одежды, сетки сумок.
-/// Вид призрака — сверху: камера высоко над персонажем и смотрит вниз. Включается один раз при
-/// смерти (приближение и поворот потом остаются за игроком), с возрождением возвращается вид от
-/// первого лица.
+/// Вид призрака — всегда сверху: камера над персонажем смотрит вниз, наклон и вид от первого лица
+/// не меняются (движок держит `Look.top_down`); поворот и приближение остаются за игроком. С
+/// возвращением в тело (возрождение, `aghost`) вид от первого лица возвращается.
 fn ghost_camera(
     loadout: Res<Loadout>,
     look: Option<ResMut<astrocore_client::Look>>,
@@ -1238,12 +1268,14 @@ fn ghost_camera(
 ) {
     let Some(mut look) = look else { return };
     let ghost = loadout.health.as_ref().is_some_and(|h| h.ghost);
+    // Призраки (умершие, наблюдатели и админ-призраки) всегда летают с видом сверху: движок держит
+    // наклон и не пускает в первое лицо, пока включён `top_down`.
+    look.top_down = ghost;
     if ghost {
         look.first_person = false;
         if !*was_ghost {
-            look.pitch = 1.25;
             for mut rig in &mut rigs {
-                rig.distance = 14.0;
+                rig.distance = GHOST_VIEW_DISTANCE_M;
             }
         }
     } else if *was_ghost {
@@ -1360,6 +1392,12 @@ fn loadout_window(
             loadout.chat.as_ref(),
             at,
         ));
+        cmds.extend(console_ui::console_panel(
+            &ctx,
+            &mut hud.state.console,
+            loadout.console.as_ref(),
+            loadout.admin.as_ref(),
+        ));
         for (kind, data) in cmds {
             net.send_command(kind, data);
         }
@@ -1463,6 +1501,12 @@ fn loadout_window(
     hud::ammo_counter(&ctx, loadout.ammo.as_ref());
     let chat_at = egui::pos2(16.0, (ctx.content_rect().max.y - 290.0).max(16.0));
     commands.extend(hud::chat_panel(&ctx, state, loadout.chat.as_ref(), chat_at));
+    commands.extend(console_ui::console_panel(
+        &ctx,
+        &mut state.console,
+        loadout.console.as_ref(),
+        loadout.admin.as_ref(),
+    ));
     hud::toasts(&ctx, &mut loadout.toasts, time.elapsed_secs());
     commands.extend(hud::dispenser_window(
         &ctx,
@@ -1473,7 +1517,6 @@ fn loadout_window(
     commands.extend(hud::chemhand_bar(&ctx, loadout.chemhand.as_ref()));
     commands.extend(hud::cryo_window(&ctx, loadout.cryo.as_ref(), hand));
     commands.extend(hud::lab_window(&ctx, loadout.lab.as_ref(), hand));
-    commands.extend(hud::jobs_window(&ctx, state, loadout.jobs.as_ref()));
     for (kind, data) in commands {
         net.send_command(kind, data);
     }

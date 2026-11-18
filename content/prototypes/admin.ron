@@ -1,0 +1,14 @@
+// Ранги админов (компонент AdminRank): название и флаги прав. Флаги как в SS14:
+// Admin, Spawn, Fun, Mapping, Debug, Round, Moderator, Ban, Permissions, Server.
+// Кто какой ранг имеет — в списке админов сервера (--admins data/admins.ron).
+[
+    (id: "Host", components: {"AdminRank": (title: "Хозяин", flags: [
+        "Admin", "Spawn", "Fun", "Mapping", "Debug", "Round",
+        "Moderator", "Ban", "Permissions", "Server",
+    ])}),
+    (id: "Administrator", components: {"AdminRank": (title: "Администратор", flags: [
+        "Admin", "Spawn", "Fun", "Mapping", "Round", "Moderator", "Ban",
+    ])}),
+    (id: "Mapper", components: {"AdminRank": (title: "Маппер", flags: ["Admin", "Spawn", "Mapping"])}),
+    (id: "Moderator", components: {"AdminRank": (title: "Модератор", flags: ["Moderator", "Ban"])}),
+]

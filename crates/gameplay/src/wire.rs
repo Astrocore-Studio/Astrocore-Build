@@ -378,6 +378,17 @@ pub fn register_replication(reg: &mut ReplicationRegistry) -> Result<(), Replica
         interest: Interest::Owner,
         max_bytes: crate::chat::CHAT_MAX_BYTES,
     })?;
+    for name in [
+        crate::admin::ADMIN_COMPONENT,
+        crate::admin::CONSOLE_COMPONENT,
+    ] {
+        reg.register(ReplicatedKind {
+            name: name.into(),
+            channel: ReplicationChannel::ReliableOrdered,
+            interest: Interest::Owner,
+            max_bytes: crate::admin::COMPONENT_MAX_BYTES,
+        })?;
+    }
     reg.register(ReplicatedKind {
         name: crate::lobby::LOBBY_COMPONENT.into(),
         channel: ReplicationChannel::ReliableOrdered,

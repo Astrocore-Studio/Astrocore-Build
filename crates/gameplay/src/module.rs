@@ -147,6 +147,8 @@ pub(crate) struct Actor {
     pub(crate) health_dirty: bool,
     /// Умерший летает призраком; тело осталось лежать на месте смерти.
     pub(crate) ghost: bool,
+    /// Админ-призрак (`aghost`): не возрождается и может вернуться в тело.
+    pub(crate) admin_ghost: bool,
     /// Когда призрак может возродиться, с (по часам модуля), и где умер.
     pub(crate) respawn_at: f32,
     pub(crate) death_pos: Option<Vec3>,
@@ -192,6 +194,7 @@ impl Actor {
             },
             health_dirty: false,
             ghost: false,
+            admin_ghost: false,
             respawn_at: 0.0,
             death_pos: None,
             body: Some(Body::new(seed)),
@@ -546,6 +549,9 @@ pub struct State {
     pub(crate) placed: BTreeSet<NetworkEntityId>,
     /// Лобби: `None` — выключено (игроки сразу выходят на станцию).
     pub(crate) lobby: Option<Lobby>,
+    /// Должность без выбора в игре: тому, кто вышел на станцию без должности (нет лобби или
+    /// возрождение), она раздаётся по приоритетам его профиля (`AssignJobs`).
+    pub(crate) auto_jobs: bool,
     /// Конец раунда: сигнал серверу, предел времени, часы раунда, экипаж, итог.
     pub(crate) round: RoundState,
     /// Чат: журнал строк по получателям.
@@ -604,6 +610,8 @@ pub struct State {
     /// Куда сохранять профили и токены игроков, которые назвались (`user.hello`).
     pub(crate) store: Option<Box<dyn crate::character::ProfileStore>>,
     pub(crate) tokens: BTreeMap<NetworkEntityId, String>,
+    /// Права админов и консоль.
+    pub(crate) admin: crate::admin::AdminState,
     /// Должности станции из карты уже применены.
     pub(crate) map_jobs_applied: bool,
     pub(crate) charger_slot: BTreeMap<ObjectId, (f32, HeldItem)>,
@@ -1286,6 +1294,7 @@ impl State {
             disposal_timer: 0.0,
             placed: BTreeSet::new(),
             lobby: None,
+            auto_jobs: false,
             round: RoundState::default(),
             chat: ChatState::default(),
             display_names,
@@ -1342,6 +1351,11 @@ impl State {
             slots_sent: BTreeMap::new(),
             store: None,
             tokens: BTreeMap::new(),
+            admin: crate::admin::AdminState {
+                admins: crate::admin::Admins::from_registry(&registry)
+                    .map_err(|e| prototypes::ProtoError::Parse("admin".into(), e))?,
+                ..Default::default()
+            },
             map_jobs_applied: false,
             charger_slot: BTreeMap::new(),
             explosion_types,
@@ -2682,6 +2696,9 @@ impl State {
     /// Возродиться: призрак по истечении ожидания получает новое тело в точке возрождения. Одежда
     /// старого тела остаётся лежать у места смерти.
     pub(crate) fn respawn(&mut self, ctx: &mut HookContext<'_>, actor: NetworkEntityId) {
+        if self.actors.get(&actor).is_some_and(|a| a.admin_ghost) {
+            return;
+        }
         let died_as_ghost = self
             .actors
             .get(&actor)
@@ -2870,12 +2887,14 @@ impl State {
         self.tick_character(ctx);
         self.tick_round(ctx);
         self.tick_chat(ctx);
+        self.tick_console(ctx);
         self.tick_rest_and_thrown(ctx);
         self.tick_pulls(ctx);
         self.tick_stamina(ctx);
         self.tick_primed(ctx);
         self.tick_bullets(ctx, dt);
         self.tick_chargers(dt);
+        self.auto_assign_jobs(ctx);
         self.place_joiners(ctx);
         self.tick_disposal(ctx, dt);
         self.tick_conveyors(ctx, dt);
@@ -5394,6 +5413,59 @@ impl State {
         }
     }
 
+    /// Живым без должности, которых лобби не держит, должность выдаётся по приоритетам профиля
+    /// (`AssignJobs` на одного игрока с учётом уже занятых мест). Нет подходящей — остаются без неё.
+    fn auto_assign_jobs(&mut self, ctx: &mut HookContext<'_>) {
+        if !self.auto_jobs || self.jobs.is_empty() {
+            return;
+        }
+        if self.lobby.as_ref().is_some_and(|l| !l.started) {
+            return;
+        }
+        let waiting: Vec<NetworkEntityId> = ctx
+            .players()
+            .filter(|p| {
+                !self.player_job.contains_key(p)
+                    && !self.lobby.as_ref().is_some_and(|l| l.in_lobby.contains(p))
+                    && self
+                        .actors
+                        .get(p)
+                        .is_some_and(|a| !a.ghost && a.health.state().can_act())
+            })
+            .collect();
+        for p in waiting {
+            let openings: Vec<crate::assign::Opening> = self
+                .jobs
+                .iter()
+                .map(|j| {
+                    let taken = self.job_taken.get(&j.id).copied().unwrap_or(0) as i32;
+                    crate::assign::Opening {
+                        id: j.id.clone(),
+                        start: (j.start - taken).max(0),
+                        max: if j.max < 0 {
+                            -1
+                        } else {
+                            (j.max - taken).max(0)
+                        },
+                        weight: j.weight,
+                    }
+                })
+                .collect();
+            let profile = self.actor(p).slots.current().clone();
+            let candidate = crate::assign::Candidate {
+                who: p,
+                priorities: profile.job_priorities,
+                unavailable: profile.unavailable,
+            };
+            let seed = (self.clock * 1000.0) as u64 ^ (u64::from(p.0) << 32);
+            let got =
+                crate::assign::assign(&openings, &[candidate], &mut crate::disposal::Rng(seed | 1));
+            if let Some((_, Some(job))) = got.into_iter().next() {
+                self.pick_job(ctx, p, &job);
+            }
+        }
+    }
+
     fn round_number(&self) -> u32 {
         self.lobby.as_ref().map_or(0, |l| l.round)
     }
@@ -7446,7 +7518,7 @@ impl State {
 
     /// «Готов»/«Не готов» до старта, «Присоединиться» после.
     /// «Наблюдать»: игрок выходит из лобби призраком без должности (`Observe`).
-    fn lobby_observe(&mut self, ctx: &mut HookContext<'_>, actor: NetworkEntityId) {
+    pub(crate) fn lobby_observe(&mut self, ctx: &mut HookContext<'_>, actor: NetworkEntityId) {
         let Some(l) = self.lobby.as_mut() else {
             return;
         };
@@ -8406,10 +8478,25 @@ impl GameplayModule {
         self
     }
 
+    /// Кто админ: список токенов с рангами (ранги — из прототипов `AdminRank`).
+    #[must_use]
+    pub fn with_admins(mut self, roster: crate::admin::AdminRoster) -> Self {
+        self.state.admin.admins.roster = roster;
+        self
+    }
+
     /// Хранилище профилей игроков (SQLite в крейте `prefs`).
     #[must_use]
     pub fn with_profile_store(mut self, store: Box<dyn crate::character::ProfileStore>) -> Self {
         self.state.store = Some(store);
+        self
+    }
+
+    /// Раздавать должность по приоритетам профиля всем, кто вышел на станцию без неё: окна выбора
+    /// должности в игре нет, должность игрок выбирает в редакторе персонажа (приоритеты).
+    #[must_use]
+    pub fn with_auto_jobs(mut self) -> Self {
+        self.state.auto_jobs = true;
         self
     }
 
@@ -8654,6 +8741,9 @@ impl GameModule for GameplayModule {
             }
             HookEvent::Command { actor, kind, data } if kind == crate::wire::CMD_CHAT => {
                 st.chat_say(ctx, *actor, data);
+            }
+            HookEvent::Command { actor, kind, data } if kind == crate::admin::CMD_CONSOLE => {
+                st.console_exec(ctx, *actor, data);
             }
             HookEvent::Command { actor, kind, data }
                 if st

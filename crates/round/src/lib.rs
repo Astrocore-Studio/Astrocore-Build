@@ -27,6 +27,8 @@ pub struct RoundConfig {
     pub round_secs: Option<f32>,
     /// База настроек игроков (профили персонажей, SQLite); `None` — профили не сохраняются.
     pub prefs_db: Option<std::path::PathBuf>,
+    /// Кто админ: SHA-256 токена → ранг (ранги — из прототипов). Пусто — админов нет.
+    pub admins: gameplay::admin::AdminRoster,
 }
 
 impl Default for RoundConfig {
@@ -37,6 +39,7 @@ impl Default for RoundConfig {
             lobby_secs: None,
             round_secs: None,
             prefs_db: None,
+            admins: gameplay::admin::AdminRoster::default(),
         }
     }
 }
@@ -73,7 +76,9 @@ impl Round {
             .map_err(|e| RoundError::Module(e.to_string()))?
             .with_descriptions(polygon::load_descriptions(content))
             .with_spawn(astrocore_math::glam::Vec3::from_array(polygon::spawn()))
-            .with_station_name(polygon::map().name);
+            .with_station_name(polygon::map().name)
+            .with_admins(config.admins.clone())
+            .with_auto_jobs();
         let module = match &config.prefs_db {
             Some(path) => module.with_profile_store(Box::new(
                 prefs::PrefsDb::open(path).map_err(|e| RoundError::Module(e.to_string()))?,
