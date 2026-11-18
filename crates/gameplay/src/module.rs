@@ -331,8 +331,6 @@ pub(crate) struct Locker {
     pub(crate) contents: Vec<HeldItem>,
 }
 
-/// Торговый автомат по прототипу.
-
 /// Ёмкость диспозала в мире: состояние, клетка и точка.
 #[derive(Debug, Clone)]
 pub(crate) struct DisposalSlot {
