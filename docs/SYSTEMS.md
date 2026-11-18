@@ -3,7 +3,8 @@
 ADR: [ADR-0001](ADR/0001-separation-from-ss14-and-workflow.md). Код: `crates/gameplay/src/systems/`.
 
 Механика — **система**: тип, реализующий `GameSystem` (`systems/mod.rs`). У неё своё состояние,
-свои команды клиента (`commands()` + `command()`), свой тик (`tick()`, после общей симуляции) и
+свои команды клиента (`commands()` + `command()`), свой тик (`tick()`, после общей симуляции), щелчок пустой рукой (`interact_hand()`, раньше общих
+обработчиков), отключение игрока (`player_left()`) и
 свои реплицируемые компоненты. Общее состояние мира — `State` (персонажи `actors`, предметы,
 должности, лобби, токены игроков); система получает его по ссылке и не хранит чужих данных.
 
@@ -35,11 +36,12 @@ GameplayModule::new(registry)?
 | --- | --- | --- | --- |
 | Чат (`chat`) | `systems/chat.rs` | `chat` | `build.chat` |
 | Консоль и права (`console`) | `systems/console.rs`, `admin.rs` | `console.exec` | `build.console`, `build.admin` |
+| Мониторинг питания (`power_monitor`) | `power_monitor.rs` | `power.focus`, `power.close`, щелчок по консоли | `build.powermonitor*` |
 
 Ещё в `State` (переносятся по одной, с зелёными тестами на каждом шаге): лобби и раздача
 должностей, персонажи и здоровье, руки и инвентарь, хранилища, бой и оружие, химия
 (`chemlab`, раздатчики, шприцы), медицина (`cryo`, дефибриллятор), атмосфера и сигнализации
-(`alerts`), питание и мониторинг (`power_monitor`), двери (`airlock_doors`, `airlock_wires`,
+(`alerts`), питание, двери (`airlock_doors`, `airlock_wires`,
 `door_electronics`), строительство (`construction`, `computer_construction`, `rcd`, `floor_tiles`,
 `material_stacks`, `barriers`, `inflatables`, `repairable`), торговые автоматы, утилизация,
 конвейеры, раунд и его конец. Механики, у которых уже свой файл с `impl State`, переносятся

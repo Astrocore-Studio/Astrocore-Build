@@ -431,7 +431,6 @@ pub struct State {
     pub(crate) power: power::PowerState,
     pub(crate) power_suppliers: Vec<(ObjectId, usize)>,
     pub(crate) power_cables: Vec<(power::CableGroup, atmos::Cell, usize)>,
-    pub(crate) power_monitor: crate::power_monitor::Monitoring,
     pub(crate) alerts: crate::alerts::Alerts,
     pub(crate) power_sig: Vec<(ObjectId, atmos::Cell, u8)>,
     pub(crate) power_batteries: Vec<(ObjectId, usize)>,
@@ -1146,7 +1145,6 @@ impl State {
             }
         }
         Ok(Self {
-            power_monitor: crate::power_monitor::Monitoring::load(&registry),
             alerts: crate::alerts::Alerts::load(&registry),
             power_suppliers: Vec::new(),
             power_cables: Vec::new(),
@@ -2902,7 +2900,6 @@ impl State {
         self.tick_alarms(ctx, dt);
         self.tick_firelocks(ctx, dt);
         self.tick_power(dt);
-        self.tick_power_monitors(ctx);
         self.publish_atmos_alerts(ctx);
         self.publish_lights(ctx, dt);
         self.atmos.advance(dt);
@@ -8427,7 +8424,9 @@ impl GameplayModule {
 
     #[must_use]
     pub fn with_station_name(mut self, name: String) -> Self {
-        self.state.power_monitor.station = name.clone();
+        if let Some(m) = self.systems.get_mut::<crate::power_monitor::Monitoring>() {
+            m.station = name.clone();
+        }
         self.state.alerts.station = name;
         self
     }
@@ -8560,6 +8559,13 @@ impl GameplayModule {
                 return;
             }
         }
+        if used.is_none()
+            && self
+                .systems
+                .interact_hand(&mut self.state, ctx, user, &target)
+        {
+            return;
+        }
         let mut handlers = std::mem::take(&mut self.handlers);
         match used {
             None => {
@@ -8679,12 +8685,6 @@ impl GameModule for GameplayModule {
                     {
                         st.attack_repairable(ctx, *actor, id);
                     }
-                }
-                crate::power_monitor::CMD_FOCUS => {
-                    st.focus_power_monitor(ctx, *actor, data);
-                }
-                crate::power_monitor::CMD_CLOSE => {
-                    st.close_power_monitor(*actor);
                 }
                 crate::alerts::CMD_FOCUS
                 | crate::alerts::CMD_SILENCE
@@ -9188,7 +9188,7 @@ impl GameModule for GameplayModule {
                 self.systems.tick(st, ctx, *dt);
             }
             HookEvent::PlayerLeft { actor, pos } => {
-                st.power_monitor.forget(*actor);
+                self.systems.player_left(st, *actor);
                 st.alerts.forget(*actor);
                 // Всё, что игрок держал и носил, остаётся лежать там, где он стоял (DropAll);
                 // содержимое сумок остаётся в сумках.

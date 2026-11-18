@@ -117,8 +117,10 @@ pub fn focus_data(group: Group, device: Option<ObjectId>) -> Vec<u8> {
     serde_json::to_vec(&FocusRequest { group, device }).unwrap_or_default()
 }
 
+/// Система мониторинга питания (`PowerMonitoringConsoleSystem`): сеансы у консолей, раз в секунду
+/// — снимок источников, нагрузок и батарей.
 #[derive(Default)]
-pub(crate) struct Monitoring {
+pub struct Monitoring {
     pub consoles: BTreeSet<PrototypeId>,
     specs: BTreeMap<PrototypeId, Spec>,
     sessions: BTreeMap<NetworkEntityId, Session>,
@@ -191,6 +193,56 @@ impl Monitoring {
     }
 }
 
+impl crate::systems::GameSystem for Monitoring {
+    fn id(&self) -> &'static str {
+        "power_monitor"
+    }
+
+    fn commands(&self) -> &'static [&'static str] {
+        &[CMD_FOCUS, CMD_CLOSE]
+    }
+
+    fn command(
+        &mut self,
+        st: &mut State,
+        ctx: &mut HookContext<'_>,
+        actor: NetworkEntityId,
+        kind: &str,
+        data: &[u8],
+    ) {
+        if kind == CMD_FOCUS {
+            self.focus_power_monitor(st, ctx, actor, data);
+        } else {
+            self.close_power_monitor(actor);
+        }
+    }
+
+    fn interact_hand(
+        &mut self,
+        st: &mut State,
+        ctx: &mut HookContext<'_>,
+        user: NetworkEntityId,
+        target: &crate::interact::Target,
+    ) -> bool {
+        let crate::interact::Target::Item { id, prototype, .. } = target else {
+            return false;
+        };
+        self.consoles.contains(prototype) && self.open_power_monitor(st, ctx, user, *id)
+    }
+
+    fn player_left(&mut self, _st: &mut State, actor: NetworkEntityId) {
+        self.forget(actor);
+    }
+
+    fn tick(&mut self, st: &mut State, ctx: &mut HookContext<'_>, _dt: f32) {
+        self.tick_power_monitors(st, ctx);
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+        self
+    }
+}
+
 #[derive(Clone)]
 struct Device {
     id: ObjectId,
@@ -205,9 +257,10 @@ struct Device {
     battery_usage: f32,
 }
 
-impl State {
+impl Monitoring {
     fn power_monitor_available(
         &self,
+        st: &State,
         ctx: &HookContext<'_>,
         user: NetworkEntityId,
         id: ObjectId,
@@ -220,36 +273,36 @@ impl State {
             return false;
         };
         let at = (object.min() + object.max()) * 0.5;
-        self.power_monitor.consoles.contains(prototype)
-            && !self
+        self.consoles.contains(prototype)
+            && !st
                 .actors
                 .get(&user)
                 .is_some_and(|actor| !actor.health.state().can_act() || actor.ghost)
-            && feet.distance(at) <= self.range_m + 1.0
+            && feet.distance(at) <= st.range_m + 1.0
             && ctx.is_unobstructed(feet + Vec3::Y, at)
-            && (!self.power_required || self.powered_map().get(&id) == Some(&true))
+            && (!st.power_required || st.powered_map().get(&id) == Some(&true))
     }
 
     pub(crate) fn open_power_monitor(
         &mut self,
+        st: &State,
         ctx: &HookContext<'_>,
         user: NetworkEntityId,
         id: ObjectId,
     ) -> bool {
-        if self.power_monitor_available(ctx, user, id)
+        if self.power_monitor_available(st, ctx, user, id)
             && !self
-                .power_monitor
                 .sessions
                 .iter()
                 .any(|(owner, session)| *owner != user && session.console == id)
         {
-            self.power_monitor.sessions.insert(
+            self.sessions.insert(
                 user,
                 Session {
                     console: id,
                     group: Group::Generator,
                     focus: None,
-                    next_sample: self.clock,
+                    next_sample: st.clock,
                 },
             );
         }
@@ -257,11 +310,12 @@ impl State {
     }
 
     pub(crate) fn close_power_monitor(&mut self, user: NetworkEntityId) {
-        self.power_monitor.sessions.remove(&user);
+        self.sessions.remove(&user);
     }
 
     pub(crate) fn focus_power_monitor(
         &mut self,
+        st: &State,
         ctx: &HookContext<'_>,
         user: NetworkEntityId,
         data: &[u8],
@@ -269,37 +323,42 @@ impl State {
         let Some(request) = decode::<FocusRequest>(data).filter(|_| data.len() <= 128) else {
             return;
         };
-        let Some(session) = self.power_monitor.sessions.get(&user).cloned() else {
+        let Some(session) = self.sessions.get(&user).cloned() else {
             return;
         };
-        if !self.power_monitor_available(ctx, user, session.console) {
+        if !self.power_monitor_available(st, ctx, user, session.console) {
             return;
         }
         if let Some(id) = request.device {
-            let devices = self.monitored_devices(ctx, session.console);
+            let devices = self.monitored_devices(st, ctx, session.console);
             if !devices.iter().any(|d| d.id == id) {
                 return;
             }
         }
-        if let Some(session) = self.power_monitor.sessions.get_mut(&user) {
+        if let Some(session) = self.sessions.get_mut(&user) {
             session.group = request.group;
             session.focus = request.device;
-            session.next_sample = self.clock;
+            session.next_sample = st.clock;
         }
     }
 
-    fn monitored_devices(&self, ctx: &HookContext<'_>, console: ObjectId) -> Vec<Device> {
+    fn monitored_devices(
+        &self,
+        st: &State,
+        ctx: &HookContext<'_>,
+        console: ObjectId,
+    ) -> Vec<Device> {
         let Some(console) = ctx.world.authored_object(console) else {
             return Vec::new();
         };
-        let suppliers: BTreeMap<_, _> = self.power_suppliers.iter().copied().collect();
-        let batteries: BTreeMap<_, _> = self.power_batteries.iter().copied().collect();
+        let suppliers: BTreeMap<_, _> = st.power_suppliers.iter().copied().collect();
+        let batteries: BTreeMap<_, _> = st.power_batteries.iter().copied().collect();
         let mut result = Vec::new();
         for object in ctx.world.authored().filter(|o| o.floor == console.floor) {
             let AuthoredKind::Placement { prototype } = &object.kind else {
                 continue;
             };
-            let Some(spec) = self.power_monitor.specs.get(prototype) else {
+            let Some(spec) = self.specs.get(prototype) else {
                 continue;
             };
             let at = (object.min() + object.max()) * 0.5;
@@ -320,16 +379,16 @@ impl State {
                 battery_usage: 0.0,
             };
             if let Some(index) = suppliers.get(&object.id) {
-                device.entry.power = self.power.supplies[*index].current_supply;
+                device.entry.power = st.power.supplies[*index].current_supply;
                 device.supplied = device.entry.power;
-                device.load = self
+                device.load = st
                     .power
                     .networks
                     .iter()
                     .position(|n| n.supplies.contains(index));
             }
             if let Some(index) = device.battery_index {
-                let battery = &self.power.batteries[index];
+                let battery = &st.power.batteries[index];
                 device.source = battery.charging;
                 device.load = battery.discharging;
                 device.entry.power = battery.current_supply;
@@ -340,12 +399,12 @@ impl State {
                 if spec.group == Group::Apc && battery.enabled {
                     device.usage += battery.loading_network_demand;
                 }
-            } else if let Some(battery) = self
+            } else if let Some(battery) = st
                 .power_parts
                 .get(prototype)
                 .and_then(|p| p.battery.as_ref())
             {
-                let charge = self
+                let charge = st
                     .power_charge
                     .get(&object.id)
                     .copied()
@@ -360,10 +419,11 @@ impl State {
 
     fn power_monitor_snapshot(
         &self,
+        st: &State,
         ctx: &HookContext<'_>,
         session: &Session,
     ) -> (View, MapView, CableView) {
-        let devices = self.monitored_devices(ctx, session.console);
+        let devices = self.monitored_devices(st, ctx, session.console);
         let mut masters = BTreeMap::new();
         let mut collections = BTreeMap::new();
         for d in &devices {
@@ -401,31 +461,31 @@ impl State {
         let mut loads: BTreeMap<ObjectId, f32> = BTreeMap::new();
         if let Some(selected) = selected {
             if let Some(index) = selected.source {
-                let net = &self.power.networks[index];
+                let net = &st.power.networks[index];
                 let supplied: f32 = net
                     .supplies
                     .iter()
-                    .map(|i| self.power.supplies[*i].current_supply)
+                    .map(|i| st.power.supplies[*i].current_supply)
                     .sum::<f32>()
                     + net
                         .battery_supplies
                         .iter()
-                        .map(|i| self.power.batteries[*i].current_supply)
+                        .map(|i| st.power.batteries[*i].current_supply)
                         .sum::<f32>();
                 let demand: f32 = net
                     .loads
                     .iter()
-                    .map(|i| self.power.loads[*i].receiving_power)
+                    .map(|i| st.power.loads[*i].receiving_power)
                     .sum::<f32>()
                     + net
                         .battery_loads
                         .iter()
-                        .map(|i| self.power.batteries[*i].current_receiving)
+                        .map(|i| st.power.batteries[*i].current_receiving)
                         .sum::<f32>();
                 let receiving: f32 = selected_members
                     .iter()
                     .filter_map(|d| d.battery_index)
-                    .map(|i| self.power.batteries[i].current_receiving)
+                    .map(|i| st.power.batteries[i].current_receiving)
                     .sum();
                 let fraction = if supplied > 0.0 && demand > 0.0 {
                     (receiving / supplied).min(1.0) * (supplied / demand).min(1.0)
@@ -439,16 +499,16 @@ impl State {
                 }
             }
             if let Some(index) = selected.load {
-                let net = &self.power.networks[index];
+                let net = &st.power.networks[index];
                 let demand: f32 = net
                     .loads
                     .iter()
-                    .map(|i| self.power.loads[*i].receiving_power)
+                    .map(|i| st.power.loads[*i].receiving_power)
                     .sum::<f32>()
                     + net
                         .battery_loads
                         .iter()
-                        .map(|i| self.power.batteries[*i].current_receiving)
+                        .map(|i| st.power.batteries[*i].current_receiving)
                         .sum::<f32>();
                 let supplied: f32 = selected_members.iter().map(|d| d.entry.power).sum();
                 let fraction = if demand > 0.0 {
@@ -460,7 +520,7 @@ impl State {
                     if d.source == Some(index) && master_of(d.id) != selected.id {
                         let receiving = d
                             .battery_index
-                            .map_or(0.0, |i| self.power.batteries[i].current_receiving);
+                            .map_or(0.0, |i| st.power.batteries[i].current_receiving);
                         *loads.entry(master_of(d.id)).or_default() += receiving * fraction;
                     }
                 }
@@ -493,7 +553,7 @@ impl State {
         };
         let mut map = MapView {
             console: session.console,
-            station: self.power_monitor.station.clone(),
+            station: self.station.clone(),
             kinds: Vec::new(),
             nodes: Vec::new(),
         };
@@ -531,7 +591,7 @@ impl State {
             .unwrap_or(0);
         let mut chunks = BTreeMap::new();
         let mut focused = BTreeMap::new();
-        for (group, cell, network) in &self.power_cables {
+        for (group, cell, network) in &st.power_cables {
             let z = cell.1 - floor * atmos::FLOOR_STRIDE;
             if !(-atmos::FLOOR_STRIDE / 2..atmos::FLOOR_STRIDE / 2).contains(&z) {
                 continue;
@@ -558,32 +618,28 @@ impl State {
         (view, map, cables)
     }
 
-    pub(crate) fn tick_power_monitors(&mut self, ctx: &mut HookContext<'_>) {
-        if self.power_monitor.consoles.is_empty() {
+    pub(crate) fn tick_power_monitors(&mut self, st: &State, ctx: &mut HookContext<'_>) {
+        if self.consoles.is_empty() {
             return;
         }
         let players: BTreeSet<_> = ctx.players().collect();
-        self.power_monitor
-            .sessions
-            .retain(|user, _| players.contains(user));
-        self.power_monitor
-            .sent
-            .retain(|(user, _), _| players.contains(user));
+        self.sessions.retain(|user, _| players.contains(user));
+        self.sent.retain(|(user, _), _| players.contains(user));
         for user in players {
-            let session = self.power_monitor.sessions.get(&user).cloned();
+            let session = self.sessions.get(&user).cloned();
             let valid = session
                 .as_ref()
-                .is_some_and(|s| self.power_monitor_available(ctx, user, s.console));
+                .is_some_and(|s| self.power_monitor_available(st, ctx, user, s.console));
             if !valid {
-                self.power_monitor.sessions.remove(&user);
-            } else if session.as_ref().is_some_and(|s| self.clock < s.next_sample) {
+                self.sessions.remove(&user);
+            } else if session.as_ref().is_some_and(|s| st.clock < s.next_sample) {
                 continue;
             }
             let values = if valid {
                 let (view, map, cables) =
-                    self.power_monitor_snapshot(ctx, session.as_ref().unwrap());
-                if let Some(session) = self.power_monitor.sessions.get_mut(&user) {
-                    session.next_sample = self.clock + UPDATE_S
+                    self.power_monitor_snapshot(st, ctx, session.as_ref().unwrap());
+                if let Some(session) = self.sessions.get_mut(&user) {
+                    session.next_sample = st.clock + UPDATE_S
                 }
                 vec![
                     (COMPONENT, serde_json::to_vec(&view).unwrap()),
@@ -598,11 +654,11 @@ impl State {
                 ]
             };
             for (kind, bytes) in values {
-                if self.power_monitor.sent.get(&(user, kind)) == Some(&bytes) {
+                if self.sent.get(&(user, kind)) == Some(&bytes) {
                     continue;
                 }
                 ctx.set_component(user, kind, bytes.clone());
-                self.power_monitor.sent.insert((user, kind), bytes);
+                self.sent.insert((user, kind), bytes);
             }
         }
     }

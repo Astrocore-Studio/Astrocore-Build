@@ -2844,11 +2844,11 @@ mod disposal_tests {
             .with_system(Box::new(Echo(0)));
         assert_eq!(
             module.system_ids(),
-            ["chat", "console"],
+            ["chat", "console", "power_monitor"],
             "заменена на месте"
         );
         let module = module.without_system("console");
-        assert_eq!(module.system_ids(), ["chat"]);
+        assert_eq!(module.system_ids(), ["chat", "power_monitor"]);
     }
 
     fn chat_of(h: &Harness, who: ConnId) -> Vec<crate::ChatLine> {

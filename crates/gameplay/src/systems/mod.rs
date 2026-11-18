@@ -38,6 +38,21 @@ pub trait GameSystem: Send + Any {
     ) {
     }
 
+    /// Щелчок пустой рукой по цели — до общих обработчиков взаимодействия; `true`, если система
+    /// его обработала.
+    fn interact_hand(
+        &mut self,
+        _st: &mut State,
+        _ctx: &mut HookContext<'_>,
+        _user: NetworkEntityId,
+        _target: &crate::interact::Target,
+    ) -> bool {
+        false
+    }
+
+    /// Игрок отключился.
+    fn player_left(&mut self, _st: &mut State, _actor: NetworkEntityId) {}
+
     /// Каждый тик, после общей симуляции `State`.
     fn tick(&mut self, _st: &mut State, _ctx: &mut HookContext<'_>, _dt: f32) {}
 
@@ -56,6 +71,7 @@ impl Systems {
         Ok(Self(vec![
             Box::new(chat::ChatSystem::default()),
             Box::new(console::ConsoleSystem::from_registry(registry)?),
+            Box::new(crate::power_monitor::Monitoring::load(registry)),
         ]))
     }
 
@@ -99,6 +115,24 @@ impl Systems {
         };
         s.command(st, ctx, actor, kind, data);
         true
+    }
+
+    pub(crate) fn interact_hand(
+        &mut self,
+        st: &mut State,
+        ctx: &mut HookContext<'_>,
+        user: NetworkEntityId,
+        target: &crate::interact::Target,
+    ) -> bool {
+        self.0
+            .iter_mut()
+            .any(|s| s.interact_hand(st, ctx, user, target))
+    }
+
+    pub(crate) fn player_left(&mut self, st: &mut State, actor: NetworkEntityId) {
+        for s in &mut self.0 {
+            s.player_left(st, actor);
+        }
     }
 
     pub(crate) fn tick(&mut self, st: &mut State, ctx: &mut HookContext<'_>, dt: f32) {
