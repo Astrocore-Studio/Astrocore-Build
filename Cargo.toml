@@ -19,6 +19,7 @@ astrocore-physics = { git = "https://github.com/Astrocore-Studio/Astrocore-Engin
 astrocore-spatial = { git = "https://github.com/Astrocore-Studio/Astrocore-Engine", branch = "main" }
 astrocore-runtime = { git = "https://github.com/Astrocore-Studio/Astrocore-Engine", branch = "main" }
 astrocore-sprites = { git = "https://github.com/Astrocore-Studio/Astrocore-Engine", branch = "main" }
+astrocore-voxels = { git = "https://github.com/Astrocore-Studio/Astrocore-Engine", branch = "main" }
 astrocore-world = { git = "https://github.com/Astrocore-Studio/Astrocore-Engine", branch = "main" }
 serde_json = "1"
 serde = { version = "1", features = ["derive"] }

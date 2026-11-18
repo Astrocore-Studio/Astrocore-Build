@@ -138,6 +138,16 @@ pub struct SpriteSource {
     pub name: Option<String>,
 }
 
+/// Путь воксельной модели спрайта относительно каталога ассетов: `Textures/a.rsi/s.png` →
+/// `Models/a.rsi/s.avox` (стоячая вещь) или `Models/a.rsi/s.flat.avox` (лежащая).
+pub fn model_path(image: &str, flat: bool) -> Option<String> {
+    let rest = image.strip_prefix("Textures/")?.strip_suffix(".png")?;
+    Some(format!(
+        "Models/{rest}{}.avox",
+        if flat { ".flat" } else { "" }
+    ))
+}
+
 /// Пикселей спрайта SS14 на метр.
 const PIXELS_PER_METER: f32 = 32.0;
 
@@ -292,6 +302,14 @@ pub fn build_manifest(
                 "thickness": s.depth_px.unwrap_or(1.0) / PIXELS_PER_METER,
             }),
         );
+        // Воксельная модель (ADR-0002), если конвертер её сделал: тогда клиент рисует её.
+        let image_rel = format!("{textures_subdir}/{image}");
+        if let Some(rel) = model_path(&image_rel, s.flat)
+            && assets_root.join(&rel).is_file()
+            && let Some(obj) = sprs.get_mut(&s.id).and_then(|v| v.as_object_mut())
+        {
+            obj.insert("model".into(), serde_json::Value::String(rel));
+        }
     }
     let mut door_map = serde_json::Map::new();
     for d in doors {
