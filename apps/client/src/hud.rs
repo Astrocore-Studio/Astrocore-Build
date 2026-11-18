@@ -671,7 +671,8 @@ pub struct HudState {
     /// Какая целевая карта сейчас показана (консоль и имя прототипа): при смене поля сбрасываются.
     pub idc_for: Option<(ObjectId, String)>,
     /// Сумки, окна которых закрыты вручную.
-    pub bags_closed: std::collections::HashSet<u128>,
+    /// Открытые окна сумок (как в SS14, сумка закрыта, пока по ней не щёлкнули).
+    pub bags_open: std::collections::HashSet<u128>,
 }
 
 pub(crate) fn door_electronics_window(
@@ -1009,9 +1010,17 @@ pub fn draw(
                 }
             });
     }
+    // Щелчок по надетой сумке открывает или закрывает её окно (слот просит об этом через память egui).
+    if let Some(id) = ctx.memory_mut(|m| m.data.remove_temp::<u128>(egui::Id::new("bag_toggle"))) {
+        if !state.bags_open.remove(&id) {
+            state.bags_open.insert(id);
+        }
+    }
     if let Some(v) = view {
+        let carried: std::collections::HashSet<u128> = v.bags.iter().map(bag_id).collect();
+        state.bags_open.retain(|id| carried.contains(id));
         for (n, bag) in v.bags.iter().enumerate() {
-            if state.bags_closed.contains(&bag_id(bag)) {
+            if !state.bags_open.contains(&bag_id(bag)) {
                 continue;
             }
             bag_window(ctx, icons, state, hands, bag, n, &mut out);
@@ -1611,7 +1620,16 @@ fn equip_slot_at(
         let active = hands.active();
         match (worn, hands.get(active)) {
             (None, Some(_)) => out.push((CMD_EQUIP, equip_data(active as u8, slot))),
-            (Some(_), None) => out.push((CMD_UNEQUIP, unequip_data(slot))),
+            // Надетая сумка с пустой рукой открывается; остальное снимается.
+            (Some(it), None) => {
+                if let Some(bag) = view.and_then(|v| v.bags.iter().find(|b| b.id == it.id)) {
+                    ctx.memory_mut(|m| {
+                        m.data.insert_temp(egui::Id::new("bag_toggle"), bag_id(bag))
+                    });
+                } else {
+                    out.push((CMD_UNEQUIP, unequip_data(slot)));
+                }
+            }
             _ => {}
         }
     }
@@ -2940,7 +2958,7 @@ fn bag_window(
             }
         });
     if !open {
-        state.bags_closed.insert(bag_id(bag));
+        state.bags_open.remove(&bag_id(bag));
     }
 }
 

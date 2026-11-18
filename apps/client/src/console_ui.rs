@@ -234,4 +234,52 @@ mod tests {
         s.browse(false);
         assert_eq!(s.input, "", "вниз за новейшую — пустая строка");
     }
+
+    /// Ответы сервера рисуются в окне консоли (а не теряются за пустой областью прокрутки).
+    #[test]
+    fn the_replies_are_drawn_in_the_open_console() {
+        let ctx = egui::Context::default();
+        let mut state = ConsoleState {
+            open: true,
+            ..Default::default()
+        };
+        let view = ConsoleView {
+            lines: vec![
+                gameplay::admin::ConsoleLine {
+                    id: 0,
+                    error: false,
+                    text: "> whoami".into(),
+                },
+                gameplay::admin::ConsoleLine {
+                    id: 1,
+                    error: false,
+                    text: "Номер 79. Вы не админ.".into(),
+                },
+            ],
+        };
+        let mut painted = String::new();
+        for _ in 0..3 {
+            let mut out = ctx.run_ui(egui::RawInput::default(), |ui| {
+                console_panel(ui.ctx(), &mut state, Some(&view), None);
+            });
+            out.textures_delta.clear();
+            painted.clear();
+            for clipped in &out.shapes {
+                collect_text(&clipped.shape, &mut painted);
+            }
+        }
+        assert!(painted.contains("whoami"), "нарисовано: {painted}");
+        assert!(painted.contains("Вы не админ"), "нарисовано: {painted}");
+    }
+
+    fn collect_text(shape: &egui::epaint::Shape, out: &mut String) {
+        match shape {
+            egui::epaint::Shape::Text(t) => {
+                out.push_str(&t.galley.job.text);
+                out.push('\n');
+            }
+            egui::epaint::Shape::Vec(v) => v.iter().for_each(|s| collect_text(s, out)),
+            _ => {}
+        }
+    }
 }
