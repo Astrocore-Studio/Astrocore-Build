@@ -1,7 +1,8 @@
 pub mod admin;
 mod body;
 pub mod chem;
-mod console;
+pub mod systems;
+pub use systems::chat;
 mod conveyor;
 pub mod door_electronics;
 pub mod vending;
@@ -36,7 +37,6 @@ pub use idconsole::{
     IDCONSOLE_COMPONENT, IdConsoleView, TargetView, WriteRequest, decode_view, write_data,
 };
 pub mod character;
-pub mod chat;
 pub mod explosion;
 pub mod gun;
 pub use gun::{AMMO_COMPONENT, AmmoView, decode_ammo};

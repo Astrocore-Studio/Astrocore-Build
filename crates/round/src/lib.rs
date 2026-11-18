@@ -29,6 +29,9 @@ pub struct RoundConfig {
     pub prefs_db: Option<std::path::PathBuf>,
     /// Кто админ: SHA-256 токена → ранг (ранги — из прототипов). Пусто — админов нет.
     pub admins: gameplay::admin::AdminRoster,
+    /// Раздавать должность по приоритетам профиля тем, кто вышел на станцию без неё (окна выбора
+    /// должности в игре нет). Выключают тесты, которые назначают должность командой.
+    pub auto_jobs: bool,
 }
 
 impl Default for RoundConfig {
@@ -40,6 +43,7 @@ impl Default for RoundConfig {
             round_secs: None,
             prefs_db: None,
             admins: gameplay::admin::AdminRoster::default(),
+            auto_jobs: true,
         }
     }
 }
@@ -77,8 +81,12 @@ impl Round {
             .with_descriptions(polygon::load_descriptions(content))
             .with_spawn(astrocore_math::glam::Vec3::from_array(polygon::spawn()))
             .with_station_name(polygon::map().name)
-            .with_admins(config.admins.clone())
-            .with_auto_jobs();
+            .with_admins(config.admins.clone());
+        let module = if config.auto_jobs {
+            module.with_auto_jobs()
+        } else {
+            module
+        };
         let module = match &config.prefs_db {
             Some(path) => module.with_profile_store(Box::new(
                 prefs::PrefsDb::open(path).map_err(|e| RoundError::Module(e.to_string()))?,

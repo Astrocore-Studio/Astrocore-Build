@@ -2805,6 +2805,52 @@ mod disposal_tests {
         assert!(denied.last().unwrap().error && denied.last().unwrap().text.contains("Round"));
     }
 
+    /// Форк меняет механику, не трогая остальной код: систему можно отключить или подменить своей.
+    #[test]
+    fn a_system_can_be_switched_off_or_replaced() {
+        // Без системы чата команда `chat` ни до кого не доходит, остальное работает.
+        let mut h = harness_with(|m| m.without_system("chat"));
+        let a = h.join("a");
+        h.ticks(10);
+        say(&mut h, a, crate::Channel::Ooc, "кто-нибудь?");
+        assert!(chat_of(&h, a).is_empty(), "чата нет");
+        assert!(!console(&mut h, a, "help").is_empty(), "консоль на месте");
+
+        // Своя система с тем же именем заменяет стандартную.
+        struct Echo(u32);
+        impl crate::systems::GameSystem for Echo {
+            fn id(&self) -> &'static str {
+                "chat"
+            }
+            fn commands(&self) -> &'static [&'static str] {
+                &[crate::CMD_CHAT]
+            }
+            fn command(
+                &mut self,
+                _st: &mut crate::State,
+                _ctx: &mut astrocore_api::HookContext<'_>,
+                _actor: astrocore_core::NetworkEntityId,
+                _kind: &str,
+                _data: &[u8],
+            ) {
+                self.0 += 1;
+            }
+            fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+                self
+            }
+        }
+        let module = GameplayModule::new(registry())
+            .unwrap()
+            .with_system(Box::new(Echo(0)));
+        assert_eq!(
+            module.system_ids(),
+            ["chat", "console"],
+            "заменена на месте"
+        );
+        let module = module.without_system("console");
+        assert_eq!(module.system_ids(), ["chat"]);
+    }
+
     fn chat_of(h: &Harness, who: ConnId) -> Vec<crate::ChatLine> {
         let Some(net) = h.client(who).net_id() else {
             return Vec::new();

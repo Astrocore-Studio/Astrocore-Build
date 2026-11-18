@@ -7,11 +7,66 @@ use astrocore_math::glam::Vec3;
 
 use crate::admin::{self, ConsoleLine};
 use crate::module::State;
+use crate::systems::GameSystem;
 
 /// Сколько предметов за раз можно создать командой `spawn`.
 const SPAWN_MAX: u32 = 20;
 
-impl State {
+/// Система консоли и прав: команда `console.exec`, ответы `build.console`, права `build.admin`.
+pub struct ConsoleSystem {
+    pub(crate) admin: admin::AdminState,
+}
+
+impl ConsoleSystem {
+    /// Ранги из прототипов `AdminRank`; список админов задаётся потом (`with_admins`).
+    pub(crate) fn from_registry(
+        registry: &prototypes::PrototypeRegistry,
+    ) -> Result<Self, prototypes::ProtoError> {
+        Ok(Self {
+            admin: admin::AdminState {
+                admins: admin::Admins::from_registry(registry)
+                    .map_err(|e| prototypes::ProtoError::Parse("admin".into(), e))?,
+                ..Default::default()
+            },
+        })
+    }
+}
+
+impl GameSystem for ConsoleSystem {
+    fn id(&self) -> &'static str {
+        "console"
+    }
+
+    fn commands(&self) -> &'static [&'static str] {
+        &[admin::CMD_CONSOLE]
+    }
+
+    fn command(
+        &mut self,
+        st: &mut State,
+        ctx: &mut HookContext<'_>,
+        actor: NetworkEntityId,
+        _kind: &str,
+        data: &[u8],
+    ) {
+        self.exec(st, ctx, actor, data);
+    }
+
+    fn tick(&mut self, st: &mut State, ctx: &mut HookContext<'_>, _dt: f32) {
+        self.publish(st, ctx);
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+        self
+    }
+}
+
+/// Токен игрока, если он назвался (`user.hello`).
+fn token_of(st: &State, who: NetworkEntityId) -> Option<&str> {
+    st.tokens.get(&who).map(String::as_str)
+}
+
+impl ConsoleSystem {
     /// Строка ответа игроку; уходит клиенту компонентом `build.console` в конце тика.
     pub(crate) fn console_reply(&mut self, who: NetworkEntityId, error: bool, text: &str) {
         for part in text.lines() {
@@ -30,14 +85,10 @@ impl State {
         self.admin.dirty.insert(who);
     }
 
-    /// Токен игрока, если он назвался (`user.hello`).
-    fn token_of(&self, who: NetworkEntityId) -> Option<&str> {
-        self.tokens.get(&who).map(String::as_str)
-    }
-
     /// Команда `console.exec`: одна строка консоли.
-    pub(crate) fn console_exec(
+    fn exec(
         &mut self,
+        st: &mut State,
         ctx: &mut HookContext<'_>,
         actor: NetworkEntityId,
         data: &[u8],
@@ -46,10 +97,10 @@ impl State {
             return;
         };
         let last = self.admin.last.get(&actor).copied().unwrap_or(f32::MIN);
-        if self.clock - last < admin::MIN_GAP_S {
+        if st.clock - last < admin::MIN_GAP_S {
             return;
         }
-        self.admin.last.insert(actor, self.clock);
+        self.admin.last.insert(actor, st.clock);
         // Журнал сервера: кто и что ввёл (как лог админских действий в SS14).
         println!("консоль {}: {line}", actor.0);
         self.console_reply(actor, false, &format!("> {line}"));
@@ -65,7 +116,7 @@ impl State {
             );
             return;
         };
-        if !self.admin.admins.allows(self.token_of(actor), spec.flag) {
+        if !self.admin.admins.allows(token_of(st, actor), spec.flag) {
             self.console_reply(
                 actor,
                 true,
@@ -79,13 +130,13 @@ impl State {
         }
         let args: Vec<&str> = args.iter().map(String::as_str).collect();
         let result = match spec.name {
-            "help" => Ok(self.cmd_help(actor, &args)),
-            "whoami" => Ok(self.cmd_whoami(actor)),
-            "list" => Ok(self.cmd_list(ctx)),
-            "aghost" => self.cmd_aghost(ctx, actor),
-            "tp" => self.cmd_tp(ctx, actor, &args),
-            "spawn" => self.cmd_spawn(ctx, actor, &args),
-            "endround" => self.cmd_endround(),
+            "help" => Ok(self.cmd_help(st, actor, &args)),
+            "whoami" => Ok(self.cmd_whoami(st, actor)),
+            "list" => Ok(Self::cmd_list(st, ctx)),
+            "aghost" => Self::cmd_aghost(st, ctx, actor),
+            "tp" => Self::cmd_tp(ctx, actor, &args),
+            "spawn" => Self::cmd_spawn(st, ctx, actor, &args),
+            "endround" => Self::cmd_endround(st),
             _ => Err(format!("Команда «{}» не реализована.", spec.name)),
         };
         match result {
@@ -95,8 +146,8 @@ impl State {
         }
     }
 
-    fn cmd_help(&self, actor: NetworkEntityId, args: &[&str]) -> String {
-        let token = self.token_of(actor);
+    fn cmd_help(&self, st: &State, actor: NetworkEntityId, args: &[&str]) -> String {
+        let token = token_of(st, actor);
         if let Some(name) = args.first() {
             return match admin::spec(name) {
                 Some(c) if self.admin.admins.allows(token, c.flag) => {
@@ -113,8 +164,8 @@ impl State {
             .join("\n")
     }
 
-    fn cmd_whoami(&self, actor: NetworkEntityId) -> String {
-        match self.admin.admins.rank_of(self.token_of(actor)) {
+    fn cmd_whoami(&self, st: &State, actor: NetworkEntityId) -> String {
+        match self.admin.admins.rank_of(token_of(st, actor)) {
             Some(r) => format!(
                 "Номер {}. Ранг: {}. Флаги: {}.",
                 actor.0,
@@ -125,17 +176,17 @@ impl State {
         }
     }
 
-    fn cmd_list(&self, ctx: &HookContext<'_>) -> String {
+    fn cmd_list(st: &State, ctx: &HookContext<'_>) -> String {
         ctx.players()
             .map(|p| {
-                let a = self.actors.get(&p);
+                let a = st.actors.get(&p);
                 let state = match a {
                     Some(a) if a.admin_ghost => "админ-призрак",
                     Some(a) if a.ghost => "призрак",
                     Some(_) => "жив",
                     None => "в лобби",
                 };
-                let job = self.player_job.get(&p).map_or("—", String::as_str);
+                let job = st.player_job.get(&p).map_or("—", String::as_str);
                 let name = a.map_or("", |a| a.slots.current().name.as_str());
                 format!("{} | {job} | {state} | {name}", p.0)
             })
@@ -145,26 +196,26 @@ impl State {
 
     /// Админ-призрак: летает, пока не вернётся в тело; в лобби — сразу выходит наблюдателем.
     fn cmd_aghost(
-        &mut self,
+        st: &mut State,
         ctx: &mut HookContext<'_>,
         actor: NetworkEntityId,
     ) -> Result<String, String> {
-        if self
+        if st
             .lobby
             .as_ref()
             .is_some_and(|l| l.in_lobby.contains(&actor))
         {
-            self.lobby_observe(ctx, actor);
-            self.actor(actor).admin_ghost = true;
+            st.lobby_observe(ctx, actor);
+            st.actor(actor).admin_ghost = true;
             return Ok("Вы админ-призрак.".into());
         }
-        let clock = self.clock;
-        let a = self.actor(actor);
+        let clock = st.clock;
+        let a = st.actor(actor);
         if a.admin_ghost {
             a.admin_ghost = false;
             a.ghost = false;
             ctx.set_ghost(actor, false);
-            self.publish(ctx, actor);
+            st.publish(ctx, actor);
             return Ok("Вы снова в теле.".into());
         }
         if a.ghost {
@@ -174,12 +225,11 @@ impl State {
         a.admin_ghost = true;
         a.respawn_at = clock;
         ctx.set_ghost(actor, true);
-        self.publish(ctx, actor);
+        st.publish(ctx, actor);
         Ok("Вы админ-призрак. Ещё раз aghost — вернуться.".into())
     }
 
     fn cmd_tp(
-        &mut self,
         ctx: &mut HookContext<'_>,
         actor: NetworkEntityId,
         args: &[&str],
@@ -207,7 +257,7 @@ impl State {
     }
 
     fn cmd_spawn(
-        &mut self,
+        st: &mut State,
         ctx: &mut HookContext<'_>,
         actor: NetworkEntityId,
         args: &[&str],
@@ -223,18 +273,18 @@ impl State {
         let at = ctx.position_of(actor).ok_or("Нет вашего положения.")?;
         let mut made = 0;
         for _ in 0..count {
-            let Some(item) = self.create_item(name) else {
+            let Some(item) = st.create_item(name) else {
                 return Err(format!("Нет предмета «{name}»."));
             };
-            if self.place(ctx, &item, at) {
+            if st.place(ctx, &item, at) {
                 made += 1;
             }
         }
         Ok(format!("Создано {made} × {name}."))
     }
 
-    fn cmd_endround(&mut self) -> Result<String, String> {
-        let signal = self
+    fn cmd_endround(st: &State) -> Result<String, String> {
+        let signal = st
             .round
             .signal
             .as_ref()
@@ -244,14 +294,13 @@ impl State {
     }
 
     /// Разослать права (когда изменились) и ответы консоли (когда есть новые строки).
-    pub(crate) fn tick_console(&mut self, ctx: &mut HookContext<'_>) {
+    fn publish(&mut self, st: &State, ctx: &mut HookContext<'_>) {
         let ids: Vec<NetworkEntityId> = ctx.players().collect();
         self.admin.log.retain(|p, _| ids.contains(p));
         self.admin.sent.retain(|p, _| ids.contains(p));
         self.admin.last.retain(|p, _| ids.contains(p));
         for p in &ids {
-            let bytes =
-                admin::encode_admin(&admin::view_for(&self.admin.admins, self.token_of(*p)));
+            let bytes = admin::encode_admin(&admin::view_for(&self.admin.admins, token_of(st, *p)));
             if self.admin.sent.get(p) != Some(&bytes) {
                 ctx.set_component(*p, admin::ADMIN_COMPONENT, bytes.clone());
                 self.admin.sent.insert(*p, bytes);

@@ -171,7 +171,12 @@ mod doors {
         astrocore_network::server::ConnId,
         astrocore_network::server::ConnId,
     ) {
-        let round = Round::start(1, &polygon::content_dir(), &RoundConfig::default()).unwrap();
+        // Должность здесь назначается командой, поэтому без автораздачи по профилю.
+        let config = RoundConfig {
+            auto_jobs: false,
+            ..RoundConfig::default()
+        };
+        let round = Round::start(1, &polygon::content_dir(), &config).unwrap();
         let mut h = Harness::with_server(round.server);
         let (a, b) = (h.join("a"), h.join("b"));
         walk_to_door(&mut h, a);

@@ -31,7 +31,6 @@ use astrocore_world::{
 use prototypes::PrototypeRegistry;
 
 use crate::body::{Body, Environment, VITALS_COMPONENT, Vitals, encode_vitals};
-use crate::chat::ChatState;
 use crate::doafter::{
     Action, BREAK_DISTANCE_M, DOAFTER_COMPONENT, DoAfter, DoAfterView, encode_doafter,
 };
@@ -555,7 +554,6 @@ pub struct State {
     /// Конец раунда: сигнал серверу, предел времени, часы раунда, экипаж, итог.
     pub(crate) round: RoundState,
     /// Чат: журнал строк по получателям.
-    pub(crate) chat: ChatState,
     /// Осмотр: названия и описания прототипов, счётчик ответов.
     pub(crate) display_names: BTreeMap<PrototypeId, String>,
     pub(crate) ss14_names: BTreeMap<PrototypeId, String>,
@@ -610,8 +608,6 @@ pub struct State {
     /// Куда сохранять профили и токены игроков, которые назвались (`user.hello`).
     pub(crate) store: Option<Box<dyn crate::character::ProfileStore>>,
     pub(crate) tokens: BTreeMap<NetworkEntityId, String>,
-    /// Права админов и консоль.
-    pub(crate) admin: crate::admin::AdminState,
     /// Должности станции из карты уже применены.
     pub(crate) map_jobs_applied: bool,
     pub(crate) charger_slot: BTreeMap<ObjectId, (f32, HeldItem)>,
@@ -1296,7 +1292,6 @@ impl State {
             lobby: None,
             auto_jobs: false,
             round: RoundState::default(),
-            chat: ChatState::default(),
             display_names,
             ss14_names,
             descriptions: BTreeMap::new(),
@@ -1351,11 +1346,6 @@ impl State {
             slots_sent: BTreeMap::new(),
             store: None,
             tokens: BTreeMap::new(),
-            admin: crate::admin::AdminState {
-                admins: crate::admin::Admins::from_registry(&registry)
-                    .map_err(|e| prototypes::ProtoError::Parse("admin".into(), e))?,
-                ..Default::default()
-            },
             map_jobs_applied: false,
             charger_slot: BTreeMap::new(),
             explosion_types,
@@ -2886,8 +2876,6 @@ impl State {
         self.tick_lobby(ctx);
         self.tick_character(ctx);
         self.tick_round(ctx);
-        self.tick_chat(ctx);
-        self.tick_console(ctx);
         self.tick_rest_and_thrown(ctx);
         self.tick_pulls(ctx);
         self.tick_stamina(ctx);
@@ -7396,124 +7384,11 @@ impl State {
     }
 
     /// Название должности или «Игрок N» — вместо имени персонажа.
-    fn speaker_name(&self, who: NetworkEntityId) -> String {
+    pub(crate) fn speaker_name(&self, who: NetworkEntityId) -> String {
         self.player_job
             .get(&who)
             .and_then(|j| self.jobs.iter().find(|s| &s.id == j))
             .map_or_else(|| format!("Игрок {}", who.0), |s| s.title.clone())
-    }
-
-    /// Сообщение игрока: кому оно слышно, решает канал и расстояние.
-    fn chat_say(&mut self, ctx: &mut HookContext<'_>, actor: NetworkEntityId, data: &[u8]) {
-        use crate::chat::{self, Channel};
-        let Some((&byte, text)) = data.split_first() else {
-            return;
-        };
-        let (Some(mut channel), Ok(text)) = (Channel::from_byte(byte), std::str::from_utf8(text))
-        else {
-            return;
-        };
-        let Some(text) = chat::clean(text) else {
-            return;
-        };
-        if self
-            .chat
-            .last
-            .get(&actor)
-            .is_some_and(|t| self.clock - t < chat::MIN_GAP_S)
-        {
-            return;
-        }
-        self.chat.last.insert(actor, self.clock);
-        let in_lobby = self
-            .lobby
-            .as_ref()
-            .is_some_and(|l| l.in_lobby.contains(&actor));
-        let gone = |a: &NetworkEntityId| {
-            self.actors.get(a).is_some_and(|x| {
-                x.ghost || matches!(x.health.state(), crate::health::MobState::Dead)
-            })
-        };
-        let who = if matches!(channel, Channel::Ooc) || in_lobby {
-            format!("Игрок {}", actor.0)
-        } else {
-            self.speaker_name(actor)
-        };
-        if in_lobby {
-            channel = Channel::Ooc;
-        } else if gone(&actor) && !matches!(channel, Channel::Ooc) {
-            channel = Channel::Dead;
-        }
-        let spot = ctx.position_of(actor);
-        let players: Vec<NetworkEntityId> = ctx.players().collect();
-        let id = self.chat.next_id;
-        self.chat.next_id += 1;
-        let mut heard: Vec<(NetworkEntityId, String)> = Vec::new();
-        for p in players {
-            let dist = match (spot, ctx.position_of(p)) {
-                (Some(a), Some(b)) => a.distance(b),
-                _ => f32::INFINITY,
-            };
-            let deaf_to_living = gone(&p);
-            let text_for = match channel {
-                Channel::Ooc => Some(text.clone()),
-                Channel::Dead => deaf_to_living.then(|| text.clone()),
-                Channel::Say | Channel::Emote => {
-                    (p == actor || deaf_to_living || dist <= chat::VOICE_RANGE_M)
-                        .then(|| text.clone())
-                }
-                Channel::Whisper => {
-                    if p == actor || deaf_to_living || dist <= chat::WHISPER_CLEAR_M {
-                        Some(text.clone())
-                    } else if dist <= chat::WHISPER_MUFFLED_M {
-                        Some(chat::muffle(id, &text))
-                    } else {
-                        None
-                    }
-                }
-            };
-            if let Some(t) = text_for {
-                heard.push((p, t));
-            }
-        }
-        let line = chat::ChatLine {
-            id,
-            channel,
-            who,
-            text: String::new(),
-        };
-        for (p, t) in heard {
-            let entry = self.chat.log.entry(p).or_default();
-            entry.push_back(chat::ChatLine {
-                text: t,
-                ..line.clone()
-            });
-            while entry.len() > chat::KEEP_LINES {
-                entry.pop_front();
-            }
-            self.chat.dirty.insert(p);
-        }
-    }
-
-    /// Разослать журнал тем, кто получил новые строки.
-    fn tick_chat(&mut self, ctx: &mut HookContext<'_>) {
-        let ids: Vec<NetworkEntityId> = ctx.players().collect();
-        self.chat.log.retain(|p, _| ids.contains(p));
-        self.chat.last.retain(|p, _| ids.contains(p));
-        for p in std::mem::take(&mut self.chat.dirty) {
-            let Some(lines) = self.chat.log.get(&p) else {
-                continue;
-            };
-            let mut view = crate::chat::ChatView {
-                lines: lines.iter().cloned().collect(),
-            };
-            let mut bytes = crate::chat::encode_chat(&view);
-            while bytes.len() > crate::chat::CHAT_MAX_BYTES && !view.lines.is_empty() {
-                view.lines.remove(0);
-                bytes = crate::chat::encode_chat(&view);
-            }
-            ctx.set_component(p, crate::chat::CHAT_COMPONENT, bytes);
-        }
     }
 
     /// «Готов»/«Не готов» до старта, «Присоединиться» после.
@@ -8454,14 +8329,18 @@ fn floor_at(ctx: &HookContext<'_>, y: f32) -> Option<FloorId> {
 pub struct GameplayModule {
     state: State,
     handlers: Vec<Box<dyn InteractionHandler>>,
+    /// Игровые системы (ADR-0001): своё состояние, свои команды, свой тик.
+    systems: crate::systems::Systems,
 }
 
 impl GameplayModule {
     /// `Err`, если два имени прототипов дают один идентификатор движка.
     pub fn new(registry: Arc<PrototypeRegistry>) -> Result<Self, prototypes::ProtoError> {
+        let systems = crate::systems::Systems::defaults(&registry)?;
         Ok(Self {
             state: State::new(registry)?,
             handlers: crate::handlers::default_handlers(),
+            systems,
         })
     }
 
@@ -8481,8 +8360,32 @@ impl GameplayModule {
     /// Кто админ: список токенов с рангами (ранги — из прототипов `AdminRank`).
     #[must_use]
     pub fn with_admins(mut self, roster: crate::admin::AdminRoster) -> Self {
-        self.state.admin.admins.roster = roster;
+        if let Some(console) = self
+            .systems
+            .get_mut::<crate::systems::console::ConsoleSystem>()
+        {
+            console.admin.admins.roster = roster;
+        }
         self
+    }
+
+    /// Добавить систему или заменить ту, что с тем же именем (так форк подменяет механику).
+    #[must_use]
+    pub fn with_system(mut self, system: Box<dyn crate::systems::GameSystem>) -> Self {
+        self.systems.insert(system);
+        self
+    }
+
+    /// Отключить систему по имени (`chat`, `console`, …).
+    #[must_use]
+    pub fn without_system(mut self, id: &str) -> Self {
+        self.systems.remove(id);
+        self
+    }
+
+    /// Имена включённых систем по порядку тика.
+    pub fn system_ids(&self) -> Vec<&'static str> {
+        self.systems.ids().collect()
     }
 
     /// Хранилище профилей игроков (SQLite в крейте `prefs`).
@@ -8702,6 +8605,12 @@ impl GameModule for GameplayModule {
         let st = &mut self.state;
         st.pending_object_damage.clear();
         st.sync_airlock_index(ctx);
+        // Системы разбирают свои команды сами; тик систем — после общей симуляции.
+        if let HookEvent::Command { actor, kind, data } = event
+            && self.systems.command(st, ctx, *actor, kind, data)
+        {
+            return;
+        }
         match event {
             HookEvent::Collision { a, b } => {
                 let Ok(actor) = u32::try_from(a.as_uuid().as_u128()) else {
@@ -8738,12 +8647,6 @@ impl GameModule for GameplayModule {
                     || kind == crate::character::CMD_USER_HELLO =>
             {
                 st.character_command(*actor, kind, data);
-            }
-            HookEvent::Command { actor, kind, data } if kind == crate::wire::CMD_CHAT => {
-                st.chat_say(ctx, *actor, data);
-            }
-            HookEvent::Command { actor, kind, data } if kind == crate::admin::CMD_CONSOLE => {
-                st.console_exec(ctx, *actor, data);
             }
             HookEvent::Command { actor, kind, data }
                 if st
@@ -9280,7 +9183,10 @@ impl GameModule for GameplayModule {
                 }
                 _ => {}
             },
-            HookEvent::Tick { dt, .. } => st.tick(ctx, *dt),
+            HookEvent::Tick { dt, .. } => {
+                st.tick(ctx, *dt);
+                self.systems.tick(st, ctx, *dt);
+            }
             HookEvent::PlayerLeft { actor, pos } => {
                 st.power_monitor.forget(*actor);
                 st.alerts.forget(*actor);
