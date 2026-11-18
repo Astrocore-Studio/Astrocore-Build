@@ -523,7 +523,7 @@ Saltern: 7 консолей ID. Также реализован монитор �
 
 ## Игровые системы и решения
 
-Решения проекта — `docs/ADR` (первое: [ADR-0001 — отделение от SS14 и модель работы](docs/ADR/0001-separation-from-ss14-and-workflow.md)). Механики переносятся в независимые системы (`GameSystem`), которые форк может отключить или заменить: [docs/SYSTEMS.md](docs/SYSTEMS.md).
+Решения проекта — `docs/ADR`: [ADR-0001 — отделение от SS14 и модель работы](docs/ADR/0001-separation-from-ss14-and-workflow.md), [ADR-0002 — воксельная графика](docs/ADR/0002-voxel-graphics.md) (формат моделей — ADR-0011 движка, крейт `astrocore-voxels`). Механики переносятся в независимые системы (`GameSystem`), которые форк может отключить или заменить: [docs/SYSTEMS.md](docs/SYSTEMS.md).
 
 ## Консоль и админ-права
 
