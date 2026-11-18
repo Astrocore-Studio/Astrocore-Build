@@ -1,0 +1,8 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/Wallmounts/Storage/Cabinets/shotgun_cabinet.yml. Создано scripts/gen_items.py.
+[
+    (id: "ShotGunCabinet", parents: ["ShotGunCabinetConstructed"], name: Some("shotgun cabinet"), description: Some("There is a small label that reads \"For Emergency use only\" along with details for safe use of the shotgun. As if.")),
+    (id: "ShotGunCabinetConstructed", parents: ["FireAxeCabinetConstructed"], name: Some("shotgun cabinet"), description: Some("There is a small label that reads \"For Emergency use only\" along with details for safe use of the shotgun. As if.")),
+    (id: "ShotGunCabinetFilled", parents: ["ShotGunCabinet"]),
+    (id: "ShotGunCabinetFilledOpen", parents: ["ShotGunCabinetFilled", "ShotGunCabinetOpen"]),
+    (id: "ShotGunCabinetOpen", parents: ["ShotGunCabinet"]),
+]

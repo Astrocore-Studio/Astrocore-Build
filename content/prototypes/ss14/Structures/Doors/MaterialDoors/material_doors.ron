@@ -1,0 +1,12 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/Doors/MaterialDoors/material_doors.yml. Создано scripts/gen_items.py.
+[
+    (id: "BaseMaterialDoor", parents: ["BaseStructure"], abstract: true, name: Some("door"), description: Some("A door, where will it lead?")),
+    (id: "BaseMaterialDoorNavMap", parents: ["BaseMaterialDoor"], abstract: true),
+    (id: "CardDoor", parents: ["BaseMaterialDoorNavMap", "StructureHealthBarrierWeak"], name: Some("cardboard door")),
+    (id: "GoldDoor", parents: ["BaseMaterialDoorNavMap", "StructureHealthDoorWeak"], name: Some("gold door")),
+    (id: "PaperDoor", parents: ["BaseMaterialDoorNavMap", "StructureHealthBarrierWeak"], name: Some("paper door")),
+    (id: "PlasmaDoor", parents: ["BaseMaterialDoorNavMap", "StructureHealthDoorWeak"], name: Some("plasma door")),
+    (id: "SilverDoor", parents: ["BaseMaterialDoorNavMap", "StructureHealthDoorWeak"], name: Some("silver door")),
+    (id: "WebDoor", parents: ["BaseMaterialDoorNavMap", "StructureHealthBarrierWeak"], name: Some("web door"), description: Some("A door, leading to the lands of the spiders... or a spaced room.")),
+    (id: "WoodDoor", parents: ["BaseMaterialDoorNavMap", "StructureHealthBarrierStrong"], name: Some("wooden door")),
+]

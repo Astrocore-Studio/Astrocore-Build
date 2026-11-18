@@ -1,0 +1,17 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Fun/Instruments/instruments_structures.yml. Создано scripts/gen_items.py.
+[
+    (id: "BigDrumsInstrument", parents: ["BasePlaceableInstrumentRotatable"], name: Some("drum kit"), description: Some("Ba dum tss!")),
+    (id: "ChurchOrganInstrument", parents: ["BasePlaceableInstrumentRotatable"], name: Some("church organ"), description: Some("This thing really blows!")),
+    (id: "ContrabassInstrument", parents: ["BasePlaceableInstrument"], name: Some("contrabass"), description: Some("Perfect for laying down a nice jazzy beat.")),
+    (id: "DawInstrument", parents: ["BasePlaceableInstrumentRotatable", "ConstructibleMachine"], name: Some("digital audio workstation"), description: Some("Cutting edge music technology, straight from the 90s.")),
+    (id: "HarpInstrument", parents: ["BasePlaceableInstrument"], name: Some("harp"), description: Some("Plucking at the strings cuts your fingers, but at least the music is pretty.")),
+    (id: "MarimbaInstrument", parents: ["BasePlaceableInstrumentRotatable"], name: Some("marimba")),
+    (id: "MinimoogInstrument", parents: ["BasePlaceableInstrumentRotatable"], name: Some("minimoog"), description: Some("This is a minimoog, like a space piano, but more spacey!")),
+    (id: "PianoInstrument", parents: ["BasePlaceableInstrumentRotatable"], name: Some("piano"), description: Some("Play Needles Piano Now.")),
+    (id: "TaikoInstrument", parents: ["BasePlaceableInstrumentRotatable"], name: Some("taiko"), description: Some("A large drum. Looking at it fills you with the urge to slap it.")),
+    (id: "TimpaniInstrument", parents: ["BasePlaceableInstrumentRotatable"], name: Some("timpani"), description: Some("It goes BOOM BOOM BOOM BOOM!")),
+    (id: "TomDrumsInstrument", parents: ["BasePlaceableInstrumentRotatable"], name: Some("tom drums"), description: Some("Where'd the rest of the kit go?")),
+    (id: "TubaInstrument", parents: ["BasePlaceableInstrument"], name: Some("tuba"), description: Some("The big daddy of the brass family. Standing next to its majesty makes you feel insecure.")),
+    (id: "UprightPianoInstrument", parents: ["BasePlaceableInstrumentRotatable"], name: Some("upright piano"), description: Some("I said Piannie!")),
+    (id: "VibraphoneInstrument", parents: ["BasePlaceableInstrumentRotatable"], name: Some("vibraphone"), description: Some("Good vibes all around.")),
+]

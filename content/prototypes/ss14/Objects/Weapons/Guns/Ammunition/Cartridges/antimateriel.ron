@@ -1,0 +1,4 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Weapons/Guns/Ammunition/Cartridges/antimateriel.yml. Создано scripts/gen_items.py.
+[
+    (id: "CartridgeAntiMateriel", parents: ["BaseCartridge", "BaseMajorContraband"], name: Some("cartridge (.60 anti-materiel)"), description: Some("A high-power cartridge used by high-precision rifles.")),
+]

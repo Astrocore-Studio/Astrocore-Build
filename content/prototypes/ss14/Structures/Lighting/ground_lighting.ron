@@ -1,0 +1,7 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/Lighting/ground_lighting.yml. Создано scripts/gen_items.py.
+[
+    (id: "LightPostSmall", parents: ["BaseStructure", "BaseLightHousingDestructible"], name: Some("post light"), description: Some("An always powered light.")),
+    (id: "PoweredLEDLightPostSmall", parents: ["PoweredLightPostSmallEmpty"], name: Some("post light")),
+    (id: "PoweredLightPostSmall", parents: ["PoweredLightPostSmallEmpty"], name: Some("post light")),
+    (id: "PoweredLightPostSmallEmpty", parents: ["LightPostSmall"], name: Some("post light"), description: Some("A small light post. Draws power and produces light when equipped with a light tube.")),
+]

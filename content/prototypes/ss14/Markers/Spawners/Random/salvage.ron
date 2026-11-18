@@ -1,0 +1,13 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Markers/Spawners/Random/salvage.yml. Создано scripts/gen_items.py.
+[
+    (id: "SalvageFleshSpawner", parents: ["MarkerBase"], name: Some("Salvage Flesh Spawner")),
+    (id: "SalvageLivingLightSpawner", parents: ["MarkerBase"], name: Some("Salvage Living Light Spawner")),
+    (id: "SalvageMaterialCrateSpawner", parents: ["MarkerBase"], name: Some("Salvage Material Crate Spawner")),
+    (id: "SalvageMobSpawner", parents: ["MarkerBase"], name: Some("Salvage Mob Spawner")),
+    (id: "SalvageMobSpawner75", parents: ["SalvageMobSpawner"]),
+    (id: "SpaceTickSpawner", parents: ["MarkerBase"], name: Some("Salvage Space Tick Spawner")),
+    (id: "SpawnMobBearSalvage", parents: ["MarkerBase"], name: Some("Salvage Space Bear Spawner")),
+    (id: "SpawnMobCobraSalvage", parents: ["MarkerBase"], name: Some("Salvage Space Cobra Spawner")),
+    (id: "SpawnMobKangarooSalvage", parents: ["MarkerBase"], name: Some("Salvage Space Kangaroo Spawner")),
+    (id: "SpawnMobSpiderSalvage", parents: ["MarkerBase"], name: Some("Salvage Space Spider Spawner")),
+]

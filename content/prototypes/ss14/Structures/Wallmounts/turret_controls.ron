@@ -1,0 +1,8 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/Wallmounts/turret_controls.yml. Создано scripts/gen_items.py.
+[
+    (id: "WeaponEnergyTurretAIControlPanel", parents: ["WeaponEnergyTurretStationControlPanelBase"]),
+    (id: "WeaponEnergyTurretCommandControlPanel", parents: ["WeaponEnergyTurretStationControlPanelBase"]),
+    (id: "WeaponEnergyTurretControlPanelFrame", parents: ["StructureHealthMachine"], name: Some("sentry turret control panel assembly"), description: Some("An incomplete wall-mounted assembly for a sentry turret control panel."), categories: ["HideSpawnMenu"]),
+    (id: "WeaponEnergyTurretSecurityControlPanel", parents: ["WeaponEnergyTurretStationControlPanelBase"]),
+    (id: "WeaponEnergyTurretStationControlPanelBase", parents: ["WeaponEnergyTurretControlPanelFrame"], abstract: true, name: Some("sentry turret control panel"), description: Some("A wall-mounted interface for remotely configuring the operational parameters of linked sentry turrets.")),
+]

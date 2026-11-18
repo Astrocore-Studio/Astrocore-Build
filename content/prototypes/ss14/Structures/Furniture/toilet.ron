@@ -1,0 +1,11 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/Furniture/toilet.yml. Создано scripts/gen_items.py.
+[
+    (id: "BaseToilet", parents: ["SolutionTank", "SolutionHuge", "DisposalUnitBase", "SeatBase", "StructureHealthFurnitureStrong"], abstract: true, name: Some("toilet"), description: Some("The HT-451, a torque rotation-based, waste disposal unit for small matter. This one seems remarkably clean.")),
+    (id: "ConstructedToilet", parents: ["BaseToilet"], name: Some("toilet"), description: Some("The HT-451, a torque rotation-based, waste disposal unit for small matter. This one seems remarkably clean.")),
+    (id: "ToiletDirtyWater", parents: ["ToiletEmpty"]),
+    (id: "ToiletDirtyWaterFilled", parents: ["ToiletDirtyWater"]),
+    (id: "ToiletEmpty", parents: ["BaseToilet"], name: Some("toilet"), description: Some("The HT-451, a torque rotation-based, waste disposal unit for small matter. This one seems remarkably clean.")),
+    (id: "ToiletFilled", parents: ["ToiletEmpty"]),
+    (id: "ToiletGoldenDirtyWater", parents: ["ToiletGoldenEmpty"]),
+    (id: "ToiletGoldenEmpty", parents: ["BaseToilet"], name: Some("golden toilet"), description: Some("The HT-451G is the gold version of the device. It says on the side that it is made of the purest Mercurian gold and a real leather seat.")),
+]

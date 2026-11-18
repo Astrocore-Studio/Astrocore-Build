@@ -1,0 +1,10 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/Doors/Shutter/blast_door.yml. Создано scripts/gen_items.py.
+[
+    (id: "BlastDoorFrame", parents: ["BaseStructureDynamic", "StructureHealthDoor"], name: Some("blast door frame"), description: Some("Blast-retardant AND fire-retardant!")),
+    (id: "BlastDoorOpen", parents: ["BlastDoor"]),
+    (id: "BlastDoorXeno", parents: ["BlastDoor"], name: Some("exodermis blast door"), description: Some("Don't lose an arm!")),
+    (id: "BlastDoorXenoFrame", parents: ["BlastDoorFrame"], name: Some("exodermis blast door frame"), description: Some("Blast-retardant AND fire-retardant!")),
+    (id: "BlastDoorXenoOpen", parents: ["BlastDoorXeno"]),
+    (id: "BlastDoorXenoborg", parents: ["BlastDoor"], name: Some("mechadermis blast door"), description: Some("Don't lose a head!")),
+    (id: "BlastDoorXenoborgOpen", parents: ["BlastDoorXenoborg"]),
+]

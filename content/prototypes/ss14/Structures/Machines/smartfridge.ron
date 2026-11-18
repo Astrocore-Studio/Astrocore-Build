@@ -1,0 +1,4 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/Machines/smartfridge.yml. Создано scripts/gen_items.py.
+[
+    (id: "SmartFridgeMedical", parents: ["SmartFridge"]),
+]

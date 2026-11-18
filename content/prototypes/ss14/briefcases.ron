@@ -1,0 +1,11 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/briefcases.yml. Создано scripts/gen_items.py.
+[
+    (id: "BriefcaseBrownFilled", parents: ["BriefcaseBrown"], components: {"Sprite": (sprite: "Objects/Storage/Briefcases/briefcase_brown.rsi", state: "icon"), "Item": (size: "Ginormous"), "Storage": (grid: ["0,0,5,3"]), "MeleeWeapon": (damage: (Blunt: 8.0), attackRate: 1.0, bluntStaminaDamageFactor: 0.5)}),
+    (id: "BriefcaseSyndieLobbyingBundleFilled", parents: ["BriefcaseSyndie"]),
+    (id: "BriefcaseSyndieSniperBundleFilled", parents: ["BriefcaseBrown"]),
+    (id: "BriefcaseThiefBribingBundleFilled", parents: ["BriefcaseSyndie"]),
+    (id: "BriefcaseWeaponBulldogFilled", parents: ["BriefcaseWeaponSmall"], name: Some("secure bulldog case")),
+    (id: "BriefcaseWeaponC20Filled", parents: ["BriefcaseWeaponSmall"], name: Some("secure C-20r case")),
+    (id: "BriefcaseWeaponChinaLakeFilled", parents: ["BriefcaseWeapon"], name: Some("secure China Lake case")),
+    (id: "BriefcaseWeaponHushpupFilled", parents: ["BriefcaseWeaponSmall"], name: Some("secure hushpup case")),
+]

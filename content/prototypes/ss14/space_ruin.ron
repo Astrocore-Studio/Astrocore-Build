@@ -1,0 +1,6 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/space_ruin.yml. Создано scripts/gen_items.py.
+[
+    (id: "LockerOldAISat", parents: ["LockerSyndicate"], name: Some("closet")),
+    (id: "LockerSyndicateShipGearBasic", parents: ["LockerSyndicate"]),
+    (id: "LockerSyndicateShipGearBasicChameleonKit", parents: ["LockerSyndicateShipGearBasic"]),
+]

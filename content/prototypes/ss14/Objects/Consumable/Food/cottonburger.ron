@@ -1,0 +1,6 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Consumable/Food/cottonburger.yml. Создано scripts/gen_items.py.
+[
+    (id: "FoodCottonBun", parents: ["FoodBreadSliceBase", "BaseSlicingRefinable"], name: Some("cotton bun"), description: Some("A cotton hamburger bun. Soft, round and convenient to hold.")),
+    (id: "FoodCottonBunBottom", parents: ["FoodBreadSliceBase"], name: Some("cotton bottom bun"), description: Some("It's time for moths to experience the burger tower.")),
+    (id: "FoodCottonBunTop", parents: ["FoodBreadSliceBase"], name: Some("cotton top bun"), description: Some("The perfect finish for your fibrous burger tower.")),
+]

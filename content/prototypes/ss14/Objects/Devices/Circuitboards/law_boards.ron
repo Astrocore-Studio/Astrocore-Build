@@ -1,0 +1,20 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Devices/Circuitboards/law_boards.yml. Создано scripts/gen_items.py.
+[
+    (id: "AntimovCircuitBoard", parents: ["BaseSiliconLawboard", "BaseSyndicateContraband"], name: Some("law board (Antimov)"), description: Some("An electronics board containing the Antimov lawset.")),
+    (id: "ArtistCircuitBoard", parents: ["BaseSiliconLawboard"], name: Some("law board (Artist)"), description: Some("An electronics board containing the Artist lawset.")),
+    (id: "BaseSiliconLawboard", parents: ["BaseElectronics"], abstract: true, description: Some("An electronics board containing a silicon lawset.")),
+    (id: "CommandmentCircuitBoard", parents: ["BaseSiliconLawboard"], name: Some("law board (Ten Commandments)"), description: Some("An electronics board containing the Ten Commandments lawset.")),
+    (id: "CorporateCircuitBoard", parents: ["BaseSiliconLawboard"], name: Some("law board (Corporate)"), description: Some("An electronics board containing the Corporate lawset.")),
+    (id: "CrewsimovCircuitBoard", parents: ["BaseSiliconLawboard"], name: Some("law board (Crewsimov)"), description: Some("An electronics board containing the Crewsimov lawset.")),
+    (id: "GameMasterCircuitBoard", parents: ["BaseSiliconLawboard"], name: Some("law board (Game Master)"), description: Some("An electronics board containing the Game Master lawset.")),
+    (id: "LiveLetLiveCircuitBoard", parents: ["BaseSiliconLawboard"], name: Some("law board (Live and Let Live)"), description: Some("An electronics board containing the Live and Let Live lawset.")),
+    (id: "MothershipCircuitBoard", parents: ["BaseSiliconLawboard"], name: Some("law board (Mothership Core)"), description: Some("An electronics board containing the Mothership Core lawset.")),
+    (id: "NTDefaultCircuitBoard", parents: ["BaseSiliconLawboard"], name: Some("law board (NT Default)"), description: Some("An electronics board containing the NT Default lawset.")),
+    (id: "NutimovCircuitBoard", parents: ["BaseSiliconLawboard"], name: Some("law board (Nutimov)"), description: Some("An electronics board containing the Nutimov lawset.")),
+    (id: "OverlordCircuitBoard", parents: ["BaseSiliconLawboard"], name: Some("law board (Overlord)"), description: Some("An electronics board containing the Overlord lawset.")),
+    (id: "PaladinCircuitBoard", parents: ["BaseSiliconLawboard"], name: Some("law board (Paladin)"), description: Some("An electronics board containing the Paladin lawset.")),
+    (id: "RobocopCircuitBoard", parents: ["BaseSiliconLawboard"], name: Some("law board (Robocop)"), description: Some("An electronics board containing the Robocop lawset.")),
+    (id: "StationEfficiencyCircuitBoard", parents: ["BaseSiliconLawboard"], name: Some("law board (Station Efficiency)"), description: Some("An electronics board containing the Station Efficiency lawset.")),
+    (id: "SyndimovCircuitBoard", parents: ["BaseSiliconLawboard", "BaseSyndicateContraband"], name: Some("law board (Syndimov)"), description: Some("An electronics board containing the Syndimov lawset.")),
+    (id: "XenoborgCircuitBoard", parents: ["BaseSiliconLawboard"], name: Some("law board (Xenoborg)"), description: Some("An electronics board containing the Xenoborg lawset.")),
+]

@@ -1,0 +1,7 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/Doors/Windoors/base_structurewindoors.yml. Создано scripts/gen_items.py.
+[
+    (id: "BasePlasmaWindoor", parents: ["BaseDeltaPressurePlasmaQuarter", "BaseWindoorGeneric"], abstract: true),
+    (id: "BaseUraniumWindoor", parents: ["BaseDeltaPressurePlasmaQuarter", "BaseWindoor"], abstract: true),
+    (id: "BaseWindoor", parents: ["BaseDeltaPressureGlassQuarter", "BaseWindoorGeneric"], abstract: true),
+    (id: "BaseWindoorGeneric", parents: ["BaseStructure", "StructureHealthDoorWeak"], abstract: true),
+]

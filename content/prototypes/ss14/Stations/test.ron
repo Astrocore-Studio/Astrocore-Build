@@ -1,0 +1,4 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Stations/test.yml. Создано scripts/gen_items.py.
+[
+    (id: "TestStation", parents: ["BaseStation", "BaseStationJobsSpawning", "BaseStationRecords", "BaseStationAlertLevels"], categories: ["HideSpawnMenu"]),
+]

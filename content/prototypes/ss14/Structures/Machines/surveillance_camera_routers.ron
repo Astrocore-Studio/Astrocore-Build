@@ -1,0 +1,17 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/Machines/surveillance_camera_routers.yml. Создано scripts/gen_items.py.
+[
+    (id: "SurveillanceCameraRouterBase", parents: ["BaseMachinePowered", "ConstructibleMachine"], abstract: true, name: Some("camera router"), description: Some("A surveillance camera router. It routes. Perhaps.")),
+    (id: "SurveillanceCameraRouterCommand", parents: ["SurveillanceCameraRouterBase"], name: Some("command camera router")),
+    (id: "SurveillanceCameraRouterConstructed", parents: ["SurveillanceCameraRouterBase"]),
+    (id: "SurveillanceCameraRouterEngineering", parents: ["SurveillanceCameraRouterBase"], name: Some("engineering camera router")),
+    (id: "SurveillanceCameraRouterGeneral", parents: ["SurveillanceCameraRouterBase"], name: Some("general camera router")),
+    (id: "SurveillanceCameraRouterMedical", parents: ["SurveillanceCameraRouterBase"], name: Some("medical camera router")),
+    (id: "SurveillanceCameraRouterScience", parents: ["SurveillanceCameraRouterBase"], name: Some("science camera router")),
+    (id: "SurveillanceCameraRouterSecurity", parents: ["SurveillanceCameraRouterBase"], name: Some("security camera router")),
+    (id: "SurveillanceCameraRouterService", parents: ["SurveillanceCameraRouterBase"], name: Some("service camera router")),
+    (id: "SurveillanceCameraRouterSupply", parents: ["SurveillanceCameraRouterBase"], name: Some("supply camera router")),
+    (id: "SurveillanceCameraWirelessRouterBase", parents: ["BaseMachinePowered", "ConstructibleMachine", "BaseConstructibleMachineDestructible"], abstract: true, name: Some("wireless camera router"), description: Some("A wireless surveillance camera router. It routes. Perhaps.")),
+    (id: "SurveillanceCameraWirelessRouterConstructed", parents: ["SurveillanceCameraWirelessRouterBase"]),
+    (id: "SurveillanceCameraWirelessRouterEntertainment", parents: ["SurveillanceCameraWirelessRouterBase"], name: Some("entertainment camera router")),
+    (id: "SurveillanceCameraWirelessRouterXenoborg", parents: ["SurveillanceCameraWirelessRouterBase"], name: Some("xenoborg camera wireless router")),
+]

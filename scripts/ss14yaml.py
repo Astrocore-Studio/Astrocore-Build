@@ -39,6 +39,8 @@ class Protos:
     def __init__(self, root):
         self.root = root
         self.by_type = {}
+        # Файл, где определён прототип (последний побеждает, как при загрузке SS14): (тип, id) → путь.
+        self.src = {}
         for f in sorted(glob.glob(root + '/Resources/Prototypes/**/*.yml', recursive=True)):
             try:
                 docs = yaml.load(open(f), Loader=Loader)
@@ -47,6 +49,7 @@ class Protos:
             for e in docs or []:
                 if isinstance(e, dict) and isinstance(e.get('type'), str) and isinstance(e.get('id'), str):
                     self.by_type.setdefault(e['type'], {})[e['id']] = e
+                    self.src[(e['type'], e['id'])] = f
 
     def get(self, typ, i):
         return self.by_type.get(typ, {}).get(i)

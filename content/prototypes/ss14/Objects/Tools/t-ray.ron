@@ -1,0 +1,4 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Tools/t-ray.yml. Создано scripts/gen_items.py.
+[
+    (id: "TRayScanner", parents: ["BaseItem"], name: Some("t-ray scanner"), description: Some("A high-tech scanning device that uses Terahertz Radiation to detect subfloor infrastructure."), components: {"Sprite": (sprite: "Objects/Tools/t-ray.rsi", state: "tray-off"), "Item": (size: "Small"), "TRayScanner": ()}),
+]

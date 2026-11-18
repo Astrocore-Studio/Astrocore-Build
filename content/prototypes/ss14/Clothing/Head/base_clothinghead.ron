@@ -1,0 +1,11 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Clothing/Head/base_clothinghead.yml. Создано scripts/gen_items.py.
+[
+    (id: "ClothingHeadBase", parents: ["SolutionFood", "SolutionToolSmall", "Clothing"], abstract: true),
+    (id: "ClothingHeadBaseButcherable", parents: ["ClothingHeadBase", "BaseSlicingRefinable"], abstract: true),
+    (id: "ClothingHeadEVAHelmetBase", parents: ["ClothingHeadBase", "TemperatureProtection"], abstract: true, name: Some("base space helmet")),
+    (id: "ClothingHeadHardsuitBase", parents: ["TemperatureProtection"], abstract: true, name: Some("base hardsuit helmet"), categories: ["HideSpawnMenu"]),
+    (id: "ClothingHeadHardsuitInsulatedBase", parents: ["TemperatureProtection", "ClothingHeadHardsuitBase"], abstract: true),
+    (id: "ClothingHeadHatHoodWinterBase", parents: ["TemperatureProtectionMinimal"], abstract: true, name: Some("base winter coat hood"), description: Some("A hood, made to keep your head warm."), categories: ["HideSpawnMenu"]),
+    (id: "ClothingHeadLightBase", parents: ["ClothingHeadBase"], abstract: true, name: Some("base helmet with light"), categories: ["HideSpawnMenu"]),
+    (id: "ClothingHeadSuitWithLightBase", abstract: true, name: Some("base hardsuit helmet with light"), categories: ["HideSpawnMenu"]),
+]

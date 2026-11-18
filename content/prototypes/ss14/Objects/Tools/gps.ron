@@ -1,0 +1,5 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Tools/gps.yml. Создано scripts/gen_items.py.
+[
+    (id: "BorgHandheldGPSBasic", parents: ["HandheldGPSBasic"], name: Some("integrated GPS"), description: Some("A miniaturized Global Positioning System for use in cyborg units.")),
+    (id: "HandheldGPSBasic", parents: ["BaseItem"], name: Some("global positioning system"), description: Some("Helping lost spacemen find their way through the planets since 2016."), components: {"Sprite": (sprite: "Objects/Devices/gps.rsi", state: "icon"), "Item": (size: "Small"), "Tag": (tags: ["GPS"])}),
+]

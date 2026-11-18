@@ -15,6 +15,8 @@ fn main() {
         let r = Resolved {
             id: d.id.clone(),
             name: d.name.clone(),
+            description: d.description.clone(),
+            categories: d.categories.clone(),
             components: d.components.clone(),
         };
         if let Some(i) = item_info(&r)

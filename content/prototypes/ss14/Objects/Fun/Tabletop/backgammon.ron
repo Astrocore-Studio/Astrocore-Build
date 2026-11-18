@@ -1,0 +1,5 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Fun/Tabletop/backgammon.yml. Создано scripts/gen_items.py.
+[
+    (id: "BackgammonBoard", parents: ["BaseBoardEntity"], name: Some("backgammon board"), description: Some("Old fashioned game of dice and pieces."), components: {"Sprite": (sprite: "Objects/Fun/Tabletop/backgammon.rsi", state: "board"), "Item": (size: "Small"), "Tag": (tags: ["TabletopBoard"])}),
+    (id: "BackgammonBoardTabletop", parents: ["BaseBoardTabletop"], name: Some("backgammon"), categories: ["HideSpawnMenu"]),
+]

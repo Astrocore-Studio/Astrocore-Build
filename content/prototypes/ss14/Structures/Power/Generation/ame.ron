@@ -1,0 +1,6 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/Power/Generation/ame.yml. Создано scripts/gen_items.py.
+[
+    (id: "AmeController", parents: ["StructureHealthMachineStrong"], name: Some("AME controller"), description: Some("It's a controller for the antimatter engine.")),
+    (id: "AmeControllerUnanchored", parents: ["AmeController"], categories: ["HideSpawnMenu"]),
+    (id: "AmeShielding", parents: ["StructureHealthMachineStrong"], name: Some("AME shielding"), description: Some("Keeps the antimatter in and the matter out.")),
+]

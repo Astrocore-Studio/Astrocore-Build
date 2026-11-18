@@ -1,0 +1,5 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Markers/Spawners/Random/Decals/splatters.yml. Создано scripts/gen_items.py.
+[
+    (id: "DecalSpawnerBloodSplatters", parents: ["DecalSpawnerBase"]),
+    (id: "DecalSpawnerGraffiti", parents: ["DecalSpawnerBase"]),
+]

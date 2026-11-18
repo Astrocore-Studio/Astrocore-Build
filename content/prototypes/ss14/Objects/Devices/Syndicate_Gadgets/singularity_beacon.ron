@@ -1,0 +1,4 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Devices/Syndicate_Gadgets/singularity_beacon.yml. Создано scripts/gen_items.py.
+[
+    (id: "SingularityBeacon", parents: ["BaseMachinePowered", "BaseSyndicateContraband", "BaseMachineDestructible"], name: Some("singularity beacon"), description: Some("A syndicate device that attracts the singularity. If it's loose and you're seeing this, run.")),
+]

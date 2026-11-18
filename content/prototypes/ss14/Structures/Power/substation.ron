@@ -1,0 +1,9 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/Power/substation.yml. Создано scripts/gen_items.py.
+[
+    (id: "BaseSubstation", parents: ["CoreSubstation", "BaseMachine", "ConstructibleMachine", "BaseConstructibleMachineDestructible"], abstract: true, name: Some("substation"), description: Some("Reduces the voltage of electricity put into it.")),
+    (id: "BaseSubstationWall", parents: ["CoreSubstation", "BaseWallmount", "StructureHealthMachine"], name: Some("wallmount substation"), description: Some("A substation designed for compact shuttles and spaces."), categories: ["HideSpawnMenu"]),
+    (id: "BaseSubstationWallFrame", name: Some("wallmount substation frame"), description: Some("A substation frame for construction."), categories: ["HideSpawnMenu"]),
+    (id: "CoreSubstation", abstract: true),
+    (id: "SubstationBasicEmpty", parents: ["SubstationBasic"]),
+    (id: "SubstationWallBasic", parents: ["BaseSubstationWall"]),
+]

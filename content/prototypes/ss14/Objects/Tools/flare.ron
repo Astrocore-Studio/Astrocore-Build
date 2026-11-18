@@ -1,0 +1,4 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Tools/flare.yml. Создано scripts/gen_items.py.
+[
+    (id: "Flare", parents: ["SolutionComposite", "SolutionTiny", "BaseItem"], name: Some("emergency flare"), description: Some("A flare that produces a very bright light for a short while. Point the flame away from yourself."), components: {"Sprite": (sprite: "Objects/Misc/flare.rsi", state: "flare_base"), "Item": (size: "Tiny"), "Solution": (maxVol: 30.0, canReact: true, reagents: (Carbon: 2.0, Charcoal: 4.0, Iron: 10.0, Oxygen: 4.0, Phosphorus: 6.0, Sulfur: 4.0)), "Tag": (tags: ["Flare", "Trash"])}),
+]

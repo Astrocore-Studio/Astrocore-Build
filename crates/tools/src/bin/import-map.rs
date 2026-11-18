@@ -31,9 +31,16 @@ fn main() {
         std::process::exit(1);
     });
     let registry = polygon::load_registry(&polygon::content_dir()).ok();
+    // Карта может ставить только то, что у Build есть чем рисовать и обрабатывать: у узла дерева
+    // прототипов SS14 без компонентов (ни своих, ни унаследованных) механик пока нет.
     let known: BTreeSet<String> = registry
         .as_ref()
-        .map(|r| r.ids().map(str::to_string).collect())
+        .map(|r| {
+            r.ids()
+                .filter(|id| r.resolve(id).is_ok_and(|p| !p.components.is_empty()))
+                .map(str::to_string)
+                .collect()
+        })
         .unwrap_or_default();
     let mut materials = tools::import_map::Materials::default();
     if let Some(registry) = &registry

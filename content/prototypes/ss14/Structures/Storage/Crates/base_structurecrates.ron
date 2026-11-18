@@ -1,0 +1,7 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/Storage/Crates/base_structurecrates.yml. Создано scripts/gen_items.py.
+[
+    (id: "BaseCrate", parents: ["BaseStructureDynamic", "BasePaperLabelableVisualized"], abstract: true, name: Some("crate"), description: Some("A large container for items.")),
+    (id: "CrateBaseSecure", parents: ["CrateBaseWeldable"]),
+    (id: "CrateBaseWeldable", parents: ["CrateGeneric"], categories: ["HideSpawnMenu"]),
+    (id: "CrateGeneric", parents: ["BaseCrate", "StructureHealthContainerWeak"], categories: ["HideSpawnMenu"]),
+]

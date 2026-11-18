@@ -1,0 +1,4 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Stations/alert_levels.yml. Создано scripts/gen_items.py.
+[
+    (id: "BaseStationAlertLevels", abstract: true),
+]

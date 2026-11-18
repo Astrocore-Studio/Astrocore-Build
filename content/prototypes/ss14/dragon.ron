@@ -1,0 +1,6 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/dragon.yml. Создано scripts/gen_items.py.
+[
+    (id: "BaseDragonObjective", parents: ["BaseObjective"], abstract: true),
+    (id: "CarpRiftsObjective", parents: ["BaseDragonObjective"]),
+    (id: "DragonSurviveObjective", parents: ["BaseDragonObjective", "BaseSurviveObjective"], name: Some("Survive"), description: Some("You have to stay alive to maintain control.")),
+]

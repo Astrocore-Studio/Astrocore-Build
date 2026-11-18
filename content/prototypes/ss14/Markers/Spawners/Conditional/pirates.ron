@@ -1,0 +1,4 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Markers/Spawners/Conditional/pirates.yml. Создано scripts/gen_items.py.
+[
+    (id: "SpawnPointPirates", parents: ["MarkerBase"], name: Some("Pirate spawn point")),
+]

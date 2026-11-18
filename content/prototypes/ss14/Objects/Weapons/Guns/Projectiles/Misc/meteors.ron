@@ -1,0 +1,13 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Weapons/Guns/Projectiles/Misc/meteors.yml. Создано scripts/gen_items.py.
+[
+    (id: "BaseMeteor", abstract: true, name: Some("meteor"), description: Some("You prefer them when they're burning up in the atmosphere.")),
+    (id: "BaseSolutionMeteor", parents: ["SolutionHuge", "BaseMeteor"], abstract: true),
+    (id: "MeteorClown", parents: ["BaseSolutionMeteor"], name: Some("Honksteroid"), description: Some("The final honkening!")),
+    (id: "MeteorCow", parents: ["BaseSolutionMeteor"], name: Some("Cosmic cow"), description: Some("Moo-ving at relativistic speeds!")),
+    (id: "MeteorLarge", parents: ["BaseMeteor"]),
+    (id: "MeteorMedium", parents: ["BaseMeteor"]),
+    (id: "MeteorPotato", parents: ["BaseSolutionMeteor"], name: Some("Space potato"), description: Some("A starchy threat from the depths of the space. Contains 200% of your daily sodium intake!")),
+    (id: "MeteorSmall", parents: ["BaseMeteor"]),
+    (id: "MeteorSpaceDust", parents: ["BaseMeteor"], name: Some("space dust"), description: Some("Makes a station sneeze.")),
+    (id: "MeteorUrist", parents: ["BaseMeteor"], name: Some("Urist McMeteor"), description: Some("As a successful member of society with a stable unflinching psyche and limitless drive, natural affinity for finance and domination, you have been selected, no, you have been effortlessly guided by divine (biological) trauma towards this moment. The gates of destiny fling open, and once again you're left standing on pulsating nothingness. A strobing headache of the soul.")),
+]

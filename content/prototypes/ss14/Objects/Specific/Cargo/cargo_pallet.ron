@@ -1,0 +1,7 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Specific/Cargo/cargo_pallet.yml. Создано scripts/gen_items.py.
+[
+    (id: "BaseCargoPallet", parents: ["BaseStructure"], abstract: true, name: Some("cargo pallet"), description: Some("Common fixture of logistics and cargo. Subtle reminder where crates go during transport to avoid bruised shins.")),
+    (id: "CargoPallet", parents: ["BaseCargoPallet", "StructureHealthMachineWeak"]),
+    (id: "CargoPalletBuy", parents: ["BaseCargoPallet"], name: Some("cargo buying pallet"), description: Some("Designates where orders will appear when purchased. Made of plastitanium to discourage pesky vandals.")),
+    (id: "CargoPalletSell", parents: ["BaseCargoPallet"], name: Some("cargo selling pallet"), description: Some("Designates valid items to sell. Made of plastitanium to discourage pesky vandals.")),
+]

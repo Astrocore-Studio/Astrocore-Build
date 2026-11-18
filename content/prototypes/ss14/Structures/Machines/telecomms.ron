@@ -1,0 +1,13 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/Machines/telecomms.yml. Создано scripts/gen_items.py.
+[
+    (id: "TelecomServer", parents: ["BaseMachinePowered", "ConstructibleMachine", "BaseConstructibleMachineDestructible"], name: Some("telecommunication server"), description: Some("When powered and filled with encryption keys it allows radio headset communication.")),
+    (id: "TelecomServerFilled", parents: ["TelecomServer"]),
+    (id: "TelecomServerFilledCargo", parents: ["TelecomServer"]),
+    (id: "TelecomServerFilledCommand", parents: ["TelecomServer"]),
+    (id: "TelecomServerFilledCommon", parents: ["TelecomServer"]),
+    (id: "TelecomServerFilledEngineering", parents: ["TelecomServer"]),
+    (id: "TelecomServerFilledMedical", parents: ["TelecomServer"]),
+    (id: "TelecomServerFilledScience", parents: ["TelecomServer"]),
+    (id: "TelecomServerFilledSecurity", parents: ["TelecomServer"]),
+    (id: "TelecomServerFilledService", parents: ["TelecomServer"]),
+]

@@ -1,0 +1,8 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/rune_spells.yml. Создано scripts/gen_items.py.
+[
+    (id: "ActionExplosionRune", parents: ["BaseRuneAction"], name: Some("Explosion Rune"), description: Some("Summons a rune that explodes if used.")),
+    (id: "ActionFlashRune", parents: ["BaseRuneAction"], name: Some("Flash Rune"), description: Some("Summons a rune that flashes if used.")),
+    (id: "ActionIgniteRune", parents: ["BaseRuneAction"], name: Some("Ignite Rune"), description: Some("Summons a rune that ignites if used.")),
+    (id: "ActionStunRune", parents: ["BaseRuneAction"], name: Some("Stun Rune"), description: Some("Summons a rune that stuns if used.")),
+    (id: "BaseRuneAction", parents: ["BaseAction"], abstract: true),
+]

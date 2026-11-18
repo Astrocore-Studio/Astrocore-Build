@@ -1,0 +1,4 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Mobs/NPCs/Spiders/wizard.yml. Создано scripts/gen_items.py.
+[
+    (id: "MobGiantSpiderWizard", parents: ["MobSpiderBase"], name: Some("wizard spider"), description: Some("This spider looks a little magical")),
+]

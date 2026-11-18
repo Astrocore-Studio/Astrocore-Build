@@ -1,0 +1,7 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/Windows/uranium.yml. Создано scripts/gen_items.py.
+[
+    (id: "UraniumWindow", parents: ["BaseDeltaPressurePlasma", "BaseWindowStructure", "BaseRCDResistant", "StructureHealthBarrier"], name: Some("uranium window")),
+    (id: "UraniumWindowDiagonal", parents: ["UraniumWindow"]),
+    (id: "UraniumWindowDirectional", parents: ["BaseDeltaPressurePlasmaQuarter", "BaseWindowStructureDirectional", "BaseRCDResistant", "StructureHealthBarrierWeak"], name: Some("directional uranium window")),
+    (id: "UraniumWindowDirectionalCorner", parents: ["UraniumWindowDirectional"]),
+]

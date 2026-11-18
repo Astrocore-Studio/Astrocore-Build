@@ -1,0 +1,5 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Weapons/Guns/Ammunition/Cartridges/toy.yml. Создано scripts/gen_items.py.
+[
+    (id: "BaseCartridgeCap", parents: ["BaseCartridge"], abstract: true, name: Some("cartridge (cap)")),
+    (id: "CartridgeCap", parents: ["BaseCartridgeCap"], name: Some("cap gun cartridge"), description: Some("A mock pistol cartridge that makes noise and smoke, but has no actual projectile."), components: {"Sprite": (sprite: "Objects/Weapons/Guns/Ammunition/Casings/capgun_casing.rsi", state: "base"), "Item": (size: "Tiny"), "Cartridge": (projectile: "BulletCap"), "Tag": (tags: ["CartridgeCap"]), "CartridgeAmmo": ()}),
+]

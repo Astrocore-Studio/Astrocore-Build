@@ -1,0 +1,19 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Weapons/Guns/Projectiles/Energy/hitscan.yml. Создано scripts/gen_items.py.
+[
+    (id: "BasicHitscan", name: Some("basic hitscan"), categories: ["HideSpawnMenu"]),
+    (id: "DebugLaser", parents: ["LaserHitscanBase"], name: Some("debug laser ray"), categories: ["HideSpawnMenu"]),
+    (id: "DebugLaserGib", parents: ["DebugLaser"], name: Some("debug gibbing ray"), categories: ["HideSpawnMenu"]),
+    (id: "HitscanEffect", categories: ["HideSpawnMenu"]),
+    (id: "LaserHitscanBase", parents: ["BasicHitscan"], name: Some("basic laser ray"), categories: ["HideSpawnMenu"]),
+    (id: "Pulse", parents: ["BasicHitscan"], name: Some("blue high-energy laser ray"), categories: ["HideSpawnMenu"]),
+    (id: "RangeLaser", parents: ["LaserHitscanBase"], name: Some("green laser"), categories: ["HideSpawnMenu"]),
+    (id: "RedHeavyLaser", parents: ["LaserHitscanBase"], name: Some("red high-energy laser ray"), categories: ["HideSpawnMenu"]),
+    (id: "RedLaserMakeshift", parents: ["LaserHitscanBase"], name: Some("weak red laser ray"), categories: ["HideSpawnMenu"]),
+    (id: "RedLaserPractice", parents: ["LaserHitscanBase"], name: Some("red practice laser ray"), categories: ["HideSpawnMenu"]),
+    (id: "RedLightLaser", parents: ["LaserHitscanBase"], name: Some("red light laser ray"), categories: ["HideSpawnMenu"]),
+    (id: "RedShuttleLaser", parents: ["LaserHitscanBase"], name: Some("shuttle class red laser ray"), categories: ["HideSpawnMenu"]),
+    (id: "XenoborgFireLaser", parents: ["RedMediumLaser"], name: Some("xenoborg fire laser ray"), categories: ["HideSpawnMenu"]),
+    (id: "XenoborgHeavyLaser", parents: ["LaserHitscanBase"], name: Some("blue high-energy laser ray"), categories: ["HideSpawnMenu"]),
+    (id: "XenoborgLaser", parents: ["LaserHitscanBase"], name: Some("blue amplified laser ray"), categories: ["HideSpawnMenu"]),
+    (id: "XrayLaser", parents: ["BasicHitscan"], name: Some("X-ray pulse beam"), categories: ["HideSpawnMenu"]),
+]

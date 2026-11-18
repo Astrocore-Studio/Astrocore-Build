@@ -1,0 +1,4 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/recall_spell.yml. Создано scripts/gen_items.py.
+[
+    (id: "ActionItemRecall", parents: ["BaseAction"], name: Some("Mark Item"), description: Some("Mark a held item to later summon into your hand.")),
+]

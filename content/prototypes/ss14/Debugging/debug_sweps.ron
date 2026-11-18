@@ -1,0 +1,13 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Debugging/debug_sweps.yml. Создано scripts/gen_items.py.
+[
+    (id: "BulletDebug", parents: ["BaseBullet"], name: Some("bang, ded bullet"), categories: ["Debug", "HideSpawnMenu"]),
+    (id: "CartridgeDebug", parents: ["BaseCartridgePistol"], name: Some("bang, ded cartridge")),
+    (id: "MagazinePistolDebug", parents: ["BaseMagazinePistol"], name: Some("bang, ded mag")),
+    (id: "MeleeDebug100", parents: ["MeleeDebugGib"], name: Some("bang stick 100dmg")),
+    (id: "MeleeDebug200", parents: ["MeleeDebugGib"], name: Some("bang stick 200dmg")),
+    (id: "MeleeDebugGib", parents: ["BaseItem"], name: Some("bang stick gibber"), description: Some("hit hard ye")),
+    (id: "MeleeDebugUnbang", parents: ["BaseItem"], name: Some("unbang stick"), description: Some("hit soft ye")),
+    (id: "WeaponHitscanDebug", parents: ["BaseWeaponBatterySmall"], name: Some("bang hitscan 1dmg"), description: Some("pew pew!")),
+    (id: "WeaponHitscanDebugGib", parents: ["WeaponHitscanDebug"], name: Some("bang hitscan gibber")),
+    (id: "WeaponPistolDebug", parents: ["BaseWeaponPistol"], name: Some("bang, ded"), description: Some("ded")),
+]

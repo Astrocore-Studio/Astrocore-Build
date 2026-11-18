@@ -1,0 +1,7 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/Decoration/bonfire.yml. Создано scripts/gen_items.py.
+[
+    (id: "BaseBonfire", parents: ["BaseStructure", "StructureHealthFurniture"], abstract: true),
+    (id: "Bonfire", parents: ["BaseBonfire"], name: Some("bonfire"), description: Some("What can be better than a late evening under the sky with guitar and friends?")),
+    (id: "BonfireStake", parents: ["BaseBonfire"], name: Some("bonfire with stake"), description: Some("A sinister bonfire with a stake for... ceremonial purposes. Best not to ask.")),
+    (id: "LegionnaireBonfire", parents: ["BaseBonfire"], name: Some("legionnaire bonfire"), description: Some("There, in the land of lava and ash, place to to cook marshmallow and potato.")),
+]

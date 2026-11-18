@@ -1,0 +1,4 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/Machines/grill.yml. Создано scripts/gen_items.py.
+[
+    (id: "KitchenElectricGrill", parents: ["BaseHeaterMachine"], name: Some("electric grill"), description: Some("A microwave? No, a real man cooks steaks on a grill!")),
+]

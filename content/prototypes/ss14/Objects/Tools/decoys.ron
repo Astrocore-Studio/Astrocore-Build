@@ -1,0 +1,9 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Tools/decoys.yml. Создано scripts/gen_items.py.
+[
+    (id: "BalloonAgent", parents: ["BaseDecoy"], name: Some("corpsman balloon"), description: Some("Upon closer inspection, this Syndicate corpsman is actually a balloon.")),
+    (id: "BalloonCommander", parents: ["BaseDecoy"], name: Some("commander balloon"), description: Some("Upon closer inspection, this Syndicate commander is actually a balloon.")),
+    (id: "BalloonElite", parents: ["BaseDecoy"], name: Some("elite operative balloon"), description: Some("Upon closer inspection, this Syndicate elite operative is actually a balloon.")),
+    (id: "BalloonJuggernaut", parents: ["BaseDecoy"], name: Some("juggernaut balloon"), description: Some("Upon closer inspection, this Syndicate juggernaut is actually a balloon.")),
+    (id: "BalloonOperative", parents: ["BaseDecoy"], name: Some("operative balloon"), description: Some("Upon closer inspection, this Syndicate operative is actually a balloon.")),
+    (id: "BaseDecoy", parents: ["BaseItem", "BaseFoldable"], abstract: true),
+]

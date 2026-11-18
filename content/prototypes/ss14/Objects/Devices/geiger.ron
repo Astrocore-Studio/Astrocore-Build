@@ -1,0 +1,4 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Devices/geiger.yml. Создано scripts/gen_items.py.
+[
+    (id: "GeigerCounter", parents: ["BaseItem"], name: Some("Geiger counter"), description: Some("A handheld device used for detecting and measuring radiation pulses."), components: {"Sprite": (sprite: "Objects/Tools/geiger.rsi", state: "geiger_base"), "Item": (size: "Small"), "Tag": (tags: ["GeigerCounter"]), "Geiger": ()}),
+]

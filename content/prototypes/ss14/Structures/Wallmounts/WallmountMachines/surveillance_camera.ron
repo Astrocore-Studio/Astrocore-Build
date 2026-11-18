@@ -1,0 +1,14 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/Wallmounts/WallmountMachines/surveillance_camera.yml. Создано scripts/gen_items.py.
+[
+    (id: "SurveillanceCameraAssembly", parents: ["StructureHealthMachineFlimsy"], name: Some("camera"), description: Some("A surveillance camera. Doesn't seem to be watching anybody any time soon. Probably.")),
+    (id: "SurveillanceCameraBase", parents: ["StructureHealthMachineFlimsy"], abstract: true, name: Some("camera"), description: Some("A surveillance camera. It's watching you. Kinda.")),
+    (id: "SurveillanceCameraCommand", parents: ["SurveillanceCameraBase"], name: Some("camera")),
+    (id: "SurveillanceCameraConstructed", parents: ["SurveillanceCameraBase"], name: Some("camera")),
+    (id: "SurveillanceCameraEngineering", parents: ["SurveillanceCameraBase"], name: Some("camera")),
+    (id: "SurveillanceCameraGeneral", parents: ["SurveillanceCameraBase"], name: Some("camera")),
+    (id: "SurveillanceCameraMedical", parents: ["SurveillanceCameraBase"], name: Some("camera")),
+    (id: "SurveillanceCameraScience", parents: ["SurveillanceCameraBase"], name: Some("camera")),
+    (id: "SurveillanceCameraSecurity", parents: ["SurveillanceCameraBase"], name: Some("camera")),
+    (id: "SurveillanceCameraService", parents: ["SurveillanceCameraBase"], name: Some("camera")),
+    (id: "SurveillanceCameraSupply", parents: ["SurveillanceCameraBase"], name: Some("camera")),
+]

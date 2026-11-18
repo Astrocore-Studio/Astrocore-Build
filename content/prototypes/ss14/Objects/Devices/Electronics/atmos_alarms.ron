@@ -1,0 +1,5 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Devices/Electronics/atmos_alarms.yml. Создано scripts/gen_items.py.
+[
+    (id: "AirAlarmElectronics", parents: ["BaseElectronics"], name: Some("air alarm electronics"), description: Some("An electronics board used in air alarms."), components: {"Sprite": (sprite: "Objects/Misc/module.rsi", state: "airalarm_electronics"), "Item": (size: "Small"), "Tag": (tags: ["AirAlarmElectronics"]), "Circuitboard": ()}),
+    (id: "FireAlarmElectronics", parents: ["BaseElectronics"], name: Some("fire alarm electronics"), description: Some("An electronics board used in fire alarms."), components: {"Sprite": (sprite: "Objects/Misc/module.rsi", state: "airalarm_electronics"), "Item": (size: "Small"), "Tag": (tags: ["FireAlarmElectronics"]), "Circuitboard": ()}),
+]

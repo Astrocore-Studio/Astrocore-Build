@@ -1,0 +1,4 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/Decoration/decorated_fir_tree.yml. Создано scripts/gen_items.py.
+[
+    (id: "DecoratedFirTree", parents: ["BaseTree"], name: Some("decorated fir tree"), description: Some("A very festive tree for a very festive holiday.")),
+]

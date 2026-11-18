@@ -1,0 +1,4 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Devices/Electronics/disposal.yml. Создано scripts/gen_items.py.
+[
+    (id: "MailingUnitElectronics", parents: ["BaseElectronics"], name: Some("mailing unit electronics"), description: Some("An electronics board used in mailing units.")),
+]

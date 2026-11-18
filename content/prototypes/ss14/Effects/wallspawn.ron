@@ -1,0 +1,16 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Effects/wallspawn.yml. Создано scripts/gen_items.py.
+[
+    (id: "WallSpawnAsteroid", categories: ["HideSpawnMenu"]),
+    (id: "WallSpawnAsteroidCoal", parents: ["WallSpawnAsteroid"], categories: ["HideSpawnMenu"]),
+    (id: "WallSpawnAsteroidCoalCrab", parents: ["WallSpawnAsteroid"], categories: ["HideSpawnMenu"]),
+    (id: "WallSpawnAsteroidGold", parents: ["WallSpawnAsteroid"], categories: ["HideSpawnMenu"]),
+    (id: "WallSpawnAsteroidGoldCrab", parents: ["WallSpawnAsteroid"], categories: ["HideSpawnMenu"]),
+    (id: "WallSpawnAsteroidIron", parents: ["WallSpawnAsteroid"], categories: ["HideSpawnMenu"]),
+    (id: "WallSpawnAsteroidIronCrab", parents: ["WallSpawnAsteroid"], categories: ["HideSpawnMenu"]),
+    (id: "WallSpawnAsteroidQuartz", parents: ["WallSpawnAsteroid"], categories: ["HideSpawnMenu"]),
+    (id: "WallSpawnAsteroidQuartzCrab", parents: ["WallSpawnAsteroid"], categories: ["HideSpawnMenu"]),
+    (id: "WallSpawnAsteroidSilver", parents: ["WallSpawnAsteroid"], categories: ["HideSpawnMenu"]),
+    (id: "WallSpawnAsteroidSilverCrab", parents: ["WallSpawnAsteroid"], categories: ["HideSpawnMenu"]),
+    (id: "WallSpawnAsteroidUranium", parents: ["WallSpawnAsteroid"], categories: ["HideSpawnMenu"]),
+    (id: "WallSpawnAsteroidUraniumCrab", parents: ["WallSpawnAsteroid"], categories: ["HideSpawnMenu"]),
+]

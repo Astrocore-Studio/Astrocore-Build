@@ -1,0 +1,4 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Markers/Spawners/debug.yml. Создано scripts/gen_items.py.
+[
+    (id: "SpawnMobHuman", parents: ["MarkerBase"], name: Some("Urist Spawner")),
+]

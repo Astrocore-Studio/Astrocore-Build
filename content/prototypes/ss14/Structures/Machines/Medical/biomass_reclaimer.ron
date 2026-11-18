@@ -1,0 +1,4 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/Machines/Medical/biomass_reclaimer.yml. Создано scripts/gen_items.py.
+[
+    (id: "BiomassReclaimer", parents: ["BaseMachinePowered", "ConstructibleMachine", "BaseConstructibleMachineDestructible"], name: Some("biomass reclaimer"), description: Some("Reclaims biomass from corpses. Gruesome.")),
+]

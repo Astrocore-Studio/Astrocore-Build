@@ -1,0 +1,16 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Fun/dice.yml. Создано scripts/gen_items.py.
+[
+    (id: "BaseDice", parents: ["BaseItem"], abstract: true),
+    (id: "DiceBag", parents: ["BaseStorageItem"], name: Some("bag of dice"), description: Some("Contains all the luck you'll ever need."), components: {"Sprite": (sprite: "Objects/Fun/dice.rsi", state: "dicebag"), "Item": (size: "Small"), "Storage": (grid: ["0,0,3,1"], whitelist: (tags: ["Dice"], components: []))}),
+    (id: "MagicDiceBag", parents: ["DiceBag"], name: Some("bag of dice")),
+    (id: "PercentileDie", parents: ["BaseDice"], name: Some("percentile die"), description: Some("A die with ten sides. Works better for d100 rolls than a golf ball.")),
+    (id: "d10Dice", parents: ["BaseDice"], name: Some("d10"), description: Some("A die with ten sides. Useful for percentages.")),
+    (id: "d12Dice", parents: ["BaseDice"], name: Some("d12"), description: Some("A die with twelve sides. There's an air of neglect about it.")),
+    (id: "d20Dice", parents: ["BaseDice"], name: Some("d20"), description: Some("A die with twenty sides. The preferred die to throw at the GM."), components: {"Sprite": (sprite: "Objects/Fun/dice.rsi", state: "d20_20"), "Item": (size: "Tiny"), "Tag": (tags: ["Dice"])}),
+    (id: "d2Dice", parents: ["BaseCoin"], name: Some("Heads or Tails Coin"), description: Some("Some sort of two-sided die. Designed to represent the struggle between Nanotrasen and the Syndicate.")),
+    (id: "d2DiceTricked", parents: ["d2Dice"]),
+    (id: "d4Dice", parents: ["BaseDice"], name: Some("d4"), description: Some("A die with four sides. The nerd's caltrop.")),
+    (id: "d6Dice", parents: ["BaseDice"], name: Some("d6"), description: Some("A die with six sides. Basic and serviceable."), components: {"Sprite": (sprite: "Objects/Fun/dice.rsi", state: "d6_6"), "Item": (size: "Tiny"), "Tag": (tags: ["Dice"])}),
+    (id: "d6DiceTricked", parents: ["d6Dice"]),
+    (id: "d8Dice", parents: ["BaseDice"], name: Some("d8"), description: Some("A die with eight sides. It feels... lucky."), components: {"Sprite": (sprite: "Objects/Fun/dice.rsi", state: "d8_8"), "Item": (size: "Tiny"), "Tag": (tags: ["Dice"])}),
+]

@@ -1,0 +1,4 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Weapons/Melee/gohei.yml. Создано scripts/gen_items.py.
+[
+    (id: "Gohei", parents: ["BaseItem"], name: Some("gohei"), description: Some("A wooden stick with white streamers at the end. Originally used by shrine maidens to purify things. Now used by the station's weeaboos."), components: {"Sprite": (sprite: "Objects/Weapons/Melee/gohei.rsi", state: "gohei"), "Item": (size: "Small"), "MeleeWeapon": (damage: (Holy: 4.0), attackRate: 1.0, bluntStaminaDamageFactor: 0.5)}),
+]

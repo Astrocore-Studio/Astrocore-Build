@@ -1,0 +1,6 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Mobs/NPCs/Spiders/tarantula.yml. Создано scripts/gen_items.py.
+[
+    (id: "MobGiantSpiderTarantula", parents: ["MobSpiderBase"], name: Some("tarantula"), description: Some("Widely considered to be the worse thing in existence.")),
+    (id: "MobGiantSpiderTarantulaAngry", parents: ["MobSpiderAngryBase", "MobGiantSpiderTarantula"]),
+    (id: "SolutionVenomSpiderTarantula", parents: ["SolutionWeapon", "SolutionTiny"], categories: ["HideSpawnMenu"]),
+]

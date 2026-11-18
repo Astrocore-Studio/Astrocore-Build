@@ -1,0 +1,5 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/Machines/salvage.yml. Создано scripts/gen_items.py.
+[
+    (id: "SalvageLocator", parents: ["SalvageMagnet"], name: Some("salvage locator"), description: Some("Locates salvage.")),
+    (id: "SalvageMagnet", parents: ["BaseMachinePowered", "ConstructibleMachine", "BaseConstructibleMachineDestructible"], name: Some("salvage magnet"), description: Some("Pulls in salvage.")),
+]

@@ -1,0 +1,9 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Weapons/Guns/pneumatic_cannon.yml. Создано scripts/gen_items.py.
+[
+    (id: "BorgLauncherCreamPie", parents: ["BaseWeaponBattery"], name: Some("experimental pie cannon"), description: Some("Deliver a generous portion of cream directly to the crew! Automatically bakes pies over time.")),
+    (id: "LauncherCreamPie", parents: ["BaseStorageItem"], name: Some("pie cannon"), description: Some("Load cream pie for optimal results.")),
+    (id: "LauncherSyringe", parents: ["BaseStorageItem"], name: Some("syringe gun"), description: Some("Load full of poisoned syringes for optimal fun.")),
+    (id: "WeaponImprovisedPneumaticCannon", parents: ["BaseStorageItem", "BaseMinorContraband"], name: Some("improvised pneumatic cannon"), description: Some("Improvised using nothing but a pipe, some zipties, and a pneumatic cannon. Doesn't accept tanks without enough gas.")),
+    (id: "WeaponImprovisedPneumaticCannonAdmeme", parents: ["WeaponImprovisedPneumaticCannonGun"]),
+    (id: "WeaponImprovisedPneumaticCannonGun", parents: ["WeaponImprovisedPneumaticCannon"]),
+]

@@ -1,0 +1,7 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/Storage/Closets/base_structureclosets.yml. Создано scripts/gen_items.py.
+[
+    (id: "BaseWallCloset", parents: ["BaseWallmountMetallic", "StructureHealthContainerWeak"], abstract: true, name: Some("wall closet"), description: Some("A standard-issue Nanotrasen storage unit, now on walls.")),
+    (id: "BaseWallLocker", parents: ["BaseWallCloset"], abstract: true),
+    (id: "ClosetBase", parents: ["BaseStructureDynamic", "BasePaperLabelableVisualized"], abstract: true, name: Some("closet"), description: Some("A standard-issue Nanotrasen storage unit.")),
+    (id: "SuitStorageBase", parents: ["BaseStructure", "StructureHealthContainerStrong"], name: Some("suit storage unit"), description: Some("A fancy hi-tech storage unit made for storing space suits.")),
+]

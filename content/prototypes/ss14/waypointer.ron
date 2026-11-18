@@ -1,0 +1,4 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/waypointer.yml. Создано scripts/gen_items.py.
+[
+    (id: "ActionManageWaypointers", parents: ["BaseAction"], name: Some("Manage Waypointers"), description: Some("Manage the visibility of your waypointers.")),
+]

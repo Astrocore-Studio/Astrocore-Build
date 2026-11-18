@@ -1,0 +1,17 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/Storage/barrels.yml. Создано scripts/gen_items.py.
+[
+    (id: "BarrelChemEmpty", parents: ["BaseBarrelChem"]),
+    (id: "BarrelChemFilledChlorine", parents: ["BaseBarrelChem"]),
+    (id: "BarrelChemFilledEthanol", parents: ["BaseBarrelChem"]),
+    (id: "BarrelChemFilledFluorine", parents: ["BaseBarrelChem"]),
+    (id: "BarrelChemFilledIodine", parents: ["BaseBarrelChem"]),
+    (id: "BarrelChemFilledLube", parents: ["BaseBarrelChem"], description: Some("Slippery...")),
+    (id: "BarrelChemFilledMercury", parents: ["BaseBarrelChem"]),
+    (id: "BarrelChemFilledPhosphorus", parents: ["BaseBarrelChem"]),
+    (id: "BarrelChemFilledSilicon", parents: ["BaseBarrelChem"]),
+    (id: "BaseBarrelChem", parents: ["StorageTankIndestructible", "StructureHealthContainerFlimsy"], abstract: true, name: Some("chemical barrel"), description: Some("A small metal drum. How tropical.")),
+    (id: "BaseBarrelChemRadioactive", parents: ["BaseBarrelChem"], abstract: true, name: Some("radioactive barrel"), description: Some("It seems to be leaking a bit. I don't think you'd want to be around this for long.")),
+    (id: "BaseBarrelChemRadioactiveEmpty", parents: ["BaseBarrelChemRadioactive"]),
+    (id: "BaseBarrelChemRadioactiveFilledRadium", parents: ["BaseBarrelChemRadioactive"]),
+    (id: "BaseBarrelChemRadioactiveFilledUranium", parents: ["BaseBarrelChemRadioactive"]),
+]

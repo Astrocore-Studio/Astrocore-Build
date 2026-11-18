@@ -1,0 +1,7 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/subgamemodes.yml. Создано scripts/gen_items.py.
+[
+    (id: "Changeling", parents: ["BaseGameRule", "BaseRoundstartAntagRule"]),
+    (id: "SubWizard", parents: ["BaseWizardRule"]),
+    (id: "SubXenoborgs", parents: ["BaseXenoborgsRule"]),
+    (id: "Thief", parents: ["BaseGameRule"]),
+]

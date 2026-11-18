@@ -1,0 +1,4 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Devices/Electronics/door.yml. Создано scripts/gen_items.py.
+[
+    (id: "DoorElectronics", parents: ["BaseElectronics"], name: Some("door electronics"), description: Some("An electronics board used in doors and airlocks."), components: {"Sprite": (sprite: "Objects/Misc/module.rsi", state: "door_electronics"), "Item": (size: "Small"), "Tag": (tags: ["DoorElectronics"]), "Circuitboard": ()}),
+]

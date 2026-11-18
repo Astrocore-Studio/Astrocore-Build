@@ -1,0 +1,14 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Weapons/Melee/e_sword.yml. Создано scripts/gen_items.py.
+[
+    (id: "BaseMeleeWeaponEnergy", parents: ["BaseItem"], abstract: true),
+    (id: "CyborgEnergySword", parents: ["EnergySword"], description: Some("A very loud & dangerous sword with a beam made of pure, concentrated plasma. Specially designed for syndicate cyborgs.")),
+    (id: "CyborgEnergySwordDouble", parents: ["EnergySwordDouble"], description: Some("Syndicate Command Interns thought that having one blade on the energy sword was not enough. Specially designed for syndicate cyborgs.")),
+    (id: "EnergyCutlass", parents: ["BaseMeleeWeaponEnergy", "BaseMajorContraband"], name: Some("energy cutlass"), description: Some("An exotic energy weapon.")),
+    (id: "EnergyDagger", parents: ["BaseMeleeWeaponEnergy", "SelectableLock"], name: Some("pen"), description: Some("A dark ink pen.")),
+    (id: "EnergyDaggerBox", parents: ["BaseItem", "BaseSyndicateContraband"], name: Some("e-dagger box"), description: Some("A small box containing an e-dagger. Packaging disintegrates when opened, leaving no evidence behind.")),
+    (id: "EnergyDaggerLoud", parents: ["BaseMeleeWeaponEnergy", "BaseSyndicateContraband"], name: Some("energy dagger"), description: Some("A not as loud and dangerous dagger with a beam made of pure, concentrated plasma. This one is completely undisguised.")),
+    (id: "EnergyDaggerLoudBlue", parents: ["EnergyDaggerLoud", "BaseXenoborgContraband"]),
+    (id: "EnergySword", parents: ["BaseMeleeWeaponEnergy", "BaseSyndicateContraband"], name: Some("energy sword"), description: Some("A very loud & dangerous sword with a beam made of pure, concentrated plasma. Cuts through unarmored targets like butter.")),
+    (id: "EnergySwordDouble", parents: ["BaseMeleeWeaponEnergy", "BaseSyndicateContraband"], name: Some("double-bladed energy sword"), description: Some("Syndicate Command Interns thought that having one blade on the energy sword was not enough. This can be stored in pockets.")),
+    (id: "HyperEutacticBlade", parents: ["EnergySwordDouble"], name: Some("hypereutactic-blade"), description: Some("A supermassive weapon envisioned to cleave the very fabric of space and time itself in twain, the hypereutactic blade dynamically flash-forges a hypereutactic crystaline nanostructure capable of passing through most known forms of matter like a hot knife through butter.")),
+]

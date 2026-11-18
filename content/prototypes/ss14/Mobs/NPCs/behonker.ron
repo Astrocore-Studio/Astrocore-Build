@@ -1,0 +1,8 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Mobs/NPCs/behonker.yml. Создано scripts/gen_items.py.
+[
+    (id: "BaseMobBehonker", parents: ["SimpleSpaceMobBase", "FlyingMobBase", "MobCombat", "BaseSlicingRefinableButchering", "BaseMobIrradiated"], abstract: true, name: Some("behonker"), description: Some("A floating demon aspect of the honkmother.")),
+    (id: "MobBehonkerElectrical", parents: ["BaseMobBehonker"]),
+    (id: "MobBehonkerGrav", parents: ["BaseMobBehonker"]),
+    (id: "MobBehonkerIce", parents: ["BaseMobBehonker"]),
+    (id: "MobBehonkerPyro", parents: ["BaseMobBehonker"]),
+]

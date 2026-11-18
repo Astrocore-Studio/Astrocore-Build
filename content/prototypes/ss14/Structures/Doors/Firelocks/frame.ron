@@ -1,0 +1,4 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/Doors/Firelocks/frame.yml. Создано scripts/gen_items.py.
+[
+    (id: "FirelockFrame", parents: ["BaseStructureDynamic", "StructureHealthDoorWeak"], name: Some("firelock frame"), description: Some("That is a firelock frame.")),
+]

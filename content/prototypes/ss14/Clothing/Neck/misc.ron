@@ -1,0 +1,8 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Clothing/Neck/misc.yml. Создано scripts/gen_items.py.
+[
+    (id: "ActionStethoscope", parents: ["BaseAction"], name: Some("Listen with stethoscope")),
+    (id: "ClothingNeckBling", parents: ["ClothingNeckBase"], name: Some("bling"), description: Some("Damn, it feels good to be a gangster."), components: {"Sprite": (sprite: "Clothing/Neck/Misc/bling.rsi", state: "icon"), "Item": (size: "Small"), "Clothing": (slots: ["neck"]), "Solution": (maxVol: 30.0, canReact: true, reagents: (Fiber: 15.0)), "Edible": (transferAmount: 5.0, delay: 1.0, forceFeedDelay: 3.0, destroyOnEmpty: true), "Tag": (tags: ["ClothMade", "Recyclable", "WhitelistChameleon"])}),
+    (id: "ClothingNeckLawyerbadge", parents: ["ClothingNeckBase"], name: Some("lawyer badge"), description: Some("A badge to show that the owner is a 'legitimate' lawyer who passed the NT bar exam required to practice law."), components: {"Sprite": (sprite: "Clothing/Neck/Misc/lawyerbadge.rsi", state: "icon"), "Item": (size: "Small"), "Clothing": (slots: ["neck"]), "Solution": (maxVol: 30.0, canReact: true, reagents: (Fiber: 15.0)), "Edible": (transferAmount: 5.0, delay: 1.0, forceFeedDelay: 3.0, destroyOnEmpty: true), "Tag": (tags: ["ClothMade", "Recyclable", "WhitelistChameleon"])}),
+    (id: "ClothingNeckStethoscope", parents: ["Clothing"], name: Some("stethoscope"), description: Some("An outdated medical apparatus for listening to the sounds of the human body. It also makes you look like you know what you're doing.")),
+    (id: "Dinkystar", parents: ["ClothingNeckBase"], name: Some("star sticker"), description: Some("A dinky lil star for only the hardest working security officers! It's not even sticky anymore.")),
+]

@@ -1,0 +1,9 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Clothing/OuterClothing/bio.yml. Создано scripts/gen_items.py.
+[
+    (id: "ClothingOuterBioCmo", parents: ["ClothingOuterBioGeneral"], name: Some("bio suit"), description: Some("An advanced suit that protects against biological contamination, in CMO colors.")),
+    (id: "ClothingOuterBioGeneral", parents: ["ClothingOuterBaseLarge", "AllowSuitStorageClothingGasTanks"], name: Some("bio suit"), description: Some("A suit that protects against biological contamination.")),
+    (id: "ClothingOuterBioJanitor", parents: ["ClothingOuterBioGeneral"], name: Some("bio suit"), description: Some("A suit that protects against biological contamination and caustic spills.")),
+    (id: "ClothingOuterBioScientist", parents: ["ClothingOuterBioGeneral"], name: Some("bio suit"), description: Some("A suit that protects against biological contamination, in Scientist colors.")),
+    (id: "ClothingOuterBioSecurity", parents: ["ClothingOuterBaseLarge", "AllowSuitStorageClothing", "BaseSecurityContraband"], name: Some("bio suit"), description: Some("A suit that protects against biological contamination, kitted out with additional armor.")),
+    (id: "ClothingOuterBioVirology", parents: ["ClothingOuterBioGeneral"], name: Some("bio suit"), description: Some("A suit that strongly protects against biological contamination."), components: {"Sprite": (sprite: "Clothing/OuterClothing/Bio/virology.rsi", state: "icon"), "Item": (size: "Huge"), "Clothing": (slots: ["outerclothing"]), "Armor": (coefficients: (Caustic: 0.75)), "Tag": (tags: ["WhitelistChameleon"])}),
+]

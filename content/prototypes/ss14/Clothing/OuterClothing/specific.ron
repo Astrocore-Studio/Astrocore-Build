@@ -1,0 +1,4 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Clothing/OuterClothing/specific.yml. Создано scripts/gen_items.py.
+[
+    (id: "ClothingOuterChameleon", parents: ["ClothingOuterBase", "TemperatureProtectionMinimal", "AllowSuitStorageClothingGasTanks", "BaseChameleon"], name: Some("vest"), description: Some("A thick vest with a rubbery, water-resistant shell.")),
+]

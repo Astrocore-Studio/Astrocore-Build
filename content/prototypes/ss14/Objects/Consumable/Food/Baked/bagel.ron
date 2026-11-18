@@ -1,0 +1,7 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Consumable/Food/Baked/bagel.yml. Создано scripts/gen_items.py.
+[
+    (id: "FoodBagel", parents: ["FoodBagelBase"], name: Some("bagel"), components: {"Sprite": (sprite: "Objects/Consumable/Food/Baked/bagel.rsi", state: "bagel"), "Item": (size: "Tiny"), "Solution": (maxVol: 60.0, canReact: true, reagents: (Nutriment: 10.0)), "Edible": (transferAmount: 5.0, delay: 1.0, forceFeedDelay: 3.0, destroyOnEmpty: true), "Refillable": (), "Tag": (tags: ["Bread"])}),
+    (id: "FoodBagelBase", parents: ["SolutionVeryTiny", "FoodInjectableBase"], abstract: true, description: Some("A delicious bagel.")),
+    (id: "FoodBagelCotton", parents: ["FoodBagelBase"], name: Some("cotton bagel"), description: Some("A delicious bagel made with cotton dough.")),
+    (id: "FoodBagelPoppy", parents: ["FoodBagelBase"], name: Some("poppy seed bagel"), description: Some("A delicious bagel topped with bicaridine-infused poppy seeds."), components: {"Sprite": (sprite: "Objects/Consumable/Food/Baked/bagel.rsi", state: "bagel-poppy"), "Item": (size: "Tiny"), "Solution": (maxVol: 60.0, canReact: true, reagents: (Bicaridine: 5.0, Nutriment: 10.0)), "Edible": (transferAmount: 5.0, delay: 1.0, forceFeedDelay: 3.0, destroyOnEmpty: true), "Refillable": (), "Tag": (tags: ["Bread"])}),
+]

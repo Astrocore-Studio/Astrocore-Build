@@ -1,0 +1,7 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Vehicles/vehicles.yml. Создано scripts/gen_items.py.
+[
+    (id: "BaseVehicleStrap", abstract: true),
+    (id: "VehicleJanicart", parents: ["BaseVehicleStrap"], name: Some("janicart"), description: Some("The janitor's trusty steed.")),
+    (id: "VehicleWheelchair", parents: ["BaseVehicleStrap", "BaseFoldable", "BaseItem"], name: Some("wheelchair"), description: Some("A chair with big wheels. It looks like you can move in these on your own.")),
+    (id: "VehicleWheelchairFolded", parents: ["VehicleWheelchair"]),
+]

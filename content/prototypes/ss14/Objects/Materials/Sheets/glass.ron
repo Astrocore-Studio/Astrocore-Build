@@ -1,0 +1,12 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Materials/Sheets/glass.yml. Создано scripts/gen_items.py.
+[
+    (id: "SheetClockworkGlass", parents: ["SheetGlassBase"], name: Some("clockwork glass"), description: Some("A sheet of brass-hardened glass, primarily used by clockwork enthusiasts and remnants of Ratvarian cults.")),
+    (id: "SheetClockworkGlass1", parents: ["SheetClockworkGlass"], name: Some("clockwork glass")),
+    (id: "SheetGlass", parents: ["SheetGlassBase"], components: {"Sprite": (sprite: "Objects/Materials/Sheets/glass.rsi", state: "glass_3"), "Item": (size: "Normal"), "Solution": (maxVol: 10.0, canReact: false, reagents: (Silicon: 10.0)), "Tag": (tags: ["Sheet", "ConstructionMaterial"]), "FloorTile": ()}),
+    (id: "SheetGlass10", parents: ["SheetGlass"], components: {"Sprite": (sprite: "Objects/Materials/Sheets/glass.rsi", state: "glass_3"), "Item": (size: "Normal"), "Solution": (maxVol: 10.0, canReact: false, reagents: (Silicon: 10.0)), "Tag": (tags: ["Sheet", "ConstructionMaterial"]), "FloorTile": ()}),
+    (id: "SheetGlassBase", parents: ["BaseSheet"], abstract: true, name: Some("glass"), description: Some("A sheet of glass, used often on the station in various applications.")),
+    (id: "SheetPGlass", parents: ["SheetGlassBase"], name: Some("plasma glass"), description: Some("A sheet of translucent plasma.")),
+    (id: "SheetRPGlass", parents: ["SheetPGlass"], name: Some("reinforced plasma glass"), description: Some("A reinforced sheet of translucent plasma.")),
+    (id: "SheetRUGlass", parents: ["SheetUGlass"], name: Some("reinforced uranium glass"), description: Some("A reinforced sheet of uranium.")),
+    (id: "SheetUGlass", parents: ["SheetGlassBase"], name: Some("uranium glass"), description: Some("A sheet of uranium glass.")),
+]

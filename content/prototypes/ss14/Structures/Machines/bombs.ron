@@ -1,0 +1,8 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/Machines/bombs.yml. Создано scripts/gen_items.py.
+[
+    (id: "BaseHardBomb", parents: ["BaseStructureDynamic"], abstract: true, name: Some("hardbomb"), description: Some("Just keep talking and nobody will explode.")),
+    (id: "DebugHardBomb", parents: ["SyndicateBomb"], name: Some("debug bomb"), description: Some("Holy shit this is gonna explode.")),
+    (id: "SyndicateBomb", parents: ["BaseHardBomb", "BaseSyndicateContraband"], name: Some("syndicate bomb"), description: Some("A bomb for Syndicate operatives and agents alike. The real deal, no more training, get to it!")),
+    (id: "SyndicateBombFake", parents: ["SyndicateBomb"]),
+    (id: "TrainingBomb", parents: ["BaseHardBomb"], name: Some("training bomb"), description: Some("A bomb for dummies, manual not included.")),
+]

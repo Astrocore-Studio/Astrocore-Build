@@ -1,0 +1,5 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/inventorybase.yml. Создано scripts/gen_items.py.
+[
+    (id: "InventoryBase", abstract: true),
+    (id: "StripableInventoryBase", parents: ["InventoryBase"], abstract: true),
+]

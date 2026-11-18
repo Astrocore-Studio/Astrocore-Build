@@ -1,0 +1,18 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/base_item.yml. Создано scripts/gen_items.py.
+[
+    (id: "BaseBagOpenClose", abstract: true),
+    (id: "BaseItemDestructible", abstract: true),
+    (id: "BasePaperLabelable", abstract: true),
+    (id: "BasePaperLabelableVisualized", parents: ["BasePaperLabelable"], abstract: true),
+    (id: "BaseScrewingRefinable", abstract: true),
+    (id: "BaseSlicingRefinable", abstract: true),
+    (id: "BaseSlicingRefinableButchering", parents: ["BaseSlicingRefinable"], abstract: true),
+    (id: "BaseSlicingRefinableFood", parents: ["BaseSlicingRefinable"], abstract: true),
+    (id: "BaseStash", abstract: true),
+    (id: "BaseStashCake", parents: ["BaseStash"], abstract: true),
+    (id: "BaseStashPlushie", parents: ["BaseStash"], abstract: true),
+    (id: "BaseStorageItem", parents: ["BaseItem"], abstract: true, name: Some("storage item")),
+    (id: "PowerCellSlotHighItem", abstract: true),
+    (id: "PowerCellSlotMediumItem", abstract: true),
+    (id: "PowerCellSlotSmallItem", abstract: true),
+]

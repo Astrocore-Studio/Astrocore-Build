@@ -1,0 +1,16 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Mobs/NPCs/xeno.yml. Создано scripts/gen_items.py.
+[
+    (id: "MobPurpleSnake", parents: ["SimpleSpaceMobBase", "BaseSlicingRefinableButchering", "BaseMobDestructible"], name: Some("space adder"), description: Some("A menacing purple snake from Kepler-283c.")),
+    (id: "MobSmallPurpleSnake", parents: ["MobPurpleSnake", "BaseSlicingRefinableButchering"], name: Some("space adder"), description: Some("A smaller version of the menacing purple snake from Kepler-283c.")),
+    (id: "MobXeno", parents: ["SimpleSpaceMobBase", "MobNightVision", "BaseMobDestructible"], name: Some("burrower"), description: Some("They mostly come at night. Mostly.")),
+    (id: "MobXenoDrone", parents: ["MobXeno"], name: Some("drone")),
+    (id: "MobXenoLonePraetorianNoGhost", parents: ["SimpleSpaceMobBase", "BaseMobDestructible"], name: Some("\"Dale\""), description: Some("A praetorian left over from the station's initial security sweep. Has a pair of bloodied dog tags engraved with the name \"Pvt. Dale\" stuck in its maw.")),
+    (id: "MobXenoPraetorian", parents: ["MobXeno"], name: Some("praetorian")),
+    (id: "MobXenoQueen", parents: ["MobXeno"], name: Some("queen")),
+    (id: "MobXenoRavager", parents: ["MobXeno"], name: Some("ravager")),
+    (id: "MobXenoRouny", parents: ["MobXenoRunner"], name: Some("rouny")),
+    (id: "MobXenoRunner", parents: ["MobXeno"], name: Some("runner")),
+    (id: "MobXenoSpitter", parents: ["MobXeno"], name: Some("spitter")),
+    (id: "SolutionVenomDale", parents: ["SolutionWeapon", "SolutionNormal"], categories: ["HideSpawnMenu"]),
+    (id: "SolutionVenomPurpleSnake", parents: ["SolutionWeapon", "SolutionTiny"], categories: ["HideSpawnMenu"]),
+]

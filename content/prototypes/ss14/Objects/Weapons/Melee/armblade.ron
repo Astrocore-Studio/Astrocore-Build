@@ -1,0 +1,6 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Weapons/Melee/armblade.yml. Создано scripts/gen_items.py.
+[
+    (id: "Armblade", parents: ["BaseItem"], name: Some("armblade"), description: Some("A grotesque blade made out of bone and flesh that can pry open doors and cleaves through people as a hot knife through butter.")),
+    (id: "ArmbladeDull", parents: ["Armblade"]),
+    (id: "ArmbladeHorror", parents: ["Armblade"]),
+]

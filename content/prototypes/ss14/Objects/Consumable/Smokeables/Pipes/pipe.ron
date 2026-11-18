@@ -1,0 +1,7 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Consumable/Smokeables/Pipes/pipe.yml. Создано scripts/gen_items.py.
+[
+    (id: "SmokingPipe", parents: ["BaseSmokingPipe"], name: Some("pipe"), description: Some("Just like grandpappy used to smoke.")),
+    (id: "SmokingPipeFilledCannabis", parents: ["SmokingPipe"], name: Some("pipe"), description: Some("Just like grandpappy used to smoke.")),
+    (id: "SmokingPipeFilledCannabisRainbow", parents: ["SmokingPipe"], name: Some("pipe"), description: Some("Just like grandpappy used to smoke.")),
+    (id: "SmokingPipeFilledTobacco", parents: ["SmokingPipe"], name: Some("pipe"), description: Some("Just like grandpappy used to smoke."), components: {"Sprite": (sprite: "Objects/Consumable/Smokeables/Pipes/pipe.rsi", state: "unlit-icon"), "Item": (size: "Tiny"), "Clothing": (slots: ["mask"]), "Solution": (maxVol: 30.0, canReact: true, reagents: ()), "Tag": (tags: ["Trash"]), "Smokable": ()}),
+]

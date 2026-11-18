@@ -1,0 +1,5 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/antag.yml. Создано scripts/gen_items.py.
+[
+    (id: "CratePirateChest", parents: ["CratePirate"], name: Some("crews pirate chest")),
+    (id: "CratePirateChestCaptain", parents: ["CratePirate"], name: Some("captains pirate chest")),
+]

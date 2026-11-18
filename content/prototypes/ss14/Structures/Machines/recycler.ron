@@ -1,0 +1,6 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/Machines/recycler.yml. Создано scripts/gen_items.py.
+[
+    (id: "IndustrialSmelter", parents: ["BaseMachinePowered", "StructureHealthMachineStrong"], name: Some("industrial smelter"), description: Some("A massive stationary machine capable of chewing through flooring and walls. Must be powered to function.")),
+    (id: "IndustrialSmelterAdmeme", parents: ["IndustrialSmelter"]),
+    (id: "Recycler", parents: ["BaseMachinePowered", "StructureHealthMachineStrong"], name: Some("recycler"), description: Some("A large crushing machine used to recycle small items inefficiently. There are lights on the side.")),
+]

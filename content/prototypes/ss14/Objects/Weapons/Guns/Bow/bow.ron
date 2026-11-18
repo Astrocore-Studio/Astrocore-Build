@@ -1,0 +1,5 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Weapons/Guns/Bow/bow.yml. Создано scripts/gen_items.py.
+[
+    (id: "BaseBow", parents: ["BaseItem", "BaseMinorContraband"], abstract: true, name: Some("bow"), description: Some("The original rooty tooty point and shooty.")),
+    (id: "BowImprovised", parents: ["BaseBow"], name: Some("improvised shortbow")),
+]

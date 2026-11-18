@@ -1,0 +1,6 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Mobs/NPCs/hivebot.yml. Создано scripts/gen_items.py.
+[
+    (id: "MobHivebot", parents: ["BaseSimpleMob", "MobCombat", "MobRobotic", "BaseMobDestructible"], name: Some("hivebot"), description: Some("Agitating, mechanized pests.")),
+    (id: "MobHivebotRanged", parents: ["MobHivebot"], name: Some("hivebot"), description: Some("Agitating, mechanized pests. This one has a gun.")),
+    (id: "MobHivebotStrong", parents: ["MobHivebotRanged"], name: Some("strong hivebot"), description: Some("Agitating, mechanized pests. This one looks much stronger then normal.")),
+]

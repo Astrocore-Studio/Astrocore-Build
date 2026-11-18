@@ -1,0 +1,6 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Materials/ingots.yml. Создано scripts/gen_items.py.
+[
+    (id: "IngotBase", parents: ["MaterialBase"], abstract: true, description: Some("A heavy metal ingot stamped with the Nanotrasen logo.")),
+    (id: "IngotGold", parents: ["IngotBase"], name: Some("gold bar"), components: {"Sprite": (sprite: "Objects/Materials/ingots.rsi", state: "gold_3"), "Item": (size: "Normal"), "Solution": (maxVol: 10.0, canReact: false, reagents: (Gold: 10.0)), "Tag": (tags: ["Ingot", "ConstructionMaterial"])}),
+    (id: "IngotSilver", parents: ["IngotBase"], name: Some("silver bar"), components: {"Sprite": (sprite: "Objects/Materials/ingots.rsi", state: "silver_3"), "Item": (size: "Normal"), "Solution": (maxVol: 10.0, canReact: false, reagents: (Silver: 10.0)), "Tag": (tags: ["Ingot", "ConstructionMaterial"])}),
+]

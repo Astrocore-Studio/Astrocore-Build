@@ -1,0 +1,7 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Consumable/Food/food_base.yml. Создано scripts/gen_items.py.
+[
+    (id: "FoodBase", parents: ["BaseItem", "SolutionFood", "SolutionSmall"], abstract: true),
+    (id: "FoodBaseTrash", parents: ["FoodBase"], abstract: true),
+    (id: "FoodInjectableBase", parents: ["FoodBaseTrash"], abstract: true),
+    (id: "FoodOpenableBase", abstract: true),
+]

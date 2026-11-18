@@ -1,0 +1,4 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Weapons/Guns/Basic/base_wand.yml. Создано scripts/gen_items.py.
+[
+    (id: "WeaponWandBase", parents: ["BaseItem", "BaseMagicalContraband"], abstract: true),
+]

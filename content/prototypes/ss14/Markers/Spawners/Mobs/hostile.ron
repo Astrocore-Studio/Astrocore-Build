@@ -1,0 +1,21 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Markers/Spawners/Mobs/hostile.yml. Создано scripts/gen_items.py.
+[
+    (id: "SpawnClownSpider", parents: ["MarkerBase"], name: Some("clown spider spawner")),
+    (id: "SpawnMobBear", parents: ["MarkerBase"], name: Some("Space Bear Spawner")),
+    (id: "SpawnMobBehonker", parents: ["MarkerBase"], name: Some("behonker Spawner")),
+    (id: "SpawnMobBoxingKangaroo", parents: ["MarkerBase"], name: Some("Boxing Kangaroo Spawner")),
+    (id: "SpawnMobHellspawn", parents: ["MarkerBase"], name: Some("Hellspawn Spawner")),
+    (id: "SpawnMobKangaroo", parents: ["MarkerBase"], name: Some("Space Kangaroo Spawner")),
+    (id: "SpawnMobLuminousEntity", parents: ["MarkerBase"], name: Some("luminous entity spawner")),
+    (id: "SpawnMobLuminousObject", parents: ["MarkerBase"], name: Some("luminous object spawner")),
+    (id: "SpawnMobLuminousPerson", parents: ["MarkerBase"], name: Some("luminous person spawner")),
+    (id: "SpawnMobOreCrab", parents: ["MarkerBase"], name: Some("ore crab spawner")),
+    (id: "SpawnMobPurpleSnake", parents: ["MarkerBase"], name: Some("Purple Snake Spawner")),
+    (id: "SpawnMobSmallPurpleSnake", parents: ["MarkerBase"], name: Some("Small Purple Snake Spawner")),
+    (id: "SpawnMobSpaceCobra", parents: ["MarkerBase"], name: Some("Space Cobra Spawner")),
+    (id: "SpawnMobSpaceSpider", parents: ["MarkerBase"], name: Some("Space Spider Spawner")),
+    (id: "SpawnMobWatcherIcewing", parents: ["MarkerBase"], name: Some("Watcher Icewing Spawner")),
+    (id: "SpawnMobWatcherLavaland", parents: ["MarkerBase"], name: Some("Watcher Lavaland Spawner")),
+    (id: "SpawnMobWatcherMagmawing", parents: ["MarkerBase"], name: Some("Watcher Magmawing Spawner")),
+    (id: "SpawnMobWatcherPride", parents: ["MarkerBase"], name: Some("Watcher Pride Spawner")),
+]

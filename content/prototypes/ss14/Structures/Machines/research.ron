@@ -1,0 +1,5 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/Machines/research.yml. Создано scripts/gen_items.py.
+[
+    (id: "BaseResearchAndDevelopmentPointSource", parents: ["BaseMachinePowered", "StructureHealthMachineStrong"], name: Some("base R&D point source")),
+    (id: "ResearchAndDevelopmentServer", parents: ["BaseMachinePowered", "ConstructibleMachine", "StructureHealthMachineStrong"], name: Some("R&D server"), description: Some("Contains the collective knowledge of the station's scientists. Destroying it would send them back to the stone age. You don't want that do you?")),
+]

@@ -1,0 +1,7 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Clothing/Uniforms/Jumpskirts/cargo.yml. Создано scripts/gen_items.py.
+[
+    (id: "ClothingUniformJumpskirtCargo", parents: ["ClothingUniformSkirtBase"], name: Some("cargo tech jumpskirt"), description: Some("A sturdy jumpskirt, issued to members of the Cargo department."), components: {"Sprite": (sprite: "Clothing/Uniforms/Jumpskirts/Cargo/cargotech.rsi", state: "icon"), "Item": (size: "Normal"), "Clothing": (slots: ["innerclothing"]), "Solution": (maxVol: 60.0, canReact: true, reagents: (Fiber: 30.0)), "Edible": (transferAmount: 5.0, delay: 1.0, forceFeedDelay: 3.0, destroyOnEmpty: true), "Tag": (tags: ["ClothMade", "Recyclable", "WhitelistChameleon"])}),
+    (id: "ClothingUniformJumpskirtQM", parents: ["ClothingUniformSkirtBase", "BaseCommandContraband"], name: Some("quartermaster's jumpskirt"), description: Some("What can brown do for you?")),
+    (id: "ClothingUniformJumpskirtQMFormalDress", parents: ["ClothingUniformBase", "BaseCommandContraband"], name: Some("quartermaster's formal dress"), description: Some("Inspired by the quartermasters of militaries past, the perfect outfit for supplying a formal occasion.")),
+    (id: "ClothingUniformJumpskirtQMTurtleneck", parents: ["ClothingUniformSkirtBase", "BaseCommandContraband"], name: Some("quartermaster's turtleneck"), description: Some("A sharp turtleneck made for the hardy work environment of supply.")),
+]

@@ -1,0 +1,5 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/Machines/microwave.yml. Создано scripts/gen_items.py.
+[
+    (id: "KitchenMicrowave", parents: ["BaseMachinePowered", "SmallConstructibleMachine", "BaseSmallConstructibleMachineDestructible"], name: Some("microwave"), description: Some("It's magic."), components: {"Sprite": (sprite: "Structures/Machines/microwave.rsi", state: "mw0"), "Item": (size: "Ginormous"), "Explosive": (explosionType: "Default", totalIntensity: 5.0, intensitySlope: 5.0, maxIntensity: 10.0), "MeleeWeapon": (damage: (Blunt: 25.0), attackRate: 0.5, bluntStaminaDamageFactor: 0.5), "Tag": (tags: ["Structure"])}),
+    (id: "SyndicateMicrowave", parents: ["KitchenMicrowave", "BaseSyndicateContraband"], name: Some("donk co. microwave"), description: Some("So advanced, it can cook donk-pockets in a mere 2.5 seconds!")),
+]

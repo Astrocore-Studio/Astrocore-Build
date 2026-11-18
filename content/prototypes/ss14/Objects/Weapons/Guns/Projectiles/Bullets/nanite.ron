@@ -1,0 +1,6 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Weapons/Guns/Projectiles/Bullets/nanite.yml. Создано scripts/gen_items.py.
+[
+    (id: "BulletImpactEffectNanite", categories: ["HideSpawnMenu"]),
+    (id: "BulletNanite", parents: ["BaseBullet"], name: Some("nanite crystal"), categories: ["HideSpawnMenu"]),
+    (id: "MuzzleFlashEffectNanite", categories: ["HideSpawnMenu"]),
+]

@@ -1,0 +1,19 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Clothing/Uniforms/Jumpskirts/color_dress.yml. Создано scripts/gen_items.py.
+[
+    (id: "ClothingUniformJumpskirtBlackElegantDress", parents: ["ClothingUniformSkirtBase"], name: Some("black elegant dress"), description: Some("Elegant dress with a beautiful bow.")),
+    (id: "ClothingUniformJumpskirtBlueElegantDress", parents: ["ClothingUniformSkirtBase"], name: Some("blue elegant dress"), description: Some("Elegant dress with a beautiful bow.")),
+    (id: "ClothingUniformJumpskirtBlueTurtleneckDress", parents: ["ClothingUniformSkirtBase"], name: Some("blue turtleneck dress"), description: Some("Turtleneck dress with a unique design.")),
+    (id: "ClothingUniformJumpskirtCyanStripedDress", parents: ["ClothingUniformSkirtBase"], name: Some("cyan striped dress"), description: Some("Cute striped dress.")),
+    (id: "ClothingUniformJumpskirtGreenElegantDress", parents: ["ClothingUniformSkirtBase"], name: Some("green elegant dress"), description: Some("Elegant dress with a beautiful bow.")),
+    (id: "ClothingUniformJumpskirtGreenStripedDress", parents: ["ClothingUniformSkirtBase"], name: Some("green striped dress"), description: Some("Cute striped dress.")),
+    (id: "ClothingUniformJumpskirtGreenTurtleneckDress", parents: ["ClothingUniformSkirtBase"], name: Some("green turtleneck dress"), description: Some("Turtleneck dress with a unique design.")),
+    (id: "ClothingUniformJumpskirtOrangeStripedDress", parents: ["ClothingUniformSkirtBase"], name: Some("orange striped dress"), description: Some("Cute striped dress.")),
+    (id: "ClothingUniformJumpskirtPinkStripedDress", parents: ["ClothingUniformSkirtBase"], name: Some("pink striped dress"), description: Some("Cute striped dress.")),
+    (id: "ClothingUniformJumpskirtPurpleElegantDress", parents: ["ClothingUniformSkirtBase"], name: Some("purple elegant dress"), description: Some("Elegant dress with a beautiful bow.")),
+    (id: "ClothingUniformJumpskirtPurpleTurtleneckDress", parents: ["ClothingUniformSkirtBase"], name: Some("purple turtleneck dress"), description: Some("Turtleneck dress with a unique design.")),
+    (id: "ClothingUniformJumpskirtRedElegantDress", parents: ["ClothingUniformSkirtBase"], name: Some("red elegant dress"), description: Some("Elegant dress with a beautiful bow.")),
+    (id: "ClothingUniformJumpskirtRedStripedDress", parents: ["ClothingUniformSkirtBase"], name: Some("red striped dress"), description: Some("Cute striped dress.")),
+    (id: "ClothingUniformJumpskirtRedTurtleneckDress", parents: ["ClothingUniformSkirtBase"], name: Some("red turtleneck dress"), description: Some("Turtleneck dress with a unique design.")),
+    (id: "ClothingUniformJumpskirtYellowOldDress", parents: ["ClothingUniformSkirtBase"], name: Some("yellow old dress"), description: Some("Classic western dress.")),
+    (id: "ClothingUniformJumpskirtYellowTurtleneckDress", parents: ["ClothingUniformSkirtBase"], name: Some("yellow turtleneck dress"), description: Some("Turtleneck dress with a unique design.")),
+]

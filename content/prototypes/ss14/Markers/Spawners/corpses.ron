@@ -1,0 +1,11 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Markers/Spawners/corpses.yml. Создано scripts/gen_items.py.
+[
+    (id: "RandomCargoCorpseSpawner", parents: ["SalvageHumanCorpseSpawner"], name: Some("Random Cargo Corpse Spawner")),
+    (id: "RandomCommandCorpseSpawner", parents: ["SalvageHumanCorpseSpawner"], name: Some("Random Command Corpse Spawner")),
+    (id: "RandomEngineerCorpseSpawner", parents: ["SalvageHumanCorpseSpawner"], name: Some("Random Engineer Corpse Spawner")),
+    (id: "RandomMedicCorpseSpawner", parents: ["SalvageHumanCorpseSpawner"], name: Some("Random Medic Corpse Spawner")),
+    (id: "RandomScienceCorpseSpawner", parents: ["SalvageHumanCorpseSpawner"], name: Some("Random Science Corpse Spawner")),
+    (id: "RandomSecurityCorpseSpawner", parents: ["SalvageHumanCorpseSpawner"], name: Some("Random Security Corpse Spawner")),
+    (id: "RandomServiceCorpseSpawner", parents: ["SalvageHumanCorpseSpawner"], name: Some("Random Service Corpse Spawner")),
+    (id: "SalvageHumanCorpseSpawner", parents: ["MarkerBase"], name: Some("Human Corpse Spawner")),
+]

@@ -1,0 +1,7 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Mobs/NPCs/Farm/duck.yml. Создано scripts/gen_items.py.
+[
+    (id: "FoodEggDuckFertilized", parents: ["FoodEgg"]),
+    (id: "MobDuckBrown", parents: ["MobDuckMallard"], name: Some("brown duck"), description: Some("An adorable brown duck, it's fluffy and soft!")),
+    (id: "MobDuckMallard", parents: ["SimpleMobBase", "BaseSlicingRefinableButchering", "BaseMobDestructible", "BaseExaminableHunger"], name: Some("mallard duck"), description: Some("An adorable mallard duck, it's fluffy and soft!")),
+    (id: "MobDuckWhite", parents: ["MobDuckMallard"], name: Some("white duck"), description: Some("An adorable white duck, it's fluffy and soft!")),
+]

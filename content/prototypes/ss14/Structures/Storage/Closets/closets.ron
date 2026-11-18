@@ -1,0 +1,20 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/Storage/Closets/closets.yml. Создано scripts/gen_items.py.
+[
+    (id: "ClosetBluespace", parents: ["ClosetMaintenance"], name: Some("suspicious closet"), description: Some("It's a storage unit... right?")),
+    (id: "ClosetBluespaceUnstable", parents: ["ClosetMaintenance"], name: Some("suspicious closet"), description: Some("It's a storage unit... right?")),
+    (id: "ClosetBomb", parents: ["ClosetSteelBase"], name: Some("EOD closet"), description: Some("It's a storage unit for explosion-protective suits.")),
+    (id: "ClosetEmergency", parents: ["ClosetSteelBase"], name: Some("emergency closet"), description: Some("It's a storage unit for emergency breath masks and O2 tanks.")),
+    (id: "ClosetEmergencyN2", parents: ["ClosetSteelBase"], name: Some("emergency nitrogen closet"), description: Some("It's full of life-saving equipment. Assuming, that is, that you breathe nitrogen.")),
+    (id: "ClosetFire", parents: ["ClosetSteelBase"], name: Some("fire-safety closet"), description: Some("It's a storage unit for fire-fighting supplies.")),
+    (id: "ClosetJanitorBomb", parents: ["ClosetSteelBase"], name: Some("janitorial bomb suit closet"), description: Some("It's a storage unit for janitorial explosion-protective suits."), categories: ["DoNotMap"]),
+    (id: "ClosetL3", parents: ["ClosetSteelBase"], name: Some("level 3 biohazard gear closet"), description: Some("It's a storage unit for level 3 biohazard gear.")),
+    (id: "ClosetL3Janitor", parents: ["ClosetL3"]),
+    (id: "ClosetL3Science", parents: ["ClosetL3"]),
+    (id: "ClosetL3Security", parents: ["ClosetL3"]),
+    (id: "ClosetL3Virology", parents: ["ClosetL3"]),
+    (id: "ClosetMaintenance", parents: ["ClosetSteelBase"], name: Some("maintenance closet"), description: Some("It's a storage unit.")),
+    (id: "ClosetMaintenanceWelded", parents: ["ClosetMaintenance"]),
+    (id: "ClosetRadiationSuit", parents: ["ClosetSteelBase"], name: Some("radiation suit closet"), description: Some("More comfortable than radiation poisioning.")),
+    (id: "ClosetTool", parents: ["ClosetSteelBase"], name: Some("tool closet"), description: Some("It's a storage unit for tools.")),
+    (id: "LockerSyndicate", parents: ["ClosetSteelBase"], name: Some("blood-red closet"), description: Some("It's a storage unit with a blood-red design.")),
+]

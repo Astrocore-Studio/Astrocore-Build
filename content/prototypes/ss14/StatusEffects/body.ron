@@ -1,0 +1,9 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/StatusEffects/body.yml. Создано scripts/gen_items.py.
+[
+    (id: "BloodstreamStatusEffectBase", parents: ["MobStatusEffectBase"], abstract: true),
+    (id: "BloodstreamStatusEffectDebuff", parents: ["BloodstreamStatusEffectBase"], abstract: true),
+    (id: "PainNumbnessStatusEffectBase", parents: ["MobStatusEffectBase"], abstract: true),
+    (id: "StaminaModifierStatusEffect", parents: ["MobStatusEffectBase"]),
+    (id: "StatusEffectBloodloss", parents: ["BloodstreamStatusEffectDebuff"], name: Some("bloodloss")),
+    (id: "StatusEffectHemorrhage", parents: ["BloodstreamStatusEffectDebuff"], name: Some("hemorrhage")),
+]

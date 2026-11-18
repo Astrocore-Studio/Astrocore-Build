@@ -1,0 +1,4 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Markers/clientsideclone.yml. Создано scripts/gen_items.py.
+[
+    (id: "ClientsideClone", name: Some("ClientsideClone"), categories: ["HideSpawnMenu"]),
+]

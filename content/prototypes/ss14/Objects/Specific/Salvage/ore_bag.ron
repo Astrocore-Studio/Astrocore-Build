@@ -1,0 +1,5 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Specific/Salvage/ore_bag.yml. Создано scripts/gen_items.py.
+[
+    (id: "BorgOreBag", parents: ["OreBag"], name: Some("integrated ore bag"), description: Some("A large ore bag built into the frame of a mining cyborg. Magnetises any nearby ores when held.")),
+    (id: "OreBag", parents: ["BaseStorageItem"], name: Some("ore bag"), description: Some("A robust bag for salvage specialists and miners alike to carry large amounts of ore. Magnetises any nearby ores when attached to a belt."), components: {"Sprite": (sprite: "Objects/Specific/Mining/ore_bag.rsi", state: "icon"), "Item": (size: "Ginormous"), "Clothing": (slots: ["belt"]), "Storage": (grid: ["0,0,9,3"], maxItemSize: "Normal", whitelist: (tags: ["ArtifactFragment", "Ore"], components: []))}),
+]

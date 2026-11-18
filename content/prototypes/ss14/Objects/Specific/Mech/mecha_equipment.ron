@@ -1,0 +1,7 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Specific/Mech/mecha_equipment.yml. Создано scripts/gen_items.py.
+[
+    (id: "BaseMechEquipment", parents: ["BaseItem"], abstract: true),
+    (id: "MechEquipmentGrabber", parents: ["BaseMechEquipment"], name: Some("hydraulic clamp"), description: Some("Gives the mech the ability to grab things and drag them around.")),
+    (id: "MechEquipmentGrabberSmall", parents: ["BaseMechEquipment"], name: Some("small hydraulic clamp"), description: Some("Gives the mech the ability to grab things and drag them around.")),
+    (id: "MechEquipmentHorn", parents: ["BaseMechEquipment"], name: Some("mech horn"), description: Some("An enhanced bike horn that plays a hilarious array of sounds for the enjoyment of the crew. HONK!")),
+]

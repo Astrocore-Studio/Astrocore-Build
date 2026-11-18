@@ -1,0 +1,11 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/Storage/glass_box.yml. Создано scripts/gen_items.py.
+[
+    (id: "BaseGlassBox", parents: ["BaseStructureDynamic"], abstract: true),
+    (id: "GlassBox", parents: ["BaseGlassBox", "BaseItemCabinetGlass", "StructureHealthContainer"], abstract: true, name: Some("glass box"), description: Some("A sturdy showcase for an expensive exhibit.")),
+    (id: "GlassBoxBroken", parents: ["GlassBoxFrame"], name: Some("broken glass box"), description: Some("A broken showcase for a stolen expensive exhibit.")),
+    (id: "GlassBoxFrame", parents: ["BaseGlassBox", "StructureHealthContainerWeak"], name: Some("glass box frame"), description: Some("A glassless sturdy showcase for an expensive exhibit.")),
+    (id: "GlassBoxLaser", parents: ["GlassBox"]),
+    (id: "GlassBoxLaserFilled", parents: ["GlassBoxLaser"]),
+    (id: "GlassBoxLaserFilledOpen", parents: ["GlassBoxLaserFilled", "GlassBoxLaserOpen"]),
+    (id: "GlassBoxLaserOpen", parents: ["GlassBoxLaser"]),
+]

@@ -1,0 +1,6 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Fun/Tabletop/base.yml. Создано scripts/gen_items.py.
+[
+    (id: "BaseBoardEntity", parents: ["BaseItem"], abstract: true, name: Some("board"), description: Some("A blank board.")),
+    (id: "BaseBoardTabletop", abstract: true, name: Some("baseboard"), categories: ["HideSpawnMenu"]),
+    (id: "BaseTabletopPiece", parents: ["BaseItem"], abstract: true),
+]

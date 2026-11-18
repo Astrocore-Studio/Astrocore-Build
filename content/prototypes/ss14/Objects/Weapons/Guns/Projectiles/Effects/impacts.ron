@@ -1,0 +1,7 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Weapons/Guns/Projectiles/Effects/impacts.yml. Создано scripts/gen_items.py.
+[
+    (id: "BulletImpactEffect", categories: ["HideSpawnMenu"]),
+    (id: "BulletImpactEffectDisabler", categories: ["HideSpawnMenu"]),
+    (id: "BulletImpactEffectKinetic", categories: ["HideSpawnMenu"]),
+    (id: "BulletImpactEffectOrangeDisabler", categories: ["HideSpawnMenu"]),
+]

@@ -1,0 +1,4 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/repulse_spell.yml. Создано scripts/gen_items.py.
+[
+    (id: "ActionRepulse", parents: ["BaseAction"], name: Some("Repulse"), description: Some("Pushes entities away from the user.")),
+]

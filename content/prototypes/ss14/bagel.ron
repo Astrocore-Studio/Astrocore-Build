@@ -1,0 +1,4 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/bagel.yml. Создано scripts/gen_items.py.
+[
+    (id: "BagelTheaterRoomMarker", parents: ["BaseRoomMarker"], name: Some("Bagel Theater interior marker")),
+]

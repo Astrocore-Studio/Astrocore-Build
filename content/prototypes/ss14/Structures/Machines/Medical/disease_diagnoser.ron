@@ -1,0 +1,5 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/Machines/Medical/disease_diagnoser.yml. Создано scripts/gen_items.py.
+[
+    (id: "DiagnosisReportPaper", parents: ["Paper"], name: Some("disease diagnoser report"), description: Some("A chilling medical receipt.")),
+    (id: "DiseaseDiagnoser", parents: ["BaseMachinePowered", "SmallConstructibleMachine", "BaseSmallConstructibleMachineDestructible"], name: Some("Disease Diagnoser Delta Extreme"), description: Some("A machine that analyzes disease samples.")),
+]

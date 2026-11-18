@@ -1,0 +1,12 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Specific/Mech/mechs.yml. Создано scripts/gen_items.py.
+[
+    (id: "BaseMech", parents: ["StructureHealthMachineMassive"], abstract: true),
+    (id: "MechHamtr", parents: ["BaseMech"], name: Some("HAMTR"), description: Some("An experimental mech which uses a brain–computer interface to connect directly to a hamsters brain.")),
+    (id: "MechHamtrBattery", parents: ["MechHamtr"]),
+    (id: "MechHonker", parents: ["BaseMech"], name: Some("H.O.N.K."), description: Some("Produced by \"Tyranny of Honk, INC\", this exosuit is designed as heavy clown-support. Used to spread the fun and joy of life. HONK!")),
+    (id: "MechHonkerBattery", parents: ["MechHonker"]),
+    (id: "MechRipley", parents: ["BaseMech"], name: Some("Ripley APLU"), description: Some("Versatile and lightly armored, the Ripley is useful for almost any heavy work scenario. The \"APLU\" stands for Autonomous Power Loading Unit.")),
+    (id: "MechRipleyBattery", parents: ["MechRipley"]),
+    (id: "MechVim", parents: ["BaseMech"], name: Some("Vim"), description: Some("A miniature exosuit from Nanotrasen, developed to let the irreplaceable station pets live a little longer.")),
+    (id: "MechVimBattery", parents: ["MechVim"]),
+]

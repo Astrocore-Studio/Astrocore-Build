@@ -1,0 +1,11 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/Storage/Tanks/tanks.yml. Создано scripts/gen_items.py.
+[
+    (id: "GenericTank", parents: ["StorageTank", "StructureWheeled"]),
+    (id: "WaterCooler", parents: ["SolutionHuge", "StorageTank"], name: Some("water cooler"), description: Some("Seems like a good place to stand and waste time. It has a stock of paper cups on the side.")),
+    (id: "WaterTank", parents: ["StorageTank", "StructureWheeled"], name: Some("water tank"), description: Some("A water tank. It's used to store high amounts of water.")),
+    (id: "WaterTankFull", parents: ["WaterTank"]),
+    (id: "WaterTankHighCapacity", parents: ["StorageTankBig", "WaterTank"], name: Some("high-capacity water tank"), description: Some("A highly pressurized water tank made to hold gargantuan amounts of water.")),
+    (id: "WeldingFuelTank", parents: ["StorageTank", "StructureWheeled"], name: Some("fuel tank"), description: Some("A fuel tank. It's used to store high amounts of fuel.")),
+    (id: "WeldingFuelTankFull", parents: ["WeldingFuelTank"]),
+    (id: "WeldingFuelTankHighCapacity", parents: ["StorageTankBig", "WeldingFuelTank"], name: Some("high-capacity fuel tank"), description: Some("A highly pressurized fuel tank made to hold gargantuan amounts of welding fuel.")),
+]

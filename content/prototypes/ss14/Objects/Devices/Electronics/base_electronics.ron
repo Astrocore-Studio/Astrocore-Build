@@ -1,0 +1,4 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Devices/Electronics/base_electronics.yml. Создано scripts/gen_items.py.
+[
+    (id: "BaseElectronics", parents: ["BaseItem"], abstract: true, name: Some("base electronics")),
+]

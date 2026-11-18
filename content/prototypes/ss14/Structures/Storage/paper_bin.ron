@@ -1,0 +1,7 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/Storage/paper_bin.yml. Создано scripts/gen_items.py.
+[
+    (id: "PaperBin", parents: ["BaseStructureDynamic"], name: Some("paper bin"), description: Some("What secrets lie at the bottom of its endless stack?")),
+    (id: "PaperBin10", parents: ["PaperBin"]),
+    (id: "PaperBin20", parents: ["PaperBin"]),
+    (id: "PaperBin5", parents: ["PaperBin"]),
+]

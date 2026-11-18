@@ -1,0 +1,7 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/barricades.yml. Создано scripts/gen_items.py.
+[
+    (id: "Barricade", parents: ["BaseBarricade", "StructureHealthBarrier"]),
+    (id: "BarricadeBlock", parents: ["Barricade"]),
+    (id: "BarricadeDirectional", parents: ["BaseBarricade", "StructureHealthBarrierWeak"]),
+    (id: "BaseBarricade", parents: ["BaseStructure"], abstract: true, name: Some("wooden barricade"), description: Some("A barricade made out of wood planks. It looks like it can take a few solid hits.")),
+]

@@ -1,0 +1,6 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Tiles/tiles.yml. Создано scripts/gen_items.py.
+[
+    (id: "FloorTileItemArcadeBlue", parents: ["FloorTileItemBase"], name: Some("blue arcade floor"), components: {"Sprite": (sprite: "Objects/Tiles/tile.rsi", state: "arcadeblue"), "Item": (size: "Normal"), "FloorTile": ()}),
+    (id: "FloorTileItemBase", parents: ["BaseItem"], abstract: true, description: Some("These could work as a pretty decent throwing weapon.")),
+    (id: "FloorTileItemWeb", parents: ["FloorTileItemBase"], name: Some("web tile")),
+]

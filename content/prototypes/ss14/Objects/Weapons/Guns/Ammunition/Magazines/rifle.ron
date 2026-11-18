@@ -1,0 +1,9 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Weapons/Guns/Ammunition/Magazines/rifle.yml. Создано scripts/gen_items.py.
+[
+    (id: "BaseMagazineRifle", parents: ["BaseItem", "BaseSecurityContraband"], abstract: true, name: Some("magazine (.20 rifle)")),
+    (id: "MagazineRifle", parents: ["BaseMagazineRifle"], name: Some("magazine (.20 rifle)"), description: Some("25-round double stack magazine for combat rifles. Intended to hold general-purpose kinetic ammunition."), components: {"Sprite": (sprite: "Objects/Weapons/Guns/Ammunition/Magazine/Rifle/rifle_mag.rsi", state: "base"), "Item": (size: "Small"), "Magazine": (cartridge: "CartridgeRifle", capacity: 25), "Tag": (tags: ["MagazineRifle"]), "BallisticAmmoProvider": ()}),
+    (id: "MagazineRifleEmpty", parents: ["MagazineRifle"], name: Some("magazine (.20 rifle any)"), description: Some("25-round double stack magazine for combat rifles.")),
+    (id: "MagazineRifleIncendiary", parents: ["MagazineRifle"], name: Some("magazine (.20 rifle incendiary)"), description: Some("25-round double stack magazine for combat rifles. Intended to hold self-igniting incendiary ammunition.")),
+    (id: "MagazineRiflePractice", parents: ["BaseMagazineRifle"], name: Some("magazine (.20 rifle practice)"), description: Some("25-round double stack magazine for combat rifles. Intended to hold harmless practice ammunition.")),
+    (id: "MagazineRifleUranium", parents: ["BaseMagazineRifle"], name: Some("magazine (.20 rifle uranium)"), description: Some("25-round double stack magazine for combat rifles. Intended to hold exotic uranium-core ammunition.")),
+]

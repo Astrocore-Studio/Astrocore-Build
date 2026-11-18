@@ -1,0 +1,12 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Consumable/Food/Containers/plate.yml. Создано scripts/gen_items.py.
+[
+    (id: "BaseFoodPlate", parents: ["BaseItem"], abstract: true),
+    (id: "FoodPlate", parents: ["BaseFoodPlate"], name: Some("large plate"), description: Some("A large plate, excellent for bread."), components: {"Sprite": (sprite: "Objects/Consumable/Food/plates.rsi", state: "plate"), "Item": (size: "Small"), "Tag": (tags: ["Dinnerware", "Trash"])}),
+    (id: "FoodPlateMuffinTin", parents: ["BaseItem"], name: Some("muffin tin"), description: Some("A cheap foil tin for muffins."), components: {"Sprite": (sprite: "Objects/Consumable/Food/plates.rsi", state: "muffin-tin"), "Item": (size: "Tiny"), "Tag": (tags: ["Cookware", "Trash"])}),
+    (id: "FoodPlatePlastic", parents: ["BaseFoodPlate"], name: Some("large plastic plate"), description: Some("A large blue plastic plate, excellent for a birthday cake."), components: {"Sprite": (sprite: "Objects/Consumable/Food/plates.rsi", state: "plate-plastic"), "Item": (size: "Small"), "Tag": (tags: ["Dinnerware", "Trash"])}),
+    (id: "FoodPlateSmall", parents: ["BaseFoodPlate"], name: Some("small plate"), description: Some("A small plate. Delicate."), components: {"Sprite": (sprite: "Objects/Consumable/Food/plates.rsi", state: "plate-small"), "Item": (size: "Small"), "Tag": (tags: ["Dinnerware", "Trash"])}),
+    (id: "FoodPlateSmallPlastic", parents: ["BaseFoodPlate"], name: Some("small plastic plate"), description: Some("A blue plastic plate, excellent for slices of birthday cake."), components: {"Sprite": (sprite: "Objects/Consumable/Food/plates.rsi", state: "plate-small-plastic"), "Item": (size: "Small"), "Tag": (tags: ["Dinnerware", "Trash"])}),
+    (id: "FoodPlateSmallTrash", parents: ["FoodPlateTrash"], components: {"Sprite": (sprite: "Objects/Consumable/Food/plates.rsi", state: "plate-small-trash"), "Item": (size: "Small"), "Tag": (tags: ["Trash"])}),
+    (id: "FoodPlateTin", parents: ["BaseItem"], name: Some("pie tin"), description: Some("A cheap foil tin for pies."), components: {"Sprite": (sprite: "Objects/Consumable/Food/plates.rsi", state: "tin"), "Item": (size: "Small"), "Tag": (tags: ["Cookware", "Trash"])}),
+    (id: "FoodPlateTrash", parents: ["BaseItem"], name: Some("broken plate"), description: Some("A broken plate. Useless.")),
+]

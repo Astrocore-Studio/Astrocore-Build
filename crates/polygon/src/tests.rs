@@ -121,3 +121,31 @@ fn the_committed_manifest_is_up_to_date() {
         "манифест устарел: перегенерируйте его"
     );
 }
+
+/// Дерево прототипов сущностей SS14 лежит в `content/prototypes/ss14` целиком: с наследованием,
+/// абстрактными узлами, названиями, описаниями и категориями.
+#[test]
+fn the_ss14_entity_tree_is_part_of_the_content() {
+    let registry = load_registry(&content_dir()).unwrap();
+    assert!(registry.len() > 10_000, "прототипов: {}", registry.len());
+    // Вариант предмета наследует компоненты родителя и держит свои название и описание.
+    let child = registry.resolve("AccessConfiguratorUniversal").unwrap();
+    assert!(child.component("Item").is_some(), "Item от родителя");
+    assert!(child.name.is_some() && child.description.is_some());
+    // Абстрактные узлы не создаются, но разрешаются.
+    let abstract_nodes = registry
+        .ids()
+        .filter(|id| registry.spawnable(id).is_err() && registry.resolve(id).is_ok())
+        .count();
+    assert!(abstract_nodes > 500, "абстрактных узлов: {abstract_nodes}");
+    // Категории SS14 сохраняются и наследуются.
+    let hidden = registry
+        .ids()
+        .filter(|id| {
+            registry
+                .resolve(id)
+                .is_ok_and(|p| p.categories.iter().any(|c| c == "HideSpawnMenu"))
+        })
+        .count();
+    assert!(hidden > 100, "скрытых из меню: {hidden}");
+}

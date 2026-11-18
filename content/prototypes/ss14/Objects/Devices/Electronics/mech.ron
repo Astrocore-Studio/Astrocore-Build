@@ -1,0 +1,10 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Devices/Electronics/mech.yml. Создано scripts/gen_items.py.
+[
+    (id: "HamtrCentralElectronics", parents: ["BaseElectronics"], name: Some("HAMTR central control module"), description: Some("The electrical control center for the HAMTR mech.")),
+    (id: "HamtrPeripheralsElectronics", parents: ["BaseElectronics"], name: Some("HAMTR peripherals control module"), description: Some("The electrical peripherals control for the HAMTR mech.")),
+    (id: "HonkerCentralElectronics", parents: ["BaseElectronics"], name: Some("H.O.N.K. central control module"), description: Some("The electrical control center for the H.O.N.K. mech.")),
+    (id: "HonkerPeripheralsElectronics", parents: ["BaseElectronics"], name: Some("H.O.N.K. peripherals control module"), description: Some("The electrical peripherals control for the H.O.N.K. mech.")),
+    (id: "HonkerTargetingElectronics", parents: ["BaseElectronics"], name: Some("H.O.N.K. weapon control and targeting module"), description: Some("The electrical targeting control for the H.O.N.K. mech.")),
+    (id: "RipleyCentralElectronics", parents: ["BaseElectronics"], name: Some("ripley central control module"), description: Some("The electrical control center for the ripley mech.")),
+    (id: "RipleyPeripheralsElectronics", parents: ["BaseElectronics"], name: Some("ripley peripherals control module"), description: Some("The electrical peripherals control for the ripley mech.")),
+]

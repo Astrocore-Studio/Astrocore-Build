@@ -1,0 +1,13 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Devices/cartridges.yml. Создано scripts/gen_items.py.
+[
+    (id: "AstroNavCartridge", parents: ["BasePDACartridge"], name: Some("AstroNav cartridge"), description: Some("A program for navigation that provides GPS coordinates."), components: {"Sprite": (sprite: "Objects/Devices/cartridge.rsi", state: "cart-nav"), "Item": (size: "Small")}),
+    (id: "BasePDACartridge", parents: ["BaseItem"], abstract: true),
+    (id: "CrewManifestCartridge", parents: ["BasePDACartridge"], name: Some("crew manifest cartridge"), description: Some("A program for listing your fellow crewmembers.")),
+    (id: "LogProbeCartridge", parents: ["BasePDACartridge"], name: Some("LogProbe cartridge"), description: Some("A program for getting access logs from devices."), components: {"Sprite": (sprite: "Objects/Devices/cartridge.rsi", state: "cart-log"), "Item": (size: "Small")}),
+    (id: "MedTekCartridge", parents: ["BasePDACartridge"], name: Some("MedTek cartridge"), description: Some("A program that provides medical diagnostic tools."), components: {"Sprite": (sprite: "Objects/Devices/cartridge.rsi", state: "cart-med"), "Item": (size: "Small")}),
+    (id: "NanoTaskCartridge", parents: ["BasePDACartridge"], name: Some("NanoTask cartridge"), description: Some("A program that allows you to keep a list of tasks to do.")),
+    (id: "NetProbeCartridge", parents: ["BasePDACartridge"], name: Some("NetProbe cartridge"), description: Some("A program for getting the address and frequency of network devices."), components: {"Sprite": (sprite: "Objects/Devices/cartridge.rsi", state: "cart-y"), "Item": (size: "Small")}),
+    (id: "NewsReaderCartridge", parents: ["BasePDACartridge"], name: Some("news cartridge"), description: Some("A program for reading news.")),
+    (id: "NotekeeperCartridge", parents: ["BasePDACartridge"], name: Some("notekeeper cartridge"), description: Some("A program for keeping notes.")),
+    (id: "WantedListCartridge", parents: ["BasePDACartridge"], name: Some("Wanted list cartridge"), description: Some("A program to get a list of wanted persons."), components: {"Sprite": (sprite: "Objects/Devices/cartridge.rsi", state: "cart-sec"), "Item": (size: "Small")}),
+]

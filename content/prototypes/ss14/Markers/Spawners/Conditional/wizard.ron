@@ -1,0 +1,4 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Markers/Spawners/Conditional/wizard.yml. Создано scripts/gen_items.py.
+[
+    (id: "SpawnPointWizard", parents: ["MarkerBase"], name: Some("wizard")),
+]

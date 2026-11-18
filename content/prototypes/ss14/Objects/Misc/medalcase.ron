@@ -1,0 +1,4 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Misc/medalcase.yml. Создано scripts/gen_items.py.
+[
+    (id: "MedalCase", parents: ["BaseStorageItem", "BaseBagOpenClose", "BaseCommandContraband"], name: Some("medal case"), description: Some("Case with medals."), components: {"Sprite": (sprite: "Objects/Storage/medalcase.rsi", state: "closed"), "Item": (size: "Normal"), "Storage": (grid: ["0,0,7,1"], whitelist: (tags: ["Medal"], components: []))}),
+]

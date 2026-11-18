@@ -1,0 +1,8 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Devices/Electronics/power_electronics.yml. Создано scripts/gen_items.py.
+[
+    (id: "APCElectronics", parents: ["BaseElectronics"], name: Some("APC electronics"), description: Some("Circuit used in APC construction."), components: {"Sprite": (sprite: "Objects/Misc/module.rsi", state: "charger_APC"), "Item": (size: "Small"), "Circuitboard": ()}),
+    (id: "SolarTrackerElectronics", parents: ["BaseElectronics"], name: Some("solar tracker electronics"), description: Some("Advanced circuit board used to track the nearest star.")),
+    (id: "WallmountGeneratorAPUElectronics", parents: ["BaseElectronics"], name: Some("wallmount APU electronics"), description: Some("Circuit used to construct a wallmount APU.")),
+    (id: "WallmountGeneratorElectronics", parents: ["BaseElectronics"], name: Some("wallmount generator electronics"), description: Some("Circuit used to construct a wallmount generator.")),
+    (id: "WallmountSubstationElectronics", parents: ["BaseElectronics"], name: Some("wallmount substation electronics"), description: Some("Circuit used to construct a wallmount substation.")),
+]

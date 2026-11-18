@@ -1,0 +1,6 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Tools/flashlights.yml. Создано scripts/gen_items.py.
+[
+    (id: "EmptyFlashlightLantern", parents: ["FlashlightLantern"]),
+    (id: "FlashlightLantern", parents: ["BaseItem"], name: Some("flashlight"), description: Some("It lights the way to freedom."), components: {"Sprite": (sprite: "Objects/Tools/flashlight.rsi", state: "flashlight"), "Item": (size: "Small"), "Clothing": (slots: ["belt"]), "Tag": (tags: ["Flashlight"])}),
+    (id: "FlashlightSeclite", parents: ["FlashlightLantern", "BaseSecurityContraband"], name: Some("seclite"), description: Some("A robust flashlight used by security."), components: {"Sprite": (sprite: "Objects/Tools/seclite.rsi", state: "seclite"), "Item": (size: "Small"), "Clothing": (slots: ["belt"]), "MeleeWeapon": (damage: (Blunt: 10.0), attackRate: 1.0, bluntStaminaDamageFactor: 0.5), "Tag": (tags: ["SecBeltEquip"])}),
+]

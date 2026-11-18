@@ -1,0 +1,5 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Weapons/Melee/fireaxe.yml. Создано scripts/gen_items.py.
+[
+    (id: "FireAxe", parents: ["BaseItem", "BaseEngineeringContraband"], name: Some("fireaxe"), description: Some("Truly, the weapon of a madman. Who would think to fight fire with an axe?")),
+    (id: "FireAxeFlaming", parents: ["BaseSyndicateContraband", "FireAxe"], name: Some("fire axe"), description: Some("Why fight fire with an axe when you can fight with fire and axe? Now featuring rugged rubberized handle!")),
+]

@@ -1,0 +1,7 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/Machines/fax_machine.yml. Создано scripts/gen_items.py.
+[
+    (id: "FaxMachineBase", parents: ["BaseMachinePowered", "StructureHealthMachineWeak"], name: Some("long range fax machine"), description: Some("Bluespace technologies on the application of bureaucracy.")),
+    (id: "FaxMachineCaptain", parents: ["FaxMachineBase"], name: Some("captain long range fax machine")),
+    (id: "FaxMachineCentcom", parents: ["FaxMachineBase"], name: Some("CentComm long range fax machine")),
+    (id: "FaxMachineSyndie", parents: ["FaxMachineBase"], name: Some("syndicate long range fax machine")),
+]

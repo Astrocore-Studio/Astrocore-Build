@@ -1,0 +1,6 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Tools/handheld_mass_scanner.yml. Создано scripts/gen_items.py.
+[
+    (id: "HandHeldMassScanner", parents: ["BaseHandheldComputer"], name: Some("handheld mass scanner"), description: Some("A hand-held mass scanner.")),
+    (id: "HandHeldMassScannerBorg", parents: ["HandHeldMassScanner"]),
+    (id: "HandHeldMassScannerEmpty", parents: ["HandHeldMassScanner"]),
+]

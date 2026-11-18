@@ -1,0 +1,4 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Mobs/NPCs/revenant.yml. Создано scripts/gen_items.py.
+[
+    (id: "MobRevenant", parents: ["Incorporeal", "BaseMob"], name: Some("revenant"), description: Some("A spooky ghostie.")),
+]

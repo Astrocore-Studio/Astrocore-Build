@@ -1,0 +1,9 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Markers/Spawners/Mobs/slimes.yml. Создано scripts/gen_items.py.
+[
+    (id: "SpawnMobAdultSlimesBlue", parents: ["MarkerBase"], name: Some("Slimes Spawner Blue")),
+    (id: "SpawnMobAdultSlimesBlueAngry", parents: ["MarkerBase"], name: Some("Slimes Spawner Blue Angry")),
+    (id: "SpawnMobAdultSlimesGreen", parents: ["MarkerBase"], name: Some("Slimes Spawner Green")),
+    (id: "SpawnMobAdultSlimesGreenAngry", parents: ["MarkerBase"], name: Some("Slimes Spawner Green Angry")),
+    (id: "SpawnMobAdultSlimesYellow", parents: ["MarkerBase"], name: Some("Slimes Spawner Yellow")),
+    (id: "SpawnMobAdultSlimesYellowAngry", parents: ["MarkerBase"], name: Some("Slimes Spawner Yellow Angry")),
+]

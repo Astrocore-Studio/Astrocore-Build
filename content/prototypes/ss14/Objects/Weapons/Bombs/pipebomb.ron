@@ -1,0 +1,6 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Weapons/Bombs/pipebomb.yml. Создано scripts/gen_items.py.
+[
+    (id: "PipeBomb", parents: ["TimerGrenadeBase", "BaseMinorContraband"], name: Some("pipe bomb"), description: Some("An improvised explosive made from pipes and wire."), components: {"Sprite": (sprite: "Objects/Weapons/Bombs/pipebomb.rsi", state: "base"), "Item": (size: "Small"), "Clothing": (slots: ["belt"]), "Explosive": (explosionType: "Default", totalIntensity: 50.0, intensitySlope: 5.0, maxIntensity: 6.0), "Volatile": (start: 10.0, explode: -1.0), "TimerTrigger": (delay: 5.0), "Tag": (tags: ["HandGrenade"])}),
+    (id: "PipeBombCable", parents: ["BaseItem", "BaseMinorContraband"], name: Some("pipe bomb"), description: Some("An improvised explosive made from a pipe. This one has no cable.")),
+    (id: "PipeBombGunpowder", parents: ["BaseItem", "BaseMinorContraband"], name: Some("pipe bomb"), description: Some("An improvised explosive made from a pipe. This one has no gunpowder.")),
+]

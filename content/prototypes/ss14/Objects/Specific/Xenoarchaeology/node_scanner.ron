@@ -1,0 +1,4 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Specific/Xenoarchaeology/node_scanner.yml. Создано scripts/gen_items.py.
+[
+    (id: "NodeScanner", parents: ["BaseItem"], name: Some("node scanner"), description: Some("The archeologist's friend, able to identify the node of an artifact with only a single scan."), components: {"Sprite": (sprite: "Objects/Specific/Xenoarchaeology/node_scanner.rsi", state: "icon"), "Item": (size: "Small")}),
+]

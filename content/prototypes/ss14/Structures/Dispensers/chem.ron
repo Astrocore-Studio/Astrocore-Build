@@ -1,0 +1,4 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/Dispensers/chem.yml. Создано scripts/gen_items.py.
+[
+    (id: "ChemDispenserEmpty", parents: ["ReagentDispenserBase"], name: Some("chemical dispenser"), description: Some("An industrial grade chemical dispenser.")),
+]

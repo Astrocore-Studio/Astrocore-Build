@@ -1,0 +1,11 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Weapons/Guns/Projectiles/Energy/stun.yml. Создано scripts/gen_items.py.
+[
+    (id: "BulletDisablerPractice", parents: ["BaseBullet"], name: Some("disabler bolt practice"), categories: ["HideSpawnMenu"]),
+    (id: "BulletDisablerSmgBase", parents: ["BaseBullet"], name: Some("disabler smg bolt"), categories: ["HideSpawnMenu"]),
+    (id: "BulletDisablerSmgSlowing", parents: ["BulletDisablerSmgBase"], categories: ["HideSpawnMenu"]),
+    (id: "BulletDisablerSmgSpread", parents: ["BulletDisablerSmgStunning"], name: Some("disabling laser barrage"), categories: ["HideSpawnMenu"]),
+    (id: "BulletDisablerSmgStunning", parents: ["BulletDisablerSmgBase"], categories: ["HideSpawnMenu"]),
+    (id: "BulletTaser", parents: ["BaseBullet"], name: Some("taser bolt"), categories: ["HideSpawnMenu"]),
+    (id: "BulletTaserSuper", parents: ["BulletTaser"], name: Some("taser bolt"), description: Some("If you can see this, you've probably been stun-meta'd"), categories: ["HideSpawnMenu"]),
+    (id: "EnergyCrossbowBolt", parents: ["SolutionAmmo", "SolutionToolVeryTiny", "BaseBullet"], name: Some("energy bolt"), description: Some("This'll hurt."), categories: ["HideSpawnMenu"]),
+]

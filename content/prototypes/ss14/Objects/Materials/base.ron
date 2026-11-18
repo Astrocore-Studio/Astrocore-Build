@@ -1,0 +1,5 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Materials/base.yml. Создано scripts/gen_items.py.
+[
+    (id: "BaseSheet", parents: ["MaterialBase"], abstract: true),
+    (id: "MaterialBase", parents: ["SolutionCryo", "SolutionCompositeNormalStackable", "BaseItem", "BaseItemDestructible"], abstract: true, description: Some("A raw material.")),
+]

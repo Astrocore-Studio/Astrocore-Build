@@ -30548,6 +30548,12 @@
             meta: {"ss14_uid": "891"},
         ),
         (
+            prototype: "Ashtray",
+            x: -3.2747555,
+            z: 3.4928942,
+            meta: {"ss14_uid": "70"},
+        ),
+        (
             prototype: "BedsheetCaptain",
             x: 24.5,
             z: 3.5,
@@ -30570,6 +30576,18 @@
             x: 5.5,
             z: 4.5,
             meta: {"ss14_uid": "89"},
+        ),
+        (
+            prototype: "BluespaceBeaker",
+            x: 6.428499,
+            z: 0.45732337,
+            meta: {"ss14_uid": "93"},
+        ),
+        (
+            prototype: "BluespaceBeaker",
+            x: 6.33717,
+            z: 0.3077078,
+            meta: {"ss14_uid": "2777"},
         ),
         (
             prototype: "BoozeDispenser",
@@ -31246,6 +31264,12 @@
             meta: {"ss14_uid": "886"},
         ),
         (
+            prototype: "ClosetL3SecurityFilled",
+            x: 14.5,
+            z: 4.5,
+            meta: {"ss14_uid": "890"},
+        ),
+        (
             prototype: "ClosetRadiationSuitFilled",
             x: -16.5,
             z: 4.5,
@@ -31306,6 +31330,18 @@
             meta: {"ss14_uid": "902"},
         ),
         (
+            prototype: "ClothingEyesHudMedSec",
+            x: 18.531456,
+            z: 2.5905745,
+            meta: {"ss14_uid": "903"},
+        ),
+        (
+            prototype: "ClothingHeadsetMining",
+            x: 3.2793293,
+            z: -12.318199,
+            meta: {"ss14_uid": "905"},
+        ),
+        (
             prototype: "ClothingNeckCloakTrans",
             x: 2.5,
             z: -3.5,
@@ -31316,6 +31352,18 @@
             x: 6.5183535,
             z: 8.5258465,
             meta: {"ss14_uid": "908"},
+        ),
+        (
+            prototype: "ClothingNeckStethoscope",
+            x: 6.4035683,
+            z: 4.3785286,
+            meta: {"ss14_uid": "909"},
+        ),
+        (
+            prototype: "ClothingOuterHardsuitSalvage",
+            x: 3.6831326,
+            z: -12.547445,
+            meta: {"ss14_uid": "914"},
         ),
         (
             prototype: "ClothingShoesBootsMagAdv",
@@ -31437,6 +31485,41 @@
             z: -8.5,
             rot: 3,
             meta: {"ss14_uid": "937"},
+        ),
+        (
+            prototype: "ComputerCargoOrdersEngineering",
+            x: -16.5,
+            z: -1.5,
+            rot: 3,
+            meta: {"ss14_uid": "929"},
+        ),
+        (
+            prototype: "ComputerCargoOrdersMedical",
+            x: 12.5,
+            z: 3.5,
+            rot: 3,
+            meta: {"ss14_uid": "1837"},
+        ),
+        (
+            prototype: "ComputerCargoOrdersScience",
+            x: -6.5,
+            z: -8.5,
+            rot: 1,
+            meta: {"ss14_uid": "1749"},
+        ),
+        (
+            prototype: "ComputerCargoOrdersSecurity",
+            x: 18.5,
+            z: 0.5,
+            rot: 2,
+            meta: {"ss14_uid": "1058"},
+        ),
+        (
+            prototype: "ComputerCargoOrdersService",
+            x: -3.5,
+            z: 2.5,
+            rot: 3,
+            meta: {"ss14_uid": "954"},
         ),
         (
             prototype: "ComputerComms",
@@ -31603,6 +31686,12 @@
             meta: {"ss14_uid": "977"},
         ),
         (
+            prototype: "DefaultStationBeaconEvac",
+            x: -1.5,
+            z: 15.5,
+            meta: {"ss14_uid": "1867"},
+        ),
+        (
             prototype: "DefaultStationBeaconJanitorsCloset",
             x: -3.5,
             z: 7.5,
@@ -31764,6 +31853,27 @@
             z: -7.5,
             rot: 3,
             meta: {"ss14_uid": "2791"},
+        ),
+        (
+            prototype: "GasPipeManifold",
+            x: 7.5,
+            z: 13.5,
+            rot: 1,
+            meta: {"ss14_uid": "2196"},
+        ),
+        (
+            prototype: "GasPipeManifold",
+            x: 7.5,
+            z: 15.5,
+            rot: 1,
+            meta: {"ss14_uid": "2528"},
+        ),
+        (
+            prototype: "GasPipeManifold",
+            x: -1.5,
+            z: -9.5,
+            rot: 2,
+            meta: {"ss14_uid": "2783"},
         ),
         (
             prototype: "GasPort",
@@ -32432,6 +32542,12 @@
             meta: {"ss14_uid": "1656"},
         ),
         (
+            prototype: "MachineAnomalyVesselFlatpack",
+            x: -4.7787523,
+            z: -7.392292,
+            meta: {"ss14_uid": "852"},
+        ),
+        (
             prototype: "MachineCentrifuge",
             x: 8.5,
             z: 0.5,
@@ -32605,6 +32721,12 @@
             x: 10.2875805,
             z: 1.5445261,
             meta: {"ss14_uid": "1733"},
+        ),
+        (
+            prototype: "PowerCellHyper",
+            x: -16.358204,
+            z: 2.3107126,
+            meta: {"ss14_uid": "1735"},
         ),
         (
             prototype: "PowerCellRecharger",
@@ -32882,6 +33004,48 @@
             meta: {"ss14_uid": "2814"},
         ),
         (
+            prototype: "PoweredlightLED",
+            x: -25.5,
+            z: -3.5,
+            rot: 3,
+            meta: {"ss14_uid": "1771"},
+        ),
+        (
+            prototype: "PoweredlightLED",
+            x: -25.5,
+            z: 2.5,
+            rot: 3,
+            meta: {"ss14_uid": "1772"},
+        ),
+        (
+            prototype: "PoweredlightLED",
+            x: 13.5,
+            z: 9.5,
+            rot: 1,
+            meta: {"ss14_uid": "1773"},
+        ),
+        (
+            prototype: "PoweredlightLED",
+            x: -18.5,
+            z: -8.5,
+            rot: 2,
+            meta: {"ss14_uid": "1774"},
+        ),
+        (
+            prototype: "PoweredlightSodium",
+            x: -20.5,
+            z: 1.5,
+            rot: 3,
+            meta: {"ss14_uid": "1775"},
+        ),
+        (
+            prototype: "PoweredlightSodium",
+            x: -20.5,
+            z: -2.5,
+            rot: 3,
+            meta: {"ss14_uid": "1776"},
+        ),
+        (
             prototype: "PoweredSmallLight",
             x: -12.5,
             z: -6.5,
@@ -33047,6 +33211,12 @@
             meta: {"ss14_uid": "2619"},
         ),
         (
+            prototype: "ResearchDisk10000",
+            x: 8.512744,
+            z: 6.532677,
+            meta: {"ss14_uid": "1828"},
+        ),
+        (
             prototype: "SheetGlass",
             x: -21.352695,
             z: 2.519871,
@@ -33149,6 +33319,12 @@
             meta: {"ss14_uid": "2510"},
         ),
         (
+            prototype: "SheetUranium",
+            x: -20.418686,
+            z: -3.6177824,
+            meta: {"ss14_uid": "948"},
+        ),
+        (
             prototype: "ShuttleConsoleCircuitboard",
             x: -16.5,
             z: 1.5,
@@ -33200,6 +33376,18 @@
             z: -1.5,
         ),
         (
+            prototype: "Stunbaton",
+            x: 16.40919,
+            z: 4.3566227,
+            meta: {"ss14_uid": "2010"},
+        ),
+        (
+            prototype: "Stunbaton",
+            x: 16.581064,
+            z: 4.4972477,
+            meta: {"ss14_uid": "2011"},
+        ),
+        (
             prototype: "SubstationBasic",
             x: -19.5,
             z: 3.5,
@@ -33248,6 +33436,12 @@
             meta: {"ss14_uid": "2020"},
         ),
         (
+            prototype: "SyringeInaprovaline",
+            x: 10.559818,
+            z: 4.3941536,
+            meta: {"ss14_uid": "2035"},
+        ),
+        (
             prototype: "ToolboxEmergencyFilled",
             x: -18.58636,
             z: -2.82432,
@@ -33264,6 +33458,12 @@
             x: 2.4632533,
             z: 7.742214,
             meta: {"ss14_uid": "2102"},
+        ),
+        (
+            prototype: "ToolboxGolden",
+            x: 10.423499,
+            z: -15.479261,
+            meta: {"ss14_uid": "2864"},
         ),
         (
             prototype: "TrashBag",
@@ -33451,6 +33651,18 @@
             x: 25.5,
             z: -2.5,
             meta: {"ss14_uid": "2419"},
+        ),
+        (
+            prototype: "WeaponPistolCHIMP",
+            x: -4.4414973,
+            z: -7.695301,
+            meta: {"ss14_uid": "102"},
+        ),
+        (
+            prototype: "WeaponPistolCHIMP",
+            x: -4.330495,
+            z: -7.357918,
+            meta: {"ss14_uid": "2420"},
         ),
         (
             prototype: "WelderIndustrialAdvanced",

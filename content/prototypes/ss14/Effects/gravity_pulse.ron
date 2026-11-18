@@ -1,0 +1,4 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Effects/gravity_pulse.yml. Создано scripts/gen_items.py.
+[
+    (id: "EffectGravityPulse", categories: ["HideSpawnMenu"]),
+]

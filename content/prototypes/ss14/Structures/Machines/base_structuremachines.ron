@@ -1,0 +1,10 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/Machines/base_structuremachines.yml. Создано scripts/gen_items.py.
+[
+    (id: "BaseConstructibleMachineDestructible", parents: ["StructureHealthMachine"], abstract: true),
+    (id: "BaseMachine", parents: ["BaseStructure"], abstract: true),
+    (id: "BaseMachineDestructible", parents: ["StructureHealthMachine"], abstract: true),
+    (id: "BaseMachinePowered", parents: ["BaseMachine"], abstract: true),
+    (id: "BaseSmallConstructibleMachineDestructible", parents: ["StructureHealthMachineWeak"], abstract: true),
+    (id: "ConstructibleMachine", abstract: true),
+    (id: "SmallConstructibleMachine", parents: ["ConstructibleMachine"], abstract: true),
+]

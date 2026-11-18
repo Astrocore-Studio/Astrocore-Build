@@ -1,0 +1,4 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Virtual/stripping_hidden.yml. Создано scripts/gen_items.py.
+[
+    (id: "StrippingHiddenEntity", name: Some("hidden entity"), description: Some("There is something in this pocket."), categories: ["HideSpawnMenu"]),
+]

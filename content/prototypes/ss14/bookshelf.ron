@@ -1,0 +1,4 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/bookshelf.yml. Создано scripts/gen_items.py.
+[
+    (id: "BookshelfFilled", parents: ["Bookshelf"]),
+]

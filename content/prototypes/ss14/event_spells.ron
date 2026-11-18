@@ -1,0 +1,6 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/event_spells.yml. Создано scripts/gen_items.py.
+[
+    (id: "ActionSummonGhosts", parents: ["BaseAction"], name: Some("Summon Ghosts"), description: Some("Makes all current ghosts permanently visible")),
+    (id: "ActionSummonGuns", parents: ["BaseAction"], name: Some("Summon Guns"), description: Some("AK47s for everyone! Places a random gun in front of everybody.")),
+    (id: "ActionSummonMagic", parents: ["BaseAction"], name: Some("Summon Magic"), description: Some("Places a random magical item in front of everybody. Nothing could go wrong!")),
+]

@@ -1,0 +1,6 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Mobs/NPCs/Spiders/midwife.yml. Создано scripts/gen_items.py.
+[
+    (id: "MobGiantSpiderMidwife", parents: ["MobSpiderBase"], name: Some("midwife spider"), description: Some("Skittering and watchful; it seems to tend to egg sacs and cocoons.")),
+    (id: "MobGiantSpiderMidwifeAngry", parents: ["MobSpiderAngryBase", "MobGiantSpiderMidwife"]),
+    (id: "SolutionVenomSpiderMidwife", parents: ["SolutionWeapon", "SolutionTiny"], categories: ["HideSpawnMenu"]),
+]

@@ -1,0 +1,10 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Fun/Instruments/instruments_percussion.yml. Создано scripts/gen_items.py.
+[
+    (id: "BasePercussionInstrument", parents: ["BaseHandheldInstrument"], abstract: true),
+    (id: "GlockenspielInstrument", parents: ["BasePercussionInstrument"], name: Some("glockenspiel"), components: {"Sprite": (sprite: "Objects/Fun/Instruments/glockenspiel.rsi", state: "icon"), "Item": (size: "Normal"), "Tag": (tags: ["PercussionInstrument"])}),
+    (id: "MicrophoneInstrument", parents: ["BaseHandheldInstrument"], name: Some("microphone"), description: Some("Perfect for singing your heart out."), components: {"Sprite": (sprite: "Objects/Fun/Instruments/microphone.rsi", state: "icon"), "Item": (size: "Small")}),
+    (id: "MusicBoxInstrument", parents: ["BasePercussionInstrument"], name: Some("music box"), description: Some("Playing this makes you feel safe from scary animatronics."), components: {"Sprite": (sprite: "Objects/Fun/Instruments/musicbox.rsi", state: "icon"), "Item": (size: "Small"), "Tag": (tags: ["PercussionInstrument"])}),
+    (id: "ReverseCymbalsInstrument", parents: ["BasePercussionInstrument"], name: Some("reverse cymbals"), description: Some("I think you have it the wrong way around?")),
+    (id: "WoodblockInstrument", parents: ["BasePercussionInstrument"], name: Some("woodblock"), description: Some("If you listen to this enough it'll start driving itself into your mind.")),
+    (id: "XylophoneInstrument", parents: ["BasePercussionInstrument"], name: Some("xylophone"), description: Some("Rainbow colored glockenspiel."), components: {"Sprite": (sprite: "Objects/Fun/Instruments/structureinstruments.rsi", state: "xylophone"), "Item": (size: "Normal"), "Tag": (tags: ["PercussionInstrument"])}),
+]

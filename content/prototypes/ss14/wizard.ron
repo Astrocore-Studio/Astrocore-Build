@@ -1,0 +1,6 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/wizard.yml. Создано scripts/gen_items.py.
+[
+    (id: "BaseWizardObjective", parents: ["BaseObjective"], abstract: true),
+    (id: "WizardDemonstrateObjective", parents: ["BaseWizardObjective", "BaseFreeObjective"], name: Some("Cause chaos"), description: Some("Teach those station welps to never disrespect a Wizard again!")),
+    (id: "WizardSurviveObjective", parents: ["BaseWizardObjective", "BaseSurviveObjective"], name: Some("Survive"), description: Some("The Space Wizards Federation want you to live!")),
+]

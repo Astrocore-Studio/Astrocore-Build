@@ -1,0 +1,4 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Decoration/lidsalami.yml. Создано scripts/gen_items.py.
+[
+    (id: "LidSalami", parents: ["BaseItem"], name: Some("salami lid"), description: Some("Ain't gon' fit, won't fit."), components: {"Sprite": (sprite: "Objects/Decoration/lidsalami.rsi", state: "icon"), "Item": (size: "Ginormous")}),
+]

@@ -1,0 +1,4 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Markers/Spawners/Random/shadowkudzu.yml. Создано scripts/gen_items.py.
+[
+    (id: "ShadowKudzuLootSpawner", parents: ["MarkerBase"], name: Some("shadow kudzu loot spawner")),
+]

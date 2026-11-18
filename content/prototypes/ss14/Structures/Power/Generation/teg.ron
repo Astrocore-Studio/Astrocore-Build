@@ -1,0 +1,5 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/Power/Generation/teg.yml. Создано scripts/gen_items.py.
+[
+    (id: "TegCenter", parents: ["BaseMachinePowered", "BaseMachineDestructible"], name: Some("thermo-electric generator"), description: Some("A high efficiency generator that uses energy transfer between hot and cold gases to produce electricity.")),
+    (id: "TegCirculator", parents: ["BaseMachine", "BaseMachineDestructible"], name: Some("circulator"), description: Some("Passes gas through the thermo-electric generator to exchange heat. Has an inlet and outlet port.")),
+]

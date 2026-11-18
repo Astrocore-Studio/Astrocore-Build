@@ -1,0 +1,4 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Tools/appraisal.yml. Создано scripts/gen_items.py.
+[
+    (id: "AppraisalTool", parents: ["BaseItem"], name: Some("appraisal tool"), description: Some("A beancounter's best friend, with a quantum connection to the galactic market and the ability to appraise even the toughest items. It will also tell you if a crate contains a completed bounty."), components: {"Sprite": (sprite: "Objects/Tools/appraisal-tool.rsi", state: "icon"), "Item": (size: "Small"), "Clothing": (slots: ["belt"]), "Tag": (tags: ["AppraisalTool", "Sidearm"])}),
+]

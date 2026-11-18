@@ -1,0 +1,7 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/Windows/reinforced.yml. Создано scripts/gen_items.py.
+[
+    (id: "ReinforcedWindow", parents: ["BaseDeltaPressureReinforcedGlass", "BaseWindowStructure", "StructureHealthBarrierStrong"], name: Some("reinforced window")),
+    (id: "ReinforcedWindowDiagonal", parents: ["ReinforcedWindow"]),
+    (id: "WindowReinforcedDirectional", parents: ["BaseDeltaPressureReinforcedGlassQuarter", "BaseWindowStructureDirectional", "StructureHealthBarrier"], name: Some("directional reinforced window")),
+    (id: "WindowReinforcedDirectionalCorner", parents: ["WindowReinforcedDirectional"]),
+]

@@ -1,0 +1,13 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Misc/monkeycube.yml. Создано scripts/gen_items.py.
+[
+    (id: "BaseWrappedCube", parents: ["BaseItem"], abstract: true),
+    (id: "KoboldCubeBox", parents: ["MonkeyCubeBox"], name: Some("kobold cube box"), description: Some("Condensed kobolds in a cube. Just add water!")),
+    (id: "KoboldCubeWrapped", parents: ["BaseWrappedCube"], name: Some("kobold cube"), description: Some("Unwrap this to get a kobold cube.")),
+    (id: "MonkeyCubeBox", parents: ["BoxCardboard"], name: Some("monkey cube box"), description: Some("Drymate® brand monkey cubes. Just add water!")),
+    (id: "MonkeyCubeWrapped", parents: ["BaseWrappedCube"], name: Some("monkey cube"), description: Some("Unwrap this to get a monkey cube."), components: {"Sprite": (sprite: "Objects/Misc/monkeycube.rsi", state: "wrapper"), "Item": (size: "Tiny"), "Tag": (tags: ["MonkeyCube", "WrappedCube"])}),
+    (id: "SlimeCubeBox", parents: ["MonkeyCubeBox"], name: Some("slime cube box"), description: Some("Condensed slimes in a cube. Just add water! Drymate® is not responsible for undue hostility from inappropriate fluid application.")),
+    (id: "SlimeCubeWrapped", parents: ["BaseWrappedCube"], name: Some("slime cube"), description: Some("Unwrap this to get a slime cube.")),
+    (id: "SyndicateSpongeBox", parents: ["MonkeyCubeBox"], name: Some("monkey cube box"), description: Some("Drymate® brand monkey cubes. Just add water!")),
+    (id: "SyndicateSpongeWrapped", parents: ["MonkeyCubeWrapped"], name: Some("monkey cube")),
+    (id: "VariantCubeBox", parents: ["MonkeyCubeBox"], name: Some("variant cube box"), description: Some("Both kobold cubes and monkey cubes. Just add water!"), components: {"Sprite": (sprite: "Objects/Misc/monkeycube.rsi", state: "box_variant"), "Item": (size: "Large"), "Storage": (grid: ["0,0,2,2"], maxItemSize: "Small"), "Tag": (tags: ["BoxCardboard"])}),
+]

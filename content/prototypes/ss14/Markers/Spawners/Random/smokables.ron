@@ -1,0 +1,5 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Markers/Spawners/Random/smokables.yml. Создано scripts/gen_items.py.
+[
+    (id: "RandomSmokables", parents: ["MarkerBase"], name: Some("random smokable spawner")),
+    (id: "RandomSoakedCigarette", parents: ["MarkerBase"], name: Some("random soaked cigarette spawner")),
+]

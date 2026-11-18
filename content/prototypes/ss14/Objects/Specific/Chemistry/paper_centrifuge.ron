@@ -1,0 +1,5 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Specific/Chemistry/paper_centrifuge.yml. Создано scripts/gen_items.py.
+[
+    (id: "BaseHandheldMixer", parents: ["SolutionTiny", "BaseItem"], abstract: true),
+    (id: "HandheldMixerPaperCentrifuge", parents: ["BaseHandheldMixer"], name: Some("paper centrifuge"), description: Some("A small portable makeshift centrifuge. Works by rotating the paper sheets when its cords are pulled."), components: {"Sprite": (sprite: "Objects/Specific/Chemistry/paper_centrifuge.rsi", state: "icon"), "Item": (size: "Small"), "Solution": (maxVol: 30.0, canReact: true, reagents: ()), "SolutionTransfer": (amount: 5.0, max: 1000.0), "Refillable": (), "Drainable": (), "MixableSolution": (), "ReactionMixer": (types: ["Centrifuge"], mixerType: "Handheld", time: 10.0)}),
+]

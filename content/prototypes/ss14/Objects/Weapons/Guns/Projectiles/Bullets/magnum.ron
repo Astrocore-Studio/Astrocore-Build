@@ -1,0 +1,5 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Weapons/Guns/Projectiles/Bullets/magnum.yml. Создано scripts/gen_items.py.
+[
+    (id: "BulletMagnumIncendiary", parents: ["BaseBulletIncendiary"], name: Some("bullet (.45 magnum incendiary)"), categories: ["HideSpawnMenu"]),
+    (id: "BulletMagnumUranium", parents: ["BaseBulletUranium"], name: Some("bullet (.45 magnum uranium)"), categories: ["HideSpawnMenu"]),
+]

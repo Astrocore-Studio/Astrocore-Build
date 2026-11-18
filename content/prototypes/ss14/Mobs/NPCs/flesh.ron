@@ -1,0 +1,14 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Mobs/NPCs/flesh.yml. Создано scripts/gen_items.py.
+[
+    (id: "BaseMobFlesh", parents: ["SimpleMobBase", "MobCombat", "BaseSlicingRefinableButchering", "BaseMobDestructible"], abstract: true, name: Some("aberrant flesh"), description: Some("A shambling mass of flesh, animated through anomalous energy.")),
+    (id: "BaseMobFleshSalvage", parents: ["SimpleSpaceMobBase", "MobCombat", "BaseSlicingRefinableButchering", "BaseMobDestructible"], abstract: true, name: Some("aberrant flesh"), description: Some("A shambling mass of flesh, animated through anomalous energy.")),
+    (id: "MobAbomination", parents: ["BaseMobFlesh"], name: Some("abomination"), description: Some("A rejected clone, in constant pain and seeking revenge.")),
+    (id: "MobFleshClamp", parents: ["BaseMobFlesh"]),
+    (id: "MobFleshClampSalvage", parents: ["BaseMobFleshSalvage"]),
+    (id: "MobFleshGolem", parents: ["BaseMobFlesh"]),
+    (id: "MobFleshGolemSalvage", parents: ["BaseMobFleshSalvage"]),
+    (id: "MobFleshJared", parents: ["BaseMobFlesh"]),
+    (id: "MobFleshJaredSalvage", parents: ["BaseMobFleshSalvage"]),
+    (id: "MobFleshLover", parents: ["BaseMobFlesh"]),
+    (id: "MobFleshLoverSalvage", parents: ["BaseMobFleshSalvage"]),
+]

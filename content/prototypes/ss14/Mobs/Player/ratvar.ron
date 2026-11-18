@@ -1,0 +1,6 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Mobs/Player/ratvar.yml. Создано scripts/gen_items.py.
+[
+    (id: "MobRatvar", parents: ["MobRatvarBase", "BaseMob"]),
+    (id: "MobRatvarBase", abstract: true, name: Some("Ratvar"), description: Some("Your mind aches as it fails to understand the complex mechanics of what is before you.")),
+    (id: "MobRatvarSpawn", parents: ["MobRatvarBase"]),
+]

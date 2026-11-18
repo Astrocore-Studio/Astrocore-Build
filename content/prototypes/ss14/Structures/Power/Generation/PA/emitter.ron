@@ -1,0 +1,9 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/Power/Generation/PA/emitter.yml. Создано scripts/gen_items.py.
+[
+    (id: "ParticleAcceleratorEmitterFore", parents: ["ParticleAcceleratorFinishedPart"], name: Some("PA fore containment emitter"), description: Some("This launchs the Alpha particles, might not want to stand near this end.")),
+    (id: "ParticleAcceleratorEmitterForeUnfinished", parents: ["ParticleAcceleratorUnfinishedBase"], name: Some("PA fore containment emitter"), description: Some("This launchs the Alpha particles, might not want to stand near this end. It looks unfinished.")),
+    (id: "ParticleAcceleratorEmitterPort", parents: ["ParticleAcceleratorFinishedPart"], name: Some("PA port containment emitter"), description: Some("This launchs the Alpha particles, might not want to stand near this end.")),
+    (id: "ParticleAcceleratorEmitterPortUnfinished", parents: ["ParticleAcceleratorUnfinishedBase"], name: Some("PA port containment emitter"), description: Some("This launchs the Alpha particles, might not want to stand near this end. It looks unfinished.")),
+    (id: "ParticleAcceleratorEmitterStarboard", parents: ["ParticleAcceleratorFinishedPart"], name: Some("PA starboard containment emitter"), description: Some("This launchs the Alpha particles, might not want to stand near this end.")),
+    (id: "ParticleAcceleratorEmitterStarboardUnfinished", parents: ["ParticleAcceleratorUnfinishedBase"], name: Some("PA starboard containment emitter"), description: Some("This launchs the Alpha particles, might not want to stand near this end. It looks unfinished.")),
+]

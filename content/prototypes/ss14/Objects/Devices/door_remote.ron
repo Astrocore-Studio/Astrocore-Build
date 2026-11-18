@@ -1,0 +1,16 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Devices/door_remote.yml. Создано scripts/gen_items.py.
+[
+    (id: "DoorRemoteAll", parents: ["DoorRemoteCanEletrifyDoors", "BaseCommandContraband"], name: Some("super door remote"), description: Some("A gadget which can open and bolt doors remotely. This one works even on wooden doors!")),
+    (id: "DoorRemoteArmory", parents: ["DoorRemoteDefault", "BaseSecurityCommandContraband"], name: Some("armory door remote"), components: {"Sprite": (sprite: "Objects/Devices/door_remote.rsi", state: "door_remotebase"), "Item": (size: "Small"), "DoorRemote": ()}),
+    (id: "DoorRemoteCanEletrifyDoors", parents: ["DoorRemoteDefault"], abstract: true),
+    (id: "DoorRemoteCargo", parents: ["DoorRemoteDefault", "BaseCommandContraband"], name: Some("cargo door remote"), components: {"Sprite": (sprite: "Objects/Devices/door_remote.rsi", state: "door_remotebase"), "Item": (size: "Small"), "DoorRemote": ()}),
+    (id: "DoorRemoteCommand", parents: ["DoorRemoteDefault", "BaseCommandContraband"], name: Some("command door remote")),
+    (id: "DoorRemoteCustom", parents: ["DoorRemoteDefault", "BaseCommandContraband"], name: Some("custom door remote"), description: Some("A gadget which can open and bolt doors remotely. This advanced variant does not have built-in access, instead inheriting the ID access of the user."), components: {"Sprite": (sprite: "Objects/Devices/door_remote.rsi", state: "door_remotebase"), "Item": (size: "Small"), "DoorRemote": ()}),
+    (id: "DoorRemoteDefault", parents: ["BaseItem"], abstract: true, name: Some("door remote"), description: Some("A gadget which can open and bolt doors remotely.")),
+    (id: "DoorRemoteEngineering", parents: ["DoorRemoteDefault", "BaseCommandContraband"], name: Some("engineering door remote"), components: {"Sprite": (sprite: "Objects/Devices/door_remote.rsi", state: "door_remotebase"), "Item": (size: "Small"), "DoorRemote": ()}),
+    (id: "DoorRemoteMedical", parents: ["DoorRemoteDefault", "BaseCommandContraband"], name: Some("medical door remote"), components: {"Sprite": (sprite: "Objects/Devices/door_remote.rsi", state: "door_remotebase"), "Item": (size: "Small"), "DoorRemote": ()}),
+    (id: "DoorRemoteResearch", parents: ["DoorRemoteDefault", "BaseCommandContraband"], name: Some("research door remote"), components: {"Sprite": (sprite: "Objects/Devices/door_remote.rsi", state: "door_remotebase"), "Item": (size: "Small"), "DoorRemote": ()}),
+    (id: "DoorRemoteSecurity", parents: ["DoorRemoteDefault", "BaseCommandContraband"], name: Some("security door remote"), components: {"Sprite": (sprite: "Objects/Devices/door_remote.rsi", state: "door_remotebase"), "Item": (size: "Small"), "DoorRemote": ()}),
+    (id: "DoorRemoteService", parents: ["DoorRemoteDefault", "BaseCommandContraband"], name: Some("service door remote"), components: {"Sprite": (sprite: "Objects/Devices/door_remote.rsi", state: "door_remotebase"), "Item": (size: "Small"), "DoorRemote": ()}),
+    (id: "DoorRemoteXenoborg", parents: ["DoorRemoteCanEletrifyDoors", "BaseXenoborgContraband"], name: Some("xenoborg door remote")),
+]

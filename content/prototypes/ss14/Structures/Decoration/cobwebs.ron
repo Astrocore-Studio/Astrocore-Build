@@ -1,0 +1,5 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/Decoration/cobwebs.yml. Создано scripts/gen_items.py.
+[
+    (id: "Cobweb1", name: Some("cobweb"), description: Some("Somebody should remove that.")),
+    (id: "Cobweb2", parents: ["Cobweb1"]),
+]

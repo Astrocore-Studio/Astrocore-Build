@@ -1,0 +1,5 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Clothing/Neck/base_clothingneck.yml. Создано scripts/gen_items.py.
+[
+    (id: "ClothingNeckBase", parents: ["SolutionFood", "SolutionToolSmall", "Clothing", "BaseSlicingRefinable"], abstract: true),
+    (id: "ClothingScarfBase", parents: ["TemperatureProtectionMinimal", "ClothingNeckBase"], abstract: true),
+]

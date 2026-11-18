@@ -1,7 +1,11 @@
 #!/usr/bin/env python3
-"""Предметы SS14 → content/prototypes/ss14_items.ron (создано scripts/gen_items.py; не править руками).
+"""Дерево прототипов сущностей SS14 → content/prototypes/ss14/**.ron (создано scripts/gen_items.py;
+не править руками). Все `type: entity` SS14 (включая абстрактные) переносятся с наследованием
+(`parents`, `abstract`), названием, описанием и категориями, файлы лежат по тем же папкам, что в
+`Resources/Prototypes/Entities`. Компоненты Build получают только предметы из замыкания ниже
+(остальные — узлы дерева без компонентов, пока на них нет механик).
 
-Берутся прототипы, нужные должностям (jobs.ron), торговым автоматам (vending.ron), спавнерам
+Предметы с компонентами берутся: прототипы, нужные должностям (jobs.ron), торговым автоматам (vending.ron), спавнерам
 (spawners.ron) и предметы карты (`Item`), плюс всё, что кладётся в них при создании
 (`StorageFill`). Из компонентов переносятся Sprite, Item, Clothing, Tool, Storage; прототип без
 спрайта пропускается. Использование: gen_items.py <корень SS14> <карта Maps/*.yml>."""
@@ -16,9 +20,16 @@ MAP = sys.argv[2]
 P = Protos(ROOT)
 HAVE = set()  # уже описанные вручную прототипы Build
 for f in os.listdir('content/prototypes'):
-    if f in ('ss14_items.ron', 'spawners.ron'):
+    if f == 'ss14_items.ron' or not f.endswith('.ron'):
         continue
-    HAVE |= set(re.findall(r'\(id: "(\w+)"', open('content/prototypes/' + f).read()))
+    HAVE |= set(re.findall(r'\(\s*id:\s*"(\w+)"', open('content/prototypes/' + f).read()))
+
+
+def has_rsi(rsi):
+    """Есть ли набор RSI хотя бы в одном каталоге текстур (`ASTRO_TEXTURES`, через `:`): форк и уже
+    скопированные в билд. Не задан — считаем, что есть."""
+    dirs = [d for d in os.environ.get('ASTRO_TEXTURES', '').split(os.pathsep) if d]
+    return not dirs or any(os.path.isdir(os.path.join(d, rsi)) for d in dirs)
 
 
 def q(s):
@@ -54,13 +65,9 @@ def seeds():
             variants.add('ClothingBackpackDuffel' + rest)
     # Берём вариант, только если у него есть спрайты в текстурах (`ASTRO_TEXTURES` — каталог
     # `Textures` форка): прототипы SS14 и текстуры форка бывают разных ревизий.
-    tex = os.environ.get('ASTRO_TEXTURES')
-
     def has_art(v):
-        if not tex:
-            return True
         rsi = (P.entity_components(v).get('Sprite') or {}).get('sprite')
-        return bool(rsi) and os.path.isdir(os.path.join(tex, rsi))
+        return bool(rsi) and has_rsi(rsi.removeprefix('/Textures/').lstrip('/'))
 
     out |= {v for v in variants if P.get('entity', v) and not P.is_abstract(v) and has_art(v)}
     t = open(MAP).read()
@@ -137,6 +144,9 @@ def convert(i):
     sp = sprite_of(comps)
     # Спрайты мобов (призраки и т. п.) не предметы Build.
     if not sp or sp[0].startswith('Mobs/'):
+        return None
+    # Спрайты форка и прототипы SS14 бывают разных ревизий: без набора RSI в текстурах предмета нет.
+    if not has_rsi(sp[0]):
         return None
     out = ['"Sprite": (sprite: %s, state: %s)' % (q(sp[0]), q(sp[1]))]
     item = comps.get('Item')
@@ -335,8 +345,7 @@ def convert(i):
                 q(c['id']), float(c.get('prob', 1)), q(c.get('orGroup', '')), int(c.get('amount', 1)), int(c.get('maxAmount', 1))))
     if ents:
         out.append('"StorageFill": (contents: [%s])' % ', '.join(ents))
-    name = P.entity_name(i) or i
-    return '    (id: %s, name: Some(%s), components: {%s}),' % (q(i), q(name), ', '.join(out))
+    return out
 
 
 def write_guns():
@@ -369,19 +378,48 @@ def write_guns():
     open('content/prototypes/gun_sounds.txt', 'w').write('\n'.join(sorted(GUN_SOUNDS)) + '\n')
 
 
+def own_list(v):
+    return [v] if isinstance(v, str) else [x for x in (v or []) if isinstance(x, str)]
+
+
+def node_line(i, comps):
+    """Строка прототипа: собственные поля SS14 (родители, абстрактность, название, описание, категории)."""
+    e = P.get('entity', i)
+    fields = ['id: %s' % q(i)]
+    parents = own_list(e.get('parent'))
+    if parents:
+        fields.append('parents: [%s]' % ', '.join(q(p) for p in parents))
+    if e.get('abstract'):
+        fields.append('abstract: true')
+    name = e.get('name') if isinstance(e.get('name'), str) else None
+    if comps is not None and not P.entity_name(i):
+        name = i
+    if name:
+        fields.append('name: Some(%s)' % q(name))
+    desc = e.get('description')
+    if isinstance(desc, str) and desc:
+        fields.append('description: Some(%s)' % q(desc))
+    cats = own_list(e.get('categories'))
+    if cats:
+        fields.append('categories: [%s]' % ', '.join(q(c) for c in cats))
+    if comps:
+        fields.append('components: {%s}' % ', '.join(comps))
+    return '    (%s),' % ', '.join(fields)
+
+
 def main():
     todo = list(seeds())
     seen = set()
-    lines = []
+    converted = {}
     while todo:
         i = todo.pop()
         if i in seen or i in HAVE:
             continue
         seen.add(i)
-        line = convert(i)
-        if not line:
+        comps = convert(i)
+        if not comps:
             continue
-        lines.append((i, line))
+        converted[i] = comps
         todo.extend(fill_ids(P.entity_components(i)))
         # Оружие тянет за собой магазин, патрон и снаряд (`ChamberMagazineAmmoProvider`, `CartridgeAmmo`).
         c = P.entity_components(i)
@@ -394,16 +432,33 @@ def main():
             todo.append(c['BallisticAmmoProvider']['proto'])
         if 'CartridgeAmmo' in c and c['CartridgeAmmo'].get('proto'):
             PROJECTILES.add(c['CartridgeAmmo']['proto'])
-    lines.sort()
-    head = [
-        '// Предметы SS14, нужные должностям, автоматам, спавнерам и карте. Создано scripts/gen_items.py.',
-        '[',
-    ]
-    open('content/prototypes/ss14_items.ron', 'w').write('\n'.join(head + [l for _, l in lines] + [']']) + '\n')
+    # Дерево: файл за файлом, по тем же путям, что в SS14.
+    base = os.path.join(ROOT, 'Resources', 'Prototypes', 'Entities') + os.sep
+    out_dir = 'content/prototypes/ss14'
+    if os.path.isdir(out_dir):
+        import shutil
+        shutil.rmtree(out_dir)
+    old = 'content/prototypes/ss14_items.ron'
+    if os.path.exists(old):
+        os.remove(old)
+    files = {}
+    for i in sorted(P.by_type['entity']):
+        if i in HAVE:
+            continue
+        src = P.src[('entity', i)]
+        rel = os.path.relpath(src, base) if src.startswith(base) else os.path.basename(src)
+        rel = os.path.splitext(rel)[0] + '.ron'
+        files.setdefault(rel, []).append(node_line(i, converted.get(i)))
+    for rel, lines in sorted(files.items()):
+        path = os.path.join(out_dir, rel)
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        head = '// Прототипы сущностей SS14 из Resources/Prototypes/Entities/%s. Создано scripts/gen_items.py.' % rel.replace('.ron', '.yml')
+        open(path, 'w').write('\n'.join([head, '['] + lines + [']']) + '\n')
     write_guns()
-    rsis = sorted({re.search(r'sprite: "([^"]+)"', l).group(1) for _, l in lines})
+    rsis = sorted({re.search(r'sprite: "([^"]+)"', c).group(1) for comps in converted.values() for c in comps if c.startswith('"Sprite"')})
     open('/tmp/items_rsi.txt', 'w').write('\n'.join(rsis) + '\n')
-    print(len(lines), 'предметов,', len(rsis), 'наборов RSI')
+    total = sum(len(v) for v in files.values())
+    print(total, 'прототипов в', len(files), 'файлах;', len(converted), 'предметов с компонентами,', len(rsis), 'наборов RSI')
 
 
 main()

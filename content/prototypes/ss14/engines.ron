@@ -1,0 +1,8 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/engines.yml. Создано scripts/gen_items.py.
+[
+    (id: "CrateEngineeringAMEControl", parents: ["CrateEngineeringSecure"], name: Some("antimatter control unit crate"), description: Some("The control unit of an antimatter reactor.")),
+    (id: "CrateEngineeringParticleAccelerator", parents: ["CrateEngineeringSecure"], name: Some("PA board crate"), description: Some("Complex to setup, but rewarding as fuck. Contains boards for all particle accelerator components.")),
+    (id: "CrateEngineeringSingularityCollector", parents: ["CrateEngineeringSecure"], name: Some("radiation collector crate"), description: Some("A radiation collector, best used for singularity engines. Plasma is included.")),
+    (id: "CrateEngineeringSingularityEmitter", parents: ["CrateEngineeringSecure"], name: Some("emitter crate"), description: Some("An emitter, best used for singularity engines.")),
+    (id: "CrateEngineeringSolar", parents: ["CrateEngineering"], name: Some("solar assembly crate"), description: Some("A kit with solar flatpacks and glass to construct ten solar panels.")),
+]

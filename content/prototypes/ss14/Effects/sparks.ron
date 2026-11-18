@@ -1,0 +1,5 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Effects/sparks.yml. Создано scripts/gen_items.py.
+[
+    (id: "EffectSparks", categories: ["HideSpawnMenu"]),
+    (id: "EffectTeslaSparks", categories: ["HideSpawnMenu"]),
+]

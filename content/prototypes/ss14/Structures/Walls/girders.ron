@@ -1,0 +1,4 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/Walls/girders.yml. Создано scripts/gen_items.py.
+[
+    (id: "BaseGirder", parents: ["BaseStructureDynamic"], abstract: true),
+]

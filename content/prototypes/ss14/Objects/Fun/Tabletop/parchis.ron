@@ -1,0 +1,5 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Fun/Tabletop/parchis.yml. Создано scripts/gen_items.py.
+[
+    (id: "ParchisBoard", parents: ["BaseBoardEntity"], name: Some("parchís board"), description: Some("Cross and circle board game famous for destroying countless friendships."), components: {"Sprite": (sprite: "Objects/Fun/Tabletop/parchis.rsi", state: "board"), "Item": (size: "Small"), "Tag": (tags: ["TabletopBoard"])}),
+    (id: "ParchisBoardTabletop", parents: ["BaseBoardTabletop"], name: Some("parchís"), categories: ["HideSpawnMenu"]),
+]

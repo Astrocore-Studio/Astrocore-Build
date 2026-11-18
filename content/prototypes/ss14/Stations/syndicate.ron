@@ -1,0 +1,5 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Stations/syndicate.yml. Создано scripts/gen_items.py.
+[
+    (id: "BaseStationSyndicate", abstract: true),
+    (id: "StandardNukieOutpost", parents: ["BaseStation", "BaseStationSyndicate"], categories: ["HideSpawnMenu"]),
+]

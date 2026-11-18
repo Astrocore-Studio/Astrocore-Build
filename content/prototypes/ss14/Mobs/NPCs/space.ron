@@ -1,0 +1,20 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Mobs/NPCs/space.yml. Создано scripts/gen_items.py.
+[
+    (id: "MobBearSpace", parents: ["MobSpaceBasic", "BaseSlicingRefinableButchering", "BaseMobDestructible"], name: Some("space bear"), description: Some("It looks friendly. Why don't you give it a hug?")),
+    (id: "MobBearSpaceSalvage", parents: ["MobBearSpace"]),
+    (id: "MobCobraSpace", parents: ["MobSpaceBasic", "BaseSlicingRefinableButchering", "BaseMobDestructible"], name: Some("space cobra"), description: Some("Long fangs and a glowing hood, and the alluring look begs to come closer.")),
+    (id: "MobCobraSpaceSalvage", parents: ["MobCobraSpace"]),
+    (id: "MobKangarooSpace", parents: ["MobSpaceBasic", "StripableInventoryBase", "BaseSlicingRefinableButchering", "BaseMobDestructible"], name: Some("space kangaroo"), description: Some("It looks friendly. Why don't you give it a hug?")),
+    (id: "MobKangarooSpaceSalvage", parents: ["MobKangarooSpace"]),
+    (id: "MobSheepSpace", parents: ["SimpleSpaceMobBase", "FlyingMobBase", "MobSheepBase", "BaseMobDestructible"], name: Some("space sheep"), description: Some("A sheep... in space!")),
+    (id: "MobSnail", parents: ["SimpleSpaceMobBase", "BaseMobAnimal", "SolutionVermin", "MobNightVision"], name: Some("snail"), description: Some("Revolting unless you're french.")),
+    (id: "MobSnailInstantDeath", parents: ["MobSnail"]),
+    (id: "MobSnailMoth", parents: ["BaseMobMothroach", "MobSnail"], name: Some("snoth")),
+    (id: "MobSnailSpeed", parents: ["MobSnail"]),
+    (id: "MobSpaceBasic", parents: ["SimpleSpaceMobBase", "MobNightVision"], abstract: true, name: Some("basic"), description: Some("It looks friendly. Why don't you give it a hug?")),
+    (id: "MobSpiderSpace", parents: ["MobSpaceBasic", "BaseSlicingRefinableButchering", "BaseMobDestructible"], name: Some("space spider"), description: Some("It's so glowing, it looks dangerous.")),
+    (id: "MobSpiderSpaceSalvage", parents: ["MobSpiderSpace"]),
+    (id: "SolutionVenomCobraSpace", parents: ["SolutionWeapon", "SolutionTiny"], categories: ["HideSpawnMenu"]),
+    (id: "SolutionVenomSpiderSpace", parents: ["SolutionWeapon", "SolutionTiny"], categories: ["HideSpawnMenu"]),
+    (id: "SolutionWoolSpaceSheep", parents: ["SolutionWool"], categories: ["HideSpawnMenu"]),
+]

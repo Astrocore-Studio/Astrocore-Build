@@ -1,0 +1,11 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/dressers.yml. Создано scripts/gen_items.py.
+[
+    (id: "DresserCaptainFilled", parents: ["Dresser"]),
+    (id: "DresserChiefEngineerFilled", parents: ["Dresser"]),
+    (id: "DresserChiefMedicalOfficerFilled", parents: ["Dresser"]),
+    (id: "DresserHeadOfPersonnelFilled", parents: ["Dresser"]),
+    (id: "DresserHeadOfSecurityFilled", parents: ["Dresser"]),
+    (id: "DresserQuarterMasterFilled", parents: ["Dresser"]),
+    (id: "DresserResearchDirectorFilled", parents: ["Dresser"]),
+    (id: "DresserWardenFilled", parents: ["Dresser"]),
+]

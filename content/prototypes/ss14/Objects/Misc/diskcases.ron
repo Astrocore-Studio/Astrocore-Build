@@ -1,0 +1,4 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Misc/diskcases.yml. Создано scripts/gen_items.py.
+[
+    (id: "DiskCase", parents: ["BaseStorageItem"], name: Some("diskcase"), description: Some("Case for storing a coordinates disk.")),
+]

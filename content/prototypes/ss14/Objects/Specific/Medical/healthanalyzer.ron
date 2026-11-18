@@ -1,0 +1,4 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Specific/Medical/healthanalyzer.yml. Создано scripts/gen_items.py.
+[
+    (id: "HandheldHealthAnalyzer", parents: ["BaseItem"], name: Some("health analyzer"), description: Some("A hand-held body scanner capable of distinguishing vital signs of the subject."), components: {"Sprite": (sprite: "Objects/Specific/Medical/healthanalyzer.rsi", state: "icon"), "Item": (size: "Small"), "HealthAnalyzer": (), "Tag": (tags: ["DiscreteHealthAnalyzer"])}),
+]

@@ -1,0 +1,6 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/Furniture/memorial.yml. Создано scripts/gen_items.py.
+[
+    (id: "Memorial", parents: ["BaseStructure"], name: Some("memorial"), description: Some("Commemorating something.")),
+    (id: "Monolith", parents: ["Memorial"], name: Some("monolith"), description: Some("Holy shit modern art.\nI bet it's worth a fortune.\n")),
+    (id: "SS13Memorial", parents: ["BaseStructure"], name: Some("tomb of the unknown employee"), description: Some("Here rests an unknown employee\nUnknown by name or rank\nWhose acts will not be forgotten\n")),
+]

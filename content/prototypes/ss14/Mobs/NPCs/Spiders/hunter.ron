@@ -1,0 +1,6 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Mobs/NPCs/Spiders/hunter.yml. Создано scripts/gen_items.py.
+[
+    (id: "MobGiantSpiderHunter", parents: ["MobSpiderBase"], name: Some("hunter spider"), description: Some("An aggressive, fast-moving variety of giant spider.")),
+    (id: "MobGiantSpiderHunterAngry", parents: ["MobSpiderAngryBase", "MobGiantSpiderHunter"]),
+    (id: "SolutionVenomSpiderHunter", parents: ["SolutionWeapon", "SolutionTiny"], categories: ["HideSpawnMenu"]),
+]

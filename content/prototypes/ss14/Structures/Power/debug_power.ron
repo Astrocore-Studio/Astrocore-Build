@@ -1,0 +1,12 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/Power/debug_power.yml. Создано scripts/gen_items.py.
+[
+    (id: "DebugAPCRecharging", parents: ["BaseAPC"]),
+    (id: "DebugBatteryDischarger", name: Some("battery discharger")),
+    (id: "DebugBatteryStorage", name: Some("battery storage")),
+    (id: "DebugConsumer", name: Some("consumer")),
+    (id: "DebugGenerator", parents: ["BaseGenerator"]),
+    (id: "DebugPowerReceiver", name: Some("power receiver")),
+    (id: "DebugSMESRecharging", parents: ["BaseSMES"]),
+    (id: "DebugSubstationRecharging", parents: ["BaseSubstation"]),
+    (id: "DebugSubstationWallRecharging", parents: ["BaseSubstationWall"]),
+]

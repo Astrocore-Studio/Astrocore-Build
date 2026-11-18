@@ -1,0 +1,5 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Weapons/Guns/flare_gun.yml. Создано scripts/gen_items.py.
+[
+    (id: "WeaponFlareGun", parents: ["BaseItem"], name: Some("flare gun"), description: Some("A compact, single-shot pistol that fires shotgun shells. Comes with a safety feature that prevents the user from fitting lethal shells inside."), components: {"Sprite": (sprite: "Objects/Weapons/Guns/Shotguns/flaregun.rsi", state: "base"), "Item": (size: "Small"), "Clothing": (slots: ["belt", "suitstorage"]), "Gun": (fireRate: 8.0, minAngle: 2.0, maxAngle: 10.0, sound: "Weapons/Guns/Gunshots/flaregun.ogg", magazine: "", cartridge: "", capacity: 0, auto: false, shot: "", fireCost: 0.0, charge: 0.0, angleIncrease: 0.5, angleDecay: 4.0, projectileSpeed: 40.0)}),
+    (id: "WeaponFlareGunSecurity", parents: ["WeaponFlareGun", "BaseSecurityContraband"], name: Some("security shell gun"), description: Some("A modified flare gun originally designed to be used by security to launch non-lethal shotgun shells, however it can also fire lethal shells without risk.")),
+]

@@ -1,0 +1,9 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Decoration/jackolantern.yml. Создано scripts/gen_items.py.
+[
+    (id: "CarvedPumpkin", parents: ["BaseItem"], name: Some("carved pumpkin"), description: Some("A traditional spooky decoration.")),
+    (id: "CarvedPumpkinLarge", parents: ["CarvedPumpkin"]),
+    (id: "CarvedPumpkinSmall", parents: ["CarvedPumpkin"]),
+    (id: "PumpkinLantern", parents: ["CarvedPumpkin"], name: Some("jack o' lantern"), description: Some("A carved pumpkin, emitting an eerie glow.")),
+    (id: "PumpkinLanternLarge", parents: ["PumpkinLantern"]),
+    (id: "PumpkinLanternSmall", parents: ["PumpkinLantern"]),
+]

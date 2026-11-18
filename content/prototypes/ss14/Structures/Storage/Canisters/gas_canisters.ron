@@ -1,0 +1,21 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/Storage/Canisters/gas_canisters.yml. Создано scripts/gen_items.py.
+[
+    (id: "AirCanisterBroken", parents: ["GasCanisterBrokenBase"], categories: ["HideSpawnMenu"]),
+    (id: "AmmoniaCanisterBroken", parents: ["GasCanisterBrokenBase"], categories: ["HideSpawnMenu"]),
+    (id: "CarbonDioxideCanisterBroken", parents: ["GasCanisterBrokenBase"], categories: ["HideSpawnMenu"]),
+    (id: "FrezonCanisterBroken", parents: ["GasCanisterBrokenBase"], categories: ["HideSpawnMenu"]),
+    (id: "GasCanister", parents: ["BaseStructureDynamic", "BasePaperLabelableVisualized", "StructureHealthContainerStrong"], abstract: true, name: Some("gas canister"), description: Some("A canister that can contain any type of gas. It can be attached to connector ports using a wrench.")),
+    (id: "GasCanisterBrokenBase", parents: ["BaseStructureDynamic", "StructureHealthContainerWeak"], name: Some("broken gas canister"), description: Some("A broken gas canister. Not useless yet, as it can be salvaged for high quality materials.")),
+    (id: "LiquidCarbonDioxideCanister", parents: ["CarbonDioxideCanister"], name: Some("liquid carbon dioxide canister"), description: Some("A canister that can contain any type of gas. This one is supposed to contain liquid carbon dioxide. It can be attached to connector ports using a wrench.")),
+    (id: "LiquidNitrogenCanister", parents: ["NitrogenCanister"], name: Some("liquid nitrogen canister"), description: Some("A canister that can contain any type of gas. This one is supposed to contain liquid nitrogen. It can be attached to connector ports using a wrench.")),
+    (id: "LiquidOxygenCanister", parents: ["OxygenCanister"], name: Some("liquid oxygen canister"), description: Some("A canister that can contain any type of gas. This one is supposed to contain liquid oxygen. It can be attached to connector ports using a wrench.")),
+    (id: "MaxCapCanister", parents: ["GasCanister"], name: Some("max cap in a can"), categories: ["Debug"]),
+    (id: "NitrogenCanisterBroken", parents: ["GasCanisterBrokenBase"], categories: ["HideSpawnMenu"]),
+    (id: "NitrousOxideCanisterBroken", parents: ["GasCanisterBrokenBase"], categories: ["HideSpawnMenu"]),
+    (id: "OxygenCanisterBroken", parents: ["GasCanisterBrokenBase"], categories: ["HideSpawnMenu"]),
+    (id: "PlasmaCanisterBroken", parents: ["GasCanisterBrokenBase"], categories: ["HideSpawnMenu"]),
+    (id: "StorageCanister", parents: ["GasCanister"], name: Some("storage canister")),
+    (id: "StorageCanisterBroken", parents: ["GasCanisterBrokenBase"], categories: ["HideSpawnMenu"]),
+    (id: "TritiumCanisterBroken", parents: ["GasCanisterBrokenBase"], categories: ["HideSpawnMenu"]),
+    (id: "WaterVaporCanisterBroken", parents: ["GasCanisterBrokenBase"], name: Some("broken water vapor canister"), categories: ["HideSpawnMenu"]),
+]

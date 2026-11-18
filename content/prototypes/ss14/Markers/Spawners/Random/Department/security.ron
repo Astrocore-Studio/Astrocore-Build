@@ -1,0 +1,8 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Markers/Spawners/Random/Department/security.yml. Создано scripts/gen_items.py.
+[
+    (id: "LootSpawnerArmory", parents: ["MarkerBase"], name: Some("armory loot spawner")),
+    (id: "LootSpawnerArmoryArmorOnly", parents: ["MarkerBase"], name: Some("armory loot spawner")),
+    (id: "LootSpawnerArmoryGunsOnly", parents: ["MarkerBase"], name: Some("armory loot spawner")),
+    (id: "LootSpawnerSecurity", parents: ["MarkerBase"], name: Some("security loot spawner")),
+    (id: "LootSpawnerSecurityBasic", parents: ["MarkerBase"], name: Some("security loot spawner")),
+]

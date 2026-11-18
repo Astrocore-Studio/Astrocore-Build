@@ -1,0 +1,16 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/Decoration/banners.yml. Создано scripts/gen_items.py.
+[
+    (id: "BannerBase", parents: ["BaseStructureDynamic", "StructureHealthFurnitureStrong"], abstract: true, name: Some("base banner"), description: Some("It's the concept of a banner, you shouldn't be seeing this.")),
+    (id: "BannerBlue", parents: ["BannerBase"], name: Some("blue banner"), description: Some("A banner displaying the color blue. Dabudidabudai.")),
+    (id: "BannerCargo", parents: ["BannerBase"], name: Some("cargo banner"), description: Some("A banner displaying the colors of the cargo department. Not. Cargonia.")),
+    (id: "BannerEngineering", parents: ["BannerBase"], name: Some("engineering banner"), description: Some("A banner displaying the colors of the engineering department. Scrungularty.")),
+    (id: "BannerGreen", parents: ["BannerBase"], name: Some("green banner"), description: Some("A banner displaying the color green. Grass, leaves, guacamole.")),
+    (id: "BannerMedical", parents: ["BannerBase"], name: Some("medical banner"), description: Some("A banner displaying the colors of the medical department. How sterile.")),
+    (id: "BannerNanotrasen", parents: ["BannerBase"], name: Some("nanotrasen banner"), description: Some("A banner displaying the Nanotrasen logo. It looks rather cheap.")),
+    (id: "BannerRed", parents: ["BannerBase"], name: Some("red banner"), description: Some("A banner displaying the color red. The edgy one.")),
+    (id: "BannerRevolution", parents: ["BannerBase"], name: Some("revolution banner"), description: Some("A banner displaying revolution. Viva!")),
+    (id: "BannerScience", parents: ["BannerBase"], name: Some("science banner"), description: Some("A banner displaying the colors of the science department. Where science has no bounds, and regulations are rarely followed.")),
+    (id: "BannerSecurity", parents: ["BannerBase"], name: Some("security banner"), description: Some("A banner displaying the colors of the security department. You're surprised it's not vandalised.")),
+    (id: "BannerSyndicate", parents: ["BannerBase"], name: Some("syndicate banner"), description: Some("A banner from which, according to the syndicate, you should feel hatred for NT.")),
+    (id: "BannerYellow", parents: ["BannerBase"], name: Some("yellow banner"), description: Some("A banner displaying the color yellow. Reminds you of ducks and lemon stands.")),
+]

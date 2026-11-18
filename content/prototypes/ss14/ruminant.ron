@@ -1,0 +1,6 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/ruminant.yml. Создано scripts/gen_items.py.
+[
+    (id: "BaseMobRuminant", abstract: true),
+    (id: "OrganRuminantStomach", parents: ["OrganBaseStomach", "OrganAnimalInternal", "OrganAnimalMetabolizer"]),
+    (id: "SolutionStomachRuminant", parents: ["SolutionStomach"], categories: ["HideSpawnMenu"]),
+]

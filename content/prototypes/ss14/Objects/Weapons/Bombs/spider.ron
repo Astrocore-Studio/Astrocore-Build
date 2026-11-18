@@ -1,0 +1,4 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Weapons/Bombs/spider.yml. Создано scripts/gen_items.py.
+[
+    (id: "SpiderCharge", parents: ["BaseItem", "BaseHighlyIllegalContraband"], name: Some("spider clan charge"), description: Some("A modified C-4 charge supplied to you by the Spider Clan. Its explosive power has been juiced up, but only works in one specific area."), components: {"Sprite": (sprite: "Objects/Weapons/Bombs/spidercharge.rsi", state: "icon"), "Item": (size: "Small"), "Explosive": (explosionType: "DemolitionCharge", totalIntensity: 360.0, intensitySlope: 10.0, maxIntensity: 120.0)}),
+]

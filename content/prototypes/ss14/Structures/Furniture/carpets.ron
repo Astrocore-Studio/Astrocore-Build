@@ -1,0 +1,16 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/Furniture/carpets.yml. Создано scripts/gen_items.py.
+[
+    (id: "Carpet", parents: ["CarpetBase"]),
+    (id: "CarpetBase", parents: ["BaseStructure", "StructureHealthFurnitureWeak"], abstract: true, name: Some("carpet"), description: Some("Fancy walking surface.")),
+    (id: "CarpetBlack", parents: ["CarpetBase"]),
+    (id: "CarpetBlue", parents: ["CarpetBase"]),
+    (id: "CarpetCard", parents: ["BaseStructure", "StructureHealthFurnitureWeak"], name: Some("cardboard \"carpet\""), description: Some("Even lino is better.")),
+    (id: "CarpetChapel", parents: ["BaseStructure"], name: Some("chapel's carpet")),
+    (id: "CarpetCyan", parents: ["CarpetBase"]),
+    (id: "CarpetGreen", parents: ["CarpetBase"]),
+    (id: "CarpetOrange", parents: ["CarpetBase"]),
+    (id: "CarpetPink", parents: ["CarpetBase"]),
+    (id: "CarpetPurple", parents: ["CarpetBase"]),
+    (id: "CarpetSBlue", parents: ["CarpetBase"]),
+    (id: "CarpetWhite", parents: ["CarpetBase"]),
+]

@@ -1,0 +1,8 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Specific/Xenoarchaeology/item_xenoartifacts.yml. Создано scripts/gen_items.py.
+[
+    (id: "ArtifactFragment", parents: ["BaseItem"], name: Some("artifact fragment"), description: Some("A broken piece of an artifact. You could probably repair it if you had more.")),
+    (id: "ArtifactFragment1", parents: ["ArtifactFragment"]),
+    (id: "BaseXenoArtifactItem", parents: ["BaseItem", "BaseXenoArtifact"], abstract: true, name: Some("artifact"), description: Some("A strange artifact from time unknown. Looks like a good time. Fits in hand perfectly.")),
+    (id: "ComplexXenoArtifactItem", parents: ["BaseXenoArtifactItem"], components: {"Sprite": (sprite: "Objects/Specific/Xenoarchaeology/item_artifacts.rsi", state: "ano01"), "Item": (size: "Normal"), "XenoArtifact": ()}),
+    (id: "DummyArtifactItem", parents: ["BaseXenoArtifactItem"], name: Some("artifact")),
+]

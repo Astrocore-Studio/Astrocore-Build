@@ -1,0 +1,7 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/mech.yml. Создано scripts/gen_items.py.
+[
+    (id: "ActionMechCycleEquipment", parents: ["BaseMechAction"], name: Some("Cycle"), description: Some("Cycles currently selected equipment")),
+    (id: "ActionMechEject", parents: ["BaseMechAction"], name: Some("Eject"), description: Some("Ejects the pilot from the mech")),
+    (id: "ActionMechOpenUI", parents: ["BaseMechAction"], name: Some("Control Panel"), description: Some("Opens the control panel for the mech")),
+    (id: "BaseMechAction", parents: ["BaseAction"], abstract: true),
+]

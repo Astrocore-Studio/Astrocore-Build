@@ -1,0 +1,5 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Mobs/NPCs/Insects/bee.yml. Создано scripts/gen_items.py.
+[
+    (id: "MobAngryBee", parents: ["MobBee", "MobCombat"], name: Some("bee"), description: Some("How nice a bee. Oh no, it looks angry and wants my pizza.")),
+    (id: "MobBee", parents: ["SolutionFood", "SolutionTiny", "SimpleMobBase", "FlyingMobBase", "BaseSlicingRefinableButchering"], name: Some("bee"), description: Some("Nice to have, but you can't build a civilization on a foundation of honey alone.")),
+]

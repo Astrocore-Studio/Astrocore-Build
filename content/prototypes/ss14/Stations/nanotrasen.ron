@@ -1,0 +1,7 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Stations/nanotrasen.yml. Создано scripts/gen_items.py.
+[
+    (id: "BaseStationNanotrasen", abstract: true),
+    (id: "NanotrasenCentralCommand", parents: ["BaseStation", "BaseStationAlertLevels", "BaseStationNanotrasen"], categories: ["HideSpawnMenu"]),
+    (id: "StandardNanotrasenStation", parents: ["BaseStation", "BaseStationNews", "BaseStationCargo", "BaseStationJobsSpawning", "BaseStationRecords", "BaseStationArrivals", "BaseStationShuttles", "BaseStationCentcomm", "BaseStationEvacuation", "BaseStationAlertLevels", "BaseStationMagnet", "BaseStationExpeditions", "BaseStationSalvageJobs", "BaseStationSiliconLawCrewsimov", "BaseStationAllEventsEligible", "BaseStationNanotrasen", "BaseStationDeliveries"], categories: ["HideSpawnMenu"]),
+    (id: "StandardStationArena", parents: ["BaseStation", "BaseStationJobsSpawning", "BaseStationRecords", "BaseStationNanotrasen"], categories: ["HideSpawnMenu"]),
+]

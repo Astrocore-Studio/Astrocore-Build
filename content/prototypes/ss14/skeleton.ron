@@ -1,0 +1,17 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/skeleton.yml. Создано scripts/gen_items.py.
+[
+    (id: "AppearanceSkeletonPerson", parents: ["BaseSpeciesAppearance"], name: Some("skeletonperson appearance"), categories: ["HideSpawnMenu"]),
+    (id: "MobSkeletonPerson", parents: ["AppearanceSkeletonPerson", "BaseSpeciesMob", "MobFlammable"], name: Some("Urist McBones")),
+    (id: "OrganSkeletonPerson", parents: ["OrganBaseOrganic"], abstract: true),
+    (id: "OrganSkeletonPersonArmLeft", parents: ["OrganBaseArmLeft", "OrganSkeletonPersonExternal"]),
+    (id: "OrganSkeletonPersonArmRight", parents: ["OrganBaseArmRight", "OrganSkeletonPersonExternal"]),
+    (id: "OrganSkeletonPersonExternal", parents: ["OrganSkeletonPerson"], abstract: true),
+    (id: "OrganSkeletonPersonFootLeft", parents: ["OrganBaseFootLeft", "OrganSkeletonPersonExternal"]),
+    (id: "OrganSkeletonPersonFootRight", parents: ["OrganBaseFootRight", "OrganSkeletonPersonExternal"]),
+    (id: "OrganSkeletonPersonHandLeft", parents: ["OrganBaseHandLeft", "OrganSkeletonPersonExternal"]),
+    (id: "OrganSkeletonPersonHandRight", parents: ["OrganBaseHandRight", "OrganSkeletonPersonExternal"]),
+    (id: "OrganSkeletonPersonHead", parents: ["OrganBaseHead", "OrganSkeletonPersonExternal"]),
+    (id: "OrganSkeletonPersonLegLeft", parents: ["OrganBaseLegLeft", "OrganSkeletonPersonExternal"]),
+    (id: "OrganSkeletonPersonLegRight", parents: ["OrganBaseLegRight", "OrganSkeletonPersonExternal"]),
+    (id: "OrganSkeletonPersonTorso", parents: ["OrganBaseTorsoSexed", "OrganBaseTorso", "OrganSkeletonPersonExternal"]),
+]

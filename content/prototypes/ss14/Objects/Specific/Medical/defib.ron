@@ -1,0 +1,9 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Specific/Medical/defib.yml. Создано scripts/gen_items.py.
+[
+    (id: "BaseDefibrillator", parents: ["BaseItem"], abstract: true, name: Some("defibrillator"), description: Some("CLEAR! Zzzzat!")),
+    (id: "Defibrillator", parents: ["BaseDefibrillator", "PowerCellSlotMediumItem"], components: {"Sprite": (sprite: "Objects/Specific/Medical/defib.rsi", state: "icon"), "Item": (size: "Large"), "Defibrillator": (zapHeal: {"Asphyxiation": -40.0}, zapDamage: 5.0, writhe: 3.0, zapDelay: 5.0, doAfter: 3.0, useCharge: 100.0, drawRate: 1.0, charge: 720.0, powered: true, toggled: true)}),
+    (id: "DefibrillatorCompact", parents: ["BaseDefibrillator", "PowerCellSlotMediumItem"], name: Some("compact defibrillator"), description: Some("Now in fun size!"), components: {"Sprite": (sprite: "Objects/Specific/Medical/defibsmall.rsi", state: "icon"), "Item": (size: "Normal"), "Defibrillator": (zapHeal: {"Asphyxiation": -40.0}, zapDamage: 5.0, writhe: 3.0, zapDelay: 5.0, doAfter: 6.0, useCharge: 100.0, drawRate: 1.0, charge: 720.0, powered: true, toggled: true)}),
+    (id: "DefibrillatorEmpty", parents: ["Defibrillator"]),
+    (id: "DefibrillatorOneHandedUnpowered", parents: ["BaseDefibrillator"]),
+    (id: "DefibrillatorSyndicate", parents: ["DefibrillatorCompact", "BaseSyndicateContraband"], name: Some("interdyne defibrillator"), description: Some("Doubles as a self-defense weapon against war-crime inclined tiders.")),
+]

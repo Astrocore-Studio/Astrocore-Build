@@ -1,0 +1,4 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Effects/bluespace_flash.yml. Создано scripts/gen_items.py.
+[
+    (id: "EffectFlashBluespace", categories: ["HideSpawnMenu"]),
+]

@@ -1,0 +1,7 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Devices/Circuitboards/Machine/turrets.yml. Создано scripts/gen_items.py.
+[
+    (id: "WeaponEnergyTurretAIMachineCircuitboard", parents: ["WeaponEnergyTurretStationMachineCircuitboardBase"]),
+    (id: "WeaponEnergyTurretCommandMachineCircuitboard", parents: ["WeaponEnergyTurretStationMachineCircuitboardBase"]),
+    (id: "WeaponEnergyTurretSecurityMachineCircuitboard", parents: ["WeaponEnergyTurretStationMachineCircuitboardBase"]),
+    (id: "WeaponEnergyTurretStationMachineCircuitboardBase", parents: ["BaseMachineCircuitboard"], abstract: true, name: Some("sentry turret machine board"), description: Some("A machine printed circuit board for a sentry turret.")),
+]

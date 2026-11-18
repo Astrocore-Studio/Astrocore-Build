@@ -1,0 +1,4 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Misc/arabianlamp.yml. Создано scripts/gen_items.py.
+[
+    (id: "ArabianLamp", parents: ["SolutionToolWelderIndsutrial", "BaseItem"], name: Some("lamp"), description: Some("Why the heck won't this piece of junk open!?")),
+]

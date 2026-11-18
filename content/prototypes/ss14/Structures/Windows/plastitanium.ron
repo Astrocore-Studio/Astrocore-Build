@@ -1,0 +1,10 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/Windows/plastitanium.yml. Создано scripts/gen_items.py.
+[
+    (id: "PlastitaniumWindow", parents: ["PlastitaniumWindowSquareBase", "StructureHealthBarrierStrong"], name: Some("plastitanium window")),
+    (id: "PlastitaniumWindowBase", parents: ["BaseStructure"], abstract: true, name: Some("plastitanium window"), description: Some("Don't smudge up the glass down there.")),
+    (id: "PlastitaniumWindowDiagonal", parents: ["PlastitaniumWindowDiagonalBase", "StructureHealthBarrierStrong"], name: Some("plastitanium window")),
+    (id: "PlastitaniumWindowDiagonalBase", parents: ["PlastitaniumWindowBase"], abstract: true, name: Some("plastitanium window")),
+    (id: "PlastitaniumWindowDiagonalIndestructible", parents: ["PlastitaniumWindowDiagonalBase"], name: Some("plastitanium window")),
+    (id: "PlastitaniumWindowIndestructible", parents: ["PlastitaniumWindowSquareBase"], name: Some("plastitanium window")),
+    (id: "PlastitaniumWindowSquareBase", parents: ["PlastitaniumWindowBase"], abstract: true, name: Some("plastitanium window")),
+]

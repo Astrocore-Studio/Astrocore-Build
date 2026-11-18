@@ -1,0 +1,4 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Devices/Syndicate_Gadgets/chimp_upgrade_kit.yml. Создано scripts/gen_items.py.
+[
+    (id: "WeaponPistolCHIMPUpgradeKit", parents: ["BaseItem", "BaseSyndicateContraband"], name: Some("C.H.I.M.P. handcannon upgrade chip"), description: Some("An experimental upgrade kit for the C.H.I.M.P.")),
+]

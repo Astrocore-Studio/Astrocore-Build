@@ -1,0 +1,10 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Weapons/Guns/Turrets/turrets_base.yml. Создано scripts/gen_items.py.
+[
+    (id: "BaseTurretDestructible", parents: ["StructureHealthMachineStrong"], abstract: true),
+    (id: "BaseWeaponBallisticTurret", parents: ["BaseWeaponBallisticTurretIndestructible", "BaseTurretDestructible"], abstract: true),
+    (id: "BaseWeaponBallisticTurretIndestructible", parents: ["BaseWeaponTurretIndestructible"], abstract: true, name: Some("ballistic turret"), description: Some("A ballistic machine gun auto-turret.")),
+    (id: "BaseWeaponEnergyTurret", parents: ["BaseWeaponEnergyTurretIndestructible", "BaseTurretDestructible"], abstract: true),
+    (id: "BaseWeaponEnergyTurretIndestructible", parents: ["BaseWeaponTurretIndestructible"], abstract: true, name: Some("laser turret"), description: Some("An auto-turret armed with a heavy laser. Its weapon will recharge while connected to an active power grid.")),
+    (id: "BaseWeaponTurret", parents: ["BaseWeaponTurretIndestructible", "BaseTurretDestructible"], abstract: true),
+    (id: "BaseWeaponTurretIndestructible", parents: ["BaseStructure"], abstract: true, name: Some("turret")),
+]

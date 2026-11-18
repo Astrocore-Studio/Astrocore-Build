@@ -1,0 +1,12 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Tools/cowtools.yml. Создано scripts/gen_items.py.
+[
+    (id: "CowToolbox", parents: ["ToolboxBase"], name: Some("cow toolbox"), description: Some("A weirdly shaped box, stocked with... tools?")),
+    (id: "CowToolboxFilled", parents: ["CowToolbox"], name: Some("cow toolbox")),
+    (id: "Cowbar", parents: ["BaseItem"], name: Some("cowbar"), description: Some("Cow your problems away. Moo!")),
+    (id: "Cowelder", parents: ["Welder"], name: Some("cowelding tool"), description: Some("Melts anything as long as it's fueled, don't forget your eye protection! Moo!")),
+    (id: "Haycutters", parents: ["BaseItem"], name: Some("haycutters"), description: Some("This kills the wire. Moo!")),
+    (id: "Milkalyzer", parents: ["BaseItem"], name: Some("milkalyzer"), description: Some("A hand-held environmental scanner which reports current gas levels. Moo!")),
+    (id: "Moodriver", parents: ["BaseItem"], name: Some("moodriver"), description: Some("Turn to use. Moo!")),
+    (id: "Mooltitool", parents: ["BaseItem"], name: Some("mooltitool"), description: Some("An crude tool to copy, store, and send electrical pulses and signals through wires and machines. Moo!")),
+    (id: "Wronch", parents: ["BaseItem"], name: Some("wronch"), description: Some("Wronch thing. Moo!")),
+]

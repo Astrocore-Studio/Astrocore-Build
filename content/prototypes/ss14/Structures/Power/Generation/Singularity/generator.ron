@@ -1,0 +1,4 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/Power/Generation/Singularity/generator.yml. Создано scripts/gen_items.py.
+[
+    (id: "SingularityGenerator", name: Some("gravitational singularity generator"), description: Some("An Odd Device which produces a Gravitational Singularity when set up. Comes with a temporary shutdown containment failsafe.")),
+]

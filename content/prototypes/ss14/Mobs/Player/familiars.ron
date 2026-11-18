@@ -1,0 +1,5 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Mobs/Player/familiars.yml. Создано scripts/gen_items.py.
+[
+    (id: "MobBatRemilia", parents: ["MobBat"], name: Some("Remilia"), description: Some("The chaplain's familiar. Likes fruit.")),
+    (id: "MobCorgiCerberus", parents: ["MobCorgiNarsi"], name: Some("Cerberus"), description: Some("This pupper is not wholesome.")),
+]

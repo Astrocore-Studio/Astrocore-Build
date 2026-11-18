@@ -1,0 +1,9 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Fun/Tabletop/checkers.yml. Создано scripts/gen_items.py.
+[
+    (id: "CheckerBoard", parents: ["BaseBoardEntity"], name: Some("checkerboard"), description: Some("A checkerboard. Pieces included!"), components: {"Sprite": (sprite: "Objects/Fun/Tabletop/chessboard.rsi", state: "chessboard"), "Item": (size: "Small"), "Tag": (tags: ["TabletopBoard"])}),
+    (id: "CheckerBoardTabletop", parents: ["BaseBoardTabletop"], name: Some("checkerboard"), categories: ["HideSpawnMenu"]),
+    (id: "CheckerCrownBlack", parents: ["BaseTabletopPiece"], name: Some("black checker crown")),
+    (id: "CheckerCrownWhite", parents: ["BaseTabletopPiece"], name: Some("white checker crown")),
+    (id: "CheckerPieceBlack", parents: ["BaseTabletopPiece"], name: Some("black checker piece")),
+    (id: "CheckerPieceWhite", parents: ["BaseTabletopPiece"], name: Some("white checker piece")),
+]

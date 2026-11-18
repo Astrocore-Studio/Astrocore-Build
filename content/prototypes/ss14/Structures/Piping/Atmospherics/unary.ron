@@ -1,0 +1,5 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/Piping/Atmospherics/unary.yml. Создано scripts/gen_items.py.
+[
+    (id: "BaseGasThermoMachine", parents: ["BaseMachinePowered", "ConstructibleMachine", "BaseConstructibleMachineDestructible"], abstract: true, name: Some("thermomachine")),
+    (id: "GasUnaryBase", parents: ["GasPipeBase"], abstract: true),
+]

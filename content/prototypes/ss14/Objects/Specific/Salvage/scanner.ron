@@ -1,0 +1,9 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Specific/Salvage/scanner.yml. Создано scripts/gen_items.py.
+[
+    (id: "AdvancedMineralScanner", parents: ["AdvancedMineralScannerUnpowered", "PowerCellSlotMediumItem"]),
+    (id: "AdvancedMineralScannerEmpty", parents: ["AdvancedMineralScanner"]),
+    (id: "AdvancedMineralScannerUnpowered", parents: ["MineralScannerUnpowered"], name: Some("advanced mineral scanner"), description: Some("A scanner that checks surrounding rock for useful minerals. It must be in your hand or pocket to work. This one has an extended range.")),
+    (id: "MineralScanner", parents: ["MineralScannerUnpowered", "PowerCellSlotMediumItem"]),
+    (id: "MineralScannerEmpty", parents: ["MineralScanner"]),
+    (id: "MineralScannerUnpowered", parents: ["BaseItem"], name: Some("mineral scanner"), description: Some("A scanner that checks surrounding rock for useful minerals. It must be in your hand or pocket to work.")),
+]

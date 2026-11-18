@@ -1,0 +1,4 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/Specific/Cargo/mailcart.yml. Создано scripts/gen_items.py.
+[
+    (id: "MailCart", parents: ["BaseStructureDynamic", "StructureWheeled", "StructureHealthContainer"], name: Some("mail cart"), description: Some("Deliver packages with style and efficiency.")),
+]

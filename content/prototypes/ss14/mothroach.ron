@@ -1,0 +1,4 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/mothroach.yml. Создано scripts/gen_items.py.
+[
+    (id: "BaseMobMothroach", parents: ["MobNightVision"], abstract: true),
+]

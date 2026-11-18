@@ -1,0 +1,16 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Clothing/Misc/changeling.yml. Создано scripts/gen_items.py.
+[
+    (id: "ChangelingFleshClothingBack", parents: ["ChangelingFleshClothingBase"], name: Some("changeling flesh backpack")),
+    (id: "ChangelingFleshClothingBase", parents: ["Clothing"], abstract: true),
+    (id: "ChangelingFleshClothingBelt", parents: ["ChangelingFleshClothingBase"], name: Some("changeling flesh belt")),
+    (id: "ChangelingFleshClothingEars", parents: ["ChangelingFleshClothingBase"], name: Some("changeling flesh headset")),
+    (id: "ChangelingFleshClothingEyes", parents: ["ChangelingFleshClothingBase"], name: Some("changeling flesh glasses")),
+    (id: "ChangelingFleshClothingFeet", parents: ["ChangelingFleshClothingBase"], name: Some("changeling flesh shoes")),
+    (id: "ChangelingFleshClothingGloves", parents: ["ChangelingFleshClothingBase"], name: Some("changeling flesh gloves")),
+    (id: "ChangelingFleshClothingHead", parents: ["ChangelingFleshClothingBase"], name: Some("changeling flesh hat")),
+    (id: "ChangelingFleshClothingInner", parents: ["ChangelingFleshClothingBase"], name: Some("changeling flesh jumpsuit")),
+    (id: "ChangelingFleshClothingMask", parents: ["ChangelingFleshClothingBase"], name: Some("changeling flesh mask")),
+    (id: "ChangelingFleshClothingNeck", parents: ["ChangelingFleshClothingBase"], name: Some("changeling flesh tie")),
+    (id: "ChangelingFleshClothingOuter", parents: ["ChangelingFleshClothingBase"], name: Some("changeling flesh vest")),
+    (id: "ChangelingFleshClothingSuitStorage", parents: ["ChangelingFleshClothingBase"], name: Some("changeling flesh gas tank")),
+]

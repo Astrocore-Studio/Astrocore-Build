@@ -1,0 +1,4 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Clothing/Neck/stoles.yml. Создано scripts/gen_items.py.
+[
+    (id: "ClothingNeckStoleChaplain", parents: ["ClothingNeckBase"], name: Some("chaplain stole"), description: Some("An elegantly designed stole, with a vibrant gold plus on either end."), components: {"Sprite": (sprite: "Clothing/Neck/Stoles/chaplain.rsi", state: "icon"), "Item": (size: "Small"), "Clothing": (slots: ["neck"]), "Solution": (maxVol: 30.0, canReact: true, reagents: (Fiber: 15.0)), "Edible": (transferAmount: 5.0, delay: 1.0, forceFeedDelay: 3.0, destroyOnEmpty: true), "Tag": (tags: ["ClothMade", "Recyclable", "WhitelistChameleon"])}),
+]

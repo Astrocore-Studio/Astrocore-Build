@@ -1,0 +1,6 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Tools/jammer.yml. Создано scripts/gen_items.py.
+[
+    (id: "BaseJammer", parents: ["BaseItem"], abstract: true, name: Some("radio jammer"), description: Some("This device will disrupt any nearby outgoing radio communication as well as suit sensors when activated.")),
+    (id: "RadioJammer", parents: ["BaseJammer", "PowerCellSlotMediumItem", "BaseSyndicateContraband"], name: Some("radio jammer"), description: Some("This device will disrupt any nearby outgoing and incoming radio communication as well as suit sensors when activated.")),
+    (id: "XenoborgRadioJammer", parents: ["BaseJammer", "BaseXenoborgContraband"], name: Some("xenoborg radio jammer")),
+]

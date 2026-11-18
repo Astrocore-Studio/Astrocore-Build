@@ -1,0 +1,8 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Clothing/Back/specific.yml. Создано scripts/gen_items.py.
+[
+    (id: "ClothingBackpackChameleon", parents: ["ClothingBackpack", "BaseChameleon"], name: Some("backpack"), description: Some("You wear this on your back and put items into it.")),
+    (id: "ClothingBackpackHarmpack", parents: ["Clothing"], name: Some("H.A.R.M.P.A.C.K."), description: Some("Now you can reload, punch, and eat a snack - simultaneously.")),
+    (id: "ClothingBackpackWaterTank", parents: ["SolutionTank", "SolutionGinormous", "Clothing", "ClothingSlotBase"], name: Some("backpack water tank"), description: Some("Holds a large amount of fluids. Supplies to spray nozzles in your hands, and has a slot on the side for said spray nozzles.")),
+    (id: "ClothingBagPet", parents: ["ClothingBackpack"], name: Some("pet bag"), description: Some("A small bag designed for use by pets and small animals.")),
+    (id: "XenoborgMaterialBag", parents: ["ClothingBackpack"], name: Some("silicon storage square"), description: Some("A knockoff version of a bluespace bag, can vacuum up select materials, unfit for use by humanoids due to harmful emissions.")),
+]

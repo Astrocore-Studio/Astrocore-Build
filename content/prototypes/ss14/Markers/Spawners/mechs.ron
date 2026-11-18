@@ -1,0 +1,5 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Markers/Spawners/mechs.yml. Создано scripts/gen_items.py.
+[
+    (id: "SpawnMechHonker", parents: ["MarkerBase"], name: Some("H.O.N.K. Spawner")),
+    (id: "SpawnMechRipley", parents: ["MarkerBase"], name: Some("Ripley APLU Spawner")),
+]

@@ -1,0 +1,8 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Clothing/Uniforms/base_clothinguniforms.yml. Создано scripts/gen_items.py.
+[
+    (id: "ClothingUniformBase", parents: ["UnsensoredClothingUniformBase"], abstract: true),
+    (id: "ClothingUniformFoldableBase", abstract: true),
+    (id: "ClothingUniformSkirtBase", parents: ["ClothingUniformBase"], abstract: true),
+    (id: "UnsensoredClothingUniformBase", parents: ["SolutionFood", "SolutionToolNormal", "Clothing", "BaseSlicingRefinable"], abstract: true),
+    (id: "UnsensoredClothingUniformSkirtBase", parents: ["UnsensoredClothingUniformBase"], abstract: true),
+]

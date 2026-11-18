@@ -1,0 +1,14 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Specific/Hydroponics/leaves.yml. Создано scripts/gen_items.py.
+[
+    (id: "GroundCannabis", parents: ["SolutionFood", "SolutionTiny", "BaseItem"], name: Some("ground cannabis"), description: Some("Ground cannabis, ready to take you on a trip."), components: {"Sprite": (sprite: "Objects/Misc/reagent_fillings.rsi", state: "powderpile"), "Item": (size: "Tiny"), "Solution": (maxVol: 30.0, canReact: true, reagents: (THC: 30.0)), "Tag": (tags: ["Smokable"])}),
+    (id: "GroundCannabisRainbow", parents: ["GroundCannabis"], name: Some("ground rainbow cannabis"), description: Some("Ground rainbow cannabis, ready to take you on a trip.")),
+    (id: "GroundTobacco", parents: ["SolutionFood", "SolutionTiny", "BaseItem"], name: Some("ground tobacco"), description: Some("Ground tobacco, perfect for hand-rolled cigarettes.")),
+    (id: "LeavesCannabis", parents: ["ProduceBaseRuminant"], name: Some("cannabis leaves"), description: Some("Recently legalized in most galaxies.")),
+    (id: "LeavesCannabisDried", parents: ["ProduceBaseRuminant"], name: Some("dried cannabis leaves"), description: Some("Dried cannabis leaves, ready to be ground.")),
+    (id: "LeavesCannabisRainbow", parents: ["LeavesCannabis"], name: Some("rainbow cannabis leaves"), description: Some("Is it supposed to be glowing like that...?")),
+    (id: "LeavesCannabisRainbowDried", parents: ["LeavesCannabisRainbow"], name: Some("dried rainbow cannabis leaves"), description: Some("Dried rainbow cannabis leaves, ready to be ground.")),
+    (id: "LeavesTea", parents: ["ProduceBaseRuminant"], name: Some("tea leaves"), description: Some("Can be dried out to make tea.")),
+    (id: "LeavesTeaDried", parents: ["ProduceBaseRuminant"], name: Some("dried tea leaves"), description: Some("Dried tea leaves, ready to be ground.")),
+    (id: "LeavesTobacco", parents: ["ProduceBaseRuminant"], name: Some("tobacco leaves"), description: Some("Dry them out to make some smokes.")),
+    (id: "LeavesTobaccoDried", parents: ["LeavesTobacco"], name: Some("dried tobacco leaves"), description: Some("Dried tobacco leaves, ready to be ground.")),
+]

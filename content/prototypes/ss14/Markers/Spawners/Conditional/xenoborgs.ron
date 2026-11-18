@@ -1,0 +1,5 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Markers/Spawners/Conditional/xenoborgs.yml. Создано scripts/gen_items.py.
+[
+    (id: "SpawnPointMothershipCore", parents: ["MarkerBase"], name: Some("mothership core")),
+    (id: "SpawnPointXenoborg", parents: ["MarkerBase"], name: Some("xenoborgs")),
+]

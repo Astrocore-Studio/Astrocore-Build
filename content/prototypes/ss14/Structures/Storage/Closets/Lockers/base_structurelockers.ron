@@ -1,0 +1,4 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/Storage/Closets/Lockers/base_structurelockers.yml. Создано scripts/gen_items.py.
+[
+    (id: "LockerBase", parents: ["ClosetBase", "StructureHealthContainerWeak"], abstract: true),
+]

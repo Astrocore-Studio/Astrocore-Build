@@ -1,0 +1,7 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Weapons/Throwable/projectile_grenades.yml. Создано scripts/gen_items.py.
+[
+    (id: "GrenadeIncendiary", parents: ["FragileGrenadeBase", "ProjectileGrenadeBase", "BaseSyndicateContraband"], name: Some("incendiary grenade"), description: Some("Guaranteed to light up the mood.")),
+    (id: "GrenadeShrapnel", parents: ["FragileGrenadeBase", "ProjectileGrenadeBase", "BaseSyndicateContraband"], name: Some("shrapnel grenade"), description: Some("Releases a deadly spray of shrapnel that causes severe bleeding.")),
+    (id: "GrenadeStinger", parents: ["FragileGrenadeBase", "ProjectileGrenadeBase", "BaseSecurityContraband"], name: Some("stinger grenade"), description: Some("Nothing to see here, please disperse."), components: {"Sprite": (sprite: "Objects/Weapons/Grenades/stingergrenade.rsi", state: "icon"), "Item": (size: "Small"), "TimerTrigger": (delay: 3.5), "Tag": (tags: ["HandGrenade"])}),
+    (id: "ProjectileGrenadeBase", parents: ["BaseItem"], abstract: true),
+]

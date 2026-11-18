@@ -1,0 +1,7 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/Furniture/bench.yml. Создано scripts/gen_items.py.
+[
+    (id: "BenchBlueComfy", parents: ["BenchComfy"]),
+    (id: "BenchColorfulComfy", parents: ["BenchComfy"], description: Some("A bench with an extremely comfortable backrest.")),
+    (id: "BenchComfy", parents: ["SeatBase", "StructureHealthFurniture"], name: Some("comfortable bench"), description: Some("A bench with an extremely comfortable backrest.")),
+    (id: "BenchRedComfy", parents: ["BenchComfy"]),
+]

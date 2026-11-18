@@ -1,0 +1,4 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Mobs/NPCs/mimic.yml. Создано scripts/gen_items.py.
+[
+    (id: "MobMimic", parents: ["SimpleMobBase", "MobCombat", "BaseSlicingRefinableButchering", "BaseMobDestructible"], name: Some("mimic"), description: Some("Surprise.")),
+]

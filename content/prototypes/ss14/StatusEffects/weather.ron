@@ -1,0 +1,16 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/StatusEffects/weather.yml. Создано scripts/gen_items.py.
+[
+    (id: "WeatherAshfall", parents: ["WeatherBase"]),
+    (id: "WeatherAshfallHeavy", parents: ["WeatherBase"]),
+    (id: "WeatherAshfallLight", parents: ["WeatherBase"]),
+    (id: "WeatherBase", parents: ["StatusEffectBase"], abstract: true),
+    (id: "WeatherFallout", parents: ["WeatherBase"]),
+    (id: "WeatherHail", parents: ["WeatherBase"]),
+    (id: "WeatherRain", parents: ["WeatherBase"]),
+    (id: "WeatherSandstorm", parents: ["WeatherBase"]),
+    (id: "WeatherSandstormHeavy", parents: ["WeatherBase"]),
+    (id: "WeatherSnowfallHeavy", parents: ["WeatherBase"]),
+    (id: "WeatherSnowfallLight", parents: ["WeatherBase"]),
+    (id: "WeatherSnowfallMedium", parents: ["WeatherBase"]),
+    (id: "WeatherStorm", parents: ["WeatherBase"]),
+]

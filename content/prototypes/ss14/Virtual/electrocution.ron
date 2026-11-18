@@ -1,0 +1,7 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Virtual/electrocution.yml. Создано scripts/gen_items.py.
+[
+    (id: "VirtualElectrocutionLoadApc", parents: ["VirtualElectrocutionLoadBase"], categories: ["HideSpawnMenu"]),
+    (id: "VirtualElectrocutionLoadBase", abstract: true),
+    (id: "VirtualElectrocutionLoadHVPower", parents: ["VirtualElectrocutionLoadBase"], categories: ["HideSpawnMenu"]),
+    (id: "VirtualElectrocutionLoadMVPower", parents: ["VirtualElectrocutionLoadBase"], categories: ["HideSpawnMenu"]),
+]

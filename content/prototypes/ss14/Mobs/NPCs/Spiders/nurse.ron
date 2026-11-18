@@ -1,0 +1,6 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Mobs/NPCs/Spiders/nurse.yml. Создано scripts/gen_items.py.
+[
+    (id: "MobGiantSpiderNurse", parents: ["MobSpiderBase"], name: Some("nurse spider"), description: Some("A pallid, unsettling spider that oozes something caustic.")),
+    (id: "MobGiantSpiderNurseAngry", parents: ["MobSpiderAngryBase", "MobGiantSpiderNurse"]),
+    (id: "SolutionVenomSpiderNurse", parents: ["SolutionWeapon", "SolutionTiny"], categories: ["HideSpawnMenu"]),
+]

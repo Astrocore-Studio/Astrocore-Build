@@ -1,0 +1,4 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Clothing/Multiple/misc.yml. Создано scripts/gen_items.py.
+[
+    (id: "ClothingMultipleHeadphones", parents: ["Clothing"], name: Some("headphones"), description: Some("Quality headphones from Drunk Masters, with good sound insulation."), components: {"Sprite": (sprite: "Clothing/Multiple/headphones.rsi", state: "icon"), "Item": (size: "Normal"), "Clothing": (slots: ["head", "ears", "neck"]), "Tag": (tags: ["WhitelistChameleon"])}),
+]

@@ -1,0 +1,4 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Tools/hijack_beacon.yml. Создано scripts/gen_items.py.
+[
+    (id: "HijackBeacon", parents: ["BaseItem", "BaseSyndicateContraband"], name: Some("hijack beacon"), description: Some("A device that bypasses the firewall on Nanotrasen-brand Automated Trade Stations.")),
+]

@@ -1,0 +1,5 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/base_foldable.yml. Создано scripts/gen_items.py.
+[
+    (id: "BaseDeployFoldable", parents: ["BaseFoldable"], abstract: true),
+    (id: "BaseFoldable", abstract: true),
+]

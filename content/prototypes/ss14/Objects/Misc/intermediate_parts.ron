@@ -1,0 +1,4 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Misc/intermediate_parts.yml. Создано scripts/gen_items.py.
+[
+    (id: "MoproachShoes", parents: ["BaseItem"], name: Some("moproach shoes"), description: Some("Three pairs of tiny mopshoes, perfectly fit for a moproach.")),
+]

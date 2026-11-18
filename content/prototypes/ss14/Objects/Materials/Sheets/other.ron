@@ -1,0 +1,12 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Materials/Sheets/other.yml. Создано scripts/gen_items.py.
+[
+    (id: "MaterialSheetMeat", parents: ["SheetOtherBase"], name: Some("meat sheet")),
+    (id: "MaterialSheetMeat1", parents: ["MaterialSheetMeat"]),
+    (id: "SheetOtherBase", parents: ["BaseSheet"], abstract: true, description: Some("A sheet of material, used often on the station in various applications.")),
+    (id: "SheetPaper", parents: ["SheetOtherBase"], name: Some("paper")),
+    (id: "SheetPlasma", parents: ["SheetOtherBase"], name: Some("plasma"), components: {"Sprite": (sprite: "Objects/Materials/Sheets/other.rsi", state: "plasma_3"), "Item": (size: "Normal"), "Solution": (maxVol: 10.0, canReact: false, reagents: (Plasma: 10.0)), "Tag": (tags: ["Sheet", "ConstructionMaterial"])}),
+    (id: "SheetPlasma10", parents: ["SheetPlasma"]),
+    (id: "SheetPlastic", parents: ["SheetOtherBase"], name: Some("plastic"), components: {"Sprite": (sprite: "Objects/Materials/Sheets/other.rsi", state: "plastic_3"), "Item": (size: "Normal"), "Solution": (maxVol: 10.0, canReact: false, reagents: (Oil: 5.0, Phosphorus: 5.0)), "Tag": (tags: ["Plastic", "Sheet", "ConstructionMaterial"])}),
+    (id: "SheetPlastic10", parents: ["SheetPlastic"], name: Some("plastic"), components: {"Sprite": (sprite: "Objects/Materials/Sheets/other.rsi", state: "plastic_3"), "Item": (size: "Normal"), "Solution": (maxVol: 10.0, canReact: false, reagents: (Oil: 5.0, Phosphorus: 5.0)), "Tag": (tags: ["Plastic", "Sheet", "ConstructionMaterial"])}),
+    (id: "SheetUranium", parents: ["SheetOtherBase", "FoodBase"], name: Some("uranium")),
+]

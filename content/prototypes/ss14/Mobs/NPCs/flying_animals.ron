@@ -1,0 +1,4 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Mobs/NPCs/flying_animals.yml. Создано scripts/gen_items.py.
+[
+    (id: "FlyingMobBase", abstract: true),
+]

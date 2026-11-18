@@ -1,0 +1,8 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Markers/Spawners/Random/mineshaft.yml. Создано scripts/gen_items.py.
+[
+    (id: "RandomBrownStalagmite", parents: ["MarkerBase"], name: Some("brown stalagmite spawner")),
+    (id: "RandomGreyStalagmite", parents: ["MarkerBase"], name: Some("grey stalagmite spawner")),
+    (id: "RandomStalagmiteOrCrystal", parents: ["MarkerBase"], name: Some("stalagmite or crystal spawner")),
+    (id: "RandomWoodenSupport", parents: ["MarkerBase"], name: Some("wooden support spawner")),
+    (id: "RandomWoodenWall", parents: ["MarkerBase"], name: Some("wooden wall spawner")),
+]

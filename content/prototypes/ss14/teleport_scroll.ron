@@ -1,0 +1,4 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/teleport_scroll.yml. Создано scripts/gen_items.py.
+[
+    (id: "WizardTeleportScroll", parents: ["BaseItem", "BaseMagicalContraband"], name: Some("teleport scroll")),
+]

@@ -1,0 +1,4 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/mime.yml. Создано scripts/gen_items.py.
+[
+    (id: "ActionMimeInvisibleWall", parents: ["BaseAction"], name: Some("Create Invisible Wall"), description: Some("Create an invisible wall in front of you, if placeable there.")),
+]

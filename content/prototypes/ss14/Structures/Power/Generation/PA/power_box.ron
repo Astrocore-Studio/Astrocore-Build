@@ -1,0 +1,5 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/Power/Generation/PA/power_box.yml. Создано scripts/gen_items.py.
+[
+    (id: "ParticleAcceleratorPowerBox", parents: ["ParticleAcceleratorFinishedPart"], name: Some("PA power box"), description: Some("Formally known as the Particle Focusing EM Lens. This uses electromagnetic waves to focus the Alpha-Particles.")),
+    (id: "ParticleAcceleratorPowerBoxUnfinished", parents: ["ParticleAcceleratorUnfinishedBase"], name: Some("PA power box"), description: Some("Formally known as the Particle Focusing EM Lens. This uses electromagnetic waves to focus the Alpha-Particles. It looks unfinished.")),
+]

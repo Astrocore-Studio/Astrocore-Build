@@ -1,0 +1,21 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Shields/shields.yml. Создано scripts/gen_items.py.
+[
+    (id: "BaseGinormousShield", parents: ["BaseShield"], abstract: true),
+    (id: "BaseLargeShield", parents: ["BaseShield"], abstract: true),
+    (id: "BaseRepairableShield", abstract: true, name: Some("base repairable shield"), description: Some("A repairable shield!")),
+    (id: "BaseRoundShield", parents: ["BaseLargeShield"], abstract: true),
+    (id: "BaseShield", parents: ["BaseItem"], abstract: true, name: Some("base shield"), description: Some("A shield!")),
+    (id: "BaseShieldDestructible", abstract: true),
+    (id: "BrokenEnergyShield", parents: ["BaseItem"], name: Some("broken energy shield"), description: Some("Something inside is burned out, it is no longer functional.")),
+    (id: "CardShield", parents: ["BaseLargeShield"], name: Some("cardboard shield"), description: Some("A shield made of cardboard. Won't protect you from much.")),
+    (id: "ClockworkShield", parents: ["BaseRepairableShield", "BaseRoundShield", "BaseShieldDestructible"], name: Some("clockwork shield"), description: Some("Ratvar oyrffrf lbh jvgu uvf cebgrpgvba.")),
+    (id: "EnergyShield", parents: ["BaseShield", "BaseSyndicateContraband"], name: Some("energy shield"), description: Some("Exotic energy shield, when folded, can even fit in your pocket.")),
+    (id: "MakeshiftShield", parents: ["BaseRepairableShield", "BaseGinormousShield"], name: Some("makeshift shield"), description: Some("A rundown looking shield, not good for much.")),
+    (id: "MirrorShield", parents: ["BaseLargeShield", "BaseMagicalContraband"], name: Some("mirror shield"), description: Some("Eerily glows red... you hear the geometer whispering")),
+    (id: "RiotBulletShield", parents: ["BaseRepairableShield", "BaseGinormousShield", "BaseShieldDestructible", "BaseSecurityContraband"], name: Some("ballistic shield"), description: Some("A shield built for protecting against ballistics, but not much else."), components: {"Sprite": (sprite: "Objects/Weapons/Melee/shields.rsi", state: "riot_bullet-icon"), "Item": (size: "Ginormous")}),
+    (id: "RiotLaserShield", parents: ["BaseRepairableShield", "BaseGinormousShield", "BaseShieldDestructible", "BaseSecurityContraband"], name: Some("laser shield"), description: Some("A shield built for withstanding lasers, but not much else."), components: {"Sprite": (sprite: "Objects/Weapons/Melee/shields.rsi", state: "riot_laser-icon"), "Item": (size: "Ginormous")}),
+    (id: "RiotShield", parents: ["BaseRepairableShield", "BaseGinormousShield", "BaseShieldDestructible", "BaseSecurityContraband"], name: Some("riot shield"), description: Some("A large tower shield. Good for controlling crowds."), components: {"Sprite": (sprite: "Objects/Weapons/Melee/shields.rsi", state: "riot-icon"), "Item": (size: "Ginormous")}),
+    (id: "TelescopicShield", parents: ["BaseRepairableShield", "BaseShield", "BaseShieldDestructible"], name: Some("telescopic shield"), description: Some("An advanced riot shield made of lightweight materials that collapses for easy storage.")),
+    (id: "WebShield", parents: ["BaseLargeShield"], name: Some("web shield"), description: Some("A stringy shield. It's weak, and doesn't seem to do well against heat.")),
+    (id: "WoodenBuckler", parents: ["BaseRoundShield"], name: Some("wooden buckler"), description: Some("A small round wooden makeshift shield.")),
+]

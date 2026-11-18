@@ -1,0 +1,5 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Markers/Spawners/rooms.yml. Создано scripts/gen_items.py.
+[
+    (id: "SpawnPointHeadOfSecurityWeapon", parents: ["MarkerBase"], name: Some("head of security weapon spawner")),
+    (id: "SpawnPointWardenWeapon", parents: ["MarkerBase"], name: Some("warden weapon spawner")),
+]

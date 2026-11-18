@@ -1,0 +1,5 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/backpack.yml. Создано scripts/gen_items.py.
+[
+    (id: "ClothingBackpackSyndicateBundle", parents: ["ClothingBackpackSyndicate"], abstract: true),
+    (id: "ClothingBackpackSyndicateRaidBundle", parents: ["ClothingBackpackSyndicateBundle"], name: Some("syndicate raid suit bundle"), description: Some("Contains the Syndicate's durable raid armor suit.")),
+]

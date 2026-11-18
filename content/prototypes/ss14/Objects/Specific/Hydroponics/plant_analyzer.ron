@@ -1,0 +1,4 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Specific/Hydroponics/plant_analyzer.yml. Создано scripts/gen_items.py.
+[
+    (id: "PlantAnalyzer", parents: ["BaseItem"], name: Some("plant analyzer"), description: Some("A scanner used to evaluate a plant's various areas of growth, genetic traits and chemicals."), components: {"Sprite": (sprite: "Objects/Specific/Hydroponics/plant_analyzer.rsi", state: "icon"), "Item": (size: "Small"), "PlantAnalyzer": ()}),
+]

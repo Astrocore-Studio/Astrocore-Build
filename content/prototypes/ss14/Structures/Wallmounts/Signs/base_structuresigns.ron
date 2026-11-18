@@ -1,0 +1,6 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/Wallmounts/Signs/base_structuresigns.yml. Создано scripts/gen_items.py.
+[
+    (id: "BaseSign", parents: ["BaseWallmountMetallic", "BaseSignIndestructible", "StructureHealthFurniture"], abstract: true, name: Some("base sign")),
+    (id: "BaseSignIndestructible", parents: ["BaseWallmount"], abstract: true),
+    (id: "BaseSignWeak", parents: ["BaseSignIndestructible", "StructureHealthFurnitureWeak"], abstract: true),
+]

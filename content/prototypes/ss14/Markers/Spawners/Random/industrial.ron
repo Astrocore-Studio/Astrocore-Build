@@ -1,0 +1,5 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Markers/Spawners/Random/industrial.yml. Создано scripts/gen_items.py.
+[
+    (id: "LootSpawnerIndustrial", parents: ["MarkerBase"], name: Some("industrial loot spawner")),
+    (id: "LootSpawnerIndustrialFluff", parents: ["MarkerBase"], name: Some("industrial fluff spawner")),
+]

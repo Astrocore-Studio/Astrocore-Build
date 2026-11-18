@@ -1,0 +1,4 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Power/powersink.yml. Создано scripts/gen_items.py.
+[
+    (id: "PowerSink", parents: ["BaseMachine", "BaseSyndicateContraband", "BaseMachineDestructible"], name: Some("power sink"), description: Some("Drains immense amounts of electricity from the grid.")),
+]

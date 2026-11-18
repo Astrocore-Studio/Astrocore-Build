@@ -1,0 +1,6 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Mobs/NPCs/spacetick.yml. Создано scripts/gen_items.py.
+[
+    (id: "MobTick", parents: ["SimpleSpaceMobBase", "BaseSlicingRefinableButchering"], name: Some("space tick"), description: Some("It's a space tick, watch out for its nasty bite. CentComm reports that 90 percent of cargo leg amputations are due to space tick bites.")),
+    (id: "MobTickSalvage", parents: ["MobTick"]),
+    (id: "SolutionVenomTick", parents: ["Solution"], categories: ["HideSpawnMenu"]),
+]

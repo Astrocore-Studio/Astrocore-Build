@@ -1,0 +1,5 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Tiles/water.yml. Создано scripts/gen_items.py.
+[
+    (id: "FloorSwimmingPoolEntity", parents: ["FloorWaterEntity"], name: Some("swimming pool"), description: Some("Refreshing and relaxing!")),
+    (id: "FloorWaterEntity", parents: ["SolutionTile"], name: Some("water"), description: Some("A real thirst quencher.")),
+]

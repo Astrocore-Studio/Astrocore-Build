@@ -1,0 +1,4 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Weapons/Melee/weapon_toolbox.yml. Создано scripts/gen_items.py.
+[
+    (id: "WeaponMeleeToolboxRobust", parents: ["BaseItem"], name: Some("robust toolbox"), description: Some("A tider's weapon."), categories: ["DoNotMap"]),
+]

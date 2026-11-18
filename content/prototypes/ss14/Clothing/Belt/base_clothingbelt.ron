@@ -1,0 +1,6 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Clothing/Belt/base_clothingbelt.yml. Создано scripts/gen_items.py.
+[
+    (id: "ClothingBeltAmmoProviderBase", parents: ["ClothingBeltBase"], abstract: true),
+    (id: "ClothingBeltBase", parents: ["Clothing"], abstract: true),
+    (id: "ClothingBeltStorageBase", parents: ["ClothingBeltBase"], abstract: true),
+]

@@ -1,0 +1,4 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/Machines/crew_monitor_server.yml. Создано scripts/gen_items.py.
+[
+    (id: "CrewMonitoringServer", parents: ["BaseMachinePowered", "ConstructibleMachine", "StructureHealthMachineStrong"], name: Some("crew monitoring server"), description: Some("Receives and relays the status of all active suit sensors on the station.")),
+]

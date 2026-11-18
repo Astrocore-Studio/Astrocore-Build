@@ -1,0 +1,7 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Weapons/Bombs/plastic.yml. Создано scripts/gen_items.py.
+[
+    (id: "BasePlasticExplosive", parents: ["BaseItem", "BaseItemDestructible", "BasePlasticExplosiveTrigger"], abstract: true),
+    (id: "BasePlasticExplosiveTrigger", abstract: true),
+    (id: "C4", parents: ["BasePlasticExplosive", "BaseSyndicateContraband"], name: Some("composition C-4"), description: Some("Used to put holes in specific areas without too much extra hole. A saboteur's favorite."), components: {"Sprite": (sprite: "Objects/Weapons/Bombs/c4.rsi", state: "icon"), "Item": (size: "Small"), "Clothing": (slots: ["head"]), "Explosive": (explosionType: "DemolitionCharge", totalIntensity: 60.0, intensitySlope: 3.0, maxIntensity: 30.0)}),
+    (id: "SeismicCharge", parents: ["BasePlasticExplosive", "BaseSecurityCargoContraband"], name: Some("seismic charge"), description: Some("Concussion based explosive designed to destroy large amounts of rock."), components: {"Sprite": (sprite: "Objects/Weapons/Bombs/seismic.rsi", state: "icon"), "Item": (size: "Small"), "Explosive": (explosionType: "Cryo", totalIntensity: 120.0, intensitySlope: 3.0, maxIntensity: 30.0)}),
+]

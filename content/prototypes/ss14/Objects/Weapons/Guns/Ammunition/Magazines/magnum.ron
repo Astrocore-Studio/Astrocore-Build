@@ -1,0 +1,9 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Weapons/Guns/Ammunition/Magazines/magnum.yml. Создано scripts/gen_items.py.
+[
+    (id: "BaseMagazineMagnum", parents: ["BaseMagazinePistol", "BaseSecurityContraband"], abstract: true, name: Some("pistol magazine (.45 magnum)")),
+    (id: "MagazineMagnum", parents: ["BaseMagazineMagnum"], name: Some("pistol magazine (.45 magnum)"), description: Some("7-round single stack magazine for large-caliber pistols. Intended to hold general-purpose kinetic ammunition.")),
+    (id: "MagazineMagnumAP", parents: ["BaseMagazineMagnum"], name: Some("pistol magazine (.45 magnum armor-piercing)"), description: Some("7-round single stack magazine for large-caliber pistols. Intended to hold specialized armor-piercing ammunition.")),
+    (id: "MagazineMagnumEmpty", parents: ["BaseMagazineMagnum"], name: Some("pistol magazine (.45 magnum any)"), description: Some("7-round single stack magazine for large-caliber pistols.")),
+    (id: "MagazineMagnumPractice", parents: ["BaseMagazineMagnum"], name: Some("pistol magazine (.45 magnum practice)"), description: Some("7-round single stack magazine for large-caliber pistols. Intended to hold harmless practice ammunition.")),
+    (id: "MagazineMagnumUranium", parents: ["BaseMagazineMagnum"], name: Some("pistol magazine (.45 magnum uranium)"), description: Some("7-round single stack magazine for large-caliber pistols. Intended to hold exotic uranium-core ammunition.")),
+]

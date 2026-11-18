@@ -1,0 +1,14 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/cargo_gifts.yml. Создано scripts/gen_items.py.
+[
+    (id: "CargoGiftsBase", parents: ["BaseGameRule"], abstract: true),
+    (id: "GiftsEngineering", parents: ["CargoGiftsBase"]),
+    (id: "GiftsFireProtection", parents: ["CargoGiftsBase"]),
+    (id: "GiftsJanitor", parents: ["CargoGiftsBase"]),
+    (id: "GiftsMedical", parents: ["CargoGiftsBase"]),
+    (id: "GiftsPizzaPartyLarge", parents: ["CargoGiftsBase"]),
+    (id: "GiftsPizzaPartySmall", parents: ["CargoGiftsBase"]),
+    (id: "GiftsSecurityGuns", parents: ["CargoGiftsBase"]),
+    (id: "GiftsSecurityRiot", parents: ["CargoGiftsBase"]),
+    (id: "GiftsSpacingSupplies", parents: ["CargoGiftsBase"]),
+    (id: "GiftsVendingRestock", parents: ["CargoGiftsBase"]),
+]

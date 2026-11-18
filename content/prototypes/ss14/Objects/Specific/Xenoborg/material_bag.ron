@@ -1,0 +1,4 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Specific/Xenoborg/material_bag.yml. Создано scripts/gen_items.py.
+[
+    (id: "MaterialBag", parents: ["BaseStorageItem", "BaseXenoborgContraband"], name: Some("material bag"), description: Some("A robust bag for Xenoborgs to carry large amounts of materials.")),
+]

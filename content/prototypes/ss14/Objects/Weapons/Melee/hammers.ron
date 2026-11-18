@@ -1,0 +1,6 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Weapons/Melee/hammers.yml. Создано scripts/gen_items.py.
+[
+    (id: "Mjollnir", parents: ["BaseItem", "BaseMagicalContraband"], name: Some("Mjollnir"), description: Some("A weapon worthy of a god, able to strike with the force of a lightning bolt. It crackles with barely contained energy.")),
+    (id: "SingularityHammer", parents: ["BaseItem", "BaseMagicalContraband"], name: Some("Singularity Hammer"), description: Some("The pinnacle of close combat technology, the hammer harnesses the power of a miniaturized singularity to deal crushing blows.")),
+    (id: "Sledgehammer", parents: ["BaseItem"], name: Some("sledgehammer"), description: Some("The perfect tool for wanton carnage.")),
+]

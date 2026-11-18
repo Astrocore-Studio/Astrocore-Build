@@ -1,0 +1,4 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Markers/Spawners/Conditional/nukies.yml. Создано scripts/gen_items.py.
+[
+    (id: "SpawnPointNukies", parents: ["MarkerBase"], name: Some("nukies")),
+]

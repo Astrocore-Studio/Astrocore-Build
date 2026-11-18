@@ -1,0 +1,8 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/mapping.yml. Создано scripts/gen_items.py.
+[
+    (id: "ActionMappingEraser", parents: ["BaseMappingAction"], name: Some("Erase Entity")),
+    (id: "BaseMappingAction", parents: ["BaseMentalAction"], abstract: true),
+    (id: "BaseMappingDecalAction", parents: ["BaseMappingAction"]),
+    (id: "BaseMappingEntityAction", parents: ["BaseMappingSpawnAction"]),
+    (id: "BaseMappingSpawnAction", parents: ["BaseMappingAction"]),
+]

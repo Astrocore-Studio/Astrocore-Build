@@ -1,0 +1,14 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Clothing/Ears/headsets_alt.yml. Создано scripts/gen_items.py.
+[
+    (id: "ClothingHeadsetAlt", parents: ["ClothingHeadset"], abstract: true, name: Some("headset"), description: Some("An updated, modular intercom that fits over the head. Takes encryption keys.")),
+    (id: "ClothingHeadsetAltCargo", parents: ["ClothingHeadsetAlt"], name: Some("quartermaster's over-ear headset"), components: {"Sprite": (sprite: "Clothing/Ears/Headsets/cargo.rsi", state: "icon_alt"), "Item": (size: "Small"), "Clothing": (slots: ["ears"]), "Tag": (tags: ["WhitelistChameleon"])}),
+    (id: "ClothingHeadsetAltCentCom", parents: ["ClothingHeadsetAlt"], name: Some("CentComm over-ear headset")),
+    (id: "ClothingHeadsetAltCommand", parents: ["ClothingHeadsetAlt", "BaseCommandContraband"], name: Some("command over-ear headset"), components: {"Sprite": (sprite: "Clothing/Ears/Headsets/command.rsi", state: "icon_alt"), "Item": (size: "Small"), "Clothing": (slots: ["ears"]), "Tag": (tags: ["WhitelistChameleon"])}),
+    (id: "ClothingHeadsetAltEngineering", parents: ["ClothingHeadsetAlt", "BaseCommandContraband"], name: Some("chief engineer's over-ear headset"), components: {"Sprite": (sprite: "Clothing/Ears/Headsets/engineering.rsi", state: "icon_alt"), "Item": (size: "Small"), "Clothing": (slots: ["ears"]), "Tag": (tags: ["WhitelistChameleon"])}),
+    (id: "ClothingHeadsetAltFreelancer", parents: ["ClothingHeadsetAlt"], name: Some("freelancer's over-ear headset")),
+    (id: "ClothingHeadsetAltMedical", parents: ["ClothingHeadsetAlt", "BaseCommandContraband"], name: Some("chief medical officer's over-ear headset"), components: {"Sprite": (sprite: "Clothing/Ears/Headsets/medical.rsi", state: "icon_alt"), "Item": (size: "Small"), "Clothing": (slots: ["ears"]), "Tag": (tags: ["WhitelistChameleon"])}),
+    (id: "ClothingHeadsetAltScience", parents: ["ClothingHeadsetAlt", "BaseCommandContraband"], name: Some("research director's over-ear headset"), components: {"Sprite": (sprite: "Clothing/Ears/Headsets/science.rsi", state: "icon_alt"), "Item": (size: "Small"), "Clothing": (slots: ["ears"]), "Tag": (tags: ["WhitelistChameleon"])}),
+    (id: "ClothingHeadsetAltSecurity", parents: ["ClothingHeadsetAlt", "BaseCommandContraband"], name: Some("head of security's over-ear headset"), components: {"Sprite": (sprite: "Clothing/Ears/Headsets/security.rsi", state: "icon_alt"), "Item": (size: "Small"), "Clothing": (slots: ["ears"]), "Tag": (tags: ["WhitelistChameleon"])}),
+    (id: "ClothingHeadsetAltSyndicate", parents: ["ClothingHeadsetAlt", "BaseSyndicateContraband"], name: Some("blood-red over-ear headset"), description: Some("An updated, modular syndicate intercom that fits over the head and takes encryption keys (there are 5 key slots.).")),
+    (id: "ClothingHeadsetAltWizard", parents: ["ClothingHeadsetAlt", "BaseMagicalContraband"], name: Some("wizard's over-ear headset")),
+]

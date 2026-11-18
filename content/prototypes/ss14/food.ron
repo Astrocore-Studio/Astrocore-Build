@@ -1,0 +1,9 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/food.yml. Создано scripts/gen_items.py.
+[
+    (id: "CrateFoodHappyHonkBigBite", parents: ["CratePlastic"], name: Some("Happy Honk meal delivery"), description: Some("Two fully loaded Happy Honk Big Bite burger meals, complete with cheesy fries, a bottle of Space Cola, a slice of apple pie and a toy!")),
+    (id: "CrateFoodIceCream", parents: ["CrateFreezer"], name: Some("ice cream delivery"), description: Some("An assortment of ice cream delights for any occasion! Includes 16 frozen treats.")),
+    (id: "CrateFoodMRE", parents: ["CratePlastic"], name: Some("MRE crate"), description: Some("A military style meal fit to feed a whole department.")),
+    (id: "CrateFoodPizza", parents: ["CratePlastic"], name: Some("emergency pizza delivery"), description: Some("Help do your part to end station hunger by distributing pizza to underfunded departments! Includes 4 pizzas.")),
+    (id: "CrateFoodSnowcone", parents: ["CrateFreezer"], name: Some("snowcone delivery"), description: Some("A freezer packed with refreshing snowcones for a hard working crew, or even a lazy one! Includes 16 snowcones.")),
+    (id: "CrateFoodSoftdrinks", parents: ["CrateFreezer"], name: Some("softdrinks crate"), description: Some("A variety of sodas to complement a small party, without having to empty the soda machines. Includes 14 sodas.")),
+]

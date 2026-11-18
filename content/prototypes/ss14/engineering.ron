@@ -1,0 +1,18 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/engineering.yml. Создано scripts/gen_items.py.
+[
+    (id: "CrateAirGrenade", parents: ["CrateEngineering"], name: Some("air grenade crate"), description: Some("A crate containing 3 air grenades.")),
+    (id: "CrateAirlockKit", parents: ["CrateEngineering"], name: Some("airlock kit"), description: Some("A kit for building 6 airlocks, doesn't include tools.")),
+    (id: "CrateEngineeringCableBulk", parents: ["CrateElectrical"], name: Some("bulk cable crate"), description: Some("2 coils each for every cable type.")),
+    (id: "CrateEngineeringCableLV", parents: ["CrateElectrical"], name: Some("LV cable crate"), description: Some("3 coils of LV cables.")),
+    (id: "CrateEngineeringCableMV", parents: ["CrateElectrical"], name: Some("MV cable crate"), description: Some("3 coils of MV cables.")),
+    (id: "CrateEngineeringElectricalSupplies", parents: ["CrateElectrical"], name: Some("electrical supplies crate"), description: Some("NT is not responsible for any workplace infighting relating to the insulated gloves included within these crates.")),
+    (id: "CrateEngineeringFoamGrenade", parents: ["CrateEngineeringSecure"], name: Some("sealant grenade crate"), description: Some("5 metal foam sealant grenades.")),
+    (id: "CrateEngineeringGear", parents: ["CrateEngineering"], name: Some("engineering gear crate"), description: Some("Various engineering gear parts.")),
+    (id: "CrateEngineeringSpaceHeater", parents: ["CrateEngineering"], name: Some("space heater crate"), description: Some("Contains a space heater for climate control.")),
+    (id: "CrateEngineeringStationBeaconBundle", parents: ["CratePlastic"], name: Some("station beacon bundle"), description: Some("A crate containing 5 station beacon assemblies for modifying the station map.")),
+    (id: "CrateEngineeringToolbox", parents: ["CrateEngineering"], name: Some("toolbox crate"), description: Some("Two mechanical and two electrical toolboxes.")),
+    (id: "CrateParticleDecelerators", parents: ["CrateEngineeringSecure"], name: Some("particle decelerators crate"), description: Some("A crate containing 3 Particle Decelerators.")),
+    (id: "CrateRCD", parents: ["CrateEngineeringSecure"], name: Some("RCD crate"), description: Some("A crate containing a single rapid construction device.")),
+    (id: "CrateRCDAmmo", parents: ["CrateEngineering"], name: Some("compressed matter crate"), description: Some("Contains three compressed matter cartridges.")),
+    (id: "CrateTechBoardRandom", parents: ["ToteBase"], name: Some("surplus boards"), description: Some("Surplus boards from somewhere."), components: {"Sprite": (sprite: "Objects/Storage/boxes.rsi", state: "tote-0"), "Item": (size: "Large"), "Storage": (grid: ["0,0,5,2"], maxItemSize: "Small", whitelist: (tags: [], components: ["MachineBoard", "Circuitboard"]))}),
+]

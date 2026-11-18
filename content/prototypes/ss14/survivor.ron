@@ -1,0 +1,4 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/survivor.yml. Создано scripts/gen_items.py.
+[
+    (id: "Survivor", parents: ["BaseGameRule"]),
+]

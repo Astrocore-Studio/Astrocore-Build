@@ -1,0 +1,21 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/ammunition.yml. Создано scripts/gen_items.py.
+[
+    (id: "BoxMagazine", parents: ["BoxCardboard"], name: Some("box of magazines"), description: Some("A box full of magazines.")),
+    (id: "BoxMagazineLightRifle", parents: ["BoxMagazine"], name: Some("box of .30 rifle magazines"), description: Some("A box full of .30 rifle magazines.")),
+    (id: "BoxMagazineLightRiflePractice", parents: ["BoxMagazine"], name: Some("box of .30 rifle (practice) magazines"), description: Some("A box full of .30 rifle (practice) magazines.")),
+    (id: "BoxMagazinePistol", parents: ["BoxMagazine"], name: Some("box of pistol .35 auto magazines"), description: Some("A box full of pistol .35 auto magazines.")),
+    (id: "BoxMagazinePistolCaselessRifle", parents: ["BoxMagazine"], name: Some("box of .25 caseless magazines"), description: Some("A box full of .25 caseless magazines.")),
+    (id: "BoxMagazinePistolCaselessRiflePractice", parents: ["BoxMagazine"], name: Some("box of .25 caseless (practice) magazines"), description: Some("A box full of .25 caseless practice magazines.")),
+    (id: "BoxMagazinePistolHighCapacity", parents: ["BoxMagazine"], name: Some("box of machine pistol .35 auto magazines"), description: Some("A box full of machine pistol .35 auto magazines.")),
+    (id: "BoxMagazinePistolHighCapacityPractice", parents: ["BoxMagazine"], name: Some("box of machine pistol .35 auto (practice) magazines"), description: Some("A box full of machine pistol .35 auto (practice) magazines.")),
+    (id: "BoxMagazinePistolPractice", parents: ["BoxMagazine"], name: Some("box of pistol .35 auto (practice) magazines"), description: Some("A box full of  magazines.")),
+    (id: "BoxMagazinePistolSubMachineGun", parents: ["BoxMagazine"], name: Some("box of SMG .35 auto magazines"), description: Some("A box full of SMG .35 auto magazines.")),
+    (id: "BoxMagazinePistolSubMachineGunPractice", parents: ["BoxMagazine"], name: Some("box of SMG .35 auto (practice) magazines"), description: Some("A box full of SMG .35 auto (practice) magazines.")),
+    (id: "BoxMagazinePistolSubMachineGunTopMounted", parents: ["BoxMagazine"], name: Some("box of WT550 .35 auto magazines"), description: Some("A box full of WT550 .35 auto magazines.")),
+    (id: "BoxMagazineRifle", parents: ["BoxMagazine"], name: Some("box of .20 rifle magazines"), description: Some("A box full of .20 rifle magazines.")),
+    (id: "BoxMagazineRiflePractice", parents: ["BoxMagazine"], name: Some("box of .20 rifle (practice) magazines"), description: Some("A box full of .20 rifle (practice) magazines.")),
+    (id: "BoxMagazineShotgun", parents: ["BoxMagazine"], name: Some("box of (.50 pellet) ammo drums"), description: Some("A box full of (.50 pellet) ammo drums.")),
+    (id: "BoxMagazineShotgunBeanbag", parents: ["BoxMagazine"], name: Some("box of (.50 beanbag) ammo drums"), description: Some("A box full of (.50 beanbag) ammo drums.")),
+    (id: "BoxMagazineShotgunIncendiary", parents: ["BoxMagazine"], name: Some("box of (.50 incendiary) ammo drums"), description: Some("A box full of (.50 incendiary) ammo drums.")),
+    (id: "BoxMagazineShotgunSlug", parents: ["BoxMagazine"], name: Some("box of (.50 slug) ammo drums"), description: Some("A box full of (.50 slug) ammo drums.")),
+]

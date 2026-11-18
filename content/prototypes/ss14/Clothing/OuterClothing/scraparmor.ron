@@ -1,0 +1,7 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Clothing/OuterClothing/scraparmor.yml. Создано scripts/gen_items.py.
+[
+    (id: "ClothingOuterArmorScrap", parents: ["ClothingOuterBaseLarge", "AllowSuitStorageClothing", "BaseMajorContraband"], name: Some("scrap armor"), description: Some("A tider's gleaming plate mail. Bail up, or you're a dead man.")),
+    (id: "SteelApronBase", parents: ["BaseItem"], name: Some("steel-covered apron"), description: Some("An apron with steel plating haphazardly affixed by spare cabling. In it's current state, it would fall apart immediately if worn.")),
+    (id: "WeldedSteelApronBase", parents: ["BaseItem"], name: Some("welded steel apron"), description: Some("An apron affixed with welded steel plating attached to spare cabling. The armor is no longer in danger of falling apart, but requires additional work to be worn securely.")),
+    (id: "WiredApronBase", parents: ["BaseItem"], name: Some("wired apron"), description: Some("An apron threaded with cabling. It looks incomplete.")),
+]

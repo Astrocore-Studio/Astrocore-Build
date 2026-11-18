@@ -1,0 +1,6 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/Wallmounts/Storage/wall_dispensers.yml. Создано scripts/gen_items.py.
+[
+    (id: "BaseDispenser", parents: ["SolutionTank", "SolutionGinormous", "BaseWallmountMetallic", "StructureHealthContainerFlimsy"], abstract: true),
+    (id: "CleanerDispenser", parents: ["BaseDispenser"], name: Some("space cleaner dispenser"), description: Some("Wallmount Space Cleaner dispenser.")),
+    (id: "FuelDispenser", parents: ["BaseDispenser"], name: Some("fuel dispenser"), description: Some("Wallmount Fuel dispenser.")),
+]

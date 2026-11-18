@@ -1,0 +1,5 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Markers/Spawners/Random/toy_tabletop.yml. Создано scripts/gen_items.py.
+[
+    (id: "BattleMapSpawner100", parents: ["MarkerBase"], name: Some("Battle Map Spawner")),
+    (id: "BoardGameSpawner100", parents: ["MarkerBase"], name: Some("Board Game Spawner")),
+]

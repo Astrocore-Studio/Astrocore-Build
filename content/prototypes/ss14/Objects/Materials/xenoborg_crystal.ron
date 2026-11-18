@@ -1,0 +1,6 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Materials/xenoborg_crystal.yml. Создано scripts/gen_items.py.
+[
+    (id: "MaterialXenoborgCrystal", parents: ["MaterialBase", "BaseXenoborgContraband"], name: Some("xenoborg crystal"), description: Some("A special crystal created from nuclear fusion. It's used to make xenoborgs.")),
+    (id: "MaterialXenoborgCrystal1", parents: ["MaterialXenoborgCrystal"]),
+    (id: "MaterialXenoborgCrystal5", parents: ["MaterialXenoborgCrystal"]),
+]

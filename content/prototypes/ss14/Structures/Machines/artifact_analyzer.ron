@@ -1,0 +1,6 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/Machines/artifact_analyzer.yml. Создано scripts/gen_items.py.
+[
+    (id: "MachineArtifactAnalyzer", parents: ["BaseMachinePowered", "SmallConstructibleMachine", "BaseSmallConstructibleMachineDestructible"], name: Some("artifact analyzer"), description: Some("A platform capable of performing analysis on various types of artifacts.")),
+    (id: "MachineArtifactCrusher", parents: ["ConstructibleMachine", "BaseMachinePowered", "BaseConstructibleMachineDestructible"], name: Some("artifact crusher"), description: Some("Best not to let your fingers get stuck...")),
+    (id: "MachineArtifactCrusherXenoborg", parents: ["MachineArtifactCrusher"], name: Some("body crusher"), description: Some("Best not to let your head get stuck...")),
+]

@@ -1,0 +1,4 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/Doors/Airlocks/highsec.yml. Создано scripts/gen_items.py.
+[
+    (id: "HighSecDoor", parents: ["BaseAirlockIndestructible", "StructureHealthDoorStrong"], name: Some("high security door"), description: Some("Keeps the bad out and keeps the good in.")),
+]

@@ -1,0 +1,4 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/Furniture/Tables/operating_table.yml. Создано scripts/gen_items.py.
+[
+    (id: "OperatingTable", parents: ["Bed"], name: Some("operating table"), description: Some("Special medical table for surgery. This one just seems to be a useless prop, though.")),
+]

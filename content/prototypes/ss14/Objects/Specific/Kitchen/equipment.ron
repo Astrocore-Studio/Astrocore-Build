@@ -1,0 +1,10 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Specific/Kitchen/equipment.yml. Создано scripts/gen_items.py.
+[
+    (id: "BaseHandheldGrinder", parents: ["SolutionToolSmall", "BaseItem"], abstract: true),
+    (id: "HandheldJuicer", parents: ["BaseHandheldGrinder"], name: Some("handheld juicer"), description: Some("Used for juicing small amounts of objects."), components: {"Sprite": (sprite: "Objects/Specific/Kitchen/handheld_juicer.rsi", state: "juicer_base"), "Item": (size: "Small"), "Solution": (maxVol: 30.0, canReact: true, reagents: ()), "Edible": (transferAmount: 5.0, delay: 1.0, forceFeedDelay: 3.0, destroyOnEmpty: false), "SolutionTransfer": (amount: 5.0, max: 1000.0), "Refillable": (), "Drainable": (), "MixableSolution": ()}),
+    (id: "HandheldJuicerMakeshift", parents: ["HandheldJuicer"], name: Some("makeshift juicer"), description: Some("Used for juicing small amounts of objects. Inferior version made out of wood.")),
+    (id: "IncompleteHandheldJuicer", parents: ["BaseItem"], name: Some("incomplete handheld juicer"), description: Some("A some wood and plastic stuck together.")),
+    (id: "IncompleteMortarAndPestle", parents: ["BaseItem"], name: Some("incomplete mortar and pestle"), description: Some("A few planks of wood stuck together.")),
+    (id: "MortarAndPestle", parents: ["BaseHandheldGrinder"], name: Some("mortar and pestle"), description: Some("Used for grinding small amounts of objects."), components: {"Sprite": (sprite: "Objects/Specific/Kitchen/mortar_and_pestle.rsi", state: "icon"), "Item": (size: "Small"), "Solution": (maxVol: 30.0, canReact: true, reagents: ()), "Edible": (transferAmount: 5.0, delay: 1.0, forceFeedDelay: 3.0, destroyOnEmpty: false), "SolutionTransfer": (amount: 5.0, max: 1000.0), "Refillable": (), "Drainable": (), "MixableSolution": ()}),
+    (id: "MortarAndPestleMakeshift", parents: ["MortarAndPestle"], name: Some("makeshift mortar and pestle"), description: Some("Used for grinding small amounts of objects. Inferior version made out of wood.")),
+]

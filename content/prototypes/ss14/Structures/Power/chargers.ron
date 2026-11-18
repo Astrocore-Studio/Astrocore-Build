@@ -1,0 +1,12 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/Power/chargers.yml. Создано scripts/gen_items.py.
+[
+    (id: "BaseItemRecharger", parents: ["BaseRecharger", "BaseSmallConstructibleMachineDestructible"], abstract: true),
+    (id: "BaseRecharger", parents: ["BaseMachinePowered", "ConstructibleMachine"], abstract: true),
+    (id: "BorgCharger", parents: ["BaseRecharger", "BaseConstructibleMachineDestructible"], name: Some("cyborg recharging station"), description: Some("A stationary charger for various robotic and cyborg entities. Surprisingly spacious.")),
+    (id: "BorgChargerXenoborg", parents: ["BorgCharger"], name: Some("xenoborg recharging station"), description: Some("A stationary charger for xenoborgs. Feels claustrophobic.")),
+    (id: "PowerCageRecharger", parents: ["BaseItemRecharger", "ConstructibleMachine"], name: Some("cage recharger"), description: Some("A specialized machine made for recharging the heavy cage batteries used by ship-mounted weapons.")),
+    (id: "PowerCellRecharger", parents: ["BaseItemRecharger"], name: Some("cell recharger"), description: Some("An older model recharger that can recharge power cells."), components: {"Sprite": (sprite: "Structures/Power/cell_recharger.rsi", state: "empty"), "Item": (size: "Ginormous"), "Charger": (rate: 20.0), "ApcPowerReceiver": (load: 1.0), "Tag": (tags: ["Structure"])}),
+    (id: "TurboItemRecharger", parents: ["BaseItemRecharger"], name: Some("turbo recharger"), description: Some("An overclocked recharger. Not recommended for use around asthmatics.")),
+    (id: "WallWeaponCapacitorRecharger", parents: ["BaseItemRecharger", "BaseWallmount"], name: Some("wall recharger"), description: Some("A compact wall-mounted recharger. It can only recharge electronic devices and has no space for power cells.")),
+    (id: "WeaponCapacitorRecharger", parents: ["BaseItemRecharger"], name: Some("recharger"), description: Some("A modern recharging station that can fit both power cells and small electronic devices."), components: {"Sprite": (sprite: "Structures/Power/recharger.rsi", state: "empty"), "Item": (size: "Ginormous"), "Charger": (rate: 20.0), "ApcPowerReceiver": (load: 1.0), "Tag": (tags: ["Structure"])}),
+]

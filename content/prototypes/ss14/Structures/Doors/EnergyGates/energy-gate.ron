@@ -1,0 +1,6 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/Doors/EnergyGates/energy-gate.yml. Создано scripts/gen_items.py.
+[
+    (id: "EnergyGate", parents: ["BaseStructure", "StructureHealthDoor"], name: Some("energy gate"), description: Some("An advanced gate that permits one-way access and prevents tailgating.")),
+    (id: "EnergyGateGenpopEnter", parents: ["EnergyGate"]),
+    (id: "EnergyGateGenpopLeave", parents: ["EnergyGate"]),
+]

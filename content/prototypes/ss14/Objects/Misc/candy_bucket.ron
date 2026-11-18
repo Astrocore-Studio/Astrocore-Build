@@ -1,0 +1,4 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Misc/candy_bucket.yml. Создано scripts/gen_items.py.
+[
+    (id: "CandyBucket", parents: ["BaseItem"], name: Some("candy bucket"), description: Some("A festive bucket for all your treats.")),
+]

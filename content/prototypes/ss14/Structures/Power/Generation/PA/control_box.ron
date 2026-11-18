@@ -1,0 +1,5 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/Power/Generation/PA/control_box.yml. Создано scripts/gen_items.py.
+[
+    (id: "ParticleAcceleratorControlBox", parents: ["ParticleAcceleratorFinishedPart"], name: Some("PA control computer"), description: Some("This controls the density of the particles.")),
+    (id: "ParticleAcceleratorControlBoxUnfinished", parents: ["ParticleAcceleratorUnfinishedBase"], name: Some("PA control computer"), description: Some("This controls the density of the particles. It looks unfinished.")),
+]

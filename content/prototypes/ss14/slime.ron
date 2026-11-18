@@ -1,0 +1,22 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/slime.yml. Создано scripts/gen_items.py.
+[
+    (id: "AppearanceSlimePerson", parents: ["BaseSpeciesAppearance"], name: Some("SlimePerson appearance"), categories: ["HideSpawnMenu"]),
+    (id: "MobSlimePerson", parents: ["AppearanceSlimePerson", "BaseSpeciesMobOrganic"], name: Some("Urist McWobble")),
+    (id: "OrganSlimePerson", parents: ["OrganBaseOrganic"], abstract: true),
+    (id: "OrganSlimePersonArmLeft", parents: ["OrganBaseArmLeft", "OrganSlimePersonExternal"]),
+    (id: "OrganSlimePersonArmRight", parents: ["OrganBaseArmRight", "OrganSlimePersonExternal"]),
+    (id: "OrganSlimePersonCore", parents: ["OrganBaseBrain", "OrganSlimePersonInternal", "OrganSlimePersonMetabolizer"], name: Some("sentient slime core")),
+    (id: "OrganSlimePersonExternal", parents: ["OrganSlimePerson"], abstract: true),
+    (id: "OrganSlimePersonEyes", parents: ["OrganBaseEyes", "OrganSlimePersonInternal", "OrganSlimePersonExternal"]),
+    (id: "OrganSlimePersonFootLeft", parents: ["OrganBaseFootLeft", "OrganSlimePersonExternal"]),
+    (id: "OrganSlimePersonFootRight", parents: ["OrganBaseFootRight", "OrganSlimePersonExternal"]),
+    (id: "OrganSlimePersonHandLeft", parents: ["OrganBaseHandLeft", "OrganSlimePersonExternal"]),
+    (id: "OrganSlimePersonHandRight", parents: ["OrganBaseHandRight", "OrganSlimePersonExternal"]),
+    (id: "OrganSlimePersonHead", parents: ["OrganBaseHead", "OrganSlimePersonExternal"]),
+    (id: "OrganSlimePersonInternal", parents: ["OrganSlimePerson"], abstract: true),
+    (id: "OrganSlimePersonLegLeft", parents: ["OrganBaseLegLeft", "OrganSlimePersonExternal"]),
+    (id: "OrganSlimePersonLegRight", parents: ["OrganBaseLegRight", "OrganSlimePersonExternal"]),
+    (id: "OrganSlimePersonLungs", parents: ["OrganBaseLungs", "OrganSlimePersonInternal", "OrganSlimePersonMetabolizer"], name: Some("gas sacs")),
+    (id: "OrganSlimePersonMetabolizer", abstract: true),
+    (id: "OrganSlimePersonTorso", parents: ["OrganBaseTorsoSexed", "OrganBaseTorso", "OrganSlimePersonExternal"]),
+]

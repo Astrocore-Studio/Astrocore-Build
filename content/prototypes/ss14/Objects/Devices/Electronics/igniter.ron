@@ -1,0 +1,4 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Devices/Electronics/igniter.yml. Создано scripts/gen_items.py.
+[
+    (id: "Igniter", parents: ["BaseItem"], name: Some("igniter"), description: Some("Creates a spark when activated by a signal."), components: {"Sprite": (sprite: "Objects/Devices/igniter.rsi", state: "icon"), "Item": (size: "Small"), "Tag": (tags: ["Igniter"])}),
+]

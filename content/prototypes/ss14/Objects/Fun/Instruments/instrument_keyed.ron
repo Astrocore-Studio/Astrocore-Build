@@ -1,0 +1,9 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Fun/Instruments/instrument_keyed.yml. Создано scripts/gen_items.py.
+[
+    (id: "AccordionInstrument", parents: ["BaseKeyedInstrument"], name: Some("accordion"), components: {"Sprite": (sprite: "Objects/Fun/Instruments/accordion.rsi", state: "icon"), "Item": (size: "Normal"), "Tag": (tags: ["KeyedInstrument"])}),
+    (id: "BaseKeyedInstrument", parents: ["BaseHandheldInstrument"], abstract: true),
+    (id: "KalimbaInstrument", parents: ["BaseKeyedInstrument"], name: Some("kalimba"), description: Some("The power of a piano right at your thumbs."), components: {"Sprite": (sprite: "Objects/Fun/Instruments/kalimba.rsi", state: "icon"), "Item": (size: "Small"), "Tag": (tags: ["KeyedInstrument"])}),
+    (id: "SuperSynthesizerInstrument", parents: ["BaseKeyedInstrument"], name: Some("super synthesizer"), description: Some("Blasting the ghetto with Touhou MIDIs since 2020.")),
+    (id: "SuperSynthesizerNoLimitInstrument", parents: ["SuperSynthesizerInstrument"]),
+    (id: "SynthesizerInstrument", parents: ["BaseKeyedInstrument"], name: Some("synthesizer"), components: {"Sprite": (sprite: "Objects/Fun/Instruments/h_synthesizer.rsi", state: "icon"), "Item": (size: "Normal"), "Tag": (tags: ["KeyedInstrument"])}),
+]

@@ -1,0 +1,10 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Misc/handcuffs.yml. Создано scripts/gen_items.py.
+[
+    (id: "BaseHandcuffsBroken", parents: ["BaseItem"], abstract: true),
+    (id: "Cablecuffs", parents: ["Handcuffs"], name: Some("makeshift handcuffs"), description: Some("Homemade handcuffs crafted from spare cables.")),
+    (id: "CablecuffsBroken", parents: ["BaseHandcuffsBroken"], name: Some("broken cables"), description: Some("These cables are broken in several places and don't seem very useful.")),
+    (id: "ClothingOuterStraightjacket", parents: ["Handcuffs"], name: Some("straitjacket"), description: Some("Used to restrain those who may cause harm to themselves or others.")),
+    (id: "Handcuffs", parents: ["BaseItem", "BaseSecurityCommandContraband"], name: Some("handcuffs"), description: Some("Used to detain criminals and other assholes."), components: {"Sprite": (sprite: "Objects/Misc/handcuffs.rsi", state: "handcuff"), "Item": (size: "Small"), "Tag": (tags: ["Handcuffs"]), "Handcuff": ()}),
+    (id: "Zipties", parents: ["Handcuffs"], name: Some("zipties"), description: Some("Tough single-use plastic zipties, ideal for restraining rowdy prisoners."), components: {"Sprite": (sprite: "Objects/Misc/zipties.rsi", state: "cuff"), "Item": (size: "Tiny"), "Tag": (tags: ["Handcuffs"]), "Handcuff": ()}),
+    (id: "ZiptiesBroken", parents: ["BaseHandcuffsBroken"], name: Some("broken zipties"), description: Some("These zipties look like they tried to manage the wrong cables.")),
+]

@@ -1,0 +1,12 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/Power/cables.yml. Создано scripts/gen_items.py.
+[
+    (id: "CableApcExtension", parents: ["CableBase"], name: Some("LV power cable"), description: Some("A cable used to connect machines to an APC.")),
+    (id: "CableApcExtensionUncuttable", parents: ["CableApcExtension"]),
+    (id: "CableBase", parents: ["CablePhysBase", "StructureHealthContainerWeak"], abstract: true),
+    (id: "CableDet", parents: ["CablePhysBase", "BaseSecurityContraband"], name: Some("explosive cord"), description: Some("Spaghetti for people who hate walls.")),
+    (id: "CableHV", parents: ["CableBase"], name: Some("HV power cable"), description: Some("An orange high voltage power cable.")),
+    (id: "CableHVUncuttable", parents: ["CableHV"]),
+    (id: "CableMV", parents: ["CableBase"], name: Some("MV power cable"), description: Some("A medium voltage power cable.")),
+    (id: "CableMVUncuttable", parents: ["CableMV"]),
+    (id: "CablePhysBase", abstract: true),
+]

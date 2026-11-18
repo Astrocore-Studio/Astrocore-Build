@@ -1,0 +1,4 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Debugging/item.yml. Создано scripts/gen_items.py.
+[
+    (id: "DebugItemShapeWeird", parents: ["BaseItem"], name: Some("weirdly shaped item"), description: Some("What is it...?")),
+]

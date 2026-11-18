@@ -1,0 +1,13 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Mobs/Cyborgs/base_borg_chassis.yml. Создано scripts/gen_items.py.
+[
+    (id: "BaseBorgChassis", parents: ["BaseBorgChassisNotIonStormable"], abstract: true),
+    (id: "BaseBorgChassisDerelict", parents: ["BaseBorgChassis"], abstract: true),
+    (id: "BaseBorgChassisNT", parents: ["BaseBorgChassis", "BaseBorgTransponder"], abstract: true),
+    (id: "BaseBorgChassisNotIonStormable", parents: ["BaseMob", "StripableInventoryBase"], abstract: true, name: Some("cyborg"), description: Some("A man-machine hybrid that assists in station activity. They love being asked to state their laws over and over.")),
+    (id: "BaseBorgChassisSyndicate", parents: ["BaseBorgChassis"], abstract: true),
+    (id: "BaseBorgChassisSyndicateDerelict", parents: ["BaseBorgChassis"], abstract: true),
+    (id: "BaseBorgTransponder", abstract: true),
+    (id: "BaseXenoborgChassis", parents: ["BaseBorgChassisNotIonStormable"], abstract: true, name: Some("xenoborg"), description: Some("A man-machine hybrid that aims to replicate itself. They love extracting brains to insert into fresh Xenoborg chassis to grow their army.")),
+    (id: "BaseXenoborgDestructible", abstract: true),
+    (id: "BaseXenoborgTransponder", parents: ["BaseBorgTransponder"], abstract: true),
+]

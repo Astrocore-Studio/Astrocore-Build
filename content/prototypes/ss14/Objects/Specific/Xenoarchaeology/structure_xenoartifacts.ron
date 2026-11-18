@@ -1,0 +1,6 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Specific/Xenoarchaeology/structure_xenoartifacts.yml. Создано scripts/gen_items.py.
+[
+    (id: "BaseXenoArtifactStructure", parents: ["BaseStructureDynamic", "BaseXenoArtifact"], abstract: true, name: Some("artifact")),
+    (id: "ComplexXenoArtifact", parents: ["BaseXenoArtifactStructure"]),
+    (id: "DummyArtifactStructure", parents: ["BaseXenoArtifactStructure"], name: Some("artifact")),
+]

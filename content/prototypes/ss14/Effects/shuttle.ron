@@ -1,0 +1,4 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Effects/shuttle.yml. Создано scripts/gen_items.py.
+[
+    (id: "FtlVisualizerEntity", description: Some("Visualizer for shuttles arriving. You shouldn't see this!"), categories: ["HideSpawnMenu"]),
+]

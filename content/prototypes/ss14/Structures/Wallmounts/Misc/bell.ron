@@ -1,0 +1,4 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/Wallmounts/Misc/bell.yml. Создано scripts/gen_items.py.
+[
+    (id: "BoxingBell", parents: ["BaseWallmountMetallic", "StructureHealthFurnitureStrong"], name: Some("boxing bell"), description: Some("Ding ding!")),
+]

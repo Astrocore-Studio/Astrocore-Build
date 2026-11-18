@@ -1,0 +1,7 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/Wallmounts/Storage/Cabinets/defib_cabinet.yml. Создано scripts/gen_items.py.
+[
+    (id: "DefibrillatorCabinet", parents: ["BaseWallmountCabinet", "StructureHealthContainerWeak"], name: Some("defibrillator cabinet"), description: Some("A small wall mounted cabinet designed to hold a defibrillator.")),
+    (id: "DefibrillatorCabinetFilled", parents: ["DefibrillatorCabinet"]),
+    (id: "DefibrillatorCabinetFilledOpen", parents: ["DefibrillatorCabinetFilled", "DefibrillatorCabinetOpen"]),
+    (id: "DefibrillatorCabinetOpen", parents: ["DefibrillatorCabinet"]),
+]

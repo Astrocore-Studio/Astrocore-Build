@@ -1,0 +1,9 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Clothing/Hands/base_clothinghands.yml. Создано scripts/gen_items.py.
+[
+    (id: "ClothingHandsBase", parents: ["SolutionFood", "SolutionToolSmall", "Clothing"], abstract: true),
+    (id: "ClothingHandsButcherable", parents: ["ClothingHandsBase", "BaseSlicingRefinable"], abstract: true),
+    (id: "ClothingHandsGlovesSyntheticBase", parents: ["ClothingHandsButcherable"], abstract: true),
+    (id: "GoldRingBase", abstract: true),
+    (id: "RingBase", parents: ["BaseItem"], abstract: true),
+    (id: "SilverRingBase", abstract: true, name: Some("silver ring"), description: Some("Looks slightly less valuable than a gold one.")),
+]

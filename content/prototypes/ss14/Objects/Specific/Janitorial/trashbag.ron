@@ -1,0 +1,6 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Specific/Janitorial/trashbag.yml. Создано scripts/gen_items.py.
+[
+    (id: "BorgTrashBag", parents: ["TrashBag"], name: Some("internal trash bag"), description: Some("An upgraded trash bag with a larger internal volume, installed directly into a custodial cyborg.")),
+    (id: "TrashBag", parents: ["BaseStorageItem"], name: Some("trash bag"), components: {"Sprite": (sprite: "Objects/Specific/Janitorial/trashbag.rsi", state: "icon-0"), "Item": (size: "Normal"), "Clothing": (slots: ["belt"]), "Storage": (grid: ["0,0,7,5"], maxItemSize: "Normal", whitelist: (tags: ["Trash"], components: [])), "Tag": (tags: ["TrashBag"])}),
+    (id: "TrashBagHolding", parents: ["TrashBag"], name: Some("trash bag of holding"), description: Some("A trash bag that opens into a localized pocket of bluespace.")),
+]

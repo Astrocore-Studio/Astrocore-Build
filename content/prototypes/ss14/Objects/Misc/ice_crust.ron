@@ -1,0 +1,4 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Misc/ice_crust.yml. Создано scripts/gen_items.py.
+[
+    (id: "IceCrust", name: Some("ice crust"), description: Some("It's cold and slippery.")),
+]

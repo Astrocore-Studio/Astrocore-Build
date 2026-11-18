@@ -1,0 +1,4 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Markers/rooms.yml. Создано scripts/gen_items.py.
+[
+    (id: "BaseRoomMarker", parents: ["MarkerBase"], name: Some("room spawner")),
+]

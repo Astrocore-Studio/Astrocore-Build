@@ -1,0 +1,4 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/Machines/fatextractor.yml. Создано scripts/gen_items.py.
+[
+    (id: "FatExtractor", parents: ["BaseMachinePowered", "ConstructibleMachine", "BaseConstructibleMachineDestructible"], name: Some("lipid extractor"), description: Some("Safely and efficiently extracts excess fat from a subject.")),
+]

@@ -1,0 +1,7 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Weapons/Guns/Projectiles/Energy/kinetic.yml. Создано scripts/gen_items.py.
+[
+    (id: "BulletCharge", parents: ["BaseBullet"], name: Some("charge bolt"), description: Some("Marks a target for additional damage."), categories: ["HideSpawnMenu"]),
+    (id: "BulletChargeGlaive", parents: ["BulletCharge"], name: Some("leech bolt")),
+    (id: "BulletKinetic", parents: ["BaseBullet"], name: Some("kinetic bolt"), description: Some("Not too bad, but you still don't want to get hit by it."), categories: ["HideSpawnMenu"]),
+    (id: "BulletKineticShuttle", parents: ["BaseBullet"], categories: ["HideSpawnMenu"]),
+]

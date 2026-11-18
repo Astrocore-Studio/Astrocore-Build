@@ -1,0 +1,12 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Mobs/NPCs/slimes.yml. Создано scripts/gen_items.py.
+[
+    (id: "BaseAdultSlimesAngry", abstract: true, name: Some("base angry slime")),
+    (id: "BaseMobAdultSlimes", parents: ["BaseMobSlimes", "SimpleMobBase", "MobCombat", "BaseSlicingRefinableButchering", "MobNightVision", "BaseMobDestructible"], abstract: true, name: Some("basic slime"), description: Some("It looks so much like jelly. I wonder what it tastes like?")),
+    (id: "MobAdultSlimes", parents: ["BaseMobAdultSlimes"], abstract: true, name: Some("basic slime"), description: Some("It looks so much like jelly. I wonder what it tastes like?")),
+    (id: "MobAdultSlimesBlue", parents: ["MobAdultSlimes"], name: Some("blue slime")),
+    (id: "MobAdultSlimesBlueAngry", parents: ["BaseAdultSlimesAngry", "MobAdultSlimesBlue"], name: Some("blue slime")),
+    (id: "MobAdultSlimesGreen", parents: ["MobAdultSlimes"], name: Some("green slime")),
+    (id: "MobAdultSlimesGreenAngry", parents: ["BaseAdultSlimesAngry", "MobAdultSlimesGreen"], name: Some("green slime")),
+    (id: "MobAdultSlimesYellow", parents: ["MobAdultSlimes"], name: Some("yellow slime")),
+    (id: "MobAdultSlimesYellowAngry", parents: ["BaseAdultSlimesAngry", "MobAdultSlimesYellow"], name: Some("yellow slime")),
+]

@@ -1,0 +1,4 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Power/antimatter_jar.yml. Создано scripts/gen_items.py.
+[
+    (id: "AmeJar", parents: ["BaseItem"], name: Some("AME fuel jar"), description: Some("A hermetically sealed jar containing antimatter for use in an antimatter reactor."), components: {"Sprite": (sprite: "Objects/Power/AME/ame_jar.rsi", state: "jar"), "Item": (size: "Normal")}),
+]

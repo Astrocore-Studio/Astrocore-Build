@@ -1,0 +1,8 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/Decoration/showcase.yml. Создано scripts/gen_items.py.
+[
+    (id: "BaseShowcaseRobot", parents: ["BaseStatue"], abstract: true, name: Some("security robot showcase"), description: Some("A non-functional replica of an old security robot.")),
+    (id: "ShowcaseRobot", parents: ["BaseShowcaseRobot"], name: Some("security robot showcase"), description: Some("A non-functional replica of an old security robot.")),
+    (id: "ShowcaseRobotAntique", parents: ["BaseShowcaseRobot"], name: Some("cargo robot showcase"), description: Some("A non-functional replica of an old cargo robot.")),
+    (id: "ShowcaseRobotMarauder", parents: ["BaseShowcaseRobot"], name: Some("marauder showcase"), description: Some("A non-functional replica of a marauder, painted green.")),
+    (id: "ShowcaseRobotWhite", parents: ["BaseShowcaseRobot"], name: Some("white robot showcase"), description: Some("A non-functional replica of an old robot.")),
+]

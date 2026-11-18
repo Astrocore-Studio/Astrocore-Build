@@ -51,6 +51,13 @@ pub struct PrototypeDef {
     pub is_abstract: bool,
     #[serde(default)]
     pub name: Option<String>,
+    /// Описание для осмотра и каталога; наследуется от родителя.
+    #[serde(default)]
+    pub description: Option<String>,
+    /// Категории (`HideSpawnMenu`, `Spawner`, `Debug`…, как `categories` у `EntityPrototype`
+    /// SS14): наследуются от родителей и складываются.
+    #[serde(default)]
+    pub categories: Vec<String>,
     /// Компоненты по имени; значение — данные компонента.
     #[serde(default)]
     pub components: BTreeMap<String, Data>,
@@ -61,6 +68,8 @@ pub struct PrototypeDef {
 pub struct Resolved {
     pub id: String,
     pub name: Option<String>,
+    pub description: Option<String>,
+    pub categories: Vec<String>,
     pub components: BTreeMap<String, Data>,
 }
 
@@ -253,6 +262,8 @@ impl PrototypeRegistry {
         path.push(id.to_string());
         let mut components: BTreeMap<String, Data> = BTreeMap::new();
         let mut name = None;
+        let mut description = None;
+        let mut categories: BTreeSet<String> = BTreeSet::new();
         let mut seen = BTreeSet::new();
         for parent in &def.parents {
             if !seen.insert(parent.as_str()) {
@@ -263,6 +274,8 @@ impl PrototypeRegistry {
             }
             let p = self.resolve_inner(parent, path)?;
             name = p.name.or(name);
+            description = p.description.or(description);
+            categories.extend(p.categories);
             for (k, v) in p.components {
                 match components.remove(&k) {
                     Some(old) => components.insert(k, old.merged_with(v)),
@@ -280,6 +293,13 @@ impl PrototypeRegistry {
         Ok(Resolved {
             id: id.to_string(),
             name: def.name.clone().or(name),
+            description: def.description.clone().or(description),
+            categories: categories
+                .into_iter()
+                .chain(def.categories.iter().cloned())
+                .collect::<BTreeSet<_>>()
+                .into_iter()
+                .collect(),
             components,
         })
     }

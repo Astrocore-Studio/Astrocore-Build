@@ -1,0 +1,5 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Consumable/Smokeables/Cigars/case.yml. Создано scripts/gen_items.py.
+[
+    (id: "CigarCase", parents: ["BaseStorageItem", "BaseBagOpenClose"], name: Some("cigar case"), description: Some("A case for holding your cigars when you are not smoking them."), components: {"Sprite": (sprite: "Objects/Consumable/Smokeables/Cigars/case.rsi", state: "closed"), "Item": (size: "Normal"), "Storage": (grid: ["0,0,3,1"])}),
+    (id: "CigarGoldCase", parents: ["CigarCase"], name: Some("premium cigar case"), description: Some("A case of premium Havanian cigars. You'll only see heads with these."), components: {"Sprite": (sprite: "Objects/Consumable/Smokeables/Cigars/case.rsi", state: "closed"), "Item": (size: "Normal"), "Storage": (grid: ["0,0,3,1"])}),
+]

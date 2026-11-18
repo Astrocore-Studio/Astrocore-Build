@@ -1,0 +1,7 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/Shuttles/station_anchor.yml. Создано scripts/gen_items.py.
+[
+    (id: "StationAnchor", parents: ["StationAnchorBase", "BaseMachinePowered", "ConstructibleMachine", "StructureHealthMachineMassive"]),
+    (id: "StationAnchorBase", abstract: true, name: Some("station anchor"), description: Some("Prevents stations from moving.")),
+    (id: "StationAnchorIndestructible", parents: ["StationAnchorBase"]),
+    (id: "StationAnchorOff", parents: ["StationAnchor"]),
+]

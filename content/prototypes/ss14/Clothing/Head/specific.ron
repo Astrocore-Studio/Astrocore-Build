@@ -1,0 +1,5 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Clothing/Head/specific.yml. Создано scripts/gen_items.py.
+[
+    (id: "ClothingHeadHatChameleon", parents: ["ClothingHeadBase", "BaseChameleon"], name: Some("beret"), description: Some("A beret, an artists favorite headwear.")),
+    (id: "ClothingHeadHatDetGadget", parents: ["ClothingHeadHatFedoraBrown"], name: Some("go go hat"), description: Some("A novel hat with a built in toolkit. Automatically stores and retrieves items at the say of a phrase!"), components: {"Sprite": (sprite: "Clothing/Head/Hats/brownfedora.rsi", state: "icon"), "Item": (size: "Small"), "Clothing": (slots: ["head"]), "Storage": (grid: ["0,0,3,2"], maxItemSize: "Small", blacklist: (tags: ["HighRiskItem", "FakeNukeDisk", "QuantumSpinInverter"], components: [])), "Solution": (maxVol: 30.0, canReact: true, reagents: (Fiber: 15.0)), "Edible": (transferAmount: 5.0, delay: 1.0, forceFeedDelay: 3.0, destroyOnEmpty: true)}),
+]

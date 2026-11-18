@@ -1,0 +1,5 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/Power/Generation/PA/fuel_chamber.yml. Создано scripts/gen_items.py.
+[
+    (id: "ParticleAcceleratorFuelChamber", parents: ["ParticleAcceleratorFinishedPart"], name: Some("PA fuel chamber"), description: Some("Formally known as the EM Acceleration Chamber. This is where the Alpha particles are accelerated to radical speeds.")),
+    (id: "ParticleAcceleratorFuelChamberUnfinished", parents: ["ParticleAcceleratorUnfinishedBase"], name: Some("PA fuel chamber"), description: Some("Formally known as the EM Acceleration Chamber. This is where the Alpha particles are accelerated to radical speeds. It looks unfinished.")),
+]

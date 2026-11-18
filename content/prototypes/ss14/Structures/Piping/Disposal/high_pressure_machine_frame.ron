@@ -1,0 +1,4 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/Piping/Disposal/high_pressure_machine_frame.yml. Создано scripts/gen_items.py.
+[
+    (id: "DisposalMachineFrame", parents: ["StructureHealthMachineWeak"], name: Some("high pressure machine frame"), description: Some("A machine frame made to withstand the amount of pressure used in the station's disposal system.")),
+]

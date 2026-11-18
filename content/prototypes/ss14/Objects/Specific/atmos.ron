@@ -1,0 +1,4 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Specific/atmos.yml. Создано scripts/gen_items.py.
+[
+    (id: "GasAnalyzer", parents: ["BaseItem"], name: Some("gas analyzer"), description: Some("A hand-held environmental scanner which reports current gas levels."), components: {"Sprite": (sprite: "Objects/Specific/Atmos/gasanalyzer.rsi", state: "icon"), "Item": (size: "Small"), "GasAnalyzer": ()}),
+]

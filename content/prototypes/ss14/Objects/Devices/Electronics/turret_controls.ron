@@ -1,0 +1,7 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Devices/Electronics/turret_controls.yml. Создано scripts/gen_items.py.
+[
+    (id: "WeaponEnergyTurretAIControlPanelElectronics", parents: ["WeaponEnergyTurretStationControlPanelElectronicsBase"]),
+    (id: "WeaponEnergyTurretCommandControlPanelElectronics", parents: ["WeaponEnergyTurretStationControlPanelElectronicsBase"]),
+    (id: "WeaponEnergyTurretSecurityControlPanelElectronics", parents: ["WeaponEnergyTurretStationControlPanelElectronicsBase"]),
+    (id: "WeaponEnergyTurretStationControlPanelElectronicsBase", parents: ["BaseElectronics"], abstract: true, name: Some("sentry turret control panel electronics"), description: Some("An electronics board used in a sentry turret control panel.")),
+]

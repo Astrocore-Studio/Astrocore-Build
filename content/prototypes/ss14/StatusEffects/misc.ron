@@ -1,0 +1,17 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/StatusEffects/misc.yml. Создано scripts/gen_items.py.
+[
+    (id: "MobStandStatusEffectBase", parents: ["MobStatusEffectDebuff"], abstract: true),
+    (id: "MobStatusEffectBase", parents: ["StatusEffectBase"], abstract: true),
+    (id: "MobStatusEffectDebuff", parents: ["MobStatusEffectBase"], abstract: true),
+    (id: "MutedStatusEffectBase", parents: ["MobStatusEffectBase"], abstract: true, name: Some("muted")),
+    (id: "StatusEffectBase", abstract: true),
+    (id: "StatusEffectChangelingMuted", parents: ["MobStatusEffectBase", "MobStatusEffectDebuff"], name: Some("imperceptibly muted")),
+    (id: "StatusEffectFlashed", parents: ["MobStatusEffectDebuff"], name: Some("flashed")),
+    (id: "StatusEffectForcedItemArmblade", parents: ["MobStatusEffectDebuff"], name: Some("forced armblade")),
+    (id: "StatusEffectForcedItemCatEars", parents: ["MobStatusEffectDebuff"], name: Some("forced cat ears")),
+    (id: "StatusEffectForcedItemMaid", parents: ["MobStatusEffectDebuff"], name: Some("forced maid outfit")),
+    (id: "StatusEffectHorrorFormArmblades", parents: ["MobStatusEffectDebuff"], name: Some("forced armblade")),
+    (id: "StatusEffectMimeMuted", parents: ["MutedStatusEffectBase"]),
+    (id: "StatusEffectSSDSleeping", parents: ["MobStatusEffectBase"], name: Some("forced sleep")),
+    (id: "StatusEffectVentriloquistPuppetMuted", parents: ["MutedStatusEffectBase"]),
+]

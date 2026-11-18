@@ -1,0 +1,8 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Devices/chameleon_projector.yml. Создано scripts/gen_items.py.
+[
+    (id: "ActionDisguiseAnchor", parents: ["BaseAction"], name: Some("Toggle Anchored"), description: Some("For many objects you will want to be anchored to not be completely obvious.")),
+    (id: "ActionDisguiseNoRot", parents: ["BaseAction"], name: Some("Toggle Rotation"), description: Some("Use this to prevent your disguise from rotating, making it easier to hide in some scenarios.")),
+    (id: "ChameleonDisguise", name: Some("Urist McKleiner"), categories: ["HideSpawnMenu"]),
+    (id: "ChameleonProjector", parents: ["ChameleonProjectorNoBattery"], name: Some("chameleon projector"), description: Some("Holoparasite technology used to create a hard-light replica of any object around you. Disguise is destroyed when picked up or deactivated.")),
+    (id: "ChameleonProjectorNoBattery", parents: ["BaseItem", "BaseSyndicateContraband"], name: Some("chameleon projector"), description: Some("Holoparasite technology used to create a hard-light replica of any object around you. Disguise is destroyed when picked up or deactivated.")),
+]

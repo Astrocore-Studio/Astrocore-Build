@@ -1,0 +1,18 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Clothing/OuterClothing/base_clothingouter.yml. Создано scripts/gen_items.py.
+[
+    (id: "ClothingOuterBase", parents: ["Clothing"], abstract: true),
+    (id: "ClothingOuterBaseLarge", parents: ["ClothingOuterBase"], abstract: true),
+    (id: "ClothingOuterBaseLargeFireproof", parents: ["ClothingOuterBaseLarge", "TemperatureProtectionGreat"], abstract: true),
+    (id: "ClothingOuterBaseLargeInsulated", parents: ["ClothingOuterBaseLarge", "TemperatureProtectionGood"], abstract: true),
+    (id: "ClothingOuterBaseMedium", parents: ["ClothingOuterBase"], abstract: true),
+    (id: "ClothingOuterBaseToggleable", parents: ["ClothingOuterBase"], abstract: true, name: Some("hoodie with hood")),
+    (id: "ClothingOuterEVASuitBase", parents: ["ClothingOuterBaseLargeInsulated", "AllowSuitStorageClothing"], abstract: true, name: Some("base EVA Suit")),
+    (id: "ClothingOuterEVASuitBaseToggleable", parents: ["ClothingOuterEVASuitBase"], abstract: true),
+    (id: "ClothingOuterHardsuitBase", parents: ["ClothingOuterEVASuitBase", "GeigerCounterClothing"], abstract: true, name: Some("base hardsuit")),
+    (id: "ClothingOuterJacketBase", parents: ["ClothingOuterStorageEdible", "TemperatureProtectionMinimal"], abstract: true),
+    (id: "ClothingOuterJacketToggleableBase", parents: ["ClothingOuterJacketBase"], abstract: true),
+    (id: "ClothingOuterStorageBase", parents: ["ClothingOuterBase"], abstract: true),
+    (id: "ClothingOuterStorageEdible", parents: ["SolutionFood", "SolutionNormal", "ClothingOuterStorageBase"], abstract: true),
+    (id: "ClothingOuterStorageFoldableBase", parents: ["ClothingOuterStorageBase", "BaseFoldable"], abstract: true),
+    (id: "ClothingOuterStorageFoldableBaseOpened", parents: ["ClothingOuterStorageFoldableBase"], abstract: true),
+]

@@ -1,0 +1,9 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/Doors/Airlocks/shuttle.yml. Создано scripts/gen_items.py.
+[
+    (id: "AirlockGlassShuttle", parents: ["AirlockShuttle"], name: Some("docking glass airlock")),
+    (id: "AirlockGlassShuttleSyndicate", parents: ["AirlockGlassShuttle"]),
+    (id: "AirlockShuttle", parents: ["AirlockRCDResistant"], name: Some("docking airlock"), description: Some("Necessary for connecting two space craft together.")),
+    (id: "AirlockShuttleAssembly", parents: ["AirlockAssembly"], name: Some("docking airlock assembly"), description: Some("An incomplete structure necessary for connecting two space craft together.")),
+    (id: "AirlockShuttleSyndicate", parents: ["AirlockShuttle"]),
+    (id: "AirlockShuttleXenoborg", parents: ["AirlockShuttle"], name: Some("mechadermis docking airlock")),
+]

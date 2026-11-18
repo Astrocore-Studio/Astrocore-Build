@@ -1,0 +1,5 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/Piping/Disposal/units.yml. Создано scripts/gen_items.py.
+[
+    (id: "DisposalUnitBase", parents: ["BaseMachinePowered", "StructureHealthMachineWeak"], abstract: true, description: Some("A pneumatic waste disposal unit.")),
+    (id: "MailingUnit", parents: ["DisposalUnitBase"], name: Some("mailing unit"), description: Some("A pneumatic mail delivery unit.")),
+]

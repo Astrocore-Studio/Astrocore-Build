@@ -1,0 +1,4 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Markers/Spawners/Random/folders.yml. Создано scripts/gen_items.py.
+[
+    (id: "FolderSpawner", parents: ["MarkerBase"], name: Some("Random Folder Spawner")),
+]

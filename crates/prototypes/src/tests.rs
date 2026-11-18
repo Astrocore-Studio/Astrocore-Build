@@ -246,3 +246,37 @@ fn engine_ids_are_snake_case_and_collisions_are_reported() {
         Err(ProtoError::IdCollision(..))
     ));
 }
+
+#[test]
+fn description_and_categories_come_down_the_tree() {
+    let mut r = PrototypeRegistry::new();
+    r.load_ron_str(
+        r#"[
+            (id: "Base", abstract: true, name: Some("base"), description: Some("Старое."), categories: ["HideSpawnMenu"]),
+            (id: "Mid", parents: ["Base"], categories: ["Debug"]),
+            (id: "Leaf", parents: ["Mid"], description: Some("Новое.")),
+            (id: "Plain"),
+        ]"#,
+        "test",
+    )
+    .unwrap();
+    r.validate().unwrap();
+    let leaf = r.spawnable("Leaf").unwrap();
+    assert_eq!(leaf.name.as_deref(), Some("base"));
+    assert_eq!(
+        leaf.description.as_deref(),
+        Some("Новое."),
+        "своё описание перекрывает"
+    );
+    assert_eq!(
+        leaf.categories,
+        ["Debug", "HideSpawnMenu"],
+        "категории складываются"
+    );
+    assert_eq!(
+        r.resolve("Mid").unwrap().description.as_deref(),
+        Some("Старое.")
+    );
+    let plain = r.spawnable("Plain").unwrap();
+    assert!(plain.description.is_none() && plain.categories.is_empty());
+}

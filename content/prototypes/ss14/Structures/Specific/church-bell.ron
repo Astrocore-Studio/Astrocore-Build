@@ -1,0 +1,4 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/Specific/church-bell.yml. Создано scripts/gen_items.py.
+[
+    (id: "ChurchBell", parents: ["StructureHealthFurnitureStrong"], name: Some("church bell"), description: Some("You feel your soul grow ever closer to the realms beyond for every chime this bell tolls...")),
+]

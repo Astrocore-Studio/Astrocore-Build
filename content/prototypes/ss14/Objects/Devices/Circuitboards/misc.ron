@@ -1,0 +1,4 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Devices/Circuitboards/misc.yml. Создано scripts/gen_items.py.
+[
+    (id: "StationMapCircuitboard", parents: ["BaseElectronics"], name: Some("station map electronics"), description: Some("An electronics board used in station maps.")),
+]

@@ -1,0 +1,10 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/Holographic/projections.yml. Создано scripts/gen_items.py.
+[
+    (id: "BaseHoloSign", abstract: true),
+    (id: "HoloFan", parents: ["BaseHoloSign"], name: Some("holofan"), description: Some("A barrier of hard light that blocks air, but nothing else.")),
+    (id: "HoloPeel", parents: ["BaseHoloSign"], name: Some("holopeel"), description: Some("A banana peel made of slippery hard light, watch your step!")),
+    (id: "HolosignForcefield", parents: ["BaseHoloSign"], name: Some("holographic force field"), description: Some("A powerful temporal containment field that doesn't let anything through, not even a tesla or singularity.")),
+    (id: "HolosignSecurity", parents: ["BaseHoloSign"], name: Some("holographic barrier"), description: Some("A barrier of hard light that blocks movement, but pretty weak.")),
+    (id: "HolosignWetFloor", parents: ["BaseHoloSign"], name: Some("wet floor sign"), description: Some("The words flicker as if they mean nothing.")),
+    (id: "XenoborgDeflectorField", parents: ["BaseHoloSign"], name: Some("deflector field"), description: Some("An energy matrix, comprised of interlocking fields that deflect projectiles. Powerful, but short-lived.")),
+]

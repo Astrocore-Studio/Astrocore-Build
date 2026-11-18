@@ -1,0 +1,8 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Mobs/NPCs/Rodents/mouse.yml. Создано scripts/gen_items.py.
+[
+    (id: "MobMouse", parents: ["SimpleMobBase", "BaseMobAnimal", "SolutionVermin", "BaseSlicingRefinableButchering", "MobNightVision"], name: Some("mouse"), description: Some("Squeak!")),
+    (id: "MobMouse1", parents: ["MobMouse"]),
+    (id: "MobMouse2", parents: ["MobMouse"]),
+    (id: "MobMouseCancer", parents: ["MobMouse"], name: Some("cancer mouse"), description: Some("Toxic. Squeak!")),
+    (id: "MobMouseDead", parents: ["MobMouse"], name: Some("mouse"), description: Some("Squeak!")),
+]

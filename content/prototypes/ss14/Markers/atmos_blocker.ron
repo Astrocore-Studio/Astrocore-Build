@@ -1,0 +1,11 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Markers/atmos_blocker.yml. Создано scripts/gen_items.py.
+[
+    (id: "AtmosFixAirMarker", parents: ["MarkerBase"], name: Some("Atmos Fix Air Marker"), description: Some("Oxygen (21%) and nitrogen (79%) @ gas miner pressure, T20C")),
+    (id: "AtmosFixBlockerMarker", parents: ["MarkerBase"], name: Some("Atmos Fix Vacuum Marker"), description: Some("Vacuum, T20C")),
+    (id: "AtmosFixFreezerMarker", parents: ["MarkerBase"], name: Some("Atmos Fix Freezer Marker"), description: Some("Change air temp to 235K, for freezer with a bit of wiggle room to get set up.")),
+    (id: "AtmosFixInstantPlasmaFireMarker", parents: ["MarkerBase"], name: Some("Atmos Fix Instant Plasmafire Marker"), description: Some("INSTANT PLASMAFIRE")),
+    (id: "AtmosFixNitrogenMarker", parents: ["MarkerBase"], name: Some("Atmos Fix Nitrogen Marker"), description: Some("Nitrogen @ gas miner pressure, T20C")),
+    (id: "AtmosFixOxygenMarker", parents: ["MarkerBase"], name: Some("Atmos Fix Oxygen Marker"), description: Some("Oxygen @ gas miner pressure, T20C")),
+    (id: "AtmosFixPlasmaMarker", parents: ["MarkerBase"], name: Some("Atmos Fix Plasma Marker"), description: Some("Plasma @ gas miner pressure, T20C")),
+    (id: "AtmosFixVoxMarker", parents: ["AtmosFixNitrogenMarker"], description: Some("Nitrogen @ 101 kPa, 20C")),
+]

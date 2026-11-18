@@ -1,0 +1,5 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/Windows/shuttle.yml. Создано scripts/gen_items.py.
+[
+    (id: "ShuttleWindow", parents: ["BaseDeltaPressureReinforcedGlass", "BaseWindowStructure", "BaseRCDResistant", "StructureHealthBarrierStrong"], name: Some("shuttle window")),
+    (id: "ShuttleWindowDiagonal", parents: ["ShuttleWindow"]),
+]

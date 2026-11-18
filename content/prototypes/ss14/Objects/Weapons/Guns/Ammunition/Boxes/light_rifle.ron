@@ -1,0 +1,9 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Weapons/Guns/Ammunition/Boxes/light_rifle.yml. Создано scripts/gen_items.py.
+[
+    (id: "BaseMagazineBoxLightRifle", parents: ["BaseItem"], abstract: true, name: Some("ammunition box (.30 rifle)")),
+    (id: "MagazineBoxLightRifle", parents: ["BaseMagazineBoxLightRifle"], name: Some("ammunition box (.30 rifle)"), description: Some("A cardboard box of .30 rifle rounds. Intended to hold general-purpose kinetic ammunition.")),
+    (id: "MagazineBoxLightRifleBig", parents: ["BaseMagazineBoxLightRifle"], name: Some("ammunition box (.30 rifle)"), components: {"Sprite": (sprite: "Objects/Weapons/Guns/Ammunition/Boxes/light_rifle.rsi", state: "base"), "Item": (size: "Small"), "Magazine": (cartridge: "CartridgeLightRifle", capacity: 200), "BallisticAmmoProvider": ()}),
+    (id: "MagazineBoxLightRifleIncendiary", parents: ["BaseMagazineBoxLightRifle"], name: Some("ammunition box (.30 rifle incendiary)"), description: Some("A cardboard box of .30 rifle rounds. Intended to hold self-igniting incendiary ammunition.")),
+    (id: "MagazineBoxLightRiflePractice", parents: ["BaseMagazineBoxLightRifle"], name: Some("ammunition box (.30 rifle practice)"), description: Some("A cardboard box of .30 rifle rounds. Intended to hold harmless practice ammunition."), components: {"Sprite": (sprite: "Objects/Weapons/Guns/Ammunition/Boxes/light_rifle.rsi", state: "base"), "Item": (size: "Small"), "Magazine": (cartridge: "CartridgeLightRiflePractice", capacity: 60), "BallisticAmmoProvider": ()}),
+    (id: "MagazineBoxLightRifleUranium", parents: ["BaseMagazineBoxLightRifle"], name: Some("ammunition box (.30 rifle uranium)"), description: Some("A cardboard box of .30 rifle rounds. Intended to hold exotic uranium-core ammunition.")),
+]

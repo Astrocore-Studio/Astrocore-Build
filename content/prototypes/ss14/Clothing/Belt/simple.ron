@@ -1,0 +1,6 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Clothing/Belt/simple.yml. Создано scripts/gen_items.py.
+[
+    (id: "ClothingBeltChampion", parents: ["ClothingBeltBase"], name: Some("championship belt"), description: Some("Proves to the world that you are the strongest!"), components: {"Sprite": (sprite: "Clothing/Belt/champion.rsi", state: "icon"), "Item": (size: "Normal"), "Clothing": (slots: ["belt"]), "Tag": (tags: ["Kangaroo", "WhitelistChameleon"])}),
+    (id: "ClothingBeltSuspendersBlack", parents: ["ClothingBeltSuspendersRed"], name: Some("black suspenders"), components: {"Sprite": (sprite: "Clothing/Belt/suspenders_black.rsi", state: "icon"), "Item": (size: "Normal"), "Clothing": (slots: ["belt"]), "Tag": (tags: ["MimeBelt", "WhitelistChameleon"])}),
+    (id: "ClothingBeltSuspendersRed", parents: ["ClothingBeltBase"], name: Some("red suspenders"), description: Some("For holding your pants up."), components: {"Sprite": (sprite: "Clothing/Belt/suspenders_red.rsi", state: "icon"), "Item": (size: "Normal"), "Clothing": (slots: ["belt"]), "Tag": (tags: ["MimeBelt", "WhitelistChameleon"])}),
+]

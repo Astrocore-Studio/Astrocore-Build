@@ -1,0 +1,4 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/Windows/xenoresin.yml. Создано scripts/gen_items.py.
+[
+    (id: "XenoResinWindow", parents: ["ReinforcedWindow"], name: Some("resin window"), description: Some("Transparent and hardened, yet slightly sticky to the touch.")),
+]

@@ -1,0 +1,4 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/Windows/regal.yml. Создано scripts/gen_items.py.
+[
+    (id: "RegalWindow", parents: ["BaseDeltaPressureReinforcedGlass", "Window"], name: Some("regal window"), description: Some("An ornate window adorned with gilded filigree. Expensive!")),
+]

@@ -1,0 +1,12 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Weapons/Guns/Basic/wands.yml. Создано scripts/gen_items.py.
+[
+    (id: "WeaponWandCluwne", parents: ["WeaponWandPolymorphBase"], name: Some("wand of cluwning"), description: Some("Make their situation worse by turning them into a cluwne.")),
+    (id: "WeaponWandDeath", parents: ["WeaponWandBase"], name: Some("magical wand of instant death"), description: Some("Only the best and brightest of the Space Wizards R&D team worked together to create this beauty.")),
+    (id: "WeaponWandFireball", parents: ["WeaponWandBase"], name: Some("wand of fireball"), description: Some("Great big balls of fire!")),
+    (id: "WeaponWandLocker", parents: ["WeaponWandBase"], name: Some("wand of the locker"), description: Some("Stuff nerds at a distance!")),
+    (id: "WeaponWandPolymorphBase", parents: ["WeaponWandBase"], abstract: true),
+    (id: "WeaponWandPolymorphBread", parents: ["WeaponWandPolymorphBase"], name: Some("magic bread wand"), description: Some("Turn all your friends into bread! Your boss! Your enemies! Your dog! Make everything bread!")),
+    (id: "WeaponWandPolymorphCarp", parents: ["WeaponWandPolymorphBase"], name: Some("wand of carp polymorph"), description: Some("For when you need a carp filet quick and the clown is looking juicy.")),
+    (id: "WeaponWandPolymorphDoor", parents: ["WeaponWandBase"], name: Some("wand of entrance"), description: Some("For when you need a get-away route.")),
+    (id: "WeaponWandPolymorphMonkey", parents: ["WeaponWandPolymorphBase"], name: Some("wand of monkey polymorph"), description: Some("For when you need a monkey friend.")),
+]

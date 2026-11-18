@@ -1,0 +1,4 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Weapons/Guns/Turrets/turrets_broken.yml. Создано scripts/gen_items.py.
+[
+    (id: "WeaponTurretSyndicateBroken", parents: ["BaseStructure", "StructureHealthFurnitureStrong"], name: Some("ballistic turret (broken)"), description: Some("A ballistic machine gun auto-turret.")),
+]

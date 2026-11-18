@@ -1,0 +1,4 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/cargo_telepad.yml. Создано scripts/gen_items.py.
+[
+    (id: "CargoTelepad", parents: ["BaseMachinePowered", "ConstructibleMachine", "BaseConstructibleMachineDestructible"], name: Some("cargo telepad"), description: Some("Beam in the pizzas and dig in.")),
+]

@@ -1,0 +1,7 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Fun/Figurines/figurine_boxes.yml. Создано scripts/gen_items.py.
+[
+    (id: "MysteryFigureBox", parents: ["BaseItem"], name: Some("mystery spacemen minifigure box"), description: Some("A box containing a mystery minifigure. The side of the box depicts a few blacked-out 'rare' figures, including one with a large, non-humanoid shilouette."), components: {"Sprite": (sprite: "Objects/Fun/figurines.rsi", state: "fig_box"), "Item": (size: "Small")}),
+    (id: "MysteryFigureBoxTrash", parents: ["BaseItem"], name: Some("unfolded cardboard box"), description: Some("A small, unfolded cardboard toy box.")),
+    (id: "MysteryLighterBox", parents: ["BaseItem"], name: Some("Novelty lighter mystery box"), description: Some("A box of discontinued promotional lighters, many of which have since been declared \"contraband\"."), components: {"Sprite": (sprite: "Objects/Fun/figurines.rsi", state: "fig_box"), "Item": (size: "Small")}),
+    (id: "UplinkLighterBox", parents: ["MysteryLighterBox"]),
+]

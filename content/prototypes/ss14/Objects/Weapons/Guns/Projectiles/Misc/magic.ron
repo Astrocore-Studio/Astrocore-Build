@@ -1,0 +1,16 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Weapons/Guns/Projectiles/Misc/magic.yml. Создано scripts/gen_items.py.
+[
+    (id: "BulletInstakillMagic", parents: ["BaseBullet"], name: Some("magical lead cylinder"), description: Some("This looks familiar."), categories: ["HideSpawnMenu"]),
+    (id: "ProjectileAnomalyFireball", parents: ["ProjectileFireball"], name: Some("fireball"), description: Some("Hovering blob of flame."), categories: ["HideSpawnMenu"]),
+    (id: "ProjectileDragonsBreath", parents: ["BaseBulletTrigger"], name: Some("dragon's breath"), description: Some("Try not to get toasted."), categories: ["HideSpawnMenu"]),
+    (id: "ProjectileFireball", parents: ["BulletRocket"], name: Some("fireball"), description: Some("You better GITTAH WEIGH."), categories: ["HideSpawnMenu"]),
+    (id: "ProjectileHealingBolt", parents: ["BaseBullet"], name: Some("healing bolt"), description: Some("I COMMAND YOU TO LIVE!"), categories: ["HideSpawnMenu"]),
+    (id: "ProjectileIcicle", parents: ["BaseBullet"], name: Some("icicle"), description: Some("Brrrrr."), categories: ["HideSpawnMenu"]),
+    (id: "ProjectileLocker", parents: ["ClosetSteelBase"], name: Some("cursed locker"), description: Some("A cursed magical locker! Can you resist?"), categories: ["HideSpawnMenu"]),
+    (id: "ProjectilePolyboltBase", parents: ["BaseBullet"], abstract: true, categories: ["HideSpawnMenu"]),
+    (id: "ProjectilePolyboltBread", parents: ["ProjectilePolyboltBase"], name: Some("bread polybolt"), description: Some("Nooo, I don't wanna be bread!"), categories: ["HideSpawnMenu"]),
+    (id: "ProjectilePolyboltCarp", parents: ["ProjectilePolyboltBase"], name: Some("carp polybolt"), description: Some("Nooo, I don't wanna be fish!"), categories: ["HideSpawnMenu"]),
+    (id: "ProjectilePolyboltCluwne", parents: ["ProjectilePolyboltBase"], name: Some("cluwne polybolt"), description: Some("KnoH KnoH!"), categories: ["HideSpawnMenu"]),
+    (id: "ProjectilePolyboltDoor", parents: ["ProjectilePolyboltBase"], name: Some("door polybolt"), description: Some("Nooo, I don't wanna be door!"), categories: ["HideSpawnMenu"]),
+    (id: "ProjectilePolyboltMonkey", parents: ["ProjectilePolyboltBase"], name: Some("monkey polybolt"), description: Some("Nooo, I don't wanna be monkey!"), categories: ["HideSpawnMenu"]),
+]

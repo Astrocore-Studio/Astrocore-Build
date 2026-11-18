@@ -1,0 +1,6 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Markers/warp_point.yml. Создано scripts/gen_items.py.
+[
+    (id: "TeleportScrollWarpPoint", parents: ["MarkerBase"], name: Some("teleport scroll warp point")),
+    (id: "WarpPoint", parents: ["MarkerBase"], name: Some("warp point")),
+    (id: "WarpPointBeacon", parents: ["WarpPoint"], name: Some("warp point (beacon)")),
+]

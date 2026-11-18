@@ -1,0 +1,5 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/Power/Generation/PA/end_cap.yml. Создано scripts/gen_items.py.
+[
+    (id: "ParticleAcceleratorEndCap", parents: ["ParticleAcceleratorFinishedPart"], name: Some("PA end-cap"), description: Some("Formally known as the Alpha Particle Generation Array. This is where Alpha particles are generated from [REDACTED].")),
+    (id: "ParticleAcceleratorEndCapUnfinished", parents: ["ParticleAcceleratorUnfinishedBase"], name: Some("PA end-cap"), description: Some("Formally known as the Alpha Particle Generation Array. This is where Alpha particles are generated from [REDACTED]. It looks unfinished.")),
+]

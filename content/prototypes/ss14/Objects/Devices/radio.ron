@@ -1,0 +1,5 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Devices/radio.yml. Создано scripts/gen_items.py.
+[
+    (id: "RadioHandheld", parents: ["BaseItem"], name: Some("handheld radio"), description: Some("A handy handheld radio."), components: {"Sprite": (sprite: "Objects/Devices/communication.rsi", state: "walkietalkie"), "Item": (size: "Small"), "Tag": (tags: ["Radio"])}),
+    (id: "RadioHandheldSecurity", parents: ["RadioHandheld", "BaseSecurityContraband"], name: Some("security radio"), description: Some("A handy security radio."), components: {"Sprite": (sprite: "Objects/Devices/securityhandy.rsi", state: "walkietalkie"), "Item": (size: "Small"), "Tag": (tags: ["Radio"])}),
+]

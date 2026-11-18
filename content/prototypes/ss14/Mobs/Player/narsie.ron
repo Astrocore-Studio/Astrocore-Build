@@ -1,0 +1,6 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Mobs/Player/narsie.yml. Создано scripts/gen_items.py.
+[
+    (id: "MobNarsie", parents: ["MobNarsieBase", "BaseMob"]),
+    (id: "MobNarsieBase", abstract: true, name: Some("Nar'Sie"), description: Some("Your mind begins to bubble and ooze as it tries to comprehend what it sees.")),
+    (id: "MobNarsieSpawn", parents: ["MobNarsieBase"]),
+]

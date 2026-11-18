@@ -1,0 +1,9 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Deliveries/deliveries.yml. Создано scripts/gen_items.py.
+[
+    (id: "BaseDelivery", parents: ["BaseItem"], abstract: true),
+    (id: "DeliveryModifierBomb", description: Some("Components to add when a delivery is rolled as a bomb."), categories: ["HideSpawnMenu"]),
+    (id: "DeliveryModifierFragile", description: Some("Components to add when a delivery is rolled as fragile."), categories: ["HideSpawnMenu"]),
+    (id: "DeliveryModifierPriority", description: Some("Components to add when a delivery is rolled as priority."), categories: ["HideSpawnMenu"]),
+    (id: "LetterDelivery", parents: ["BaseDelivery"], name: Some("letter")),
+    (id: "PackageDelivery", parents: ["BaseDelivery"], name: Some("package")),
+]

@@ -1,0 +1,7 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/Doors/Airlocks/base_structureairlocks.yml. Создано scripts/gen_items.py.
+[
+    (id: "Airlock", parents: ["BaseAirlockIndestructible", "StructureHealthDoor"], description: Some("It opens, it closes, and maybe crushes you.")),
+    (id: "AirlockGlass", parents: ["Airlock"], name: Some("glass airlock")),
+    (id: "AirlockRCDResistant", parents: ["Airlock"], abstract: true),
+    (id: "BaseAirlockIndestructible", parents: ["BaseStructure"], abstract: true, name: Some("airlock"), description: Some("It opens, it closes, and maybe crushes you.")),
+]

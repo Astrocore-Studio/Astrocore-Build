@@ -1,0 +1,9 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Mobs/NPCs/Ancestors/monkey.yml. Создано scripts/gen_items.py.
+[
+    (id: "MobBaseMonkey", parents: ["MobBaseAncestor"], abstract: true, name: Some("monkey"), description: Some("New church of neo-darwinists actually believe that EVERY animal evolved from a monkey. Tastes like pork, and killing them is both fun and relaxing.")),
+    (id: "MobBaseSyndicateMonkey", parents: ["MobBaseMonkey"]),
+    (id: "MobGuidebookMonkey", parents: ["MobMonkey"], name: Some("guidebook monkey"), description: Some("A hopefully helpful monkey whose only purpose in life is for you to click on. Does this count as having a monkey give you a tutorial?"), categories: ["HideSpawnMenu"]),
+    (id: "MobMonkey", parents: ["MobBaseMonkey"]),
+    (id: "MobMonkeySyndicateAgent", parents: ["MobBaseSyndicateMonkey"]),
+    (id: "MobMonkeySyndicateAgentNukeops", parents: ["MobBaseSyndicateMonkey"]),
+]

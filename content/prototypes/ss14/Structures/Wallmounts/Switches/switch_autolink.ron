@@ -1,0 +1,8 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/Wallmounts/Switches/switch_autolink.yml. Создано scripts/gen_items.py.
+[
+    (id: "SignalButtonBridge", parents: ["SignalButton"], name: Some("bridge windows button")),
+    (id: "SignalButtonExt1", parents: ["SignalButton"], name: Some("exterior button 1")),
+    (id: "SignalButtonExt2", parents: ["SignalButton"], name: Some("exterior button 2")),
+    (id: "SignalButtonExt3", parents: ["SignalButton"], name: Some("exterior button 3")),
+    (id: "SignalButtonWindows", parents: ["SignalButton"], name: Some("exterior windows button")),
+]

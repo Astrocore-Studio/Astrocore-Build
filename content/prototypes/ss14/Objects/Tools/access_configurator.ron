@@ -1,0 +1,6 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Tools/access_configurator.yml. Создано scripts/gen_items.py.
+[
+    (id: "AccessConfigurator", parents: ["BaseItem"], name: Some("access configurator"), description: Some("Used to modify the access level requirements for airlocks and other lockable devices."), components: {"Sprite": (sprite: "Objects/Tools/access_configurator.rsi", state: "icon"), "Item": (size: "Small"), "Clothing": (slots: ["belt"])}),
+    (id: "AccessConfiguratorUniversal", parents: ["AccessConfigurator"], name: Some("universal access configurator"), description: Some("A modified access configurator used only by the mythical Administrator.")),
+    (id: "AccessConfiguratorXenoborg", parents: ["AccessConfigurator"], name: Some("xenoborg access configurator"), description: Some("A modified access configurator used by the xenoborgs.")),
+]

@@ -1,0 +1,8 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/Walls/railing.yml. Создано scripts/gen_items.py.
+[
+    (id: "BaseRailing", parents: ["BaseStructure", "StructureHealthBarrierWeak"], abstract: true, name: Some("railing"), description: Some("Basic railing meant to protect idiots like you from falling.")),
+    (id: "Railing", parents: ["BaseRailing"]),
+    (id: "RailingCorner", parents: ["BaseRailing"]),
+    (id: "RailingCornerSmall", parents: ["BaseRailing"]),
+    (id: "RailingRound", parents: ["BaseRailing"]),
+]

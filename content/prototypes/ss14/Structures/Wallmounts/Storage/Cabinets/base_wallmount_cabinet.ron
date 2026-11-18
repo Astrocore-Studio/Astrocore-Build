@@ -1,0 +1,5 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/Wallmounts/Storage/Cabinets/base_wallmount_cabinet.yml. Создано scripts/gen_items.py.
+[
+    (id: "BaseWallmountCabinet", parents: ["BaseWallmountMetallic", "BaseItemCabinet"], abstract: true),
+    (id: "BaseWallmountCabinetGlass", parents: ["BaseWallmountGlass", "BaseItemCabinetGlass"], abstract: true),
+]

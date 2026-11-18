@@ -1,0 +1,4 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Markers/Spawners/Random/flora.yml. Создано scripts/gen_items.py.
+[
+    (id: "RandomFloraTree", parents: ["MarkerBase"], name: Some("random tree spawner")),
+]

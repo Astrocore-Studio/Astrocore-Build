@@ -1,0 +1,11 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Fun/darts.yml. Создано scripts/gen_items.py.
+[
+    (id: "Dart", parents: ["BaseItem", "SolutionDart"], name: Some("dart"), description: Some("Light throwing dart for playing darts. Don't get in the eye!")),
+    (id: "DartBlue", parents: ["Dart"]),
+    (id: "DartPurple", parents: ["Dart"]),
+    (id: "DartYellow", parents: ["Dart"]),
+    (id: "HypoDart", parents: ["Dart"]),
+    (id: "HypoDartBox", parents: ["BaseItem", "BaseSyndicateContraband"], name: Some("hypodart box"), description: Some("A small box containing a hypodart. Packaging disintegrates when opened, leaving no evidence behind.")),
+    (id: "SolutionDart", parents: ["Solution"], categories: ["HideSpawnMenu"]),
+    (id: "TargetDarts", parents: ["BaseStructureDynamic"], name: Some("dartboard"), description: Some("A target for playing darts.")),
+]

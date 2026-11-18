@@ -1,0 +1,6 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Tools/thief.yml. Создано scripts/gen_items.py.
+[
+    (id: "SatchelThief", parents: ["ToolboxThief"], name: Some("undetermined thieving satchel"), description: Some("This is where your favorite thief's supplies lie. Folded for your convenience.")),
+    (id: "ThiefBeacon", parents: ["BaseMinorContraband"], name: Some("thieving beacon"), description: Some("A device that will teleport everything around it to the thief's vault at the end of the shift.")),
+    (id: "ToolboxThief", parents: ["BaseItem", "BaseMinorContraband"], name: Some("undetermined thieving toolbox"), description: Some("This is where your favorite thief's supplies lie. Try to remember which ones.")),
+]

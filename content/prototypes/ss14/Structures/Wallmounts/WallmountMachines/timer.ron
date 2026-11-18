@@ -1,0 +1,7 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/Wallmounts/WallmountMachines/timer.yml. Создано scripts/gen_items.py.
+[
+    (id: "BrigTimer", parents: ["ScreenTimer"], name: Some("brig timer"), description: Some("It's a timer for brig cells.")),
+    (id: "ScreenTimer", parents: ["SignalTimer"], name: Some("screen timer"), description: Some("It's a timer for sending timed signals to things, with a built-in screen.")),
+    (id: "SignalTimer", parents: ["BaseWallmountMachine", "StructureHealthMachineFlimsy"], name: Some("signal timer"), description: Some("It's a timer for sending timed signals to things.")),
+    (id: "TimerFrame", name: Some("timer frame"), description: Some("A construction frame for a timer.")),
+]

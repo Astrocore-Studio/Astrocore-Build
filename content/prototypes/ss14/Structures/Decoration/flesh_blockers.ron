@@ -1,0 +1,4 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/Decoration/flesh_blockers.yml. Создано scripts/gen_items.py.
+[
+    (id: "FleshBlocker", parents: ["BaseStructure", "StructureHealthFurniture"], name: Some("flesh clump"), description: Some("An annoying clump of flesh.")),
+]

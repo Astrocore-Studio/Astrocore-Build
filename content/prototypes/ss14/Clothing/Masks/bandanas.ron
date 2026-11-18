@@ -1,0 +1,14 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Clothing/Masks/bandanas.yml. Создано scripts/gen_items.py.
+[
+    (id: "ClothingMaskBandBlack", parents: ["ClothingMaskBandanaBase"], name: Some("black bandana"), description: Some("A black bandana to make you look cool.")),
+    (id: "ClothingMaskBandBlue", parents: ["ClothingMaskBandanaBase"], name: Some("blue bandana"), description: Some("A blue bandana to make you look cool.")),
+    (id: "ClothingMaskBandBotany", parents: ["ClothingMaskBandanaBase"], name: Some("botany bandana"), description: Some("A botany bandana to make you look cool, made from natural fibers.")),
+    (id: "ClothingMaskBandBrown", parents: ["ClothingMaskBandanaBase"], name: Some("brown bandana"), description: Some("A brown bandana to make you look cool.")),
+    (id: "ClothingMaskBandGold", parents: ["ClothingMaskBandanaBase"], name: Some("gold bandana"), description: Some("A gold bandana to make you look cool.")),
+    (id: "ClothingMaskBandGreen", parents: ["ClothingMaskBandanaBase"], name: Some("green bandana"), description: Some("A green bandana to make you look cool.")),
+    (id: "ClothingMaskBandGrey", parents: ["ClothingMaskBandanaBase"], name: Some("grey bandana"), description: Some("A grey bandana to make you look cool.")),
+    (id: "ClothingMaskBandMerc", parents: ["ClothingMaskBandanaBase"], name: Some("mercenary bandana"), description: Some("To protect the head from the sun, insects and other dangers of the higher path.")),
+    (id: "ClothingMaskBandRed", parents: ["ClothingMaskBandanaBase"], name: Some("red bandana"), description: Some("A red bandana to make you look cool.")),
+    (id: "ClothingMaskBandSkull", parents: ["ClothingMaskBandanaBase"], name: Some("skull bandana"), description: Some("A bandana with a skull to make you look even cooler.")),
+    (id: "ClothingMaskBandanaBase", parents: ["ClothingMaskBaseButcherable", "BaseFoldable"], abstract: true),
+]

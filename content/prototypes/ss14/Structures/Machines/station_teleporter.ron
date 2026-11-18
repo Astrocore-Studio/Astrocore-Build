@@ -1,0 +1,12 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/Machines/station_teleporter.yml. Создано scripts/gen_items.py.
+[
+    (id: "StationTeleporter", parents: ["ConstructibleMachine", "BaseMachinePowered"], name: Some("teleporter"), description: Some("The peak of bluespace technology. A giant teleporter that allows you to travel vast distances in the blink of an eye.")),
+    (id: "StationTeleporterCargo", parents: ["StationTeleporterNanotrasen"]),
+    (id: "StationTeleporterCenter", parents: ["StationTeleporterNanotrasen"]),
+    (id: "StationTeleporterEngineering", parents: ["StationTeleporterNanotrasen"]),
+    (id: "StationTeleporterMedical", parents: ["StationTeleporterNanotrasen"]),
+    (id: "StationTeleporterNanotrasen", parents: ["StationTeleporter"]),
+    (id: "StationTeleporterSalvage", parents: ["StationTeleporterNanotrasen"]),
+    (id: "StationTeleporterScience", parents: ["StationTeleporterNanotrasen"]),
+    (id: "StationTeleporterSecurity", parents: ["StationTeleporterNanotrasen"]),
+]

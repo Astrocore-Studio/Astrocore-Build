@@ -1,0 +1,17 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/Doors/Shutter/blast_door_autolink.yml. Создано scripts/gen_items.py.
+[
+    (id: "BlastDoorBridge", parents: ["BlastDoor"]),
+    (id: "BlastDoorBridgeOpen", parents: ["BlastDoorOpen"]),
+    (id: "BlastDoorEngineering", parents: ["BlastDoor"]),
+    (id: "BlastDoorEngineeringOpen", parents: ["BlastDoorOpen"]),
+    (id: "BlastDoorExterior1", parents: ["BlastDoor"]),
+    (id: "BlastDoorExterior1Open", parents: ["BlastDoorOpen"]),
+    (id: "BlastDoorExterior2", parents: ["BlastDoor"]),
+    (id: "BlastDoorExterior2Open", parents: ["BlastDoorOpen"]),
+    (id: "BlastDoorExterior3", parents: ["BlastDoor"]),
+    (id: "BlastDoorExterior3Open", parents: ["BlastDoorOpen"]),
+    (id: "BlastDoorScience", parents: ["BlastDoor"]),
+    (id: "BlastDoorScienceOpen", parents: ["BlastDoorOpen"]),
+    (id: "BlastDoorWindows", parents: ["BlastDoor"]),
+    (id: "BlastDoorWindowsOpen", parents: ["BlastDoorOpen"]),
+]

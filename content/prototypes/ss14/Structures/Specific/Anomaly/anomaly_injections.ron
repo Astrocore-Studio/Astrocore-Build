@@ -1,0 +1,15 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/Specific/Anomaly/anomaly_injections.yml. Создано scripts/gen_items.py.
+[
+    (id: "AnomalyInjectionBase", abstract: true),
+    (id: "AnomalyInjectionBluespace", parents: ["AnomalyInjectionBase"], categories: ["HideSpawnMenu"]),
+    (id: "AnomalyInjectionElectric", parents: ["AnomalyInjectionBase"], categories: ["HideSpawnMenu"]),
+    (id: "AnomalyInjectionFlesh", parents: ["AnomalyInjectionBase"], categories: ["HideSpawnMenu"]),
+    (id: "AnomalyInjectionFlora", parents: ["AnomalyInjectionBase"], categories: ["HideSpawnMenu"]),
+    (id: "AnomalyInjectionGravity", parents: ["AnomalyInjectionBase"], categories: ["HideSpawnMenu"]),
+    (id: "AnomalyInjectionIce", parents: ["AnomalyInjectionBase"], categories: ["HideSpawnMenu"]),
+    (id: "AnomalyInjectionPyroclastic", parents: ["AnomalyInjectionBase"], categories: ["HideSpawnMenu"]),
+    (id: "AnomalyInjectionRock", parents: ["AnomalyInjectionBase"], categories: ["HideSpawnMenu"]),
+    (id: "AnomalyInjectionSanta", parents: ["AnomalyInjectionBase"], categories: ["HideSpawnMenu"]),
+    (id: "AnomalyInjectionShadow", parents: ["AnomalyInjectionBase"], categories: ["HideSpawnMenu"]),
+    (id: "AnomalyInjectionTech", parents: ["AnomalyInjectionBase"], categories: ["HideSpawnMenu"]),
+]

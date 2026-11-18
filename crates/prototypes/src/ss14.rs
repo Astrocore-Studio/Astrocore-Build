@@ -95,6 +95,8 @@ pub fn parse_ss14_yaml(source: &str) -> Result<(Vec<PrototypeDef>, Ss14Report), 
             parents,
             is_abstract: m.get("abstract").and_then(Y::as_bool).unwrap_or(false),
             name: str_field(&m, "name").map(str::to_string),
+            description: str_field(&m, "description").map(str::to_string),
+            categories: Vec::new(),
             components,
         });
         report.entities += 1;

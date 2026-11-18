@@ -1,0 +1,5 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Clothing/Under/under.yml. Создано scripts/gen_items.py.
+[
+    (id: "ClothingUnderSocksBee", parents: ["ClothingShoesBase"], name: Some("bee socks"), description: Some("Make them loins buzz!"), components: {"Sprite": (sprite: "Clothing/Under/Socks/bee.rsi", state: "icon"), "Item": (size: "Normal"), "Clothing": (slots: ["feet"]), "Solution": (maxVol: 60.0, canReact: true, reagents: (Fiber: 30.0)), "Edible": (transferAmount: 5.0, delay: 1.0, forceFeedDelay: 3.0, destroyOnEmpty: true), "Tag": (tags: ["ClothMade", "Recyclable", "WhitelistChameleon"])}),
+    (id: "ClothingUnderSocksCoder", parents: ["ClothingShoesBase"], name: Some("coder socks"), description: Some("It's time to code sisters!!11!"), components: {"Sprite": (sprite: "Clothing/Under/Socks/coder.rsi", state: "icon"), "Item": (size: "Normal"), "Clothing": (slots: ["feet"]), "Solution": (maxVol: 60.0, canReact: true, reagents: (Fiber: 30.0)), "Edible": (transferAmount: 5.0, delay: 1.0, forceFeedDelay: 3.0, destroyOnEmpty: true), "Tag": (tags: ["ClothMade", "Recyclable", "WhitelistChameleon"])}),
+]

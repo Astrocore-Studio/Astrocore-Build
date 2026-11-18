@@ -1,0 +1,9 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Fun/sports.yml. Создано scripts/gen_items.py.
+[
+    (id: "BaseSportsBall", abstract: true),
+    (id: "Basketball", parents: ["BaseItem", "BaseSportsBall"], name: Some("basketball"), description: Some("Where dah courts at?"), components: {"Sprite": (sprite: "Objects/Fun/Balls/basketball.rsi", state: "icon"), "Item": (size: "Normal")}),
+    (id: "BeachBall", parents: ["BaseItem", "BaseSportsBall"], name: Some("beach ball"), description: Some("The simple beach ball is one of Nanotrasen's most popular products. 'Why do we make beach balls? Because we can! (TM)' - Nanotrasen"), components: {"Sprite": (sprite: "Objects/Fun/Balls/beach_ball.rsi", state: "icon"), "Item": (size: "Normal")}),
+    (id: "EvilBeachBall", parents: ["BeachBall"], description: Some("Someone's drawn \">:3c\" on the side of this beach ball in indelible ink.")),
+    (id: "Football", parents: ["BaseItem", "BaseSportsBall"], name: Some("football"), description: Some("Otherwise known as a handegg."), components: {"Sprite": (sprite: "Objects/Fun/Balls/football.rsi", state: "icon"), "Item": (size: "Small")}),
+    (id: "TennisBall", parents: ["BaseItem", "BaseSportsBall"], name: Some("tennis ball"), description: Some("A fuzzy orb of endless betrayal."), components: {"Sprite": (sprite: "Objects/Fun/Balls/tennisball.rsi", state: "icon"), "Item": (size: "Small"), "Clothing": (slots: ["mask"]), "Tag": (tags: ["PetWearable"])}),
+]

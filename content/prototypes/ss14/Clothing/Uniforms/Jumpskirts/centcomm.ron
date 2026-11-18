@@ -1,0 +1,4 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Clothing/Uniforms/Jumpskirts/centcomm.yml. Создано scripts/gen_items.py.
+[
+    (id: "ClothingUniformJumpskirtCentcomFormalDress", parents: ["ClothingUniformSkirtBase"], name: Some("central command formal dress"), description: Some("A dress for special occasions."), components: {"Sprite": (sprite: "Clothing/Uniforms/Jumpskirts/Centcomm/centcomformaldress.rsi", state: "icon"), "Item": (size: "Normal"), "Clothing": (slots: ["innerclothing"]), "Solution": (maxVol: 60.0, canReact: true, reagents: (Fiber: 30.0)), "Edible": (transferAmount: 5.0, delay: 1.0, forceFeedDelay: 3.0, destroyOnEmpty: true), "Tag": (tags: ["ClothMade", "Recyclable", "WhitelistChameleon"])}),
+]

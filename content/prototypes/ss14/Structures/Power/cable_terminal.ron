@@ -1,0 +1,4 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/Power/cable_terminal.yml. Создано scripts/gen_items.py.
+[
+    (id: "CableTerminalUncuttable", parents: ["CableTerminal"]),
+]

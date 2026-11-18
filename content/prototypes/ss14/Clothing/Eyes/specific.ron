@@ -1,0 +1,4 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Clothing/Eyes/specific.yml. Создано scripts/gen_items.py.
+[
+    (id: "ClothingEyesChameleon", parents: ["ClothingEyesBase", "BaseChameleon"], name: Some("sun glasses"), description: Some("Useful both for security and cargonia.")),
+]

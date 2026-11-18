@@ -1,0 +1,11 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/deltapressure.yml. Создано scripts/gen_items.py.
+[
+    (id: "BaseDeltaPressureGlass", abstract: true),
+    (id: "BaseDeltaPressureGlassQuarter", abstract: true),
+    (id: "BaseDeltaPressurePlasma", abstract: true),
+    (id: "BaseDeltaPressurePlasmaQuarter", abstract: true),
+    (id: "BaseDeltaPressureReinforcedGlass", abstract: true),
+    (id: "BaseDeltaPressureReinforcedGlassQuarter", abstract: true),
+    (id: "BaseDeltaPressureReinforcedPlasma", abstract: true),
+    (id: "BaseDeltaPressureReinforcedPlasmaQuarter", abstract: true),
+]

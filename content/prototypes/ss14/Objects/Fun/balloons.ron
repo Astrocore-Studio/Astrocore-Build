@@ -1,0 +1,7 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Fun/balloons.yml. Создано scripts/gen_items.py.
+[
+    (id: "BalloonCorgi", parents: ["BaseBalloon"], name: Some("corgi balloon"), description: Some("Just like owning a real dog - but a lot floatier."), components: {"Sprite": (sprite: "Objects/Fun/Balloons/corgi.rsi", state: "icon"), "Item": (size: "Small"), "Tag": (tags: ["Balloon"])}),
+    (id: "BalloonNT", parents: ["BaseBalloon"], name: Some("nanotrasen balloon"), description: Some("Specially designed to inflict maximum psychological damage to Syndicate operatives."), components: {"Sprite": (sprite: "Objects/Fun/Balloons/nanotrasen.rsi", state: "icon"), "Item": (size: "Small"), "Tag": (tags: ["Balloon"])}),
+    (id: "BalloonSyn", parents: ["BaseBalloon"], name: Some("syndie balloon"), description: Some("Handed out to the bravest souls who survived the \"atomic twister\" ride at Syndieland."), components: {"Sprite": (sprite: "Objects/Fun/Balloons/syndicate.rsi", state: "icon"), "Item": (size: "Small"), "Tag": (tags: ["Balloon"])}),
+    (id: "BaseBalloon", parents: ["BaseItem"], abstract: true),
+]

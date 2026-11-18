@@ -1,0 +1,4 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/Machines/medical_scanner.yml. Создано scripts/gen_items.py.
+[
+    (id: "MedicalScanner", parents: ["BaseMachinePowered", "BaseConstructibleMachineDestructible"], name: Some("medical scanner"), description: Some("A bulky medical scanner.")),
+]

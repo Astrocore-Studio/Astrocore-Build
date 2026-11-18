@@ -1,0 +1,18 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/materials.yml. Создано scripts/gen_items.py.
+[
+    (id: "CrateMaterialBasicResource", parents: ["CrateGenericSteel"], name: Some("basic sheet crate"), description: Some("30 sheets of steel, glass, and plastic.")),
+    (id: "CrateMaterialBrass", parents: ["CrateGenericSteel"], name: Some("brass crate"), description: Some("90 sheets of brass.")),
+    (id: "CrateMaterialCardboard", parents: ["CrateGenericSteel"], name: Some("cardboard crate"), description: Some("90 pieces of cardboard.")),
+    (id: "CrateMaterialCloth", parents: ["CrateGenericSteel"], name: Some("cloth crate"), description: Some("90 pieces of cloth.")),
+    (id: "CrateMaterialGlass", parents: ["CrateGenericSteel"], name: Some("glass sheet crate"), description: Some("90 sheets of glass, packed with care.")),
+    (id: "CrateMaterialGold", parents: ["CrateGenericSteel"], name: Some("gold crate"), description: Some("30 bars of gold.")),
+    (id: "CrateMaterialPaper", parents: ["CrateGenericSteel"], name: Some("paper crate"), description: Some("90 sheets of paper.")),
+    (id: "CrateMaterialPlasma", parents: ["CratePlasma"], name: Some("solid plasma crate"), description: Some("30 sheets of plasma.")),
+    (id: "CrateMaterialPlasteel", parents: ["CrateGenericSteel"], name: Some("plasteel crate"), description: Some("30 sheets of plasteel.")),
+    (id: "CrateMaterialPlastic", parents: ["CrateGenericSteel"], name: Some("plastic sheet crate"), description: Some("90 sheets of plastic.")),
+    (id: "CrateMaterialRandom", parents: ["CrateGenericSteel"], name: Some("surplus materials"), description: Some("Surplus materials from somewhere.")),
+    (id: "CrateMaterialSilo", parents: ["CrateGenericSteel"], name: Some("material silo crate"), description: Some("A package including all the materials to create a material silo.")),
+    (id: "CrateMaterialSilver", parents: ["CrateGenericSteel"], name: Some("silver crate"), description: Some("30 bars of silver.")),
+    (id: "CrateMaterialSteel", parents: ["CrateGenericSteel"], name: Some("steel sheet crate"), description: Some("90 sheets of steel.")),
+    (id: "CrateMaterialWood", parents: ["CrateGenericSteel"], name: Some("wood crate"), description: Some("Bunch of wood planks.")),
+]

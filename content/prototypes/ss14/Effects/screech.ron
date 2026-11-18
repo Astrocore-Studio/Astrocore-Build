@@ -1,0 +1,6 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Effects/screech.yml. Создано scripts/gen_items.py.
+[
+    (id: "AdminInstantEffectScreechLarge", parents: ["AdminInstantEffectBase"]),
+    (id: "EffectScreech", categories: ["HideSpawnMenu"]),
+    (id: "EffectScreechLarge", categories: ["HideSpawnMenu"]),
+]

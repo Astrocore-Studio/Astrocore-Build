@@ -1,0 +1,5 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/maints.yml. Создано scripts/gen_items.py.
+[
+    (id: "MaintsRoomMarker", parents: ["BaseRoomMarker"], name: Some("Maints interior marker")),
+    (id: "MaintsRoomMarkerClearing", parents: ["MaintsRoomMarker"]),
+]

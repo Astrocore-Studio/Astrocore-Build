@@ -1,0 +1,7 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Weapons/Melee/cane.yml. Создано scripts/gen_items.py.
+[
+    (id: "Cane", parents: ["BaseItem"], name: Some("cane"), description: Some("A wooden cane."), components: {"Sprite": (sprite: "Objects/Weapons/Melee/cane.rsi", state: "cane"), "Item": (size: "Normal"), "MeleeWeapon": (damage: (Blunt: 5.0), attackRate: 1.0, bluntStaminaDamageFactor: 0.5)}),
+    (id: "CaneBlade", parents: ["BaseSword", "BaseSyndicateContraband"], name: Some("cane blade"), description: Some("A sharp blade with a cane shaped hilt.")),
+    (id: "CaneSheath", parents: ["Cane", "SelectableLock"]),
+    (id: "CaneSheathFilled", parents: ["CaneSheath"]),
+]

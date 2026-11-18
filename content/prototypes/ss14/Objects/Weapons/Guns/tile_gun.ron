@@ -1,0 +1,5 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Weapons/Guns/tile_gun.yml. Создано scripts/gen_items.py.
+[
+    (id: "WeaponTileGun", parents: ["BaseItem", "BaseXenoborgContraband"], name: Some("tile gun"), description: Some("A strange gun that shoots tiles. Shoot them with the floor!")),
+    (id: "WeaponTileGunEmpty", parents: ["WeaponTileGun"]),
+]

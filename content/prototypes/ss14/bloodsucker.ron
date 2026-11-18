@@ -1,0 +1,8 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/bloodsucker.yml. Создано scripts/gen_items.py.
+[
+    (id: "BaseMobBloodsucker", abstract: true),
+    (id: "OrganBloodsucker", abstract: true),
+    (id: "OrganBloodsuckerHeart", parents: ["OrganBloodsucker", "OrganAnimalHeart"]),
+    (id: "OrganBloodsuckerLiver", parents: ["OrganBloodsucker", "OrganAnimalLiver"]),
+    (id: "OrganBloodsuckerStomach", parents: ["OrganBloodsucker", "OrganAnimalStomach"]),
+]

@@ -1,0 +1,6 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Consumable/Food/Containers/bowl.yml. Создано scripts/gen_items.py.
+[
+    (id: "FoodBowlBig", parents: ["ReagentContainerBase"], name: Some("bowl"), description: Some("A simple bowl, used for soups and salads."), components: {"Sprite": (sprite: "Objects/Consumable/Food/bowl.rsi", state: "bowl"), "Item": (size: "Small"), "Solution": (maxVol: 60.0, canReact: true, reagents: ()), "Edible": (transferAmount: 5.0, delay: 1.0, forceFeedDelay: 3.0, destroyOnEmpty: false), "SolutionTransfer": (amount: 5.0, max: 1000.0), "Refillable": (), "Drainable": (), "MixableSolution": (), "Tag": (tags: ["Dinnerware", "Trash"])}),
+    (id: "FoodBowlBigTrash", parents: ["BaseItem"], name: Some("broken bowl"), description: Some("A simple bowl, broken and useless."), components: {"Sprite": (sprite: "Objects/Consumable/Food/bowl.rsi", state: "bowl-trash"), "Item": (size: "Small"), "Tag": (tags: ["Trash"])}),
+    (id: "FoodBowlFancy", parents: ["FoodBowlBig"], name: Some("bowl"), description: Some("A fancy bowl, used for SPECIAL soups and salads.")),
+]

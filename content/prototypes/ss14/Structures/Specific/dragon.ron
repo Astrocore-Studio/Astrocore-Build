@@ -1,0 +1,5 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/Specific/dragon.yml. Создано scripts/gen_items.py.
+[
+    (id: "CarpRift", name: Some("carp rift"), description: Some("A rift akin to the ones space carp use to travel long distances.")),
+    (id: "MobDragonBrood", abstract: true),
+]

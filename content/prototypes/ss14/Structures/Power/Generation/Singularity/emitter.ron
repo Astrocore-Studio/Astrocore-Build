@@ -1,0 +1,4 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/Power/Generation/Singularity/emitter.yml. Создано scripts/gen_items.py.
+[
+    (id: "Emitter", parents: ["SmallConstructibleMachine", "StructureHealthMachineStrong"], name: Some("emitter"), description: Some("A heavy duty industrial laser. Shoots non-stop when turned on.")),
+]

@@ -1,0 +1,7 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/Machines/reagent_grinder.yml. Создано scripts/gen_items.py.
+[
+    (id: "KitchenReagentGrinder", parents: ["BaseMachinePowered", "SmallConstructibleMachine", "BaseSmallConstructibleMachineDestructible"], name: Some("reagent grinder"), description: Some("From BlenderTech. Will It Blend? Let's find out!")),
+    (id: "KitchenReagentGrinderBeaker", parents: ["KitchenReagentGrinder"]),
+    (id: "KitchenReagentGrinderBeakerLarge", parents: ["KitchenReagentGrinder"]),
+    (id: "ReagentGrinderIndustrial", parents: ["SolutionToolGinormous", "Recycler"], name: Some("industrial reagent grinder"), description: Some("An industrial reagent grinder.")),
+]

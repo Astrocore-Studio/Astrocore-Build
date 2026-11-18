@@ -1,0 +1,5 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/station_ai.yml. Создано scripts/gen_items.py.
+[
+    (id: "ActionAIViewLaws", parents: ["BaseMentalAction"], name: Some("View Laws"), description: Some("View the laws that you must follow.")),
+    (id: "ActionJumpToCore", parents: ["BaseAction"], name: Some("Jump to core"), description: Some("Sends your eye back to the core.")),
+]

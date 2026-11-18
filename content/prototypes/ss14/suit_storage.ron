@@ -1,0 +1,19 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/suit_storage.yml. Создано scripts/gen_items.py.
+[
+    (id: "SuitStorageAtmos", parents: ["SuitStorageBase"]),
+    (id: "SuitStorageCE", parents: ["SuitStorageBase"]),
+    (id: "SuitStorageCMO", parents: ["SuitStorageBase"]),
+    (id: "SuitStorageCaptain", parents: ["SuitStorageBase"]),
+    (id: "SuitStorageEVAAlternate", parents: ["SuitStorageBase"]),
+    (id: "SuitStorageEVAEmergency", parents: ["SuitStorageBase"]),
+    (id: "SuitStorageEVAPirate", parents: ["SuitStorageBase"]),
+    (id: "SuitStorageEVASyndicate", parents: ["SuitStorageBase"]),
+    (id: "SuitStorageHOS", parents: ["SuitStorageBase"]),
+    (id: "SuitStorageNTSRA", parents: ["SuitStorageBase"]),
+    (id: "SuitStoragePirateCap", parents: ["SuitStorageBase"]),
+    (id: "SuitStorageRD", parents: ["SuitStorageBase"]),
+    (id: "SuitStorageSalv", parents: ["SuitStorageBase"]),
+    (id: "SuitStorageSyndie", parents: ["SuitStorageBase"]),
+    (id: "SuitStorageWarden", parents: ["SuitStorageBase"]),
+    (id: "SuitStorageWizard", parents: ["SuitStorageBase"]),
+]

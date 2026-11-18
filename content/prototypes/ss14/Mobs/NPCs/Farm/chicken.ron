@@ -1,0 +1,7 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Mobs/NPCs/Farm/chicken.yml. Создано scripts/gen_items.py.
+[
+    (id: "FoodEggChickenFertilized", parents: ["FoodEgg"]),
+    (id: "MobChicken", parents: ["SimpleMobBase", "BaseSlicingRefinableButchering", "BaseMobDestructible", "BaseExaminableHunger"], name: Some("chicken"), description: Some("Comes before an egg, and IS a dinosaur!")),
+    (id: "MobChicken1", parents: ["MobChicken"]),
+    (id: "MobChicken2", parents: ["MobChicken"]),
+]

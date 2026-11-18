@@ -1,0 +1,4 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Deliveries/deliveries_items.yml. Создано scripts/gen_items.py.
+[
+    (id: "MailSpamLetter", parents: ["Paper"], name: Some("spam letter"), description: Some("Even space isn't safe from junk mail.")),
+]

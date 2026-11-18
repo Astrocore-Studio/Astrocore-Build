@@ -1,0 +1,4 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Specific/Forensics/forensics.yml. Создано scripts/gen_items.py.
+[
+    (id: "ForensicPad", parents: ["BaseItem"], name: Some("forensic pad"), description: Some("A forensic pad for collecting fingerprints or fibers."), components: {"Sprite": (sprite: "Objects/Misc/bureaucracy.rsi", state: "paper"), "Item": (size: "Tiny"), "Tag": (tags: ["Document"])}),
+]

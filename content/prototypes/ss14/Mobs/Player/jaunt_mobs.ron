@@ -1,0 +1,6 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Mobs/Player/jaunt_mobs.yml. Создано scripts/gen_items.py.
+[
+    (id: "BaseMobJaunt", parents: ["Incorporeal", "BaseMob"], name: Some("jaunt"), description: Some("A faint image of a humanoid figure.")),
+    (id: "DesynchronizedPocket", parents: ["Incorporeal", "BaseMob"], name: Some("desynchronized pocket"), description: Some("A pocket in spacetime, keeping the user a fraction of a second in the future.")),
+    (id: "EtherealJaunt", parents: ["BaseMobJaunt"], name: Some("jaunt")),
+]

@@ -1,0 +1,5 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Devices/Syndicate_Gadgets/dna_injector.yml. Создано scripts/gen_items.py.
+[
+    (id: "DnaInjector", parents: ["DnaInjectorUnlimited"]),
+    (id: "DnaInjectorUnlimited", parents: ["BaseItem"], name: Some("DNA injector"), description: Some("Can be used to take a DNA sample from someone and inject it into another person, turning them into a clone of the original.")),
+]

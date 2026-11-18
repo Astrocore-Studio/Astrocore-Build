@@ -1,0 +1,8 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/botany.yml. Создано scripts/gen_items.py.
+[
+    (id: "CrateHydroponicsSeeds", parents: ["CrateHydroponics"], name: Some("seeds crate"), description: Some("Big things have small beginnings. Contains twenty-four different seeds.")),
+    (id: "CrateHydroponicsSeedsExotic", parents: ["CrateHydroSecure"], name: Some("exotic seeds crate"), description: Some("Any entrepreneuring botanist's dream. Contains many different exotic seeds. Requires Hydroponics access to open.")),
+    (id: "CrateHydroponicsSeedsMedicinal", parents: ["CrateHydroSecure"], name: Some("medicinal seeds crate"), description: Some("The wannabe chemist's dream. The power of medicine is at your fingertips! Requires Hydroponics access to open.")),
+    (id: "CrateHydroponicsTools", parents: ["CrateHydroponics"], name: Some("hydroponics equipment crate"), description: Some("Supplies for growing a great garden! Contains some spray bottles of plant chemicals, a hatchet, a mini-hoe, scythe, as well as a pair of leather gloves and a botanist's apron.")),
+    (id: "CrateHydroponicsTray", parents: ["CrateHydroponics"], name: Some("hydroponics tray crate"), description: Some("Contains a hydroponics tray flatpack.")),
+]

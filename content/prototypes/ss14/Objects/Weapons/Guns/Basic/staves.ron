@@ -1,0 +1,5 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Weapons/Guns/Basic/staves.yml. Создано scripts/gen_items.py.
+[
+    (id: "WeaponStaffHealing", parents: ["WeaponStaffBase"], name: Some("staff of healing"), description: Some("You don't foresee having to use this in your quest for carnage too often.")),
+    (id: "WeaponStaffPolymorphDoor", parents: ["WeaponStaffBase"], name: Some("staff of entrance"), description: Some("For when you need a get-away route.")),
+]

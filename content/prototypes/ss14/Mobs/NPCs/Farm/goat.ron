@@ -1,0 +1,6 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Mobs/NPCs/Farm/goat.yml. Создано scripts/gen_items.py.
+[
+    (id: "MobGoat", parents: ["BaseMobRuminant", "SimpleMobBase", "BaseSlicingRefinableButchering", "BaseMobDestructible", "BaseExaminableHunger"], name: Some("goat"), description: Some("Her spine consists of long sharp segments, no wonder she is so grumpy.")),
+    (id: "SolutionUdderGoat", parents: ["SolutionUdder"], categories: ["HideSpawnMenu"]),
+    (id: "SolutionWool", parents: ["SolutionLarge"], categories: ["HideSpawnMenu"]),
+]

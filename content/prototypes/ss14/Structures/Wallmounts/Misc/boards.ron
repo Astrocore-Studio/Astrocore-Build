@@ -1,0 +1,6 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/Wallmounts/Misc/boards.yml. Создано scripts/gen_items.py.
+[
+    (id: "BaseWallmountBoard", parents: ["BaseWallmount", "StructureHealthFurniture"], abstract: true),
+    (id: "NoticeBoard", parents: ["BaseWallmountBoard"], name: Some("notice board"), description: Some("Is there a job for a witcher?")),
+    (id: "PostBoard", parents: ["BaseWallmountBoard", "BasePaperLabelableVisualized"], name: Some("post board"), description: Some("Apply paper directly to the boardhead.")),
+]

@@ -1,0 +1,6 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Weapons/Guns/Ammunition/Magazines/caseless_rifle.yml. Создано scripts/gen_items.py.
+[
+    (id: "BaseMagazinePistolCaselessRifle", parents: ["BaseItem", "BaseSecurityContraband"], abstract: true, name: Some("pistol magazine (.25 caseless)")),
+    (id: "MagazinePistolCaselessRifle", parents: ["BaseMagazinePistolCaselessRifle"], name: Some("pistol magazine (.25 caseless)"), description: Some("10-round magazine for the Cobra pistol. Intended to hold general-purpose kinetic ammunition.")),
+    (id: "MagazinePistolCaselessRiflePractice", parents: ["BaseMagazinePistolCaselessRifle"], name: Some("pistol magazine (.25 caseless practice)"), description: Some("10-round magazine for the Cobra pistol. Intended to hold harmless practice ammunition.")),
+]

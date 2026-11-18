@@ -1,0 +1,21 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Specific/rehydrateable.yml. Создано scripts/gen_items.py.
+[
+    (id: "AbominationCube", parents: ["RehydratableAnimalCube"], name: Some("abomination cube"), description: Some("Just add blood!")),
+    (id: "CockroachCube", parents: ["RehydratableAnimalCube"], name: Some("cockroach cube"), description: Some("Just add wa- OH GOD!")),
+    (id: "CowCube", parents: ["RehydratableAnimalCube"], name: Some("cow cube")),
+    (id: "DehydratedSpaceCarp", parents: ["PlushieCarp", "RehydratableItem", "BaseSyndicateContraband"], name: Some("dehydrated space carp"), description: Some("Looks like a plush toy carp, but just add water and it becomes a real-life space carp!")),
+    (id: "GoatCube", parents: ["RehydratableAnimalCube"], name: Some("goat cube")),
+    (id: "KoboldCube", parents: ["RehydratableAnimalCube"], name: Some("kobold cube")),
+    (id: "MonkeyCube", parents: ["RehydratableAnimalCube"], name: Some("monkey cube")),
+    (id: "MopBucketCube", parents: ["RehydratableItem"], name: Some("mop bucket cube"), description: Some("Just add water! And then more water!")),
+    (id: "MoproachCube", parents: ["RehydratableAnimalCube"], name: Some("moproach cube")),
+    (id: "MothroachCube", parents: ["RehydratableAnimalCube"], name: Some("mothroach cube")),
+    (id: "MouseCube", parents: ["RehydratableAnimalCube"], name: Some("mouse cube")),
+    (id: "RehydratableAnimalCube", parents: ["SolutionTiny", "SolutionFood", "RehydratableItem"], abstract: true, description: Some("Just add water!")),
+    (id: "RehydratableItem", parents: ["BaseItem"], abstract: true),
+    (id: "SlimeCube", parents: ["RehydratableAnimalCube"], name: Some("slime cube"), description: Some("Just add water, carefully, they're sensitive to it.")),
+    (id: "SolutionCube", parents: ["Solution"], name: Some("cube"), description: Some("if you're reading this, nuh uh! file a bug report."), categories: ["HideSpawnMenu"]),
+    (id: "SpaceCarpCube", parents: ["RehydratableAnimalCube"], name: Some("carp cube"), description: Some("Just add water! At your own risk.")),
+    (id: "SpaceTickCube", parents: ["RehydratableAnimalCube"], name: Some("tick cube"), description: Some("Just add water! At your own risk.")),
+    (id: "SyndicateSponge", parents: ["MonkeyCube"]),
+]

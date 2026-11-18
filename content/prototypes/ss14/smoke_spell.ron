@@ -1,0 +1,4 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/smoke_spell.yml. Создано scripts/gen_items.py.
+[
+    (id: "ActionSmoke", parents: ["BaseAction"], name: Some("Smoke"), description: Some("Summons smoke around the user.")),
+]

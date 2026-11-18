@@ -1,0 +1,7 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Consumable/Smokeables/base_smokeables.yml. Создано scripts/gen_items.py.
+[
+    (id: "BaseCigar", parents: ["BaseSmokable"], abstract: true),
+    (id: "BaseSmokable", parents: ["SolutionSmokable", "SolutionTiny", "BaseItem"], abstract: true, description: Some("If you want to get cancer, might as well do it in style.")),
+    (id: "BaseSmokingPipe", parents: ["BaseSmokable"], abstract: true),
+    (id: "BaseVape", parents: ["SolutionSmokable", "SolutionTiny", "BaseItem"], abstract: true),
+]

@@ -1,0 +1,5 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/Walls/inflatable_wall.yml. Создано scripts/gen_items.py.
+[
+    (id: "InflatableDoor", parents: ["BaseStructure", "BaseDeltaPressureGlass", "StructureHealthBarrierWeak"], name: Some("inflatable door"), description: Some("An inflated membrane. Activate to deflate. Now with a door. Do not puncture.")),
+    (id: "InflatableWall", parents: ["BaseDeltaPressureGlass", "StructureHealthBarrierWeak"], name: Some("inflatable barricade"), description: Some("An inflated membrane. Activate to deflate. Do not puncture.")),
+]

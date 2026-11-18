@@ -1,0 +1,4 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Misc/broken_bottle.yml. Создано scripts/gen_items.py.
+[
+    (id: "BrokenBottle", parents: ["BaseItem"], name: Some("broken bottle"), description: Some("In Space Glasgow this is called a conversation starter."), components: {"Sprite": (sprite: "Objects/Misc/broken_bottle.rsi", state: "icon"), "Item": (size: "Small"), "Tool": (qualities: ["Slicing"]), "MeleeWeapon": (damage: (Slash: 5.0), attackRate: 1.5, bluntStaminaDamageFactor: 0.5), "Tag": (tags: ["Trash"])}),
+]

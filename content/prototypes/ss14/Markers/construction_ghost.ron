@@ -1,0 +1,4 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Markers/construction_ghost.yml. Создано scripts/gen_items.py.
+[
+    (id: "constructionghost", name: Some("construction ghost"), categories: ["HideSpawnMenu"]),
+]

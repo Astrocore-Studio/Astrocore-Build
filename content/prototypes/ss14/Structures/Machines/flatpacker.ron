@@ -1,0 +1,5 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/Machines/flatpacker.yml. Создано scripts/gen_items.py.
+[
+    (id: "FlatpackerNoBoardEffect", categories: ["HideSpawnMenu"]),
+    (id: "MachineFlatpacker", parents: ["BaseMachinePowered", "ConstructibleMachine", "BaseConstructibleMachineDestructible"], name: Some("Flatpacker 1001"), description: Some("An industrial machine used for expediting machine construction across the station.")),
+]

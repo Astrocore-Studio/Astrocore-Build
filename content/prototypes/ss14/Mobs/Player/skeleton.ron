@@ -1,0 +1,6 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Mobs/Player/skeleton.yml. Создано scripts/gen_items.py.
+[
+    (id: "MobSkeletonBiker", parents: ["MobSkeletonPerson"], name: Some("skeleton biker")),
+    (id: "MobSkeletonCloset", parents: ["MobSkeletonPerson"], name: Some("closet skeleton")),
+    (id: "MobSkeletonPirate", parents: ["MobSkeletonPerson"], name: Some("skeleton pirate")),
+]

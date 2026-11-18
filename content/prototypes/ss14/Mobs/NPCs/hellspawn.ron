@@ -1,0 +1,4 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Mobs/NPCs/hellspawn.yml. Создано scripts/gen_items.py.
+[
+    (id: "MobHellspawn", parents: ["BaseSimpleMob", "MobCombat", "MobBloodstream", "BaseMobAnimal", "BaseSlicingRefinableButchering", "BaseMobDestructible"], name: Some("hellspawn"), description: Some("An unstoppable force of carnage.")),
+]

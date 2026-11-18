@@ -1,0 +1,11 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Clothing/Neck/mantles.yml. Создано scripts/gen_items.py.
+[
+    (id: "ClothingNeckMantle", parents: ["ClothingNeckBase"], name: Some("mantle"), description: Some("A soft mantle, made with the same 'synthetic' animal furs of the iconic winter coat.")),
+    (id: "ClothingNeckMantleCE", parents: ["ClothingNeckBase", "BaseCommandContraband"], name: Some("chief engineer's mantle"), description: Some("High visibility, check. RIG system, check. High capacity cell, check. Everything a chief engineer could need in a stylish mantle.")),
+    (id: "ClothingNeckMantleCMO", parents: ["ClothingNeckBase", "BaseCommandContraband"], name: Some("chief medical officer's mantle"), description: Some("For a CMO that has been in enough medbays to know that more PPE means less central command dry cleaning visits when the shift is over.")),
+    (id: "ClothingNeckMantleCap", parents: ["ClothingNeckBase", "BaseCommandContraband"], name: Some("captain's mantle"), description: Some("A comfortable and chique mantle befitting of only the most experienced captain.")),
+    (id: "ClothingNeckMantleHOP", parents: ["ClothingNeckBase", "BaseCommandContraband"], name: Some("head of personnel's mantle"), description: Some("A good HOP knows that paper pushing is only half the job... petting your dog and looking fashionable is the other half.")),
+    (id: "ClothingNeckMantleHOS", parents: ["ClothingNeckBase", "BaseCommandContraband"], name: Some("head of security's mantle"), description: Some("Shootouts with syndicate agents are just another Tuesday for this HoS. This mantle is a symbol of commitment to the station.")),
+    (id: "ClothingNeckMantleQM", parents: ["ClothingNeckBase", "BaseCommandContraband"], name: Some("quartermaster's mantle"), description: Some("For the master of goods and materials to rule over the department, a befitting mantle to show off superiority!")),
+    (id: "ClothingNeckMantleRD", parents: ["ClothingNeckBase", "BaseCommandContraband"], name: Some("research director's mantle"), description: Some("For when long days in the office consist of explosives, poisonous gas, murder robots, and a fresh pizza from cargo; this mantle will keep you comfy.")),
+]

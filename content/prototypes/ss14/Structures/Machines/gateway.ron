@@ -1,0 +1,4 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/Machines/gateway.yml. Создано scripts/gen_items.py.
+[
+    (id: "Gateway", parents: ["BaseStructure"], name: Some("gateway"), description: Some("A mysterious gateway built by unknown hands, it allows for faster than light travel to far-flung locations.")),
+]

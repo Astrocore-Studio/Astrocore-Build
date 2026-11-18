@@ -1,0 +1,7 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Consumable/Smokeables/Cigarettes/joints.yml. Создано scripts/gen_items.py.
+[
+    (id: "Blunt", parents: ["BaseCigar"], name: Some("blunt"), description: Some("A roll of dried plant matter wrapped in a dried tobacco leaf."), components: {"Sprite": (sprite: "Objects/Consumable/Smokeables/Cannabis/blunt.rsi", state: "unlit-icon"), "Item": (size: "Tiny"), "Clothing": (slots: ["mask"]), "Solution": (maxVol: 30.0, canReact: true, reagents: (THC: 20.0)), "Tag": (tags: ["Cigarette", "Trash"]), "Smokable": ()}),
+    (id: "BluntRainbow", parents: ["Blunt"], name: Some("blunt"), description: Some("A roll of dried plant matter wrapped in a dried tobacco leaf. Seems to be colorful inside.")),
+    (id: "Joint", parents: ["BaseCigar"], name: Some("joint"), description: Some("A roll of dried plant matter wrapped in thin paper."), components: {"Sprite": (sprite: "Objects/Consumable/Smokeables/Cannabis/joint.rsi", state: "unlit-icon"), "Item": (size: "Tiny"), "Clothing": (slots: ["mask"]), "Solution": (maxVol: 30.0, canReact: true, reagents: (THC: 20.0)), "Tag": (tags: ["Cigarette", "Trash"]), "Smokable": ()}),
+    (id: "JointRainbow", parents: ["Joint"], name: Some("joint"), description: Some("A roll of dried plant matter wrapped in thin paper. Seems to be colorful inside.")),
+]

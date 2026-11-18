@@ -1,0 +1,6 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Mobs/Debugging/debug_counter.yml. Создано scripts/gen_items.py.
+[
+    (id: "MobDebugCounter", parents: ["MobHuman"], name: Some("debug counter"), description: Some("He can count")),
+    (id: "MobDebugRandomCounter", parents: ["MobHuman"], name: Some("debug random counter"), description: Some("He can randomize")),
+    (id: "MobDebugRandomLess", parents: ["MobHuman"], name: Some("debug random less"), description: Some("He can lessing")),
+]

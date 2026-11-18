@@ -1,0 +1,13 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Specific/syndicate.yml. Создано scripts/gen_items.py.
+[
+    (id: "BaseUplinkRadio", parents: ["BaseItem", "StorePresetUplink", "BaseSyndicateContraband"], name: Some("syndicate uplink"), description: Some("Suspiciously looking old radio...")),
+    (id: "BaseUplinkRadio20TC", parents: ["BaseUplinkRadio"]),
+    (id: "BaseUplinkRadio25TC", parents: ["BaseUplinkRadio"]),
+    (id: "BaseUplinkRadio40TC", parents: ["BaseUplinkRadio"]),
+    (id: "BaseUplinkRadio60TC", parents: ["BaseUplinkRadio"]),
+    (id: "BaseUplinkRadioDebug", parents: ["BaseUplinkRadio"]),
+    (id: "Telecrystal", parents: ["BaseItem", "BaseSyndicateContraband"], name: Some("telecrystal"), description: Some("It seems to be pulsing with suspiciously enticing energies.")),
+    (id: "Telecrystal1", parents: ["Telecrystal"]),
+    (id: "Telecrystal10", parents: ["Telecrystal"]),
+    (id: "Telecrystal5", parents: ["Telecrystal"]),
+]

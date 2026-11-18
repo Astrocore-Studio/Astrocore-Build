@@ -1,0 +1,4 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Devices/Electronics/misc_linking_utilities.yml. Создано scripts/gen_items.py.
+[
+    (id: "VoiceSensor", parents: ["BaseItem"], name: Some("voice sensor"), description: Some("This microphone, invented by Micheal Phone during his time working at Michealsoft, sends signals when a prerecorded code phrase is uttered!")),
+]

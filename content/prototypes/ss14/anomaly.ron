@@ -1,0 +1,4 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/anomaly.yml. Создано scripts/gen_items.py.
+[
+    (id: "ActionAnomalyPulse", parents: ["BaseAction"], name: Some("Anomaly pulse"), description: Some("Release a pulse of energy of your abnormal nature")),
+]

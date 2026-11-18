@@ -1,0 +1,7 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Weapons/Guns/Turrets/turrets_energy.yml. Создано scripts/gen_items.py.
+[
+    (id: "WeaponEnergyTurretAI", parents: ["WeaponEnergyTurretStationBase"]),
+    (id: "WeaponEnergyTurretCommand", parents: ["WeaponEnergyTurretStationBase"]),
+    (id: "WeaponEnergyTurretSecurity", parents: ["WeaponEnergyTurretStationBase"]),
+    (id: "WeaponEnergyTurretStationBase", parents: ["BaseWeaponEnergyTurretIndestructible", "ConstructibleMachine", "StructureHealthMachineStrong"], abstract: true, name: Some("sentry turret"), description: Some("A high-tech autonomous weapons system designed to keep unauthorized personnel out of sensitive areas.")),
+]

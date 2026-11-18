@@ -1,0 +1,7 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Clothing/Head/scraphelmet.yml. Создано scripts/gen_items.py.
+[
+    (id: "ClothingHeadHelmetScrap", parents: ["ClothingHeadHelmetBase", "BaseMajorContraband"], name: Some("scrap helmet"), description: Some("A cobbled-together helmet made from cabling, steel, and a bucket.")),
+    (id: "SlicedBucketBase", parents: ["BaseItem"], name: Some("sliced bucket"), description: Some("A bucket with a vision slit cut into the side.")),
+    (id: "SteelBucketBase", parents: ["BaseItem"], name: Some("steel bucket"), description: Some("A bucket that's had steel welded onto it's exterior. It requires better shaping before it can be worn comfortably.")),
+    (id: "WiredBucketBase", parents: ["BaseItem"], name: Some("wired bucket"), description: Some("A bucket with attached wiring to better serve as a chinstrap.")),
+]

@@ -1,0 +1,5 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Specific/Xenoborg/cloaking_device.yml. Создано scripts/gen_items.py.
+[
+    (id: "CloakingDevice", parents: ["BaseItem", "BaseXenoborgContraband"], name: Some("cloaking device"), description: Some("A device that allows Xenoborgs to go invisible.")),
+    (id: "SuperCloakingDevice", parents: ["CloakingDevice"], name: Some("super cloaking device"), description: Some("A device that allows Xenoborgs to go truly invisible.")),
+]

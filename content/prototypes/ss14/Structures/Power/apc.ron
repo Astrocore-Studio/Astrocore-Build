@@ -1,0 +1,10 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/Power/apc.yml. Создано scripts/gen_items.py.
+[
+    (id: "APCConstructed", parents: ["BaseAPC"]),
+    (id: "APCFrame", parents: ["BaseWallmountMetallic", "StructureHealthMachineFlimsy"], name: Some("APC frame"), description: Some("A control terminal for the area's electrical systems, lacking the electronics."), categories: ["HideSpawnMenu"]),
+    (id: "APCHighCapacity", parents: ["BaseAPC"]),
+    (id: "APCHyperCapacity", parents: ["BaseAPC"]),
+    (id: "APCSuperCapacity", parents: ["BaseAPC"]),
+    (id: "APCXenoborg", parents: ["BaseAPC"]),
+    (id: "BaseAPC", parents: ["BaseWallmount", "StructureHealthMachineWeak"], name: Some("APC"), description: Some("A control terminal for the area's electrical systems."), categories: ["HideSpawnMenu"]),
+]

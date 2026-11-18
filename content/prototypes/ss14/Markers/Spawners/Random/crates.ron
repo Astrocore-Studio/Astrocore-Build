@@ -1,0 +1,6 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Markers/Spawners/Random/crates.yml. Создано scripts/gen_items.py.
+[
+    (id: "LootSpawnerRandomCrateEngineering", parents: ["MarkerBase"], name: Some("random engineering crate spawner")),
+    (id: "LootSpawnerRandomCrateSecurity", parents: ["MarkerBase"], name: Some("random security crate spawner")),
+    (id: "LootSpawnerRandomLockbox", parents: ["MarkerBase"], name: Some("random lockbox spawner")),
+]

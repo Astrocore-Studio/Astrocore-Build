@@ -1,0 +1,6 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Specific/Kitchen/foodcarts.yml. Создано scripts/gen_items.py.
+[
+    (id: "FoodCartBase", parents: ["BaseStructureDynamic", "StructureHealthContainer"], abstract: true, name: Some("food cart"), description: Some("A cart for food.")),
+    (id: "FoodCartCold", parents: ["FoodCartBase"], name: Some("cold food cart"), description: Some("It's the Ice Cream Man! It's the Ice Cream Man!")),
+    (id: "FoodCartHot", parents: ["FoodCartBase"], name: Some("hot food cart"), description: Some("Get out there and slang some dogs.")),
+]

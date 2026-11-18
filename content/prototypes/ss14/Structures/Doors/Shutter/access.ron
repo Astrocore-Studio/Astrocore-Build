@@ -1,0 +1,5 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/Doors/Shutter/access.yml. Создано scripts/gen_items.py.
+[
+    (id: "BlastDoorCentralCommand", parents: ["BlastDoor"]),
+    (id: "ShuttersWindowCentralCommand", parents: ["ShuttersWindow"]),
+]

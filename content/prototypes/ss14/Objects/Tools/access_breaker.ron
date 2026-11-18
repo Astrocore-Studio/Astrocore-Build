@@ -1,0 +1,6 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Tools/access_breaker.yml. Создано scripts/gen_items.py.
+[
+    (id: "AccessBreaker", parents: ["AccessBreakerUnlimited"]),
+    (id: "AccessBreakerUnlimited", parents: ["BaseItem", "BaseSyndicateContraband"], name: Some("authentication disruptor"), description: Some("A hacked access configurator, specialized to unlock and erase access from digital locks.")),
+    (id: "XenoborgAccessBreaker", parents: ["BaseXenoborgContraband", "AccessBreaker"], name: Some("xenoborg authentication disruptor"), description: Some("An access scrubbing device, engineered by xenoborgs for disrupting digital locks.")),
+]

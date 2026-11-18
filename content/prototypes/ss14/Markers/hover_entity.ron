@@ -1,0 +1,4 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Markers/hover_entity.yml. Создано scripts/gen_items.py.
+[
+    (id: "HoverEntity", name: Some("hover entity"), categories: ["HideSpawnMenu"]),
+]

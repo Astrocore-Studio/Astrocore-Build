@@ -1,0 +1,6 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Misc/improvised_gun_parts.yml. Создано scripts/gen_items.py.
+[
+    (id: "GlassLens", parents: ["BaseItem"], name: Some("glass lens"), description: Some("It does fancy things to photons so that you can see better.")),
+    (id: "ModularReceiver", parents: ["BaseItem"], name: Some("modular receiver"), description: Some("A vital part used in the creation of firearms."), components: {"Sprite": (sprite: "Objects/Misc/modular_receiver.rsi", state: "icon"), "Item": (size: "Small"), "Tag": (tags: ["ModularReceiver", "Metal"])}),
+    (id: "RifleStock", parents: ["BaseItem"], name: Some("rifle stock"), description: Some("A robust wooden stock, used in the creation of firearms."), components: {"Sprite": (sprite: "Objects/Misc/rifle_stock.rsi", state: "icon"), "Item": (size: "Small"), "Tag": (tags: ["RifleStock", "Wooden"])}),
+]

@@ -1,0 +1,8 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Weapons/Guns/Ammunition/Boxes/pistol.yml. Создано scripts/gen_items.py.
+[
+    (id: "BaseMagazineBoxPistol", parents: ["BaseItem"], abstract: true, name: Some("ammunition box (.35 auto)")),
+    (id: "MagazineBoxPistol", parents: ["BaseMagazineBoxPistol"], name: Some("ammunition box (.35 auto)"), description: Some("A cardboard box of .35 auto rounds. Intended to hold general-purpose kinetic ammunition."), components: {"Sprite": (sprite: "Objects/Weapons/Guns/Ammunition/Boxes/pistol.rsi", state: "base"), "Item": (size: "Small"), "Magazine": (cartridge: "CartridgePistol", capacity: 60), "BallisticAmmoProvider": ()}),
+    (id: "MagazineBoxPistolIncendiary", parents: ["BaseMagazineBoxPistol"], name: Some("ammunition box (.35 auto incendiary)"), description: Some("A cardboard box of .35 auto rounds. Intended to hold self-igniting incendiary ammunition.")),
+    (id: "MagazineBoxPistolPractice", parents: ["BaseMagazineBoxPistol"], name: Some("ammunition box (.35 auto practice)"), description: Some("A cardboard box of .35 auto rounds. Intended to hold harmless practice ammunition."), components: {"Sprite": (sprite: "Objects/Weapons/Guns/Ammunition/Boxes/pistol.rsi", state: "base"), "Item": (size: "Small"), "Magazine": (cartridge: "CartridgePistolPractice", capacity: 60), "BallisticAmmoProvider": ()}),
+    (id: "MagazineBoxPistolUranium", parents: ["BaseMagazineBoxPistol"], name: Some("ammunition box (.35 auto uranium)"), description: Some("A cardboard box of .35 auto rounds. Intended to hold exotic uranium-core ammunition.")),
+]

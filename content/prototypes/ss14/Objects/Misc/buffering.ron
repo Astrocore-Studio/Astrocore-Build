@@ -1,0 +1,4 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Misc/buffering.yml. Создано scripts/gen_items.py.
+[
+    (id: "BufferingIcon", categories: ["HideSpawnMenu"]),
+]

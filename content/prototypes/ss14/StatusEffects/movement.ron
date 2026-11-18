@@ -1,0 +1,11 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/StatusEffects/movement.yml. Создано scripts/gen_items.py.
+[
+    (id: "FlashSlowdownStatusEffect", parents: ["StatusEffectSlowdown"], name: Some("affected by flash slowdown")),
+    (id: "ReagentSpeedStatusEffect", parents: ["StatusEffectSpeed"], name: Some("reagent speed")),
+    (id: "StatusEffectFriction", parents: ["MobStatusEffectDebuff"], name: Some("friction")),
+    (id: "StatusEffectSlowdown", parents: ["MobStatusEffectDebuff"], abstract: true, name: Some("slowdown")),
+    (id: "StatusEffectSpeed", parents: ["MobStatusEffectBase"], abstract: true, name: Some("speed")),
+    (id: "StatusEffectStaminaLow", parents: ["StatusEffectSlowdown"], name: Some("stamina low")),
+    (id: "TaserSlowdownStatusEffect", parents: ["StatusEffectSlowdown"], name: Some("shot by taser slowdown")),
+    (id: "VomitingSlowdownStatusEffect", parents: ["StatusEffectSlowdown"], name: Some("vomiting slowdown")),
+]

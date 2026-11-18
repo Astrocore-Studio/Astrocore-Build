@@ -1,0 +1,4 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Weapons/Guns/Basic/spraynozzle.yml. Создано scripts/gen_items.py.
+[
+    (id: "WeaponSprayNozzle", parents: ["BaseItem"], name: Some("spray nozzle"), description: Some("A high-powered spray nozzle used in conjunction with a backpack-mounted water tank.")),
+]

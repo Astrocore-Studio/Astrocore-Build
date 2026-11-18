@@ -1,0 +1,4 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Markers/drag_shadow.yml. Создано scripts/gen_items.py.
+[
+    (id: "dragshadow", name: Some("drag shadow"), categories: ["HideSpawnMenu"]),
+]

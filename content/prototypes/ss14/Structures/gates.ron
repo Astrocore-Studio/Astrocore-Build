@@ -1,0 +1,15 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/gates.yml. Создано scripts/gen_items.py.
+[
+    (id: "BaseLogicItem", parents: ["LogicEmptyCircuit"], abstract: true),
+    (id: "EdgeDetector", parents: ["BaseLogicItem"], name: Some("edge detector"), description: Some("Splits rising and falling edges into unique pulses and detects how edgy you are.")),
+    (id: "LogicEmptyCircuit", parents: ["BaseItem", "BaseItemDestructible"], name: Some("empty circuit"), description: Some("Something seems to be missing.")),
+    (id: "LogicGateAnd", parents: ["LogicGateOr"]),
+    (id: "LogicGateNand", parents: ["LogicGateOr"]),
+    (id: "LogicGateNor", parents: ["LogicGateOr"]),
+    (id: "LogicGateOr", parents: ["BaseLogicItem"], name: Some("logic gate"), description: Some("A logic gate with two inputs and one output. Technicians can change its mode of operation using a screwdriver."), components: {"Sprite": (sprite: "Objects/Devices/gates.rsi", state: "base"), "Item": (size: "Small")}),
+    (id: "LogicGateXnor", parents: ["LogicGateOr"]),
+    (id: "LogicGateXor", parents: ["LogicGateOr"]),
+    (id: "MemoryCell", parents: ["BaseLogicItem"], name: Some("memory cell"), description: Some("A D-Latch circuit that stores a signal which can be changed depending on input and enable ports.")),
+    (id: "PowerSensor", parents: ["BaseLogicItem"], name: Some("power sensor"), description: Some("Generates signals in response to powernet changes. Can be cycled between cable voltages.")),
+    (id: "RandomGate", parents: ["BaseLogicItem"], name: Some("random gate"), description: Some("A logic gate that outputs a random signal when input changes.")),
+]

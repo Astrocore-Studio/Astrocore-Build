@@ -1,0 +1,6 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/Storage/Tanks/base_structuretanks.yml. Создано scripts/gen_items.py.
+[
+    (id: "StorageTank", parents: ["StorageTankIndestructible", "StructureHealthContainerFlimsy"], abstract: true, name: Some("storage tank"), description: Some("A liquids storage tank.")),
+    (id: "StorageTankBig", parents: ["SolutionTank", "Solution3840", "StorageTank"], abstract: true),
+    (id: "StorageTankIndestructible", parents: ["SolutionTank", "SolutionGinormous", "BaseStructureDynamic"], abstract: true, name: Some("storage tank"), description: Some("A liquids storage tank.")),
+]

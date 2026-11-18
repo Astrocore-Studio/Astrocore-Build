@@ -1,0 +1,5 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Mobs/NPCs/Insects/moproach.yml. Создано scripts/gen_items.py.
+[
+    (id: "MobMoproach", parents: ["MobMothroach"], name: Some("moproach"), description: Some("This little mothroach has mopshoes on its feet! How adorable!")),
+    (id: "SolutionMopMoproach", parents: ["SolutionMopNormal"], categories: ["HideSpawnMenu"]),
+]

@@ -1,0 +1,5 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Weapons/Guns/Projectiles/Energy/temperature.yml. Создано scripts/gen_items.py.
+[
+    (id: "BoltTempgunCold", parents: ["WatcherBolt"], name: Some("freezing bolt"), categories: ["HideSpawnMenu"]),
+    (id: "BoltTempgunHot", parents: ["WatcherBoltMagmawing"], name: Some("scorching bolt"), categories: ["HideSpawnMenu"]),
+]

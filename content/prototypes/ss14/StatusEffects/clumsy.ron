@@ -1,0 +1,12 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/StatusEffects/clumsy.yml. Создано scripts/gen_items.py.
+[
+    (id: "StatusEffectClumsyAll", parents: ["StatusEffectBase"], name: Some("clumsy")),
+    (id: "StatusEffectClumsyClown", parents: ["StatusEffectClumsyAll", "MobStatusEffectBase"]),
+    (id: "StatusEffectClumsyCluwne", parents: ["StatusEffectClumsyAll", "MobStatusEffectDebuff"]),
+    (id: "StatusEffectClumsyDrunk", parents: ["MobStatusEffectDebuff"]),
+    (id: "StatusEffectClumsyGuaranteed", parents: ["StatusEffectClumsyAll", "MobStatusEffectDebuff"]),
+    (id: "StatusEffectClumsyKobold", parents: ["StatusEffectClumsyAll", "MobStatusEffectBase"]),
+    (id: "StatusEffectClumsyMaid", parents: ["StatusEffectClumsyAll", "MobStatusEffectDebuff"]),
+    (id: "StatusEffectClumsyMonkey", parents: ["StatusEffectClumsyAll", "MobStatusEffectBase"]),
+    (id: "StatusEffectClumsyZombie", parents: ["MobStatusEffectDebuff"]),
+]

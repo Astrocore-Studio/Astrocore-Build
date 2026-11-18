@@ -1,0 +1,5 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Devices/Electronics/signaller.yml. Создано scripts/gen_items.py.
+[
+    (id: "RemoteSignaller", parents: ["BaseItem"], name: Some("remote signaller"), description: Some("A handheld device used for remotely sending signals to objects within a small radius of about 15 meters."), components: {"Sprite": (sprite: "Objects/Devices/signaller.rsi", state: "signaller"), "Item": (size: "Small"), "Tag": (tags: ["Payload", "RemoteSignaller"])}),
+    (id: "RemoteSignallerAdvanced", parents: ["RemoteSignaller"], name: Some("advanced remote signaller"), description: Some("A handheld device used for remotely sending signals to objects within a small radius of about 50 meters.")),
+]

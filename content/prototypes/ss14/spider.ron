@@ -1,0 +1,5 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/spider.yml. Создано scripts/gen_items.py.
+[
+    (id: "ActionSericulture", parents: ["BaseAction"], name: Some("Weave silk"), description: Some("Weave a bit of silk for use in arts and crafts.")),
+    (id: "ActionSpiderWeb", parents: ["BaseAction"], name: Some("Spider Web"), description: Some("Spawns a web that slows your prey down.")),
+]

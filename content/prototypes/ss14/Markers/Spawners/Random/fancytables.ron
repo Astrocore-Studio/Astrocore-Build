@@ -1,0 +1,4 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Markers/Spawners/Random/fancytables.yml. Создано scripts/gen_items.py.
+[
+    (id: "FancyTableSpawner", parents: ["MarkerBase"], name: Some("random fancy table spawner")),
+]

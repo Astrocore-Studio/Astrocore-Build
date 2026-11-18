@@ -1,0 +1,9 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Mobs/NPCs/Farm/sheep.yml. Создано scripts/gen_items.py.
+[
+    (id: "MobSheep", parents: ["MobSheepBase", "SimpleMobBase", "BaseMobDestructible"], name: Some("sheep"), description: Some("An adorable genetically engineered chemical factory producing milk and cotton.")),
+    (id: "MobSheepBase", parents: ["BaseMobRuminant", "BaseSlicingRefinableButchering", "BaseExaminableHunger"], abstract: true, name: Some("sheepBase"), description: Some("A sheep.")),
+    (id: "MobSheepRainbow", parents: ["MobSheep"], name: Some("rainbow sheep"), description: Some("A sheep; this one seems... glowy.")),
+    (id: "SolutionUdderSheep", parents: ["SolutionUdder"], categories: ["HideSpawnMenu"]),
+    (id: "SolutionWoolSheep", parents: ["SolutionWool"], categories: ["HideSpawnMenu"]),
+    (id: "SolutionWoolSheepRainbow", parents: ["SolutionWool"], categories: ["HideSpawnMenu"]),
+]

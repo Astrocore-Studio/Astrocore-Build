@@ -1,0 +1,4 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Markers/Spawners/Random/Decals/base.yml. Создано scripts/gen_items.py.
+[
+    (id: "DecalSpawnerBase", parents: ["MarkerBase"], abstract: true, name: Some("Decal Spawner")),
+]

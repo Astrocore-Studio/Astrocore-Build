@@ -1,0 +1,9 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Clothing/Hands/rings.yml. Создано scripts/gen_items.py.
+[
+    (id: "GoldRing", parents: ["RingBase", "GoldRingBase"], name: Some("gold ring"), description: Some("A precious ring.")),
+    (id: "GoldRingDiamond", parents: ["RingBase", "GoldRingBase"], name: Some("gold diamond ring"), description: Some("Made from ethically mined space diamonds.")),
+    (id: "GoldRingGem", parents: ["RingBase", "GoldRingBase"], name: Some("gold gem ring"), description: Some("Shiny and valuable!")),
+    (id: "SilverRing", parents: ["RingBase", "SilverRingBase"], name: Some("silver ring"), description: Some("Looks slightly less valuable than a gold one.")),
+    (id: "SilverRingDiamond", parents: ["RingBase", "SilverRingBase"], name: Some("silver diamond ring"), description: Some("Made from ethically mined space diamonds.")),
+    (id: "SilverRingGem", parents: ["RingBase", "SilverRingBase"], name: Some("silver gem ring"), description: Some("Shiny and not quite as valuable!")),
+]

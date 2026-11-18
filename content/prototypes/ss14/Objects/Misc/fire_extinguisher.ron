@@ -1,0 +1,12 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Misc/fire_extinguisher.yml. Создано scripts/gen_items.py.
+[
+    (id: "BaseFireExtinguisher", parents: ["SolutionSpray", "BaseItem"], abstract: true),
+    (id: "BorgFireExtinguisher", parents: ["SolutionFireExtinguisherLarge", "FireExtinguisher"], name: Some("maneuvering jet"), description: Some("Based on fire extinguisher technology, the maneuvering jet is... well yes, its just a bigger fire extinguisher.")),
+    (id: "ExtinguisherSpray", parents: ["Vapor"], name: Some("extinguisher spray"), categories: ["HideSpawnMenu"]),
+    (id: "FireExtinguisher", parents: ["SolutionFireExtinguisher", "BaseFireExtinguisher"], name: Some("fire extinguisher"), description: Some("It extinguishes fires."), components: {"Sprite": (sprite: "Objects/Misc/fire_extinguisher.rsi", state: "fire_extinguisher_closed"), "Item": (size: "Normal"), "Tool": (qualities: ["Rolling"]), "Solution": (maxVol: 120.0, canReact: true, reagents: (Water: 120.0)), "SolutionTransfer": (amount: 100.0, max: 100.0), "Refillable": (), "Drainable": (), "MeleeWeapon": (damage: (Blunt: 10.0), attackRate: 1.0, bluntStaminaDamageFactor: 0.5), "Tag": (tags: ["FireExtinguisher"]), "Spray": (), "SpraySafety": ()}),
+    (id: "FireExtinguisherMini", parents: ["SolutionFireExtinguisherMini", "BaseFireExtinguisher"], name: Some("pocket fire extinguisher"), description: Some("A light and compact fibreglass-framed model fire extinguisher. It holds less water than its bigger brother.")),
+    (id: "SelfRechargingFireExtinguisher", parents: ["FireExtinguisher", "BaseXenoborgContraband"], name: Some("self-recharging fire extinguisher"), description: Some("It extinguishes fires. it slowly refills with water.")),
+    (id: "SolutionFireExtinguisher", parents: ["SolutionSpray", "SolutionNormal"], categories: ["HideSpawnMenu"]),
+    (id: "SolutionFireExtinguisherLarge", parents: ["SolutionSpray", "SolutionLarge"], categories: ["HideSpawnMenu"]),
+    (id: "SolutionFireExtinguisherMini", parents: ["SolutionSpray", "SolutionSmall"], categories: ["HideSpawnMenu"]),
+]

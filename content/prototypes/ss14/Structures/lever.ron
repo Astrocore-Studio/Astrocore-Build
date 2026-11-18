@@ -1,0 +1,4 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/lever.yml. Создано scripts/gen_items.py.
+[
+    (id: "TwoWayLever", parents: ["StructureHealthMachineWeak"], name: Some("two way lever"), description: Some("A two way lever.")),
+]

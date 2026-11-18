@@ -1,0 +1,10 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Debugging/clicktest.yml. Создано scripts/gen_items.py.
+[
+    (id: "ClickTestBase", categories: ["Debug", "HideSpawnMenu"]),
+    (id: "ClickTestFixedCornerInvisible", parents: ["ClickTestBase"], name: Some("ClickTestFixedCornerInvisible")),
+    (id: "ClickTestFixedCornerVisible", parents: ["ClickTestBase"], name: Some("ClickTestFixedCornerVisible")),
+    (id: "ClickTestRotatingCornerInvisible", parents: ["ClickTestBase"], name: Some("ClickTestRotatingCornerInvisible")),
+    (id: "ClickTestRotatingCornerInvisibleNoRot", parents: ["ClickTestRotatingCornerInvisible"], name: Some("ClickTestRotatingCornerInvisibleNoRot")),
+    (id: "ClickTestRotatingCornerVisible", parents: ["ClickTestBase"], name: Some("ClickTestRotatingCornerVisible")),
+    (id: "ClickTestRotatingCornerVisibleNoRot", parents: ["ClickTestRotatingCornerVisible"], name: Some("ClickTestRotatingCornerVisibleNoRot")),
+]

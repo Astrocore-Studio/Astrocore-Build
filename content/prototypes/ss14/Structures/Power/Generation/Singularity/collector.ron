@@ -1,0 +1,6 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/Power/Generation/Singularity/collector.yml. Создано scripts/gen_items.py.
+[
+    (id: "RadiationCollector", parents: ["BaseMachineDestructible"], name: Some("radiation collector"), description: Some("A machine that collects radiation and turns it into power. Requires plasma gas to function.")),
+    (id: "RadiationCollectorFullTank", parents: ["RadiationCollector"]),
+    (id: "RadiationCollectorNoTank", parents: ["RadiationCollector"]),
+]

@@ -1,0 +1,9 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Tiles/shadow_basalt.yml. Создано scripts/gen_items.py.
+[
+    (id: "ShadowBasaltFive", parents: ["ShadowBasaltOne"]),
+    (id: "ShadowBasaltFour", parents: ["ShadowBasaltOne"]),
+    (id: "ShadowBasaltOne", name: Some("shadowstone"), description: Some("Glowing cracks in reality. It's probably fine.")),
+    (id: "ShadowBasaltRandom", parents: ["ShadowBasaltOne"]),
+    (id: "ShadowBasaltThree", parents: ["ShadowBasaltOne"]),
+    (id: "ShadowBasaltTwo", parents: ["ShadowBasaltOne"]),
+]

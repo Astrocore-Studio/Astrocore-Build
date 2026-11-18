@@ -1,0 +1,11 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Effects/mobspawn.yml. Создано scripts/gen_items.py.
+[
+    (id: "EffectAnomalyFloraBulb", categories: ["HideSpawnMenu"]),
+    (id: "MobSpawnCrabBananium", parents: ["MobSpawnCrabQuartz"], name: Some("mobspawner bananiumcrab"), categories: ["HideSpawnMenu", "Spawner"]),
+    (id: "MobSpawnCrabCoal", parents: ["MobSpawnCrabQuartz"], name: Some("mobspawner coalcrab"), categories: ["HideSpawnMenu", "Spawner"]),
+    (id: "MobSpawnCrabGold", parents: ["MobSpawnCrabQuartz"], name: Some("mobspawner goldcrab"), categories: ["HideSpawnMenu", "Spawner"]),
+    (id: "MobSpawnCrabIron", parents: ["MobSpawnCrabQuartz"], name: Some("mobspawner ironcrab"), categories: ["HideSpawnMenu", "Spawner"]),
+    (id: "MobSpawnCrabQuartz", name: Some("mobspawner quartzcrab"), categories: ["HideSpawnMenu", "Spawner"]),
+    (id: "MobSpawnCrabSilver", parents: ["MobSpawnCrabQuartz"], name: Some("mobspawner silvercrab"), categories: ["HideSpawnMenu", "Spawner"]),
+    (id: "MobSpawnCrabUranium", parents: ["MobSpawnCrabQuartz"], name: Some("mobspawner uraniumcrab"), categories: ["HideSpawnMenu", "Spawner"]),
+]

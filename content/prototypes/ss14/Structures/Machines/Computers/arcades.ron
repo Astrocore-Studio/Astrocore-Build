@@ -1,0 +1,6 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/Machines/Computers/arcades.yml. Создано scripts/gen_items.py.
+[
+    (id: "ArcadeBase", parents: ["BaseComputer"], abstract: true, name: Some("arcade"), description: Some("An arcade cabinet.")),
+    (id: "SpaceVillainArcade", parents: ["ArcadeBase"], name: Some("space villain arcade")),
+    (id: "SpaceVillainArcadeFilled", parents: ["SpaceVillainArcade"]),
+]

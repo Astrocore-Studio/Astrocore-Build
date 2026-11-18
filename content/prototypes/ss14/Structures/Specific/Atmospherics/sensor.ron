@@ -1,0 +1,5 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/Specific/Atmospherics/sensor.yml. Создано scripts/gen_items.py.
+[
+    (id: "AirSensorAssembly", parents: ["BaseItem", "BaseItemDestructible"], name: Some("air sensor assembly"), description: Some("Air sensor assembly. An assembly of air sensors?")),
+    (id: "AirSensorBase", abstract: true),
+]

@@ -1,0 +1,4 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/Machines/Medical/vaccinator.yml. Создано scripts/gen_items.py.
+[
+    (id: "Vaccinator", parents: ["BaseMachinePowered", "BaseMachineDestructible"], name: Some("vaccinator"), description: Some("A machine that creates vaccines.")),
+]

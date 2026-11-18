@@ -1,0 +1,12 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/animal.yml. Создано scripts/gen_items.py.
+[
+    (id: "BaseMobAnimal", abstract: true),
+    (id: "OrganAnimal", parents: ["OrganBaseOrganic"], abstract: true),
+    (id: "OrganAnimalHeart", parents: ["OrganBaseHeart", "OrganAnimalInternal", "OrganAnimalMetabolizer"]),
+    (id: "OrganAnimalInternal", parents: ["OrganAnimal"], abstract: true),
+    (id: "OrganAnimalKidneys", parents: ["OrganBaseKidneys", "OrganAnimalInternal", "OrganAnimalMetabolizer"]),
+    (id: "OrganAnimalLiver", parents: ["OrganBaseLiver", "OrganAnimalInternal", "OrganAnimalMetabolizer"]),
+    (id: "OrganAnimalLungs", parents: ["OrganBaseLungs", "OrganAnimalInternal", "OrganAnimalMetabolizer"]),
+    (id: "OrganAnimalMetabolizer", abstract: true),
+    (id: "OrganAnimalStomach", parents: ["OrganBaseStomach", "OrganAnimalInternal", "OrganAnimalMetabolizer"]),
+]

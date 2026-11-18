@@ -1,0 +1,6 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/Storage/Closets/big_boxes.yml. Создано scripts/gen_items.py.
+[
+    (id: "BigBox", parents: ["StructureHealthContainerFlimsy"], name: Some("cardboard box"), description: Some("Huh? Just a box...")),
+    (id: "GhostBox", parents: ["StealthBox"], name: Some("ghost box"), description: Some("Beware!")),
+    (id: "StealthBox", parents: ["BigBox"], description: Some("Kept ya waiting, huh?")),
+]

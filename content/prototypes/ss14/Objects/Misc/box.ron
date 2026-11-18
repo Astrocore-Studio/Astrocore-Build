@@ -1,0 +1,7 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Misc/box.yml. Создано scripts/gen_items.py.
+[
+    (id: "BoxBase", parents: ["BaseStorageItem"], abstract: true),
+    (id: "BoxBaseHug", parents: ["BaseBoxSurvival"], abstract: true),
+    (id: "BoxBaseSmall", parents: ["BoxBase"], abstract: true),
+    (id: "ToteBase", parents: ["BoxBase"], name: Some("circuit tote"), description: Some("A large tote for carrying circuit boards.")),
+]

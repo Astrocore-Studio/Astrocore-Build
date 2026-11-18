@@ -1,0 +1,4 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Weapons/Guns/Projectiles/Bullets/antimateriel.yml. Создано scripts/gen_items.py.
+[
+    (id: "BulletAntiMateriel", parents: ["BaseBullet"], name: Some("bullet (.60 anti-materiel)"), categories: ["HideSpawnMenu"]),
+]

@@ -1,0 +1,9 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Weapons/Guns/Projectiles/Bullets/base.yml. Создано scripts/gen_items.py.
+[
+    (id: "BaseBullet", abstract: true, name: Some("BaseBullet"), description: Some("If you can see this you're probably dead!")),
+    (id: "BaseBulletAP", parents: ["BaseBullet"], name: Some("base bullet armor-piercing"), categories: ["HideSpawnMenu"]),
+    (id: "BaseBulletIncendiary", parents: ["BaseBullet"], name: Some("base bullet incendiary"), categories: ["HideSpawnMenu"]),
+    (id: "BaseBulletPractice", parents: ["BaseBullet"], name: Some("base bullet practice"), categories: ["HideSpawnMenu"]),
+    (id: "BaseBulletTrigger", parents: ["BaseBullet"], name: Some("base bullet trigger"), categories: ["HideSpawnMenu"]),
+    (id: "BaseBulletUranium", parents: ["BaseBullet"], name: Some("base bullet uranium"), categories: ["HideSpawnMenu"]),
+]

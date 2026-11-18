@@ -1,0 +1,4 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/Wallmounts/WallmountMachines/air_alarm.yml. Создано scripts/gen_items.py.
+[
+    (id: "AirAlarmAssembly", parents: ["BaseWallmountMetallic", "StructureHealthMachineFlimsy"], name: Some("air alarm assembly"), description: Some("An air alarm. Doesn't look like it'll be alarming air any time soon.")),
+]

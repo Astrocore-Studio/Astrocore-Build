@@ -1,0 +1,4 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Markers/Spawners/Random/encryption_key.yml. Создано scripts/gen_items.py.
+[
+    (id: "LootSpawnerEncryptionKey", parents: ["MarkerBase"], name: Some("random encryption key spawner")),
+]

@@ -1,0 +1,5 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/Machines/Medical/cryo_pod.yml. Создано scripts/gen_items.py.
+[
+    (id: "CryoPodDestroyed", parents: ["BaseMachine", "BaseMachineDestructible"], name: Some("destroyed cryo pod"), description: Some("A cryo pod that has seen better days. It's entirely inoperable; not good for anything but scrap.")),
+    (id: "SolutionCryoBuffer", parents: ["SolutionSmall"], categories: ["HideSpawnMenu"]),
+]

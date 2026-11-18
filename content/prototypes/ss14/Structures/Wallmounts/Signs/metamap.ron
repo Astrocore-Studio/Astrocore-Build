@@ -1,0 +1,4 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/Wallmounts/Signs/metamap.yml. Создано scripts/gen_items.py.
+[
+    (id: "PosterMapMetaRight", parents: ["PosterBase"], name: Some("Meta Station map"), description: Some("A map of Meta Station. This looks really old.")),
+]

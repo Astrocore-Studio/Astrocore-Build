@@ -1,0 +1,4 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Markers/Spawners/Random/Food_Drinks/food_breakfast.yml. Создано scripts/gen_items.py.
+[
+    (id: "RandomFoodBreakfast", parents: ["MarkerBase"], name: Some("random food spawner")),
+]

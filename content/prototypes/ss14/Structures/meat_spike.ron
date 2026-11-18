@@ -1,0 +1,4 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/meat_spike.yml. Создано scripts/gen_items.py.
+[
+    (id: "KitchenSpike", parents: ["BaseStructure", "StructureHealthFurniture"], name: Some("meat spike"), description: Some("A spike for collecting meat from animals.")),
+]

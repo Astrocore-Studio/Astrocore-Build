@@ -1,0 +1,9 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/Piping/Atmospherics/pipes.yml. Создано scripts/gen_items.py.
+[
+    (id: "BaseGasPipeLayers", abstract: true),
+    (id: "GasPipeBase", parents: ["GasPipeSansLayers", "BaseGasPipeLayers"], abstract: true),
+    (id: "GasPipeBroken", parents: ["GasPipeSansLayersIndestructible", "BaseGasPipeLayers", "StructureHealthFurniture"], name: Some("broken pipe"), description: Some("It used to hold gas."), components: {"Sprite": (sprite: "Structures/Piping/Atmospherics/pipe.rsi", state: "pipeBroken"), "Item": (size: "Small"), "Tag": (tags: ["Pipe"])}),
+    (id: "GasPipeManifold", parents: ["GasPipeBase"], name: Some("gas pipe manifold"), description: Some("Allows gas pipes of different configurations to be connected together.")),
+    (id: "GasPipeSansLayers", parents: ["GasPipeSansLayersIndestructible", "StructureHealthContainer"], abstract: true),
+    (id: "GasPipeSansLayersIndestructible", parents: ["BaseItem"], abstract: true, name: Some("gas pipe"), description: Some("Holds gas.")),
+]

@@ -1,0 +1,14 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Magic/books.yml. Создано scripts/gen_items.py.
+[
+    (id: "BaseSpellbook", parents: ["BaseItem", "BaseMagicalContraband"], abstract: true, name: Some("spellbook")),
+    (id: "BlinkBook", parents: ["BaseSpellbook"], name: Some("blink spellbook")),
+    (id: "FireballSpellbook", parents: ["BaseSpellbook"], name: Some("fireball spellbook")),
+    (id: "ForceWallSpellbook", parents: ["BaseSpellbook"], name: Some("force wall spellbook")),
+    (id: "KnockSpellbook", parents: ["BaseSpellbook"], name: Some("knock spellbook")),
+    (id: "ScrollRunes", parents: ["BaseSpellbook"], name: Some("scroll of runes")),
+    (id: "SmiteBook", parents: ["BaseSpellbook"], name: Some("smite spellbook")),
+    (id: "SpawnSpellbook", parents: ["BaseSpellbook"], name: Some("spawn spellbook")),
+    (id: "WizardsGrimoire", parents: ["BaseItem", "StorePresetSpellbook", "BaseMagicalContraband"], name: Some("wizard's grimoire"), description: Some("A heavy tome containing complicated arcane formulae for preparing magic spells and conjuring supernatural equipment. Decades of study went into researching this collection of mystical secrets; now go use them to ruin someone's day.")),
+    (id: "WizardsGrimoireDebug", parents: ["WizardsGrimoire"], description: Some("A heavy tome containing complicated arcane formulae for preparing magic spells and conjuring supernatural equipment. Someone wrote \"FOR EXPERIMENTAL USE ONLY\" on the inside cover.")),
+    (id: "WizardsGrimoireNoRefund", parents: ["WizardsGrimoire"]),
+]

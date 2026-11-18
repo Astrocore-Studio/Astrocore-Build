@@ -1,0 +1,6 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Weapons/Melee/baseball_bat.yml. Создано scripts/gen_items.py.
+[
+    (id: "BaseBallBat", parents: ["BaseItem", "BaseMinorContraband"], name: Some("baseball bat"), description: Some("A robust baseball bat."), components: {"Sprite": (sprite: "Objects/Weapons/Melee/baseball_bat.rsi", state: "icon"), "Item": (size: "Normal"), "Clothing": (slots: ["back"]), "Tool": (qualities: ["Rolling"]), "MeleeWeapon": (damage: (Blunt: 10.0), attackRate: 1.0, bluntStaminaDamageFactor: 0.5), "Tag": (tags: ["BaseballBat"])}),
+    (id: "IncompleteBaseBallBat", parents: ["BaseItem"], name: Some("incomplete baseball bat"), description: Some("A few planks of wood stuck together.")),
+    (id: "WeaponMeleeKnockbackStick", parents: ["BaseBallBat"], name: Some("knockback stick"), description: Some("And then he spleefed all over."), categories: ["DoNotMap"]),
+]

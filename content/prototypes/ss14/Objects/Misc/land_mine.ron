@@ -1,0 +1,10 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Misc/land_mine.yml. Создано scripts/gen_items.py.
+[
+    (id: "BaseLandMine", parents: ["StructureHealthMachineFlimsy"], abstract: true),
+    (id: "LandMineExplosive", parents: ["LandMineExplosiveUnarmed"]),
+    (id: "LandMineExplosiveUnarmed", parents: ["BaseLandMine"], name: Some("explosive mine")),
+    (id: "LandMineKick", parents: ["LandMineKickUnarmed"]),
+    (id: "LandMineKickUnarmed", parents: ["BaseLandMine"], name: Some("kick mine")),
+    (id: "LandMineModular", parents: ["LandMineModularUnarmed"]),
+    (id: "LandMineModularUnarmed", parents: ["BaseLandMine"], name: Some("modular mine"), description: Some("This bad boy could be packing any number of dangers. Or a bike horn.")),
+]

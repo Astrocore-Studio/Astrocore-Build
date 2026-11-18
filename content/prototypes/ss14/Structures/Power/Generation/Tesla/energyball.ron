@@ -1,0 +1,6 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/Power/Generation/Tesla/energyball.yml. Создано scripts/gen_items.py.
+[
+    (id: "BaseEnergyBall", abstract: true),
+    (id: "TeslaEnergyBall", parents: ["BaseEnergyBall"], name: Some("ball lightning"), description: Some("A giant ball of pure energy. The space around it is humming and melting.")),
+    (id: "TeslaMiniEnergyBall", parents: ["BaseEnergyBall"], name: Some("mini ball lightning"), description: Some("The cub of a destructive energy cage. Not as dangerous, but still not worth touching with bare hands.")),
+]

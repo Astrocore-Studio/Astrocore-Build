@@ -1,0 +1,8 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Devices/Syndicate_Gadgets/guardian_activators.yml. Создано scripts/gen_items.py.
+[
+    (id: "BoxHoloclown", parents: ["BoxCardboard", "BaseSyndicateContraband"], name: Some("holoclown box"), description: Some("A box containing a holoclown injector.")),
+    (id: "BoxHoloparasite", parents: ["BoxCardboard", "BaseSyndicateContraband"], name: Some("holoparasite box"), description: Some("A box containing a holoparasite injector.")),
+    (id: "GuardianDeck", parents: ["BaseItem", "BaseMagicalContraband"], name: Some("guardian deck"), description: Some("A deck of guardian tarot cards, capable of binding a personal guardian to your body.")),
+    (id: "HoloClownInjector", parents: ["HoloparasiteInjector"], name: Some("holoclown injector"), description: Some("A complex artwork of handheld machinery allowing the user to host a holoclown guardian.")),
+    (id: "HoloparasiteInjector", parents: ["BaseItem", "BaseSyndicateContraband"], name: Some("holoparasite injector"), description: Some("A complex artwork of handheld machinery allowing the user to host a holoparasite guardian.")),
+]

@@ -1,0 +1,6 @@
+// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/Doors/Windoors/assembly.yml. Создано scripts/gen_items.py.
+[
+    (id: "WindoorAssembly", parents: ["BaseStructure", "StructureHealthDoorWeak"], name: Some("windoor assembly"), description: Some("It opens, it closes, and you can see through it!")),
+    (id: "WindoorAssemblyPlasma", parents: ["WindoorAssembly"], name: Some("plasma windoor assembly"), description: Some("It opens, it closes, and you can see through it! This one looks purp-, no, pink. Wait...")),
+    (id: "WindoorAssemblyUranium", parents: ["WindoorAssembly"], name: Some("uranium windoor assembly"), description: Some("It opens, it closes, and you can see through it! This one looks sickly green...")),
+]
