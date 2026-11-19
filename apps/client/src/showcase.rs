@@ -89,11 +89,24 @@ pub fn commands(
                 from: [-3, -3],
                 to: [3, 4],
                 level: 0,
-                ceiling: false,
+                // С потолком: в маппинге он скрыт (флажок «Потолки»).
+                ceiling: true,
             };
             net.send_command(
                 gameplay::systems::mapping::CMD_TILE,
                 gameplay::systems::mapping::tile_data(&r),
+            );
+        }
+        // Ластик: стереть два окна справа от шлюза.
+        if frame == 245 {
+            let r = gameplay::systems::mapping::EraseRequest {
+                from: [2, 4],
+                to: [3, 4],
+                level: 0,
+            };
+            net.send_command(
+                gameplay::systems::mapping::CMD_ERASE,
+                gameplay::systems::mapping::erase_data(&r),
             );
         }
         for (i, (proto, from, to, rot)) in ROOM_SET.iter().enumerate() {

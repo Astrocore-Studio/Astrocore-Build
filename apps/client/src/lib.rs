@@ -148,6 +148,7 @@ impl Plugin for BuildClientPlugin {
                 outfit::sync_outfits,
                 outfit::follow_body_models,
                 mapping_ui::input,
+                mapping_ui::view,
             )
                 .chain(),
         )
@@ -1277,6 +1278,21 @@ fn ghost_camera(
     let Some(mut look) = look else { return };
     // Маппинг (F5) смотрит сверху так же, как призрак.
     let ghost = loadout.health.as_ref().is_some_and(|h| h.ghost) || hud.state.mapping.open;
+    // Маппинг по флажку смотрит без перспективы (ортографически), как в SS14.
+    let ortho = hud.state.mapping.open && hud.state.mapping.ortho;
+    for mut rig in &mut rigs {
+        let mode = if ortho {
+            astrocore_render::CameraMode::Orthographic
+        } else {
+            astrocore_render::CameraMode::Perspective
+        };
+        if rig.mode != mode {
+            rig.mode = mode;
+        }
+        if ortho {
+            rig.ortho_height = rig.distance.max(4.0);
+        }
+    }
     // Призраки (умершие, наблюдатели и админ-призраки) всегда летают с видом сверху: движок держит
     // наклон и не пускает в первое лицо, пока включён `top_down`.
     look.top_down = ghost;

@@ -8,9 +8,9 @@ use bevy::prelude::*;
 use bevy_egui::egui::{self, Color32, Key};
 use gameplay::admin::AdminView;
 use gameplay::systems::mapping::{
-    CMD_DELETE, CMD_SPAWN, CMD_STRUCTURE, CMD_TILE, FLAG, SpawnRequest, StructureEntry,
-    StructureRequest, TILE_FLAG, TileRequest, delete_data, spawn_data, structure_catalog,
-    structure_data, tile_data,
+    CMD_ERASE, CMD_SPAWN, CMD_STRUCTURE, CMD_TILE, EraseRequest, FLAG, SpawnRequest,
+    StructureEntry, StructureRequest, TILE_FLAG, TileRequest, erase_data, line_cells, spawn_data,
+    structure_catalog, structure_data, tile_data,
 };
 
 use crate::hud::{Commands, Icons, TileEntry};
@@ -34,7 +34,12 @@ pub struct MappingState {
     /// Выбранный прототип (идентификатор движка).
     pub selected: Option<String>,
     pub rot: u8,
-    pub delete: bool,
+    /// Ластик: рамка протяжкой убирает всё, кроме пола (`mapping.erase`).
+    pub eraser: bool,
+    /// Показывать потолки в режиме маппинга (по умолчанию скрыты, чтобы видеть пол сверху).
+    pub ceilings: bool,
+    /// Ортографическая камера сверху (без перспективы, как в SS14); иначе — перспектива.
+    pub ortho: bool,
     /// Номер карты и имя файла для команд карт (`savemap <карта> <имя>` и др.).
     map_id: String,
     save_name: String,
@@ -60,7 +65,9 @@ impl Default for MappingState {
             search: String::new(),
             selected: None,
             rot: 0,
-            delete: false,
+            eraser: false,
+            ceilings: false,
+            ortho: true,
             map_id: "1".into(),
             save_name: String::new(),
             tile: None,
@@ -126,6 +133,21 @@ pub fn panel(
                     ui.selectable_value(&mut st.tab, Tab::Structures, "Стены и двери");
                 }
             });
+            // Общие для всех вкладок: ластик и вид.
+            ui.horizontal(|ui| {
+                ui.checkbox(&mut st.eraser, "Ластик")
+                    .on_hover_text("Рамка протяжкой убирает сущности, стены, шлюзы; пол остаётся");
+                ui.checkbox(&mut st.ceilings, "Потолки")
+                    .on_hover_text("Показывать потолки (сверху они закрывают пол)");
+                ui.checkbox(&mut st.ortho, "Без перспективы")
+                    .on_hover_text("Ортографический вид сверху, как в SS14");
+            });
+            if st.eraser {
+                ui.label(
+                    egui::RichText::new("Ластик: ЛКМ — клетка, протяжка — рамка (до 32 × 32)")
+                        .color(Color32::from_rgb(240, 140, 120)),
+                );
+            }
             ui.horizontal(|ui| {
                 ui.label("Поиск:");
                 ui.add(egui::TextEdit::singleline(&mut st.search).desired_width(f32::INFINITY));
@@ -160,15 +182,8 @@ fn hint(ui: &mut egui::Ui, text: &str) {
 }
 
 fn entities_head(ui: &mut egui::Ui, st: &mut MappingState, icons: &Icons) {
-    ui.horizontal(|ui| {
-        ui.checkbox(&mut st.delete, "Удаление");
-        ui.label(format!("Поворот: {}°", u16::from(st.rot) * 90));
-    });
-    if st.delete {
-        ui.label(
-            egui::RichText::new("ЛКМ по объекту — удалить").color(Color32::from_rgb(240, 140, 120)),
-        );
-    } else if let Some(sel) = &st.selected {
+    ui.label(format!("Поворот: {}°", u16::from(st.rot) * 90));
+    if let Some(sel) = &st.selected {
         let name = icons
             .aim_info(sel)
             .map_or(sel.as_str(), |i| i.name.as_str());
@@ -267,7 +282,7 @@ fn entity_list(ctx: &egui::Context, ui: &mut egui::Ui, st: &mut MappingState, ic
                 .clicked()
             {
                 st.selected = Some(id.clone());
-                st.delete = false;
+                st.eraser = false;
             }
         });
     }
@@ -426,11 +441,27 @@ pub fn input(
         }
         if keys.just_pressed(KeyCode::Escape) {
             st.selected = None;
-            st.delete = false;
+            st.eraser = false;
             st.tile = None;
             st.structure = None;
             st.drag_from = None;
         }
+    }
+    if st.eraser {
+        if buttons.just_pressed(MouseButton::Left) && !wants.wants_any_pointer_input() {
+            st.drag_from = ground.0.map(cell_of);
+        }
+        if buttons.just_released(MouseButton::Left)
+            && let (Some(from), Some(point)) = (st.drag_from.take(), ground.0)
+        {
+            let r = EraseRequest {
+                from,
+                to: cell_of(point),
+                level: st.level,
+            };
+            net.send_command(CMD_ERASE, erase_data(&r));
+        }
+        return;
     }
     if st.tab == Tab::Structures {
         // Протяжка: клетка нажатия — начало линии, клетка отпускания — её направление и длина.
@@ -481,12 +512,6 @@ pub fn input(
     if !buttons.just_pressed(MouseButton::Left) || wants.wants_any_pointer_input() {
         return;
     }
-    if st.delete {
-        if let Some(id) = hud.state.aim_id {
-            net.send_command(CMD_DELETE, delete_data(id));
-        }
-        return;
-    }
     let (Some(proto), Some(point)) = (st.selected.clone(), ground.0) else {
         return;
     };
@@ -497,6 +522,89 @@ pub fn input(
         rot: st.rot,
     };
     net.send_command(CMD_SPAWN, spawn_data(&r));
+}
+
+/// Цвет сетки клеток и подсветки цели.
+const GRID_COLOR: Color = Color::srgba(1.0, 1.0, 1.0, 0.18);
+const HOVER_COLOR: Color = Color::srgb(1.0, 0.85, 0.2);
+const ERASE_COLOR: Color = Color::srgb(1.0, 0.35, 0.3);
+/// Радиус сетки вокруг клетки под курсором, клеток.
+const GRID_RADIUS: i32 = 12;
+
+/// Вид маппинга: потолки по флажку (фильтр отрисовки движка), сетка клеток вокруг курсора,
+/// подсветка клетки под курсором и предпросмотр протяжки (рамка плиток и ластика, линия стен).
+pub fn view(
+    mut gizmos: Gizmos,
+    ground: Res<crate::Ground>,
+    buttons: Res<ButtonInput<MouseButton>>,
+    hud: Res<crate::Hud>,
+    rendered: Option<ResMut<astrocore_render::RenderedWorld>>,
+    mut hiding: Local<bool>,
+) {
+    let st = &hud.state.mapping;
+    // Потолки прячутся, только пока открыт маппинг и флажок снят.
+    let hide = st.open && !st.ceilings;
+    if let Some(mut r) = rendered
+        && (hide != *hiding || (hide && r.filter.is_none()))
+    {
+        r.filter = hide.then(|| {
+            std::sync::Arc::new(|e: &astrocore_world::StructureElement| {
+                !matches!(e.kind, astrocore_world::StructureKind::Ceiling)
+            }) as astrocore_render::ElementFilter
+        });
+        r.rebuild_all = true;
+        *hiding = hide;
+    }
+    if !st.open {
+        return;
+    }
+    let Some([px, py, pz]) = ground.0 else {
+        return;
+    };
+    let y = py + 0.01;
+    let here = cell_of([px, py, pz]);
+    // Сетка.
+    let (x0, x1) = (here[0] - GRID_RADIUS, here[0] + GRID_RADIUS + 1);
+    let (z0, z1) = (here[1] - GRID_RADIUS, here[1] + GRID_RADIUS + 1);
+    for x in x0..=x1 {
+        gizmos.line(
+            Vec3::new(x as f32, y, z0 as f32),
+            Vec3::new(x as f32, y, z1 as f32),
+            GRID_COLOR,
+        );
+    }
+    for z in z0..=z1 {
+        gizmos.line(
+            Vec3::new(x0 as f32, y, z as f32),
+            Vec3::new(x1 as f32, y, z as f32),
+            GRID_COLOR,
+        );
+    }
+    let rect = |gizmos: &mut Gizmos, a: [i32; 2], b: [i32; 2], color: Color| {
+        let (ax, bx) = (a[0].min(b[0]) as f32, a[0].max(b[0]) as f32 + 1.0);
+        let (az, bz) = (a[1].min(b[1]) as f32, a[1].max(b[1]) as f32 + 1.0);
+        let y = y + 0.01;
+        let c = [
+            Vec3::new(ax, y, az),
+            Vec3::new(bx, y, az),
+            Vec3::new(bx, y, bz),
+            Vec3::new(ax, y, bz),
+        ];
+        for i in 0..4 {
+            gizmos.line(c[i], c[(i + 1) % 4], color);
+        }
+    };
+    let color = if st.eraser { ERASE_COLOR } else { HOVER_COLOR };
+    match st.drag_from.filter(|_| buttons.pressed(MouseButton::Left)) {
+        // Протяжка: линия стен — клетками, остальное — рамкой.
+        Some(from) if !st.eraser && st.tab == Tab::Structures => {
+            for c in line_cells(from, here) {
+                rect(&mut gizmos, c, c, color);
+            }
+        }
+        Some(from) => rect(&mut gizmos, from, here, color),
+        None => rect(&mut gizmos, here, here, color),
+    }
 }
 
 #[cfg(test)]

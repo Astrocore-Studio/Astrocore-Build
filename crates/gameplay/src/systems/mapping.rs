@@ -34,6 +34,8 @@ pub const CMD_SPAWN: &str = "mapping.spawn";
 pub const CMD_DELETE: &str = "mapping.delete";
 pub const CMD_TILE: &str = "mapping.tile";
 pub const CMD_STRUCTURE: &str = "mapping.structure";
+/// Ластик: всё, кроме пола и потолка, в прямоугольнике клеток (флаг `Mapping`).
+pub const CMD_ERASE: &str = "mapping.erase";
 /// Самая длинная линия стен за одну протяжку, клеток.
 pub const MAX_LINE_CELLS: usize = 64;
 /// Флаг прав для плиток (и других правок конструкции карты).
@@ -94,6 +96,19 @@ pub struct StructureRequest {
     pub rot: u8,
     #[serde(default)]
     pub level: i32,
+}
+
+/// Запрос ластика: углы прямоугольника клеток (включительно) и уровень.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct EraseRequest {
+    pub from: [i32; 2],
+    pub to: [i32; 2],
+    #[serde(default)]
+    pub level: i32,
+}
+
+pub fn erase_data(r: &EraseRequest) -> Vec<u8> {
+    serde_json::to_vec(r).unwrap_or_default()
 }
 
 pub fn structure_data(r: &StructureRequest) -> Vec<u8> {
@@ -185,7 +200,7 @@ impl GameSystem for MappingSystem {
     }
 
     fn commands(&self) -> &'static [&'static str] {
-        &[CMD_SPAWN, CMD_DELETE, CMD_TILE, CMD_STRUCTURE]
+        &[CMD_SPAWN, CMD_DELETE, CMD_TILE, CMD_STRUCTURE, CMD_ERASE]
     }
 
     fn command(
@@ -196,7 +211,7 @@ impl GameSystem for MappingSystem {
         kind: &str,
         data: &[u8],
     ) {
-        let flag = if matches!(kind, CMD_TILE | CMD_STRUCTURE) {
+        let flag = if matches!(kind, CMD_TILE | CMD_STRUCTURE | CMD_ERASE) {
             TILE_FLAG
         } else {
             FLAG
@@ -209,6 +224,7 @@ impl GameSystem for MappingSystem {
             CMD_SPAWN => self.spawn(st, ctx, data),
             CMD_TILE => self.tiles(st, ctx, data),
             CMD_STRUCTURE => self.structure(st, ctx, data),
+            CMD_ERASE => Self::erase(st, ctx, data),
             _ => Self::delete(ctx, data),
         };
         if let Err(text) = result {
@@ -456,6 +472,106 @@ impl MappingSystem {
         ]
         .into();
         ctx.request(WorldCommand::PlaceAuthored(zone));
+        Ok(())
+    }
+
+    /// Ластик (`Eraser` окна спавна SS14): в прямоугольнике убираются сущности и предметы,
+    /// стены, окна и решётки (их рёбра — если по другую сторону не стена), шлюзы с их зонами,
+    /// огнезапоры и маркеры появления. Пол и потолок остаются — для них «пустая плитка».
+    fn erase(st: &mut State, ctx: &mut HookContext<'_>, data: &[u8]) -> Result<(), String> {
+        if data.len() > MAX_REQUEST_BYTES {
+            return Err("Слишком длинный запрос".into());
+        }
+        let r: EraseRequest =
+            serde_json::from_slice(data).map_err(|_| "Неверный запрос".to_string())?;
+        let (x0, x1) = (r.from[0].min(r.to[0]), r.from[0].max(r.to[0]));
+        let (z0, z1) = (r.from[1].min(r.to[1]), r.from[1].max(r.to[1]));
+        if (i64::from(x1) - i64::from(x0) + 1) * (i64::from(z1) - i64::from(z0) + 1)
+            > MAX_TILE_CELLS
+        {
+            return Err(format!(
+                "Слишком большой прямоугольник: не больше {MAX_TILE_CELLS} клеток"
+            ));
+        }
+        let floor = FloorId(r.level);
+        let inside = |x: i32, z: i32| (x0..=x1).contains(&x) && (z0..=z1).contains(&z);
+        let cell_of = |p: Vec3| (p.x.floor() as i32, p.z.floor() as i32);
+        let mut gone: Vec<WorldCommand> = Vec::new();
+        // Сущности и предметы, шлюзы (зона и её дверь), маркеры появления.
+        for o in ctx.world.authored().filter(|o| o.floor == floor) {
+            let (x, z) = cell_of((o.min() + o.max()) * 0.5);
+            if !inside(x, z) {
+                continue;
+            }
+            match &o.kind {
+                AuthoredKind::Placement { .. } => {}
+                AuthoredKind::Zone => {
+                    let door = o
+                        .metadata
+                        .get("door_element")
+                        .and_then(|h| u128::from_str_radix(h, 16).ok())
+                        .map(ObjectId::from_u128);
+                    if door.is_none() && !o.metadata.contains_key("spawn_job") {
+                        continue;
+                    }
+                    if let Some(id) = door.filter(|d| ctx.world.element(*d).is_some()) {
+                        gone.push(WorldCommand::RemoveElement { id });
+                    }
+                }
+                _ => continue,
+            }
+            gone.push(WorldCommand::RemoveAuthored { id: o.id });
+        }
+        // Стены, окна, решётки: блоки клеток.
+        let mut walls = st.take_walls(ctx);
+        let mut erased: std::collections::BTreeSet<(i32, i32)> = Default::default();
+        for e in ctx.world.elements().filter(|e| e.floor == floor) {
+            if let (StructureKind::Freeform, Placement::Free(p)) = (&e.kind, &e.placement)
+                && inside(p.cell.x, p.cell.z)
+            {
+                erased.insert((p.cell.x, p.cell.z));
+                gone.push(WorldCommand::RemoveElement { id: e.id });
+            }
+        }
+        for c in &erased {
+            walls.remove(c);
+            st.window_grilles.remove(c);
+            st.barrier_progress.remove(c);
+            st.reinforced_work.remove(c);
+        }
+        // Рёбра стёртых стен — если по другую сторону не осталась стена; огнезапоры у клеток.
+        for e in ctx.world.elements().filter(|e| e.floor == floor) {
+            let Placement::Edge(g) = e.placement else {
+                continue;
+            };
+            let (a, b) = match g.dir {
+                astrocore_math::EdgeDir::AlongX => ((g.x, g.z - 1), (g.x, g.z)),
+                astrocore_math::EdgeDir::AlongZ => ((g.x - 1, g.z), (g.x, g.z)),
+            };
+            let remove = match e.kind {
+                StructureKind::Wall
+                | StructureKind::Opening(astrocore_world::OpeningKind::Window) => {
+                    (erased.contains(&a) && !walls.contains_key(&b))
+                        || (erased.contains(&b) && !walls.contains_key(&a))
+                }
+                StructureKind::Opening(astrocore_world::OpeningKind::Door) => {
+                    e.material.as_str().ends_with("firelock")
+                        && (inside(a.0, a.1) || inside(b.0, b.1))
+                }
+                _ => false,
+            };
+            if remove
+                && !gone
+                    .iter()
+                    .any(|c| matches!(c, WorldCommand::RemoveElement { id } if *id == e.id))
+            {
+                gone.push(WorldCommand::RemoveElement { id: e.id });
+            }
+        }
+        st.walls = Some(walls);
+        for c in gone {
+            ctx.request(c);
+        }
         Ok(())
     }
 

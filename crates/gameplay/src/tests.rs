@@ -3322,6 +3322,103 @@ mod disposal_tests {
         );
     }
 
+    /// Ластик (как `Eraser` SS14): в рамке пропадают стены (их рёбра — если по другую сторону не
+    /// стена), шлюз с зоной и дверью, предметы; пол остаётся.
+    #[test]
+    fn the_eraser_clears_walls_airlocks_and_items_but_keeps_the_floor() {
+        use crate::systems::mapping::{
+            CMD_ERASE, CMD_STRUCTURE, CMD_TILE, EraseRequest, StructureRequest, TileRequest,
+            erase_data, structure_data, tile_data,
+        };
+        let token = "fedcba9876543210fedcba9876543210";
+        let steel = "ss14:tile_floorsteel";
+        let mut h = harness_with(move |m| {
+            m.with_admins(admin_roster(token, "Mapper"))
+                .with_tiles([astrocore_core::PrototypeId::new(steel).unwrap()])
+        });
+        let a = h.join("a");
+        h.ticks(10);
+        hello(&mut h, a, token);
+        let send = |h: &mut Harness, kind: &'static str, data: Vec<u8>| {
+            command(h, a, kind, data);
+            h.ticks(5);
+        };
+        let tile = TileRequest {
+            tile: Some(steel.into()),
+            from: [40, 40],
+            to: [46, 42],
+            level: 0,
+            ceiling: false,
+        };
+        send(&mut h, CMD_TILE, tile_data(&tile));
+        let wall = |proto: &str, from, to, rot| StructureRequest {
+            proto: proto.into(),
+            from,
+            to,
+            rot,
+            level: 0,
+        };
+        send(
+            &mut h,
+            CMD_STRUCTURE,
+            structure_data(&wall("WallSolid", [40, 40], [44, 40], 0)),
+        );
+        send(
+            &mut h,
+            CMD_STRUCTURE,
+            structure_data(&wall("Airlock", [45, 41], [45, 41], 1)),
+        );
+        map_spawn(&mut h, a, "ss14:crowbar", [46.5, 0.25, 41.5], 0);
+        assert_eq!(placements_of(&h, a, "ss14:crowbar").len(), 1);
+        let w = h.server.world();
+        let edge = |x0, z0, x1, z1| {
+            astrocore_math::GridEdge::between(
+                astrocore_math::GridCell::new(x0, z0),
+                astrocore_math::GridCell::new(x1, z1),
+            )
+            .unwrap()
+        };
+        assert!(w.edge_element(FloorId(0), edge(42, 40, 43, 40)).is_some());
+        // Стереть клетки 43…46 × 40…42: стены 43, 44, шлюз и лом.
+        let erase = EraseRequest {
+            from: [43, 40],
+            to: [46, 42],
+            level: 0,
+        };
+        send(&mut h, CMD_ERASE, erase_data(&erase));
+        let w = h.server.world();
+        let blocks: Vec<i32> = w
+            .elements()
+            .filter_map(|e| match e.placement {
+                Placement::Free(p) if p.cell.z == 40 && p.cell.x >= 40 => Some(p.cell.x),
+                _ => None,
+            })
+            .collect();
+        assert!(blocks.iter().all(|x| *x <= 42), "{blocks:?}");
+        assert_eq!(blocks.len(), 6, "три клетки по два куба");
+        // Ребро между оставшейся стеной (42) и стёртой (43) осталось: у стены 42 цела грань.
+        assert!(w.edge_element(FloorId(0), edge(42, 40, 43, 40)).is_some());
+        // Ребро стёртой стены к полу пропало.
+        assert!(w.edge_element(FloorId(0), edge(43, 40, 43, 41)).is_none());
+        assert!(
+            w.edge_element(FloorId(0), edge(45, 41, 46, 41)).is_none(),
+            "дверь шлюза"
+        );
+        assert!(
+            !w.authored()
+                .any(|o| o.metadata.contains_key("airlock_proto"))
+        );
+        assert!(placements_of(&h, a, "ss14:crowbar").is_empty());
+        let floors = w
+            .elements()
+            .filter(|e| {
+                matches!(e.kind, StructureKind::Floor)
+                    && matches!(e.placement, Placement::Cell(c) if c.x >= 40 && c.z >= 40)
+            })
+            .count();
+        assert_eq!(floors, 21, "пол цел");
+    }
+
     #[test]
     fn a_mapper_lays_and_erases_floor_tiles_by_rectangle() {
         use crate::systems::mapping::TileRequest;
