@@ -552,6 +552,8 @@ pub struct State {
     /// Осмотр: названия и описания прототипов, счётчик ответов.
     pub(crate) display_names: BTreeMap<PrototypeId, String>,
     pub(crate) ss14_names: BTreeMap<PrototypeId, String>,
+    /// Прототипы, которые можно создать (не абстрактные): для маппинга.
+    pub(crate) spawnable: BTreeSet<PrototypeId>,
     pub(crate) descriptions: BTreeMap<String, String>,
     pub(crate) verb_seq: u32,
     /// Кто кого тащит: тащащий → (цель, длина связи, м). Цель тащат не более одного.
@@ -604,6 +606,9 @@ pub struct State {
     pub(crate) tokens: BTreeMap<NetworkEntityId, String>,
     /// Завершённые действия систем: их итог подводит система после события (`Systems::finish_jobs`).
     pub(crate) system_jobs: Vec<(NetworkEntityId, crate::doafter::SystemJob)>,
+    /// Права игроков (ранги из прототипов `AdminRank` и список админов): общие для консоли,
+    /// маппинга и других админских систем.
+    pub(crate) admins: crate::admin::Admins,
     /// События для систем (`GameEvent`): их разбирают системы после события модуля.
     pub(crate) events: Vec<crate::systems::GameEvent>,
     /// Должности станции из карты уже применены.
@@ -1294,6 +1299,14 @@ impl State {
             store: None,
             tokens: BTreeMap::new(),
             system_jobs: Vec::new(),
+            spawnable: registry
+                .engine_index(NAMESPACE)?
+                .into_iter()
+                .filter(|(_, n)| registry.spawnable(n).is_ok())
+                .map(|(id, _)| id)
+                .collect(),
+            admins: crate::admin::Admins::from_registry(&registry)
+                .map_err(|e| prototypes::ProtoError::Parse("admin".into(), e))?,
             events: Vec::new(),
             map_jobs_applied: false,
             charger_slot: BTreeMap::new(),
@@ -1351,6 +1364,16 @@ impl State {
 
     /// Может ли игрок сейчас отдавать команды: жив, в сознании и не оглушён (то же условие, по
     /// которому модуль отбрасывает команды обездвиженных).
+    /// Токен игрока, если он назвался (`user.hello`): по нему определяются права.
+    pub(crate) fn token_of(&self, who: NetworkEntityId) -> Option<&str> {
+        self.tokens.get(&who).map(String::as_str)
+    }
+
+    /// Есть ли у игрока флаг прав (`AdminFlags`), `None` — флаг не нужен.
+    pub(crate) fn allowed(&self, who: NetworkEntityId, flag: Option<&str>) -> bool {
+        self.admins.allows(self.token_of(who), flag)
+    }
+
     pub(crate) fn can_act_now(&self, id: NetworkEntityId) -> bool {
         self.actors
             .get(&id)
@@ -8105,7 +8128,7 @@ pub(crate) fn access_lists(c: &prototypes::Data) -> Vec<Vec<String>> {
         .unwrap_or_default()
 }
 
-fn floor_at(ctx: &HookContext<'_>, y: f32) -> Option<FloorId> {
+pub(crate) fn floor_at(ctx: &HookContext<'_>, y: f32) -> Option<FloorId> {
     ctx.world
         .floors()
         .find(|f| y >= f.base_y - 0.5 && y < f.top_y())
@@ -8153,12 +8176,7 @@ impl GameplayModule {
     /// Кто админ: список токенов с рангами (ранги — из прототипов `AdminRank`).
     #[must_use]
     pub fn with_admins(mut self, roster: crate::admin::AdminRoster) -> Self {
-        if let Some(console) = self
-            .systems
-            .get_mut::<crate::systems::console::ConsoleSystem>()
-        {
-            console.admin.admins.roster = roster;
-        }
+        self.state.admins.roster = roster;
         self
     }
 

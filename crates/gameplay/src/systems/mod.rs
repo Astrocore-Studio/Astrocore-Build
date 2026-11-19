@@ -9,6 +9,7 @@
 
 pub mod chat;
 pub mod console;
+pub mod mapping;
 
 use std::any::Any;
 
@@ -123,7 +124,8 @@ impl Systems {
     ) -> Result<Self, prototypes::ProtoError> {
         Ok(Self(vec![
             Box::new(chat::ChatSystem::default()),
-            Box::new(console::ConsoleSystem::from_registry(registry)?),
+            Box::new(console::ConsoleSystem::default()),
+            Box::new(mapping::MappingSystem::default()),
             Box::new(crate::power_monitor::Monitoring::load(registry)),
             Box::new(crate::door_electronics::DoorElectronics::default()),
             Box::new(crate::cryo::CryoSystem::from_registry(registry)?),

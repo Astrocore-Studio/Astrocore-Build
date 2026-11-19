@@ -2850,6 +2850,80 @@ mod disposal_tests {
         assert!(!module.system_ids().contains(&"console"));
     }
 
+    fn placements_of(h: &Harness, who: ConnId, proto: &str) -> Vec<AuthoredObject> {
+        h.client(who)
+            .world()
+            .map(|w| {
+                w.authored()
+                    .filter(|o| {
+                        matches!(&o.kind, AuthoredKind::Placement { prototype } if prototype.as_str() == proto)
+                    })
+                    .cloned()
+                    .collect()
+            })
+            .unwrap_or_default()
+    }
+
+    fn map_spawn(h: &mut Harness, who: ConnId, proto: &str, at: [f32; 3], rot: u8) {
+        let r = crate::systems::mapping::SpawnRequest {
+            proto: proto.into(),
+            at,
+            rot,
+        };
+        command(
+            h,
+            who,
+            crate::systems::mapping::CMD_SPAWN,
+            crate::systems::mapping::spawn_data(&r),
+        );
+        h.ticks(5);
+    }
+
+    #[test]
+    fn mapping_places_and_removes_entities_only_for_those_with_the_spawn_flag() {
+        let token = "0123456789abcdef0123456789abcdef";
+        let mut h = harness_with(|m| m.with_admins(admin_roster(token, "Host")));
+        let (a, guest) = (h.join("a"), h.join("guest"));
+        h.ticks(10);
+        hello(&mut h, a, token);
+        let cola = "ss14:vending_machine_cola";
+        // Без прав — ничего.
+        map_spawn(&mut h, guest, cola, [3.5, 0.25, 3.5], 0);
+        assert!(placements_of(&h, a, cola).is_empty(), "гость не ставит");
+        // Админ ставит автомат с поворотом.
+        map_spawn(&mut h, a, cola, [3.5, 0.25, 3.5], 1);
+        let placed = placements_of(&h, a, cola);
+        assert_eq!(placed.len(), 1, "автомат на месте");
+        assert_eq!(placed[0].metadata.get("rot").map(String::as_str), Some("1"));
+        let c = (placed[0].min() + placed[0].max()) * 0.5;
+        assert!((c.x - 3.5).abs() < 0.01 && (c.z - 3.5).abs() < 0.01);
+        // Предмет ложится вещью на пол.
+        map_spawn(&mut h, a, "ss14:crowbar", [2.5, 0.25, 2.5], 0);
+        assert_eq!(placements_of(&h, a, "ss14:crowbar").len(), 1);
+        // Нет такого прототипа или абстрактный — ничего.
+        map_spawn(&mut h, a, "ss14:no_such_thing", [2.5, 0.25, 2.5], 0);
+        map_spawn(&mut h, a, "ss14:base_item", [2.5, 0.25, 2.5], 0);
+        assert!(placements_of(&h, a, "ss14:base_item").is_empty());
+        // Удаление: гостю нельзя, админу можно.
+        let id = placed[0].id;
+        command(
+            &mut h,
+            guest,
+            crate::systems::mapping::CMD_DELETE,
+            crate::systems::mapping::delete_data(id),
+        );
+        h.ticks(5);
+        assert_eq!(placements_of(&h, a, cola).len(), 1, "гость не удаляет");
+        command(
+            &mut h,
+            a,
+            crate::systems::mapping::CMD_DELETE,
+            crate::systems::mapping::delete_data(id),
+        );
+        h.ticks(5);
+        assert!(placements_of(&h, a, cola).is_empty(), "удалён");
+    }
+
     fn chat_of(h: &Harness, who: ConnId) -> Vec<crate::ChatLine> {
         let Some(net) = h.client(who).net_id() else {
             return Vec::new();

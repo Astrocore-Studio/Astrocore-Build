@@ -152,6 +152,10 @@ pub fn attack_and_heal(
     net: Option<NonSendMut<Net>>,
 ) {
     let Some(mut net) = net else { return };
+    // Пока открыт маппинг, щелчки и R — его.
+    if hud.state.mapping.open {
+        return;
+    }
     let active = loadout.hands.as_ref().map_or(0, |h| h.active() as u8);
     if keys.just_pressed(KeyCode::KeyR)
         && let Some(me) = net.core.net_id()

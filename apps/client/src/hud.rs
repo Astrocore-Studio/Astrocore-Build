@@ -122,6 +122,26 @@ impl Icons {
         }
     }
 
+    /// Каталог для маппинга: идентификатор движка и название, по названию.
+    pub(crate) fn catalog(&self) -> Vec<(String, String)> {
+        let mut out: Vec<(String, String)> = self
+            .names
+            .iter()
+            .map(|(id, info)| (id.clone(), info.name.clone()))
+            .collect();
+        out.sort_by(|a, b| {
+            a.1.to_lowercase()
+                .cmp(&b.1.to_lowercase())
+                .then(a.0.cmp(&b.0))
+        });
+        out
+    }
+
+    /// Значок прототипа для списков (как у предметов в руках).
+    pub(crate) fn icon(&mut self, ctx: &egui::Context, proto: &str) -> Option<egui::TextureId> {
+        self.item(ctx, proto)
+    }
+
     /// Название прототипа (`EntityPrototype.name`).
     pub fn aim_info(&self, proto: &str) -> Option<&AimInfo> {
         self.names.get(proto)
@@ -643,6 +663,8 @@ pub struct HudState {
     pub chat_focus: bool,
     /// Консоль (клавиша `` ` ``).
     pub console: crate::console_ui::ConsoleState,
+    /// Маппинг (F5).
+    pub mapping: crate::mapping_ui::MappingState,
     /// Название объекта под прицелом.
     pub aim: Option<String>,
     /// Режимы кнопок справа внизу (боевой режим, шаг вместо бега).

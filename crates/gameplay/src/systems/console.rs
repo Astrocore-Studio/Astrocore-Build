@@ -13,23 +13,9 @@ use crate::systems::GameSystem;
 const SPAWN_MAX: u32 = 20;
 
 /// Система консоли и прав: команда `console.exec`, ответы `build.console`, права `build.admin`.
+#[derive(Default)]
 pub struct ConsoleSystem {
     pub(crate) admin: admin::AdminState,
-}
-
-impl ConsoleSystem {
-    /// Ранги из прототипов `AdminRank`; список админов задаётся потом (`with_admins`).
-    pub(crate) fn from_registry(
-        registry: &prototypes::PrototypeRegistry,
-    ) -> Result<Self, prototypes::ProtoError> {
-        Ok(Self {
-            admin: admin::AdminState {
-                admins: admin::Admins::from_registry(registry)
-                    .map_err(|e| prototypes::ProtoError::Parse("admin".into(), e))?,
-                ..Default::default()
-            },
-        })
-    }
 }
 
 impl GameSystem for ConsoleSystem {
@@ -61,9 +47,8 @@ impl GameSystem for ConsoleSystem {
     }
 }
 
-/// Токен игрока, если он назвался (`user.hello`).
 fn token_of(st: &State, who: NetworkEntityId) -> Option<&str> {
-    st.tokens.get(&who).map(String::as_str)
+    st.token_of(who)
 }
 
 impl ConsoleSystem {
@@ -116,7 +101,7 @@ impl ConsoleSystem {
             );
             return;
         };
-        if !self.admin.admins.allows(token_of(st, actor), spec.flag) {
+        if !st.admins.allows(token_of(st, actor), spec.flag) {
             self.console_reply(
                 actor,
                 true,
@@ -150,7 +135,7 @@ impl ConsoleSystem {
         let token = token_of(st, actor);
         if let Some(name) = args.first() {
             return match admin::spec(name) {
-                Some(c) if self.admin.admins.allows(token, c.flag) => {
+                Some(c) if st.admins.allows(token, c.flag) => {
                     format!("{}\n{}", c.usage, c.help)
                 }
                 _ => format!("Нет команды «{name}»."),
@@ -158,14 +143,14 @@ impl ConsoleSystem {
         }
         admin::COMMANDS
             .iter()
-            .filter(|c| self.admin.admins.allows(token, c.flag))
+            .filter(|c| st.admins.allows(token, c.flag))
             .map(|c| format!("{} — {}", c.name, c.help))
             .collect::<Vec<_>>()
             .join("\n")
     }
 
     fn cmd_whoami(&self, st: &State, actor: NetworkEntityId) -> String {
-        match self.admin.admins.rank_of(token_of(st, actor)) {
+        match st.admins.rank_of(token_of(st, actor)) {
             Some(r) => format!(
                 "Номер {}. Ранг: {}. Флаги: {}.",
                 actor.0,
@@ -300,7 +285,7 @@ impl ConsoleSystem {
         self.admin.sent.retain(|p, _| ids.contains(p));
         self.admin.last.retain(|p, _| ids.contains(p));
         for p in &ids {
-            let bytes = admin::encode_admin(&admin::view_for(&self.admin.admins, token_of(st, *p)));
+            let bytes = admin::encode_admin(&admin::view_for(&st.admins, token_of(st, *p)));
             if self.admin.sent.get(p) != Some(&bytes) {
                 ctx.set_component(*p, admin::ADMIN_COMPONENT, bytes.clone());
                 self.admin.sent.insert(*p, bytes);

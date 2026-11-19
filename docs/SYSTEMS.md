@@ -52,6 +52,7 @@ GameplayModule::new(registry)?
 | Чат (`chat`) | `systems/chat.rs` | `chat` | `build.chat` |
 | Консоль и права (`console`) | `systems/console.rs`, `admin.rs` | `console.exec` | `build.console`, `build.admin` |
 | Торговые автоматы (`vending`) | `vending.rs` | `vend`, `vend.close`, щелчок по автомату, событие поломки | `build.vending` |
+| Маппинг (`mapping`) | `systems/mapping.rs` | `mapping.spawn`, `mapping.delete` (флаг `Spawn`) | — (мир) |
 | Криокапсулы (`cryo`) | `cryo.rs` | `cryo.*`, «сопротивляться» пациента, щелчок по капсуле, мензурка в капсулу | `build.cryo` |
 | Настройка плат дверей (`door_electronics`) | `door_electronics.rs` | `door_electronics.update`, `door_electronics.close`, настройщик по плате | `build.door_electronics` |
 | Мониторинг питания (`power_monitor`) | `power_monitor.rs` | `power.focus`, `power.close`, щелчок по консоли | `build.powermonitor*` |

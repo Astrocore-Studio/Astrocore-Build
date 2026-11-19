@@ -19,9 +19,49 @@ pub fn enabled() -> bool {
     std::env::var_os("ASTRO_SHOWCASE").is_some()
 }
 
+/// `ASTRO_SHOWCASE=map`: вместо камеры перед персонажем — окно маппинга (вид сверху) и
+/// расставленные через него автоматы, шкафы, стул и стол.
+fn map_mode() -> bool {
+    std::env::var("ASTRO_SHOWCASE").as_deref() == Ok("map")
+}
+
+/// Что расставляет режим `map` (прототип, сдвиг от персонажа по X и Z, поворот).
+const MAP_SET: &[(&str, f32, f32, u8)] = &[
+    ("ss14:vending_machine_cola", -1.0, -2.0, 0),
+    ("ss14:vending_machine_snack", 0.0, -2.0, 0),
+    ("ss14:closet_steel_base", 1.0, -2.0, 0),
+    ("ss14:closet_emergency_filled_random", 2.0, -2.0, 0),
+    ("ss14:chair", -1.0, 1.0, 2),
+    ("ss14:table", 0.0, 1.0, 0),
+    ("ss14:table_reinforced", 1.0, 1.0, 0),
+];
+
 /// Команды стенда по кадрам автоплея: вещи, затем шаг в сторону.
-pub fn commands(frame: u32, net: &mut Net, look: Option<&mut Look>) {
+pub fn commands(
+    frame: u32,
+    net: &mut Net,
+    look: Option<&mut Look>,
+    mapping: &mut crate::mapping_ui::MappingState,
+) {
     if !enabled() {
+        return;
+    }
+    if map_mode() {
+        mapping.open = true;
+        for (i, (proto, dx, dz, rot)) in MAP_SET.iter().enumerate() {
+            if frame == 40 + 3 * i as u32 {
+                let p = net.core.position();
+                let r = gameplay::systems::mapping::SpawnRequest {
+                    proto: (*proto).into(),
+                    at: crate::mapping_ui::snap([p.x + dx, p.y + 0.05, p.z + dz], false),
+                    rot: *rot,
+                };
+                net.send_command(
+                    gameplay::systems::mapping::CMD_SPAWN,
+                    gameplay::systems::mapping::spawn_data(&r),
+                );
+            }
+        }
         return;
     }
     for (i, item) in ITEMS.iter().enumerate() {
@@ -53,7 +93,7 @@ pub fn camera(
     bodies: Query<(&Transform, &DirectionalSprite), Without<Camera3d>>,
     mut cameras: Query<(&mut Transform, &mut GlobalTransform), With<Camera3d>>,
 ) {
-    if !enabled() {
+    if !enabled() || map_mode() {
         return;
     }
     let Some((body, sprite)) = local.0.and_then(|e| bodies.get(e).ok()) else {

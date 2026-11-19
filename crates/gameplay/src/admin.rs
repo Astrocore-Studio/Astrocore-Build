@@ -329,7 +329,6 @@ pub fn spec(name: &str) -> Option<&'static CommandSpec> {
 /// Состояние консоли на сервере.
 #[derive(Debug, Default)]
 pub(crate) struct AdminState {
-    pub admins: Admins,
     pub next_id: u32,
     pub log: BTreeMap<astrocore_core::NetworkEntityId, std::collections::VecDeque<ConsoleLine>>,
     pub dirty: BTreeSet<astrocore_core::NetworkEntityId>,

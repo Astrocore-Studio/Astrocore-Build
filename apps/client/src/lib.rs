@@ -18,6 +18,7 @@ mod fire;
 mod held;
 mod hud;
 mod lights;
+mod mapping_ui;
 mod outfit;
 mod players;
 mod power_ui;
@@ -146,6 +147,7 @@ impl Plugin for BuildClientPlugin {
                 autoplay,
                 outfit::sync_outfits,
                 outfit::follow_body_models,
+                mapping_ui::input,
             )
                 .chain(),
         )
@@ -815,7 +817,12 @@ fn autoplay(
             gameplay::chat_data(gameplay::Channel::Say, &text),
         );
     }
-    showcase::commands(state.frame, &mut net, look.as_deref_mut());
+    showcase::commands(
+        state.frame,
+        &mut net,
+        look.as_deref_mut(),
+        &mut hud.state.mapping,
+    );
     // Отладка: команды консоли через «;» (ASTRO_AUTOPLAY_CONSOLE=whoami;aghost) уходят по одной
     // с кадра 60 с шагом 10 кадров, ASTRO_CONSOLE_OPEN=1 открывает окно консоли.
     if let Ok(list) = std::env::var("ASTRO_AUTOPLAY_CONSOLE") {
@@ -1263,12 +1270,14 @@ fn autoplay(
 /// возвращением в тело (возрождение, `aghost`) вид от первого лица возвращается.
 fn ghost_camera(
     loadout: Res<Loadout>,
+    hud: Res<Hud>,
     look: Option<ResMut<astrocore_client::Look>>,
     mut rigs: Query<&mut astrocore_render::CameraRig>,
     mut was_ghost: Local<bool>,
 ) {
     let Some(mut look) = look else { return };
-    let ghost = loadout.health.as_ref().is_some_and(|h| h.ghost);
+    // Маппинг (F5) смотрит сверху так же, как призрак.
+    let ghost = loadout.health.as_ref().is_some_and(|h| h.ghost) || hud.state.mapping.open;
     // Призраки (умершие, наблюдатели и админ-призраки) всегда летают с видом сверху: движок держит
     // наклон и не пускает в первое лицо, пока включён `top_down`.
     look.top_down = ghost;
@@ -1506,6 +1515,12 @@ fn loadout_window(
         &ctx,
         &mut state.console,
         loadout.console.as_ref(),
+        loadout.admin.as_ref(),
+    ));
+    commands.extend(mapping_ui::panel(
+        &ctx,
+        &mut state.mapping,
+        icons,
         loadout.admin.as_ref(),
     ));
     hud::toasts(&ctx, &mut loadout.toasts, time.elapsed_secs());
