@@ -5354,9 +5354,11 @@ impl State {
         }
         self.round.clock += dt;
         if self.round.ended.is_none() {
+            // Админ-призрак (aghost, маппинг) не погиб: его тело живо, как в SS14.
             let alive = |a: &NetworkEntityId| {
                 self.actors.get(a).is_some_and(|x| {
-                    !x.ghost && !matches!(x.health.state(), crate::health::MobState::Dead)
+                    (!x.ghost || x.admin_ghost)
+                        && !matches!(x.health.state(), crate::health::MobState::Dead)
                 })
             };
             let wiped = !self.round.crew.is_empty()

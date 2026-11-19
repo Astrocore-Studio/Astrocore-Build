@@ -2678,6 +2678,27 @@ mod disposal_tests {
         assert!(signal.take(), "время сводки вышло — просим новый раунд");
     }
 
+    /// Уход в админ-призрака (aghost, маппинг) — не гибель экипажа: раунд идёт.
+    #[test]
+    fn an_admin_ghost_does_not_end_the_round() {
+        let token = "0123456789abcdef0123456789abcdef";
+        let signal = crate::RoundSignal::new();
+        let s = signal.clone();
+        let mut h = harness_with(move |m| {
+            m.with_admins(admin_roster(token, "Host"))
+                .with_round_end(s, None)
+        });
+        let a = h.join("a");
+        h.ticks(10);
+        hello(&mut h, a, token);
+        command(&mut h, a, crate::CMD_JOB, b"Free".to_vec());
+        h.ticks(5);
+        console(&mut h, a, "aghost");
+        h.ticks(30 * 25);
+        assert!(roundend_view(&h, a).is_none(), "сводки нет");
+        assert!(!signal.take(), "раунд не перезапускается");
+    }
+
     #[test]
     fn the_round_ends_when_the_time_is_up() {
         let signal = crate::RoundSignal::new();
