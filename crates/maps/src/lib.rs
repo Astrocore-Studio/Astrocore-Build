@@ -62,37 +62,10 @@ pub struct MapFile {
 /// Высота неявного уровня, м: пол 0,2 + два куба стены по 1 м + потолок 0,1 (ADR-0003).
 pub const LEVEL_HEIGHT_M: f32 = 2.3;
 
-/// Этажей на карту в номере этажа мира: этаж уровня `n` карты `k` — `k × 100 + n`
-/// (уровни −50…49, ADR-0012 движка).
-pub const MAP_FLOOR_STRIDE: i32 = 100;
-/// Расстояние по высоте между картами мира, м: карты не касаются ни физикой, ни видимостью.
-pub const MAP_SPACING_M: f32 = 1000.0;
-
-/// Этаж мира для уровня `level` карты `map`.
-pub fn floor_id(map: MapId, level: i32) -> FloorId {
-    FloorId(map.0 as i32 * MAP_FLOOR_STRIDE + level)
-}
-
-/// Карта и уровень этажа мира (обратное к [`floor_id`]).
-pub fn level_of(floor: FloorId) -> (MapId, i32) {
-    let half = MAP_FLOOR_STRIDE / 2;
-    let map = (floor.0 + half).div_euclid(MAP_FLOOR_STRIDE);
-    (MapId(map.max(0) as u32), floor.0 - map * MAP_FLOOR_STRIDE)
-}
-
-/// Карта, к которой относится высота мира `y` (полоса ±500 м вокруг начала карты).
-pub fn map_at_y(y: f32) -> MapId {
-    MapId(((y + MAP_SPACING_M * 0.5) / MAP_SPACING_M).floor().max(0.0) as u32)
-}
-
-/// Высота начала карты в мире, м.
-pub fn map_base_y(map: MapId) -> f32 {
-    map.0 as f32 * MAP_SPACING_M
-}
-
-/// Идентификатор объекта карты в мире: одна и та же карта, загруженная под разными номерами,
-/// получает разные идентификаторы (старшие 32 бита — номер карты). Для карты 0 — без изменений;
-/// обратное преобразование — то же самое.
+/// Идентификатор объекта карты в её мире (ADR-0013 движка): одна и та же карта, загруженная под
+/// разными номерами, получает разные идентификаторы (старшие 32 бита — номер карты), поэтому
+/// состояние игры по объектам не путается между картами. Для карты 0 — без изменений; обратное
+/// преобразование — то же самое.
 pub fn retag(id: ObjectId, map: MapId) -> ObjectId {
     ObjectId::from_u128(id.as_uuid().as_u128() ^ (u128::from(map.0) << 96))
 }
@@ -202,47 +175,49 @@ impl MapFile {
         Ok(world)
     }
 
-    /// Команды мира, которые кладут конструкцию карты (уровни, элементы, зоны) картой `map`:
-    /// этажи уровней — [`floor_id`], высоты сдвинуты на [`map_base_y`], идентификаторы —
-    /// [`retag`]. Определение самой карты (`DefineMap`) — забота вызывающего.
+    /// Команды мира, которые кладут конструкцию карты (уровни, элементы, зоны) в мир карты `map`;
+    /// идентификаторы — [`retag`].
     pub fn structure_commands(&self, map: MapId) -> Vec<WorldCommand> {
-        let dy = map_base_y(map);
-        let floor = |f: FloorId| floor_id(map, f.0);
-        let mut out = Vec::new();
-        for f in self.levels() {
-            out.push(WorldCommand::DefineFloor(FloorDef {
-                id: floor(f.id),
-                base_y: f.base_y + dy,
-                map,
-                ..f
-            }));
-        }
+        let mut out: Vec<WorldCommand> = self
+            .levels()
+            .into_iter()
+            .map(WorldCommand::DefineFloor)
+            .collect();
         for e in &self.elements {
             let mut e = e.clone();
             e.id = retag(e.id, map);
-            e.floor = floor(e.floor);
-            match &mut e.kind {
-                StructureKind::Stair { to } | StructureKind::Ramp { to } => *to = floor(*to),
-                _ => {}
-            }
-            if let Placement::Free(p) = &mut e.placement {
-                p.y_mm += (dy * 1000.0).round() as i32;
-            }
             out.push(WorldCommand::PlaceElement(e));
         }
         for (i, z) in self.zones.iter().enumerate() {
-            let shift = |v: [f32; 3]| Vec3::new(v[0], v[1] + dy, v[2]);
             let mut obj = AuthoredObject::new(
                 retag(ObjectId::from_u128(0x2000_0000 + i as u128), map),
                 AuthoredKind::Zone,
-                floor(FloorId(z.floor)),
-                shift(z.min),
-                shift(z.max),
+                FloorId(z.floor),
+                Vec3::from_array(z.min),
+                Vec3::from_array(z.max),
             );
             obj.metadata = z.metadata.clone();
             out.push(WorldCommand::PlaceAuthored(obj));
         }
         out
+    }
+
+    /// Мир карты `map` целиком: конструкция и предметы (`resolve` — как у
+    /// [`MapFile::item_commands`]).
+    pub fn build_map(
+        &self,
+        world_id: &str,
+        map: MapId,
+        resolve: impl Fn(&str) -> Option<(PrototypeId, f32)>,
+    ) -> Result<World, MapError> {
+        let mut world = World::new(world_id, WorldConfig::default())?;
+        let items = self
+            .item_commands(map, resolve)
+            .map_err(|name| MapError::Ron(format!("нет прототипа предмета «{name}»")))?;
+        for c in self.structure_commands(map).into_iter().chain(items) {
+            world.apply(c)?;
+        }
+        Ok(world)
     }
 
     /// Команды мира, которые кладут предметы карты картой `map`. `resolve` даёт по имени прототипа
@@ -252,13 +227,12 @@ impl MapFile {
         map: MapId,
         resolve: impl Fn(&str) -> Option<(PrototypeId, f32)>,
     ) -> Result<Vec<WorldCommand>, String> {
-        let floor = floor_id(map, 0);
+        let floor = FloorId(0);
         let base = self
             .levels()
             .iter()
             .find(|f| f.id == FloorId(0))
             .map_or(0.0, |f| f.base_y)
-            + map_base_y(map)
             + FLOOR_TOP_M;
         let mut out = Vec::new();
         for (i, item) in self.items.iter().enumerate() {
@@ -298,10 +272,10 @@ impl MapFile {
         Self::from_map(name, spawn, world, MapId(0), name_of)
     }
 
-    /// Снимок карты `map` мира как файла карты: этажи, элементы, предметы-размещения и зоны (по
-    /// возрастанию идентификатора, чтобы файл не менялся без причины), обратно к уровням и высотам
-    /// карты. `spawn` — в координатах мира. `name_of` даёт имя прототипа Build по идентификатору
-    /// движка; размещения без имени пропускаются и возвращаются числом.
+    /// Снимок мира карты `map` как файла карты: этажи, элементы, предметы-размещения и зоны (по
+    /// возрастанию идентификатора, чтобы файл не менялся без причины), с идентификаторами файла
+    /// ([`retag`] обратно). `name_of` даёт имя прототипа Build по идентификатору движка;
+    /// размещения без имени пропускаются и возвращаются числом.
     pub fn from_map(
         name: &str,
         spawn: [f32; 3],
@@ -309,40 +283,18 @@ impl MapFile {
         map: MapId,
         name_of: impl Fn(&PrototypeId) -> Option<String>,
     ) -> (Self, usize) {
-        let dy = map_base_y(map);
-        let ours = |f: FloorId| world.map_of_floor(f) == Some(map);
-        let level = |f: FloorId| FloorId(level_of(f).1);
         let mut elements: Vec<StructureElement> = world
             .elements()
-            .filter(|e| ours(e.floor))
             .cloned()
             .map(|mut e| {
                 e.id = retag(e.id, map);
-                e.floor = level(e.floor);
-                match &mut e.kind {
-                    StructureKind::Stair { to } | StructureKind::Ramp { to } => *to = level(*to),
-                    _ => {}
-                }
-                if let Placement::Free(p) = &mut e.placement {
-                    p.y_mm -= (dy * 1000.0).round() as i32;
-                }
                 e
             })
             .collect();
         elements.sort_by_key(|e| e.id);
-        let mut floors: Vec<FloorDef> = world
-            .floors()
-            .filter(|f| f.map == map)
-            .map(|f| FloorDef {
-                id: level(f.id),
-                base_y: f.base_y - dy,
-                map: MapId(0),
-                ..f.clone()
-            })
-            .collect();
+        let mut floors: Vec<FloorDef> = world.floors().cloned().collect();
         let mut objects: Vec<AuthoredObject> = world
             .authored()
-            .filter(|o| ours(o.floor))
             .cloned()
             .map(|mut o| {
                 o.id = retag(o.id, map);
@@ -357,22 +309,18 @@ impl MapFile {
                     Some(prototype) => items.push(item_of(o, prototype)),
                     None => skipped += 1,
                 },
-                AuthoredKind::Zone => {
-                    let unshift = |v: Vec3| [v.x, v.y - dy, v.z];
-                    zones.push(MapZone {
-                        min: unshift(o.min()),
-                        max: unshift(o.max()),
-                        floor: level(o.floor).0,
-                        metadata: o.metadata.clone(),
-                    });
-                }
+                AuthoredKind::Zone => zones.push(MapZone {
+                    min: o.min().to_array(),
+                    max: o.max().to_array(),
+                    floor: o.floor.0,
+                    metadata: o.metadata.clone(),
+                }),
                 _ => {}
             }
         }
         let mut map_file = Self {
             name: name.into(),
-            // До миллиметра, как координаты объектов мира: на высоте другой карты float теряет точность.
-            spawn: [spawn[0], spawn[1] - dy, spawn[2]].map(|v| (v * 1000.0).round() / 1000.0),
+            spawn,
             floors: Vec::new(),
             elements,
             items,
@@ -409,7 +357,6 @@ fn implicit_level(id: i32, base_y: f32) -> FloorDef {
         name: format!("Уровень {id}"),
         base_y,
         height: LEVEL_HEIGHT_M,
-        map: MapId(0),
     }
 }
 
@@ -527,7 +474,6 @@ mod tests {
             name: "Холл".into(),
             base_y: 0.0,
             height: 4.0,
-            map: Default::default(),
         });
         let base2 = map.levels()[1].base_y;
         assert!((base2 - (4.0 + LEVEL_HEIGHT_M)).abs() < 1e-5, "{base2}");
@@ -554,7 +500,7 @@ mod tests {
     }
 
     #[test]
-    fn one_map_file_loads_as_several_maps_of_one_world_and_saves_back() {
+    fn one_map_file_loads_as_several_maps_and_saves_back() {
         let mut map = MapFile::parse(MAP).unwrap();
         map.floors.clear();
         map.items.push(MapItem {
@@ -567,37 +513,22 @@ mod tests {
         });
         let locker = PrototypeId::try_from("build:locker".to_string()).unwrap();
         let resolve = |name: &str| (name == "Locker").then(|| (locker.clone(), 0.5));
-        let mut world = map.build_world("t").unwrap();
-        for c in map.item_commands(MapId(0), resolve).unwrap() {
-            world.apply(c).unwrap();
-        }
-        // Та же карта картой 2: свои этажи, высота и идентификаторы — ничего не пересекается.
-        let two = MapId(2);
-        world
-            .apply(WorldCommand::DefineMap(map_def(two, "копия", true, false)))
-            .unwrap();
-        for c in map.structure_commands(two) {
-            world.apply(c).unwrap();
-        }
-        for c in map.item_commands(two, resolve).unwrap() {
-            world.apply(c).unwrap();
-        }
-        let level0 = world.floor(floor_id(two, 0)).unwrap();
-        assert!((level0.base_y - 2.0 * MAP_SPACING_M).abs() < 1e-3);
-        assert_eq!(level0.map, two);
-        assert!(world.floor_paused(floor_id(two, 0)));
-        assert_eq!(world.element_count(), 2 * map.elements.len());
         let name_of = |id: &PrototypeId| (id == &locker).then(|| "Locker".to_string());
-        let spawn = [map.spawn[0], map.spawn[1] + map_base_y(two), map.spawn[2]];
-        let (saved, skipped) = MapFile::from_map("t", spawn, &world, two, name_of);
-        assert_eq!(skipped, 0);
-        assert_eq!(saved, map, "снимок карты 2 — исходный файл");
-        let (saved0, _) = MapFile::from_world("t", map.spawn, &world, name_of);
-        assert_eq!(saved0, map, "карта 0 не задета");
-        // Удаление карты 2 оставляет карту 0 целой.
-        world.apply(WorldCommand::RemoveMap { id: two }).unwrap();
-        assert_eq!(world.element_count(), map.elements.len());
-        assert_eq!(level_of(floor_id(two, -3)), (two, -3));
-        assert_eq!(level_of(FloorId(7)), (MapId(0), 7));
+        // Карта 0 и та же карта картой 2: у объектов разные идентификаторы, координаты — свои.
+        let zero = map.build_map("t", MapId(0), resolve).unwrap();
+        let two = map.build_map("t", MapId(2), resolve).unwrap();
+        let ids = |w: &World| -> std::collections::BTreeSet<ObjectId> {
+            w.elements()
+                .map(|e| e.id)
+                .chain(w.authored().map(|o| o.id))
+                .collect()
+        };
+        assert!(ids(&zero).is_disjoint(&ids(&two)));
+        assert_eq!(two.element_count(), map.elements.len());
+        for (world, id) in [(&zero, MapId(0)), (&two, MapId(2))] {
+            let (saved, skipped) = MapFile::from_map("t", map.spawn, world, id, name_of);
+            assert_eq!(skipped, 0);
+            assert_eq!(saved, map, "снимок карты {} — исходный файл", id.0);
+        }
     }
 }

@@ -112,26 +112,76 @@ pub trait GameSystem: Send + Any {
     fn tick(&mut self, _st: &mut State, _ctx: &mut HookContext<'_>, _dt: f32) {}
 
     fn as_any_mut(&mut self) -> &mut dyn Any;
+
+    /// Система с состоянием по миру (автоматы, капсулы, мониторы): чистый экземпляр для новой
+    /// карты с теми же настройками (ADR-0013 движка). `None` — система общая для всех карт (чат,
+    /// консоль, маппинг).
+    fn fresh(&self) -> Option<Box<dyn GameSystem>> {
+        None
+    }
+
+    /// Есть ли у системы состояние по миру (то есть отдельный экземпляр на карту, `fresh`).
+    fn per_map(&self) -> bool {
+        false
+    }
 }
 
-/// Системы модуля в порядке тика.
+/// Системы модуля в порядке тика; у систем с `fresh` — свой экземпляр на каждую карту.
 #[derive(Default)]
-pub struct Systems(Vec<Box<dyn GameSystem>>);
+pub struct Systems(Vec<Box<dyn GameSystem>>, MapStash);
+
+/// Отложенные экземпляры систем других карт.
+#[derive(Default)]
+pub struct MapStash {
+    current: astrocore_world::MapId,
+    stash: std::collections::BTreeMap<(astrocore_world::MapId, &'static str), Box<dyn GameSystem>>,
+}
 
 impl Systems {
     /// Системы Build по умолчанию.
     pub(crate) fn defaults(
         registry: &prototypes::PrototypeRegistry,
     ) -> Result<Self, prototypes::ProtoError> {
-        Ok(Self(vec![
-            Box::new(chat::ChatSystem::default()),
-            Box::new(console::ConsoleSystem::default()),
-            Box::new(mapping::MappingSystem::default()),
-            Box::new(crate::power_monitor::Monitoring::load(registry)),
-            Box::new(crate::door_electronics::DoorElectronics::default()),
-            Box::new(crate::cryo::CryoSystem::from_registry(registry)?),
-            Box::new(crate::vending::VendingSystem::from_registry(registry)?),
-        ]))
+        Ok(Self(
+            vec![
+                Box::new(chat::ChatSystem::default()),
+                Box::new(console::ConsoleSystem::default()),
+                Box::new(mapping::MappingSystem::default()),
+                Box::new(crate::power_monitor::Monitoring::load(registry)),
+                Box::new(crate::door_electronics::DoorElectronics::default()),
+                Box::new(crate::cryo::CryoSystem::from_registry(registry)?),
+                Box::new(crate::vending::VendingSystem::from_registry(registry)?),
+            ],
+            MapStash::default(),
+        ))
+    }
+
+    /// Подставить экземпляры систем карты `map` (у систем с состоянием по миру).
+    pub(crate) fn enter_map(&mut self, map: astrocore_world::MapId) {
+        if map == self.1.current {
+            return;
+        }
+        let current = self.1.current;
+        for s in &mut self.0 {
+            if !s.per_map() {
+                continue;
+            }
+            let id = s.id();
+            let Some(next) = self.1.stash.remove(&(map, id)).or_else(|| s.fresh()) else {
+                continue;
+            };
+            let prev = std::mem::replace(s, next);
+            self.1.stash.insert((current, id), prev);
+        }
+        self.1.current = map;
+    }
+
+    /// Забыть экземпляры удалённых карт.
+    pub(crate) fn forget_maps(
+        &mut self,
+        alive: &std::collections::BTreeSet<astrocore_world::MapId>,
+    ) {
+        self.1.stash.retain(|(m, _), _| alive.contains(m));
     }
 
     /// Добавить систему; система с тем же именем заменяется на месте.
@@ -237,9 +287,21 @@ impl Systems {
         }
     }
 
-    pub(crate) fn tick(&mut self, st: &mut State, ctx: &mut HookContext<'_>, dt: f32) {
+    /// Тик систем: общих (`fresh` — `None`) — раз в тик (`global`), систем по миру — у карты,
+    /// которая не стоит (`sims`).
+    pub(crate) fn tick(
+        &mut self,
+        st: &mut State,
+        ctx: &mut HookContext<'_>,
+        dt: f32,
+        global: bool,
+        sims: bool,
+    ) {
         for s in &mut self.0 {
-            s.tick(st, ctx, dt);
+            let per_map = s.per_map();
+            if (per_map && sims) || (!per_map && global) {
+                s.tick(st, ctx, dt);
+            }
         }
     }
 }

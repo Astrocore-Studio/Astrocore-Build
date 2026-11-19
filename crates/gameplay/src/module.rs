@@ -397,8 +397,10 @@ pub struct State {
     pub(crate) map_dir: Option<std::path::PathBuf>,
     /// Реестр прототипов: предметы карт, загружаемых на ходу (`loadmap`, `mapping`).
     pub(crate) registry: Arc<PrototypeRegistry>,
-    /// Газ клеток замороженных карт: клетки выведены из симуляции, воздух вернётся при разморозке.
-    pub(crate) frozen_air: BTreeMap<atmos::Cell, atmos::GasMixture>,
+    /// Карта, чьё состояние симуляций сейчас в полях (ADR-0013 движка).
+    pub(crate) current_map: astrocore_world::MapId,
+    /// Отложенное состояние остальных карт.
+    pub(crate) map_locals: BTreeMap<astrocore_world::MapId, MapLocal>,
     /// Точки появления карт, загруженных на ходу (карта 0 — `spawn`).
     pub(crate) map_spawns: BTreeMap<astrocore_world::MapId, Vec3>,
     /// Материалы плиток пола (`ss14:tile_…`), которые можно класть маппингом.
@@ -657,6 +659,272 @@ pub struct State {
     pub(crate) lights_sent: crate::electric::LightsView,
     pub(crate) lights_timer: f32,
     pub(crate) lights_to: BTreeSet<NetworkEntityId>,
+}
+
+/// Состояние симуляций одной карты (ADR-0013 движка): атмосфера, питание, лужи, трубы, двери,
+/// пули… У каждой карты своё; в рамках хука карты оно подставляется в поля `State`
+/// ([`State::enter_map`]), поэтому код механик работает с «текущей картой» как с единственной.
+pub(crate) struct MapLocal {
+    atmos: atmos::Grid,
+    fires_sent: Vec<crate::fire::FireView>,
+    fires_to: BTreeSet<NetworkEntityId>,
+    pipe_keys: crate::piping::PipeKeys,
+    pipe_sig: Vec<(ObjectId, atmos::Cell, u8)>,
+    tanks: BTreeMap<ObjectId, atmos::Tank>,
+    tank_timer: f32,
+    pipe_ports: BTreeMap<atmos::Cell, u64>,
+    puddles: crate::puddles::Puddles,
+    puddles_sent: Vec<crate::puddles::PuddleView>,
+    puddles_to: BTreeSet<NetworkEntityId>,
+    puddle_timer: f32,
+    power: power::PowerState,
+    power_suppliers: Vec<(ObjectId, usize)>,
+    power_cables: Vec<(power::CableGroup, atmos::Cell, usize)>,
+    alerts: crate::alerts::Alerts,
+    power_sig: Vec<(ObjectId, atmos::Cell, u8)>,
+    power_batteries: Vec<(ObjectId, usize)>,
+    power_receivers: Vec<(ObjectId, usize, f32)>,
+    power_charge: BTreeMap<ObjectId, f32>,
+    power_gated: std::collections::BTreeSet<ObjectId>,
+    alarm_groups: Vec<AlarmGroup>,
+    alarm_sig: Vec<(ObjectId, atmos::Cell, String)>,
+    monitor_state: BTreeMap<ObjectId, crate::monitor::AlarmState>,
+    alarm_timer: f32,
+    fx_popups: Vec<(NetworkEntityId, String)>,
+    fx_sounds: Vec<(String, Vec3, f32)>,
+    mixer_machines: BTreeMap<ObjectId, crate::chemlab::MixerMachine>,
+    masters: BTreeMap<ObjectId, crate::chemlab::Master>,
+    heat_timer: f32,
+    dispensers: BTreeMap<ObjectId, Dispenser>,
+    consoles: BTreeMap<ObjectId, ConsoleSlots>,
+    lockers: BTreeMap<ObjectId, Locker>,
+    locker_timer: f32,
+    spawners_done: bool,
+    spawn_timer: f32,
+    conveyor_state: BTreeMap<ObjectId, crate::conveyor::State>,
+    switch_on: BTreeSet<ObjectId>,
+    conveyor_timer: f32,
+    disposal_net: crate::disposal::Net,
+    disposal_entries: BTreeSet<atmos::Cell>,
+    disposal_torn: BTreeSet<atmos::Cell>,
+    disposal_sig: Vec<(atmos::Cell, String)>,
+    disposal_state: BTreeMap<ObjectId, DisposalSlot>,
+    disposal_holders: Vec<crate::disposal::Holder>,
+    disposal_timer: f32,
+    walls: Option<BTreeMap<(i32, i32), crate::explosion::Wall>>,
+    loose_girders: BTreeSet<ObjectId>,
+    reinforced_work: BTreeMap<(i32, i32), usize>,
+    barrier_progress: BTreeMap<(i32, i32), (String, bool, usize)>,
+    window_grilles: BTreeSet<(i32, i32)>,
+    girders: BTreeMap<(i32, i32), ObjectId>,
+    airlock_close_at: BTreeMap<ObjectId, f32>,
+    airlock_marker_revision: Option<u64>,
+    airlock_markers: BTreeMap<ObjectId, ObjectId>,
+    airlock_availability: BTreeMap<ObjectId, (bool, bool)>,
+    airlock_held_open: BTreeSet<ObjectId>,
+    airlock_motions: BTreeMap<ObjectId, airlock_doors::Motion>,
+    airlock_motion_sent: Vec<u8>,
+    airlock_motion_to: BTreeSet<NetworkEntityId>,
+    inflated_this_tick: BTreeSet<(FloorId, astrocore_math::GridCell)>,
+    gone: BTreeSet<ObjectId>,
+    primed: BTreeMap<ObjectId, f32>,
+    thrown: Vec<(f32, crate::hands::HeldItem, Vec3)>,
+    bullets: Vec<crate::gun::Bullet>,
+    firelock_cells: BTreeMap<ObjectId, (atmos::Cell, atmos::Cell)>,
+    firelock_hold: BTreeMap<ObjectId, (bool, bool)>,
+    firelock_timer: f32,
+    power_lights: Vec<(ObjectId, Vec3, u8)>,
+    power_kinds: Vec<[f32; 5]>,
+    lights_sent: crate::electric::LightsView,
+    lights_timer: f32,
+    lights_to: BTreeSet<NetworkEntityId>,
+}
+
+impl MapLocal {
+    /// Состояние новой карты — как у `State` при создании.
+    fn fresh(registry: &PrototypeRegistry) -> Self {
+        Self {
+            atmos: atmos::Grid::new(),
+            fires_sent: Vec::new(),
+            fires_to: BTreeSet::new(),
+            pipe_keys: crate::piping::PipeKeys::default(),
+            pipe_sig: Vec::new(),
+            tanks: BTreeMap::new(),
+            tank_timer: 0.0,
+            pipe_ports: BTreeMap::new(),
+            puddles: crate::puddles::Puddles::new(),
+            puddles_sent: Vec::new(),
+            puddles_to: BTreeSet::new(),
+            puddle_timer: 0.0,
+            power: power::PowerState::default(),
+            power_suppliers: Vec::new(),
+            power_cables: Vec::new(),
+            alerts: crate::alerts::Alerts::load(registry),
+            power_sig: Vec::new(),
+            power_batteries: Vec::new(),
+            power_receivers: Vec::new(),
+            power_charge: BTreeMap::new(),
+            power_gated: std::collections::BTreeSet::new(),
+            alarm_groups: Vec::new(),
+            alarm_sig: Vec::new(),
+            monitor_state: BTreeMap::new(),
+            alarm_timer: 0.0,
+            fx_popups: Vec::new(),
+            fx_sounds: Vec::new(),
+            mixer_machines: BTreeMap::new(),
+            masters: BTreeMap::new(),
+            heat_timer: 0.0,
+            dispensers: BTreeMap::new(),
+            consoles: BTreeMap::new(),
+            lockers: BTreeMap::new(),
+            locker_timer: 0.0,
+            spawners_done: false,
+            spawn_timer: 0.0,
+            conveyor_state: BTreeMap::new(),
+            switch_on: BTreeSet::new(),
+            conveyor_timer: 0.0,
+            disposal_net: crate::disposal::Net::default(),
+            disposal_entries: BTreeSet::new(),
+            disposal_torn: BTreeSet::new(),
+            disposal_sig: Vec::new(),
+            disposal_state: BTreeMap::new(),
+            disposal_holders: Vec::new(),
+            disposal_timer: 0.0,
+            walls: None,
+            loose_girders: BTreeSet::new(),
+            reinforced_work: BTreeMap::new(),
+            barrier_progress: BTreeMap::new(),
+            window_grilles: BTreeSet::new(),
+            girders: BTreeMap::new(),
+            airlock_close_at: BTreeMap::new(),
+            airlock_marker_revision: None,
+            airlock_markers: BTreeMap::new(),
+            airlock_availability: BTreeMap::new(),
+            airlock_held_open: BTreeSet::new(),
+            airlock_motions: BTreeMap::new(),
+            airlock_motion_sent: Vec::new(),
+            airlock_motion_to: BTreeSet::new(),
+            inflated_this_tick: Default::default(),
+            gone: BTreeSet::new(),
+            primed: BTreeMap::new(),
+            thrown: Vec::new(),
+            bullets: Vec::new(),
+            firelock_cells: BTreeMap::new(),
+            firelock_hold: BTreeMap::new(),
+            firelock_timer: 0.0,
+            power_lights: Vec::new(),
+            power_kinds: Vec::new(),
+            lights_sent: crate::electric::LightsView::default(),
+            lights_timer: 0.0,
+            lights_to: BTreeSet::new(),
+        }
+    }
+}
+
+impl State {
+    /// Подставить состояние карты `map`: прежняя карта откладывается, у новой — своё (или новое).
+    pub(crate) fn enter_map(&mut self, map: astrocore_world::MapId) {
+        if map == self.current_map {
+            return;
+        }
+        let mut local = self
+            .map_locals
+            .remove(&map)
+            .unwrap_or_else(|| MapLocal::fresh(&self.registry));
+        self.swap_local(&mut local);
+        self.map_locals.insert(self.current_map, local);
+        self.current_map = map;
+    }
+
+    /// Забыть состояние удалённых карт.
+    pub(crate) fn forget_maps(&mut self, alive: &BTreeSet<astrocore_world::MapId>) {
+        self.map_locals.retain(|m, _| alive.contains(m));
+    }
+
+    fn swap_local(&mut self, local: &mut MapLocal) {
+        std::mem::swap(&mut self.atmos, &mut local.atmos);
+        std::mem::swap(&mut self.fires_sent, &mut local.fires_sent);
+        std::mem::swap(&mut self.fires_to, &mut local.fires_to);
+        std::mem::swap(&mut self.pipe_keys, &mut local.pipe_keys);
+        std::mem::swap(&mut self.pipe_sig, &mut local.pipe_sig);
+        std::mem::swap(&mut self.tanks, &mut local.tanks);
+        std::mem::swap(&mut self.tank_timer, &mut local.tank_timer);
+        std::mem::swap(&mut self.pipe_ports, &mut local.pipe_ports);
+        std::mem::swap(&mut self.puddles, &mut local.puddles);
+        std::mem::swap(&mut self.puddles_sent, &mut local.puddles_sent);
+        std::mem::swap(&mut self.puddles_to, &mut local.puddles_to);
+        std::mem::swap(&mut self.puddle_timer, &mut local.puddle_timer);
+        std::mem::swap(&mut self.power, &mut local.power);
+        std::mem::swap(&mut self.power_suppliers, &mut local.power_suppliers);
+        std::mem::swap(&mut self.power_cables, &mut local.power_cables);
+        std::mem::swap(&mut self.alerts, &mut local.alerts);
+        std::mem::swap(&mut self.power_sig, &mut local.power_sig);
+        std::mem::swap(&mut self.power_batteries, &mut local.power_batteries);
+        std::mem::swap(&mut self.power_receivers, &mut local.power_receivers);
+        std::mem::swap(&mut self.power_charge, &mut local.power_charge);
+        std::mem::swap(&mut self.power_gated, &mut local.power_gated);
+        std::mem::swap(&mut self.alarm_groups, &mut local.alarm_groups);
+        std::mem::swap(&mut self.alarm_sig, &mut local.alarm_sig);
+        std::mem::swap(&mut self.monitor_state, &mut local.monitor_state);
+        std::mem::swap(&mut self.alarm_timer, &mut local.alarm_timer);
+        std::mem::swap(&mut self.fx_popups, &mut local.fx_popups);
+        std::mem::swap(&mut self.fx_sounds, &mut local.fx_sounds);
+        std::mem::swap(&mut self.mixer_machines, &mut local.mixer_machines);
+        std::mem::swap(&mut self.masters, &mut local.masters);
+        std::mem::swap(&mut self.heat_timer, &mut local.heat_timer);
+        std::mem::swap(&mut self.dispensers, &mut local.dispensers);
+        std::mem::swap(&mut self.consoles, &mut local.consoles);
+        std::mem::swap(&mut self.lockers, &mut local.lockers);
+        std::mem::swap(&mut self.locker_timer, &mut local.locker_timer);
+        std::mem::swap(&mut self.spawners_done, &mut local.spawners_done);
+        std::mem::swap(&mut self.spawn_timer, &mut local.spawn_timer);
+        std::mem::swap(&mut self.conveyor_state, &mut local.conveyor_state);
+        std::mem::swap(&mut self.switch_on, &mut local.switch_on);
+        std::mem::swap(&mut self.conveyor_timer, &mut local.conveyor_timer);
+        std::mem::swap(&mut self.disposal_net, &mut local.disposal_net);
+        std::mem::swap(&mut self.disposal_entries, &mut local.disposal_entries);
+        std::mem::swap(&mut self.disposal_torn, &mut local.disposal_torn);
+        std::mem::swap(&mut self.disposal_sig, &mut local.disposal_sig);
+        std::mem::swap(&mut self.disposal_state, &mut local.disposal_state);
+        std::mem::swap(&mut self.disposal_holders, &mut local.disposal_holders);
+        std::mem::swap(&mut self.disposal_timer, &mut local.disposal_timer);
+        std::mem::swap(&mut self.walls, &mut local.walls);
+        std::mem::swap(&mut self.loose_girders, &mut local.loose_girders);
+        std::mem::swap(&mut self.reinforced_work, &mut local.reinforced_work);
+        std::mem::swap(&mut self.barrier_progress, &mut local.barrier_progress);
+        std::mem::swap(&mut self.window_grilles, &mut local.window_grilles);
+        std::mem::swap(&mut self.girders, &mut local.girders);
+        std::mem::swap(&mut self.airlock_close_at, &mut local.airlock_close_at);
+        std::mem::swap(
+            &mut self.airlock_marker_revision,
+            &mut local.airlock_marker_revision,
+        );
+        std::mem::swap(&mut self.airlock_markers, &mut local.airlock_markers);
+        std::mem::swap(
+            &mut self.airlock_availability,
+            &mut local.airlock_availability,
+        );
+        std::mem::swap(&mut self.airlock_held_open, &mut local.airlock_held_open);
+        std::mem::swap(&mut self.airlock_motions, &mut local.airlock_motions);
+        std::mem::swap(
+            &mut self.airlock_motion_sent,
+            &mut local.airlock_motion_sent,
+        );
+        std::mem::swap(&mut self.airlock_motion_to, &mut local.airlock_motion_to);
+        std::mem::swap(&mut self.inflated_this_tick, &mut local.inflated_this_tick);
+        std::mem::swap(&mut self.gone, &mut local.gone);
+        std::mem::swap(&mut self.primed, &mut local.primed);
+        std::mem::swap(&mut self.thrown, &mut local.thrown);
+        std::mem::swap(&mut self.bullets, &mut local.bullets);
+        std::mem::swap(&mut self.firelock_cells, &mut local.firelock_cells);
+        std::mem::swap(&mut self.firelock_hold, &mut local.firelock_hold);
+        std::mem::swap(&mut self.firelock_timer, &mut local.firelock_timer);
+        std::mem::swap(&mut self.power_lights, &mut local.power_lights);
+        std::mem::swap(&mut self.power_kinds, &mut local.power_kinds);
+        std::mem::swap(&mut self.lights_sent, &mut local.lights_sent);
+        std::mem::swap(&mut self.lights_timer, &mut local.lights_timer);
+        std::mem::swap(&mut self.lights_to, &mut local.lights_to);
+    }
 }
 
 impl State {
@@ -1138,7 +1406,8 @@ impl State {
             map_dir: None,
             registry: registry.clone(),
             map_spawns: BTreeMap::new(),
-            frozen_air: BTreeMap::new(),
+            current_map: astrocore_world::MapId(0),
+            map_locals: BTreeMap::new(),
             tiles: BTreeSet::new(),
             corpses: 0,
             atmos: atmos::Grid::new(),
@@ -2724,10 +2993,6 @@ impl State {
             let Some(pos) = ctx.position_of(id) else {
                 continue;
             };
-            // Тело на замороженной карте не дышит, не голодает и не истекает кровью.
-            if frozen_at(ctx, pos) {
-                continue;
-            }
             let floor = floor_at(ctx, pos.y).map_or(0, |f| f.0);
             let cell = atmos::floor_cell(floor, pos.x.floor() as i32, pos.z.floor() as i32);
             let clock = self.clock;
@@ -2856,51 +3121,20 @@ impl State {
     /// Геометрия и ход газа: при любом изменении стен или дверей сетка перестраивается, воздух
     /// уцелевших клеток сохраняется.
     fn tick_atmosphere(&mut self, ctx: &mut HookContext<'_>, dt: f32) {
-        let full = crate::world_atmos::layout(ctx.world, &|id| ctx.door_open(id) == Some(true));
-        // Клетки замороженных карт (ADR-0012) в симуляции не участвуют; их воздух хранится в
-        // стороне и возвращается, когда карта снова идёт.
-        let layout = crate::world_atmos::without_frozen(ctx.world, &full);
+        let layout = crate::world_atmos::layout(ctx.world, &|id| ctx.door_open(id) == Some(true));
         if self.atmos.layout() != &layout {
-            let dropped: Vec<atmos::Cell> = self
-                .atmos
-                .layout()
-                .cells
-                .keys()
-                .filter(|c| !layout.cells.contains_key(c) && full.cells.contains_key(c))
-                .copied()
-                .collect();
-            for c in dropped {
-                self.frozen_air.insert(c, self.atmos.air(c));
-            }
             self.atmos.set_layout(layout);
-            let back: Vec<atmos::Cell> = self
-                .frozen_air
-                .keys()
-                .filter(|c| self.atmos.contains(**c))
-                .copied()
-                .collect();
-            for c in back {
-                if let Some(air) = self.frozen_air.remove(&c) {
-                    self.atmos.with_air(c, |m| *m = air);
-                }
-            }
-            self.frozen_air.retain(|c, _| full.cells.contains_key(c));
         }
         self.tick_igniters(ctx);
-        self.tick_puddles(ctx, &full, dt);
+        self.tick_puddles(ctx, dt);
         self.sync_pipes(ctx);
         self.sync_power(ctx);
-        self.tick_lobby(ctx);
-        self.tick_character(ctx);
-        self.tick_round(ctx);
         self.tick_rest_and_thrown(ctx);
         self.tick_pulls(ctx);
         self.tick_stamina(ctx);
         self.tick_primed(ctx);
         self.tick_bullets(ctx, dt);
         self.tick_chargers(dt);
-        self.auto_assign_jobs(ctx);
-        self.place_joiners(ctx);
         self.tick_disposal(ctx, dt);
         self.tick_conveyors(ctx, dt);
         self.tick_lockers(ctx);
@@ -2911,7 +3145,6 @@ impl State {
         self.tick_defibs(dt);
         self.tick_lab(ctx, dt);
         self.publish_chemhand(ctx);
-        self.publish_jobs(ctx);
         self.resolve_spawners(ctx);
         self.flush_fx(ctx);
         self.tick_alarms(ctx, dt);
@@ -2986,10 +3219,6 @@ impl State {
         let mut sig: Vec<(ObjectId, atmos::Cell, u8)> = Vec::new();
         let mut parts: Vec<(ObjectId, atmos::Cell, crate::piping::PipePart)> = Vec::new();
         for o in ctx.world.authored() {
-            // Трубы и устройства замороженной карты в сеть не входят.
-            if ctx.world.floor_paused(o.floor) {
-                continue;
-            }
             let centre = (o.min() + o.max()) * 0.5;
             let cell = cell_at(o.floor.0, centre);
             match &o.kind {
@@ -3102,11 +3331,8 @@ impl State {
     }
 
     /// Лужи: испарение, растекание, поскальзывание, рассылка клиентам.
-    fn tick_puddles(&mut self, ctx: &mut HookContext<'_>, full: &atmos::Layout, dt: f32) {
-        let world = ctx.world;
-        self.puddles.tick(dt, full, &|c| {
-            crate::world_atmos::cell_floor_paused(world, c)
-        });
+    fn tick_puddles(&mut self, ctx: &mut HookContext<'_>, dt: f32) {
+        self.puddles.tick(dt, self.atmos.layout(), &|_| false);
         // Поскальзывание: вход на скользкую клетку на достаточной скорости.
         let ids: Vec<NetworkEntityId> = ctx.players().collect();
         let mut slips: Vec<NetworkEntityId> = Vec::new();
@@ -3522,13 +3748,6 @@ impl State {
         let powered = self.powered_map();
         let mut due = Vec::new();
         for (id, slot) in &mut self.disposal_state {
-            if ctx
-                .world
-                .authored_object(*id)
-                .is_some_and(|o| ctx.world.floor_paused(o.floor))
-            {
-                continue;
-            }
             let on = !self.power_required
                 || !self.power_gated.contains(id)
                 || powered.get(id).copied().unwrap_or(false);
@@ -3866,7 +4085,7 @@ impl State {
                 max: j.max,
             })
             .collect();
-        for p in ctx.players().collect::<Vec<_>>() {
+        for p in ctx.all_players().collect::<Vec<_>>() {
             let view = crate::jobs::JobsView {
                 jobs: list.clone(),
                 current: self.player_job.get(&p).cloned(),
@@ -3898,7 +4117,7 @@ impl State {
                 // Спавнер — часть MapInit: на неинициализированной карте (маппинг) не срабатывает.
                 AuthoredKind::Placement { prototype }
                     if self.spawner_specs.contains_key(prototype)
-                        && map_initialized(ctx.world, o.floor) =>
+                        && ctx.map_def(ctx.map()).is_none_or(|m| m.initialized) =>
                 {
                     let c = (o.min() + o.max()) * 0.5;
                     Some((o.id, prototype.clone(), Vec3::new(c.x, o.min().y, c.z), 0.0))
@@ -4906,9 +5125,6 @@ impl State {
             let Some(speed) = self.conveyor_protos.get(prototype) else {
                 continue;
             };
-            if ctx.world.floor_paused(o.floor) {
-                continue;
-            }
             let state = self.conveyor_state.get(&o.id).copied().unwrap_or_default();
             let on = !self.power_required
                 || !self.power_gated.contains(&o.id)
@@ -4994,7 +5210,7 @@ impl State {
     /// Лобби: новички ждут старта; по таймеру готовые выходят на станцию.
     /// Редактор персонажа: правила — владельцу один раз, профиль — при каждом изменении.
     fn tick_character(&mut self, ctx: &mut HookContext<'_>) {
-        let ids: Vec<NetworkEntityId> = ctx.players().collect();
+        let ids: Vec<NetworkEntityId> = ctx.all_players().collect();
         self.rules_sent.retain(|p| ids.contains(p));
         self.profile_sent.retain(|p, _| ids.contains(p));
         self.slots_sent.retain(|p, _| ids.contains(p));
@@ -5158,7 +5374,7 @@ impl State {
 
     fn tick_lobby(&mut self, ctx: &mut HookContext<'_>) {
         let dt = self.last_dt;
-        let ids: Vec<NetworkEntityId> = ctx.players().collect();
+        let ids: Vec<NetworkEntityId> = ctx.all_players().collect();
         let hold = self.spawn;
         let mut go: Vec<NetworkEntityId> = Vec::new();
         let Some(l) = self.lobby.as_mut() else {
@@ -5350,7 +5566,7 @@ impl State {
             return;
         }
         // Пустой сервер раунд не считает: время идёт, пока есть хотя бы один игрок.
-        if ctx.players().next().is_none() {
+        if ctx.all_players().next().is_none() {
             return;
         }
         self.round.clock += dt;
@@ -5408,7 +5624,7 @@ impl State {
             crew,
         };
         let bytes = crate::round_end::encode_end(&view);
-        for p in ctx.players().collect::<Vec<_>>() {
+        for p in ctx.all_players().collect::<Vec<_>>() {
             if self.round.sent.get(&p) != Some(&bytes) {
                 ctx.set_component(p, crate::round_end::ROUNDEND_COMPONENT, bytes.clone());
                 self.round.sent.insert(p, bytes.clone());
@@ -7334,12 +7550,11 @@ impl State {
     /// Новички появляются на точках должностей `Passenger` и `Latejoin` карты по очереди; если на
     /// карте таких нет, остаётся точка появления по умолчанию.
     fn place_joiners(&mut self, ctx: &mut HookContext<'_>) {
-        let ids: Vec<NetworkEntityId> = ctx.players().collect();
-        self.placed.retain(|p| ids.contains(p));
-        let fresh: Vec<NetworkEntityId> = ids
-            .into_iter()
-            .filter(|p| !self.placed.contains(p))
-            .collect();
+        // Новички входят на карту 0; ушедшие на другие карты остаются «размещёнными».
+        let all: Vec<NetworkEntityId> = ctx.all_players().collect();
+        self.placed.retain(|p| all.contains(p));
+        let fresh: Vec<NetworkEntityId> =
+            ctx.players().filter(|p| !self.placed.contains(p)).collect();
         if fresh.is_empty() {
             return;
         }
@@ -7918,11 +8133,23 @@ impl State {
     }
 
     /// Шаг времени: отсчёт, прерывание движением и потерей условий, завершение.
-    pub(crate) fn tick(&mut self, ctx: &mut HookContext<'_>, dt: f32) {
+    /// Общее для всех карт, раз в тик (в рамках карты 0, игроки — все): лобби, раунд, профили,
+    /// должности и выход новичков на станцию.
+    pub(crate) fn tick_global(&mut self, ctx: &mut HookContext<'_>) {
         if !self.map_jobs_applied {
             self.map_jobs_applied = true;
             self.apply_map_jobs(ctx);
         }
+        self.tick_lobby(ctx);
+        self.tick_character(ctx);
+        self.tick_round(ctx);
+        self.auto_assign_jobs(ctx);
+        self.place_joiners(ctx);
+        self.publish_jobs(ctx);
+    }
+
+    /// Симуляции карты вызова (атмосфера, питание, тела, двери…); карта на паузе их не получает.
+    pub(crate) fn tick(&mut self, ctx: &mut HookContext<'_>, dt: f32) {
         self.clock += dt;
         self.last_dt = dt;
         self.gone.clear();
@@ -7963,9 +8190,6 @@ impl State {
                 self.cancel(ctx, id);
                 continue;
             };
-            if frozen_at(ctx, pos) {
-                continue;
-            }
             let Some(actor) = self.actors.get_mut(&id) else {
                 continue;
             };
@@ -8198,19 +8422,6 @@ pub(crate) fn access_lists(c: &prototypes::Data) -> Vec<Vec<String>> {
                 .collect()
         })
         .unwrap_or_default()
-}
-
-/// Стоит ли точка на замороженной карте (ADR-0012): симуляции её не продвигают.
-pub(crate) fn frozen_at(ctx: &HookContext<'_>, p: Vec3) -> bool {
-    floor_at(ctx, p.y).is_some_and(|f| ctx.world.floor_paused(f))
-}
-
-/// Прошла ли инициализация карты этажа (MapInit SS14); неизвестный этаж — как карта 0.
-pub(crate) fn map_initialized(world: &astrocore_world::World, floor: FloorId) -> bool {
-    world
-        .map_of_floor(floor)
-        .and_then(|m| world.map(m))
-        .is_none_or(|m| m.initialized)
 }
 
 pub(crate) fn floor_at(ctx: &HookContext<'_>, y: f32) -> Option<FloorId> {
@@ -8527,6 +8738,9 @@ impl GameModule for GameplayModule {
     }
 
     fn handle(&mut self, ctx: &mut HookContext<'_>, event: &HookEvent) {
+        // Состояние механик и систем — той карты, в рамках которой пришло событие.
+        self.state.enter_map(ctx.map());
+        self.systems.enter_map(ctx.map());
         self.handle_event(ctx, event);
         // Действия систем, дошедшие до конца за это событие, завершает их система.
         self.systems.finish_jobs(&mut self.state, ctx);
@@ -9057,8 +9271,22 @@ impl GameplayModule {
                 _ => {}
             },
             HookEvent::Tick { dt, .. } => {
-                st.tick(ctx, *dt);
-                self.systems.tick(st, ctx, *dt);
+                // Тик приходит по каждой карте (ADR-0013 движка). Общее — раз в тик, в рамках
+                // карты 0; симуляции — у каждой карты, кроме замороженных (на паузе всё стоит).
+                let global = ctx.map() == astrocore_world::MapId(0);
+                if global {
+                    let alive = ctx.maps().iter().map(|m| m.id).collect();
+                    st.forget_maps(&alive);
+                    self.systems.forget_maps(&alive);
+                    st.tick_global(ctx);
+                }
+                if ctx.paused() {
+                    // Всплывающие подсказки маппера на замороженной карте всё равно доходят.
+                    st.flush_fx(ctx);
+                } else {
+                    st.tick(ctx, *dt);
+                }
+                self.systems.tick(st, ctx, *dt, global, !ctx.paused());
             }
             HookEvent::PlayerLeft { actor, pos } => {
                 self.systems.player_left(st, *actor);

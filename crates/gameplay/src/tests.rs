@@ -616,7 +616,6 @@ mod module_level {
             name: "g".into(),
             base_y: 0.0,
             height: 3.0,
-            map: Default::default(),
         }))
         .unwrap();
         for z in 0..6 {
@@ -2922,10 +2921,11 @@ mod disposal_tests {
         ok(console(&mut h, a, "mapping 5"));
         h.ticks(10);
         let five = astrocore_world::MapId(5);
-        let def = h.server.world().map(five).expect("карта 5");
+        let def = h.server.map_def(five).cloned().expect("карта 5");
         assert!(def.paused && !def.initialized);
-        let p = h.client(a).position();
-        assert!((p.y - 5000.0).abs() < 5.0, "маппер на карте 5: {p:?}");
+        // Маппер на карте 5: у его клиента её мир, отдельный от станции (ADR-0013 движка).
+        assert_eq!(h.server.player_map(a), Some(five));
+        assert_eq!(h.client(a).world().unwrap().id(), "map-5");
         let net = h.client(a).net_id().unwrap();
         assert_eq!(
             h.client(a)
@@ -2945,9 +2945,13 @@ mod disposal_tests {
                 ceiling: false,
             },
         );
-        let w = h.server.world();
-        assert_eq!(w.element_count(), station + 6);
-        assert_eq!(w.floor(maps::floor_id(five, 0)).unwrap().map, five);
+        assert_eq!(
+            h.server.world().element_count(),
+            station,
+            "станция не задета"
+        );
+        assert_eq!(h.server.world_of(five).unwrap().element_count(), 6);
+        assert_eq!(h.client(a).world().unwrap().element_count(), 6);
         // Неинициализированную карту можно сохранить без force.
         ok(console(&mut h, a, "savemap 5 room"));
         let file = maps::MapFile::load(&dir.join("room.ron")).unwrap();
@@ -2959,26 +2963,42 @@ mod disposal_tests {
         // Та же карта ещё раз — картой 7, идёт и инициализирована.
         ok(console(&mut h, a, "loadmap 7 room"));
         h.ticks(5);
-        let seven = h.server.world().map(astrocore_world::MapId(7)).unwrap();
+        let seven = h
+            .server
+            .map_def(astrocore_world::MapId(7))
+            .cloned()
+            .unwrap();
         assert!(!seven.paused && seven.initialized);
-        assert_eq!(h.server.world().element_count(), station + 12);
+        assert_eq!(
+            h.server
+                .world_of(astrocore_world::MapId(7))
+                .unwrap()
+                .element_count(),
+            6
+        );
         assert_eq!(ok(console(&mut h, a, "querymappaused 7")), "false");
         ok(console(&mut h, a, "pausemap 7"));
         assert_eq!(ok(console(&mut h, a, "querymappaused 7")), "true");
         ok(console(&mut h, a, "mapinit 5"));
-        let def = h.server.world().map(five).unwrap();
+        let def = h.server.map_def(five).cloned().unwrap();
         assert!(!def.paused && def.initialized);
         assert!(ok(console(&mut h, a, "lsmap")).contains("7 | room"));
         // Телепорт на карту 7.
         ok(console(&mut h, a, "tp 1 1 7"));
         h.ticks(10);
-        assert!((h.client(a).position().y - 7000.0).abs() < 5.0);
+        assert_eq!(h.server.player_map(a), Some(astrocore_world::MapId(7)));
+        let p = h.client(a).position();
+        assert!((p.x - 1.0).abs() < 0.6 && (p.z - 1.0).abs() < 0.6, "{p:?}");
         // Удалить карту 7: её конструкции исчезают, маппер — на станции.
         ok(console(&mut h, a, "rmmap 7"));
         h.ticks(10);
-        assert!(h.server.world().map(astrocore_world::MapId(7)).is_none());
-        assert_eq!(h.server.world().element_count(), station + 6);
-        assert!(h.client(a).position().y < 100.0, "на станции");
+        assert!(h.server.map_def(astrocore_world::MapId(7)).is_none());
+        assert_eq!(
+            h.server.player_map(a),
+            Some(astrocore_world::MapId(0)),
+            "на станции"
+        );
+        assert_eq!(h.client(a).world().unwrap().element_count(), station);
         assert!(console(&mut h, a, "rmmap 0").last().unwrap().error);
         assert!(console(&mut h, a, "loadmap 8 nope").last().unwrap().error);
         let _ = std::fs::remove_dir_all(&dir);
@@ -3011,7 +3031,7 @@ mod disposal_tests {
             },
         );
         // Стены по краю комнаты 7 × 7, кроме одного ребра — дыры.
-        let floor = maps::floor_id(astrocore_world::MapId(6), 0);
+        let floor = FloorId(0);
         let mut edges: Vec<GridEdge> = Vec::new();
         for k in -3..=3 {
             edges.push(GridEdge::along_x(k, -3));
@@ -3023,16 +3043,17 @@ mod disposal_tests {
         }
         for (n, e) in edges.into_iter().enumerate() {
             h.server
-                .apply_world_command(WorldCommand::PlaceElement(
-                    astrocore_world::StructureElement {
+                .apply_world_command_on(
+                    astrocore_world::MapId(6),
+                    WorldCommand::PlaceElement(astrocore_world::StructureElement {
                         id: oid(0x7A11_0000 + n as u128),
                         kind: StructureKind::Wall,
                         placement: Placement::Edge(e),
                         floor,
                         material: astrocore_core::PrototypeId::new("ss14:wall_solid").unwrap(),
                         thickness: 0.1,
-                    },
-                ))
+                    }),
+                )
                 .unwrap();
         }
         console(&mut h, a, "aghost");

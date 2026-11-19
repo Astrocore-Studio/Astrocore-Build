@@ -201,13 +201,15 @@ impl ChatSystem {
             channel = Channel::Dead;
         }
         let spot = ctx.position_of(actor);
-        let players: Vec<NetworkEntityId> = ctx.players().collect();
+        // OOC и мёртвые слышны на всех картах; речь — только на своей карте (ADR-0013 движка).
+        let players: Vec<NetworkEntityId> = ctx.all_players().collect();
+        let here = ctx.map_of(actor);
         let id = self.state.next_id;
         self.state.next_id += 1;
         let mut heard: Vec<(NetworkEntityId, String)> = Vec::new();
         for p in players {
             let dist = match (spot, ctx.position_of(p)) {
-                (Some(a), Some(b)) => a.distance(b),
+                (Some(a), Some(b)) if ctx.map_of(p) == here => a.distance(b),
                 _ => f32::INFINITY,
             };
             let deaf_to_living = gone(&p);
@@ -252,7 +254,7 @@ impl ChatSystem {
 
     /// Разослать журнал тем, кто получил новые строки.
     fn publish(&mut self, ctx: &mut HookContext<'_>) {
-        let ids: Vec<NetworkEntityId> = ctx.players().collect();
+        let ids: Vec<NetworkEntityId> = ctx.all_players().collect();
         self.state.log.retain(|p, _| ids.contains(p));
         self.state.last.retain(|p, _| ids.contains(p));
         for p in std::mem::take(&mut self.state.dirty) {
