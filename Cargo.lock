@@ -4005,6 +4005,7 @@ dependencies = [
  "astrocore-runtime",
  "astrocore-world",
  "atmos",
+ "maps",
  "power",
  "prototypes",
  "ron 0.10.1",

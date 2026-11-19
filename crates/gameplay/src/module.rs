@@ -391,6 +391,8 @@ pub struct State {
     pub(crate) charges: BTreeMap<ObjectId, u32>,
     /// Куда возрождаются; без точки возрождение недоступно.
     pub(crate) spawn: Option<Vec3>,
+    /// Папка, куда команда `savemap` пишет карты; `None` — сохранение выключено.
+    pub(crate) map_dir: Option<std::path::PathBuf>,
     /// Сколько тел оставлено (для идентификаторов).
     pub(crate) corpses: u32,
     /// Атмосфера по этажам.
@@ -1123,6 +1125,7 @@ impl State {
             clock: 0.0,
             charges: BTreeMap::new(),
             spawn: None,
+            map_dir: None,
             corpses: 0,
             atmos: atmos::Grid::new(),
             speed_sent: BTreeMap::new(),
@@ -8170,6 +8173,13 @@ impl GameplayModule {
     #[must_use]
     pub fn with_spawn(mut self, spawn: Vec3) -> Self {
         self.state.spawn = Some(spawn);
+        self
+    }
+
+    /// Папка для карт, сохранённых командой консоли `savemap`.
+    #[must_use]
+    pub fn with_map_dir(mut self, dir: impl Into<std::path::PathBuf>) -> Self {
+        self.state.map_dir = Some(dir.into());
         self
     }
 

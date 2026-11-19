@@ -2805,6 +2805,54 @@ mod disposal_tests {
         assert!(denied.last().unwrap().error && denied.last().unwrap().text.contains("Round"));
     }
 
+    #[test]
+    fn a_mapper_saves_the_map_with_what_lies_on_the_ground() {
+        let token = "fedcba9876543210fedcba9876543210";
+        let dir = std::env::temp_dir().join(format!("astro-savemap-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        let d = dir.clone();
+        let mut h =
+            harness_with(move |m| m.with_admins(admin_roster(token, "Mapper")).with_map_dir(d));
+        let a = h.join("a");
+        h.ticks(10);
+        hello(&mut h, a, token);
+        console(&mut h, a, "spawn Crowbar");
+        // Имя становится именем файла: пути и точки запрещены.
+        assert!(console(&mut h, a, "savemap ../evil").last().unwrap().error);
+        let done = console(&mut h, a, "savemap station_1");
+        let last = done.last().unwrap();
+        assert!(
+            !last.error && last.text.contains("Карта сохранена"),
+            "{done:?}"
+        );
+        let map = maps::MapFile::load(&dir.join("station_1.ron")).unwrap();
+        assert_eq!(map.name, "station_1");
+        assert!(!map.elements.is_empty() && !map.floors.is_empty());
+        assert!(
+            map.items.iter().any(|i| i.prototype == "Crowbar"),
+            "{:?}",
+            map.items
+        );
+        let _ = std::fs::remove_dir_all(&dir);
+
+        // Без папки карт команда честно отказывает; без флага Mapping — нет прав.
+        let mut h = harness_with(move |m| m.with_admins(admin_roster(token, "Mapper")));
+        let a = h.join("a");
+        h.ticks(10);
+        hello(&mut h, a, token);
+        let off = console(&mut h, a, "savemap x");
+        assert!(off.last().unwrap().text.contains("выключено"), "{off:?}");
+        let mut h = harness_with(move |m| m.with_admins(admin_roster(token, "Moderator")));
+        let a = h.join("a");
+        h.ticks(10);
+        hello(&mut h, a, token);
+        let denied = console(&mut h, a, "savemap x");
+        assert!(
+            denied.last().unwrap().text.contains("Mapping"),
+            "{denied:?}"
+        );
+    }
+
     /// Форк меняет механику, не трогая остальной код: систему можно отключить или подменить своей.
     #[test]
     fn a_system_can_be_switched_off_or_replaced() {

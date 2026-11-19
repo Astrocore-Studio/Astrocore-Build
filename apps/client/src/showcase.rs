@@ -96,6 +96,19 @@ pub fn camera(
     if !enabled() || map_mode() {
         return;
     }
+    // `ASTRO_SHOWCASE_CAM=ex,ey,ez,fx,fy,fz`: камера в точке e смотрит на f (проверка геометрии).
+    if let Some(v) = std::env::var("ASTRO_SHOWCASE_CAM").ok().and_then(|s| {
+        let v: Vec<f32> = s.split(',').filter_map(|p| p.trim().parse().ok()).collect();
+        (v.len() == 6).then_some(v)
+    }) {
+        let t =
+            Transform::from_xyz(v[0], v[1], v[2]).looking_at(Vec3::new(v[3], v[4], v[5]), Vec3::Y);
+        for (mut transform, mut global) in &mut cameras {
+            *transform = t;
+            *global = GlobalTransform::from(t);
+        }
+        return;
+    }
     let Some((body, sprite)) = local.0.and_then(|e| bodies.get(e).ok()) else {
         return;
     };

@@ -398,6 +398,34 @@ const WALL_LEVELS: i32 = 2;
 const STOREY_M: f32 = 2.3;
 const CEILING_THICKNESS_M: f32 = 0.1;
 
+/// Клетки-кандидаты, которые со всех четырёх сторон закрыты: сосед — `closed` (пол комнаты,
+/// стеновой блок) или такой же закрытый кандидат. Плита под окном у внешней стороны станции
+/// торчала бы за стекло на целую клетку; под окном между комнатами она нужна, иначе между
+/// двумя стёклами видна пустота.
+fn enclosed_cells(
+    mut cells: BTreeSet<(i32, i32)>,
+    closed: impl Fn((i32, i32)) -> bool,
+) -> BTreeSet<(i32, i32)> {
+    loop {
+        let open: Vec<(i32, i32)> = cells
+            .iter()
+            .copied()
+            .filter(|&(x, z)| {
+                [(1, 0), (-1, 0), (0, 1), (0, -1)].iter().any(|(dx, dz)| {
+                    let n = (x + dx, z + dz);
+                    !closed(n) && !cells.contains(&n)
+                })
+            })
+            .collect();
+        if open.is_empty() {
+            return cells;
+        }
+        for c in open {
+            cells.remove(&c);
+        }
+    }
+}
+
 /// Стороны трубы SS14 без поворота (`pipeDirection` прототипа): N, S, E, W битами 1, 2, 4, 8.
 fn pipe_base_dirs(proto: &str) -> Option<u8> {
     const N: u8 = 1;
@@ -1388,8 +1416,18 @@ pub fn import(
                 && **name != "WallReinforced"
                 && tile_at.get(cell).is_some_and(|tile| is_floor_tile(tile))
         })
-        .map(|(cell, _)| cell);
-    for &c in walk.iter().chain(barrier_floors) {
+        .map(|(cell, _)| *cell)
+        .collect::<BTreeSet<_>>();
+    let barrier_floors = enclosed_cells(barrier_floors, |c| {
+        // Стеновой блок стоит на сплошной клетке без стекла, если рядом есть пол (см. выше).
+        let block = solid.contains(&c)
+            && !glass.contains(&c)
+            && (-1..=1).any(|dx| {
+                (-1..=1).any(|dz| (dx, dz) != (0, 0) && walk.contains(&(c.0 + dx, c.1 + dz)))
+            });
+        walk.contains(&c) || block
+    });
+    for &c in walk.iter().chain(&barrier_floors) {
         let material = tile_at
             .get(&c)
             .and_then(|n| mats.tiles.get(n.as_str()))

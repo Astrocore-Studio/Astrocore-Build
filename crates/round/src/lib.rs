@@ -32,6 +32,8 @@ pub struct RoundConfig {
     /// Раздавать должность по приоритетам профиля тем, кто вышел на станцию без неё (окна выбора
     /// должности в игре нет). Выключают тесты, которые назначают должность командой.
     pub auto_jobs: bool,
+    /// Куда команда `savemap` пишет карты; `None` — команда сообщает, что сохранение выключено.
+    pub map_dir: Option<std::path::PathBuf>,
 }
 
 impl Default for RoundConfig {
@@ -44,6 +46,7 @@ impl Default for RoundConfig {
             prefs_db: None,
             admins: gameplay::admin::AdminRoster::default(),
             auto_jobs: true,
+            map_dir: None,
         }
     }
 }
@@ -86,6 +89,10 @@ impl Round {
             module.with_auto_jobs()
         } else {
             module
+        };
+        let module = match &config.map_dir {
+            Some(dir) => module.with_map_dir(dir),
+            None => module,
         };
         let module = match &config.prefs_db {
             Some(path) => module.with_profile_store(Box::new(

@@ -121,6 +121,7 @@ impl ConsoleSystem {
             "aghost" => Self::cmd_aghost(st, ctx, actor),
             "tp" => Self::cmd_tp(ctx, actor, &args),
             "spawn" => Self::cmd_spawn(st, ctx, actor, &args),
+            "savemap" => Self::cmd_savemap(st, ctx, &args),
             "endround" => Self::cmd_endround(st),
             _ => Err(format!("Команда «{}» не реализована.", spec.name)),
         };
@@ -239,6 +240,42 @@ impl ConsoleSystem {
         };
         ctx.teleport(actor, to);
         Ok(format!("Вы в точке ({:.1}, {:.1}).", to.x, to.z))
+    }
+
+    /// Снимок мира в `<папка карт>/<имя>.ron`: то, что лежит на земле, и структура. Предметы в
+    /// руках и сумках не сохраняются — карта описывает станцию, а не экипаж.
+    fn cmd_savemap(st: &State, ctx: &HookContext<'_>, args: &[&str]) -> Result<String, String> {
+        let [name] = args else {
+            return Err("Использование: savemap <имя>".into());
+        };
+        if !admin::valid_map_name(name) {
+            return Err(format!(
+                "Имя «{name}»: латиница, цифры, «_» и «-», до {} символов.",
+                admin::MAP_NAME_MAX
+            ));
+        }
+        let dir = st
+            .map_dir
+            .as_ref()
+            .ok_or("Сохранение карт на этом сервере выключено.")?;
+        let spawn = st.spawn.map_or([0.0; 3], |v| v.to_array());
+        let (map, skipped) =
+            maps::MapFile::from_world(name, spawn, ctx.world, |id| st.ss14_names.get(id).cloned());
+        std::fs::create_dir_all(dir).map_err(|e| format!("{}: {e}", dir.display()))?;
+        let path = dir.join(format!("{name}.ron"));
+        map.save(&path).map_err(|e| e.to_string())?;
+        println!("карта сохранена: {}", path.display());
+        let mut text = format!(
+            "Карта сохранена: {} (элементов {}, предметов {}, зон {}).",
+            path.display(),
+            map.elements.len(),
+            map.items.len(),
+            map.zones.len()
+        );
+        if skipped > 0 {
+            text.push_str(&format!(" Без прототипа пропущено: {skipped}."));
+        }
+        Ok(text)
     }
 
     fn cmd_spawn(

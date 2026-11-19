@@ -28,6 +28,18 @@ pub const KEEP_LINES: usize = 60;
 /// Не чаще одной команды за столько секунд от игрока.
 pub const MIN_GAP_S: f32 = 0.05;
 
+/// Длина имени карты для `savemap`.
+pub const MAP_NAME_MAX: usize = 64;
+
+/// Имя карты становится именем файла: только латиница, цифры, `_` и `-` (без путей и точек).
+pub fn valid_map_name(name: &str) -> bool {
+    !name.is_empty()
+        && name.len() <= MAP_NAME_MAX
+        && name
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-')
+}
+
 /// Флаги прав (`AdminFlags` SS14); ранг может содержать только эти названия.
 pub const FLAGS: &[&str] = &[
     "Admin",
@@ -202,6 +214,12 @@ pub const COMMANDS: &[CommandSpec] = &[
         usage: "spawn <прототип> [число]",
         help: "Создать предмет у ног",
         flag: Some("Spawn"),
+    },
+    CommandSpec {
+        name: "savemap",
+        usage: "savemap <имя>",
+        help: "Сохранить карту: стены, полы, предметы на земле и зоны (файл <имя>.ron)",
+        flag: Some("Mapping"),
     },
     CommandSpec {
         name: "endround",

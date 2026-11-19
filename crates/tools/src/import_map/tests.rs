@@ -346,3 +346,21 @@ fn pipe_directions_rotate_counter_clockwise() {
     assert_eq!(pipe_base_dirs("GasPipeStraightAlt1"), Some(1 | 2));
     assert_eq!(pipe_base_dirs("GasPipeTJunction"), Some(2 | 4 | 8));
 }
+
+#[test]
+fn barrier_slabs_stop_at_the_open_side() {
+    // Окна (1,0) и (2,0) между двумя комнатами, по торцам — стеновые блоки: плиты остаются.
+    let room: BTreeSet<(i32, i32)> = [(1, 1), (2, 1), (1, -1), (2, -1)].into();
+    let walls: BTreeSet<(i32, i32)> = [(0, 0), (3, 0)].into();
+    let closed = |c| room.contains(&c) || walls.contains(&c);
+    let inner: BTreeSet<(i32, i32)> = [(1, 0), (2, 0)].into();
+    assert_eq!(enclosed_cells(inner.clone(), closed), inner);
+    // Окно (5,0) на внешней стороне: снаружи (5,-1) пусто — плиты под ним нет.
+    let room: BTreeSet<(i32, i32)> = [(5, 1)].into();
+    let walls: BTreeSet<(i32, i32)> = [(4, 0), (6, 0)].into();
+    let outer = enclosed_cells([(5, 0)].into(), |c| room.contains(&c) || walls.contains(&c));
+    assert!(outer.is_empty());
+    // Открытый край съедает всю цепочку, иначе у соседа оголится торец.
+    let line: BTreeSet<(i32, i32)> = (0..4).map(|x| (x, 0)).collect();
+    assert!(enclosed_cells(line, |c: (i32, i32)| c.1 != 0 && c.0 >= 0).is_empty());
+}

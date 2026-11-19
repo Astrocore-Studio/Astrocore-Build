@@ -24,6 +24,8 @@ pub struct MappingState {
     pub selected: Option<String>,
     pub rot: u8,
     pub delete: bool,
+    /// Имя файла для «Сохранить карту» (`savemap <имя>` на сервере).
+    save_name: String,
 }
 
 /// Может ли игрок пользоваться маппингом (по правам, присланным сервером).
@@ -41,7 +43,8 @@ pub fn filter<'a>(catalog: &'a [(String, String)], search: &str) -> Vec<&'a (Str
         .collect()
 }
 
-/// Окно каталога. Возвращает команды для сервера (здесь их нет: ставит щелчок по миру).
+/// Окно каталога. Возвращает команды для сервера: сохранение карты (ставит и удаляет щелчок
+/// по миру, см. [`input`]).
 pub fn panel(
     ctx: &egui::Context,
     st: &mut MappingState,
@@ -60,6 +63,7 @@ pub fn panel(
     }
     let catalog = icons.catalog();
     let mut open = true;
+    let mut out: Commands = Vec::new();
     egui::Window::new("Маппинг: сущности")
         .id(egui::Id::new("mapping"))
         .default_pos(egui::pos2(ctx.content_rect().max.x - 380.0, 60.0))
@@ -96,6 +100,29 @@ pub fn panel(
                 .size(11.0)
                 .color(Color32::from_gray(150)),
             );
+            // Сохранение карты: та же консольная команда `savemap`, права (флаг Mapping)
+            // и проверку имени делает сервер, ответ приходит в консоль.
+            if admin.is_some_and(|a| a.commands.iter().any(|c| c.name == "savemap")) {
+                ui.horizontal(|ui| {
+                    ui.label("Карта:");
+                    ui.add(
+                        egui::TextEdit::singleline(&mut st.save_name)
+                            .hint_text("имя файла")
+                            .desired_width(150.0),
+                    );
+                    let name = st.save_name.trim();
+                    if ui
+                        .add_enabled(!name.is_empty(), egui::Button::new("Сохранить карту"))
+                        .on_hover_text("savemap <имя>: стены, полы, предметы на земле и зоны")
+                        .clicked()
+                    {
+                        out.push((
+                            gameplay::admin::CMD_CONSOLE,
+                            format!("savemap {name}").into_bytes(),
+                        ));
+                    }
+                });
+            }
             ui.separator();
             egui::ScrollArea::vertical().max_height(420.0).show(ui, |ui| {
                 for (id, name) in filter(&catalog, &st.search) {
@@ -117,7 +144,7 @@ pub fn panel(
     if !open {
         st.open = false;
     }
-    Vec::new()
+    out
 }
 
 /// Точка установки: центр клетки или, с Shift, сама точка курсора.

@@ -6,7 +6,7 @@ use round::{Round, RoundConfig};
 const USAGE: &str = "\
 server — сервер Astrocore Build (раунд на нейтральном полигоне)
 
-  server --listen 127.0.0.1:7779 --key <hex32> [--tick-hz 20] [--ticks N] [--map карта.ron] [--lobby секунд, 0 = без лобби] [--round-secs секунд] [--admins файл.ron] [--admin-all ранг] [--hash-token токен] [--prefs файл.sqlite3 (по умолчанию data/preferences.sqlite3; --no-prefs — без сохранения профилей)]
+  server --listen 127.0.0.1:7779 --key <hex32> [--tick-hz 20] [--ticks N] [--map карта.ron] [--lobby секунд, 0 = без лобби] [--round-secs секунд] [--admins файл.ron] [--admin-all ранг] [--hash-token токен] [--map-dir папка (куда savemap пишет карты, по умолчанию data/maps)] [--prefs файл.sqlite3 (по умолчанию data/preferences.sqlite3; --no-prefs — без сохранения профилей)]
   server --write-manifest <файл.json>   записать манифест рендера для клиента и выйти
 ";
 
@@ -102,6 +102,11 @@ fn run(args: &[String]) -> Result<(), String> {
         round_secs,
         prefs_db,
         lobby_secs: (lobby_secs > 0.0).then_some(lobby_secs),
+        map_dir: Some(
+            arg(args, "--map-dir")
+                .unwrap_or_else(|| "data/maps".into())
+                .into(),
+        ),
         ..RoundConfig::default()
     };
     let mut round = Round::start(1, &content, &config).map_err(|e| e.to_string())?;
