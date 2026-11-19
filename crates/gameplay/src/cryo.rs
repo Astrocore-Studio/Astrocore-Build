@@ -529,7 +529,7 @@ impl CryoSystem {
         let id = self.open.get(&p).copied()?;
         let pos = Self::cryo_pos(ctx, id)?;
         let feet = ctx.position_of(p)?;
-        if (pos - feet).length() > st.range_m + 1.0 {
+        if crate::module::reach_distance(feet, pos) > st.range_m + 1.0 {
             return None;
         }
         let pod = self.pods.get(&id)?.clone();

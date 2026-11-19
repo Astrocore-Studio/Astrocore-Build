@@ -17,10 +17,10 @@ pub const AMMO_COMPONENT: &str = "build.ammo";
 pub const AMMO_MAX_BYTES: usize = 128;
 /// Дальность выстрела, м.
 pub const RANGE_M: f32 = 40.0;
-/// Радиус цели для попадания: чуть шире капсулы (0,17 м), чтобы целиться было можно.
-pub const HIT_RADIUS_M: f32 = 0.3;
-/// Рост цели, м.
-pub const BODY_HEIGHT_M: f32 = 1.0;
+/// Радиус цели для попадания: чуть шире капсулы (0,25 м), чтобы целиться было можно.
+pub const HIT_RADIUS_M: f32 = 0.35;
+/// Рост цели, м (общий рост персонажа, `crate::BODY_HEIGHT_M`).
+pub const BODY_HEIGHT_M: f32 = crate::module::BODY_HEIGHT_M;
 
 /// Что делает оружие (`GunComponent` + поставщик патронов).
 #[derive(Debug, Clone, PartialEq)]

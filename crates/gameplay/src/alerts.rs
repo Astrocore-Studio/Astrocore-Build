@@ -704,7 +704,7 @@ impl State {
             .actors
             .get(&user)
             .is_some_and(|a| a.ghost || !a.health.state().can_act())
-            && feet.distance(at) <= self.range_m + 1.0
+            && crate::module::reach_distance(feet, at) <= self.range_m + 1.0
             && ctx.is_unobstructed(feet + Vec3::Y, at)
             && (!self.power_required || self.powered_map().get(&id) == Some(&true))
     }

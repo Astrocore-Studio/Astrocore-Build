@@ -277,7 +277,8 @@ impl State {
             || !who.health.state().can_act()
             || o.metadata.get("panel_open")?.as_str() != "1"
             || floor_at(ctx, feet.y) != Some(o.floor)
-            || chest.distance(spot) > self.range_m
+            || crate::module::reach_distance(chest - Vec3::Y * crate::module::CHEST_M, spot)
+                > self.range_m
             || ctx.unobstructed_distance(chest, spot) + 0.6 < chest.distance(spot)
         {
             return None;

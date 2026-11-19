@@ -9,7 +9,8 @@ use bevy_egui::{EguiContexts, egui};
 use gameplay::{DOAFTER_COMPONENT, DoAfterView, MobState, decode_doafter};
 
 /// Высота головы над ступнями, м: сюда крепится полоска.
-const HEAD_M: f32 = 1.15;
+/// Над головой: полоса действия рисуется чуть выше роста.
+const HEAD_M: f32 = gameplay::BODY_HEIGHT_M + 0.15;
 /// Скорость, с которой персонаж считается идущим, м/с.
 const WALK_SPEED: f32 = 0.3;
 /// Размах покачивания, м, и частота шага, рад/с.

@@ -442,7 +442,7 @@ impl VendingSystem {
                 let o = ctx.world.authored_object(id)?;
                 let feet = ctx.position_of(p)?;
                 let c = (o.min() + o.max()) * 0.5;
-                if (c - feet).length() > st.range_m + 1.0 {
+                if crate::module::reach_distance(feet, c) > st.range_m + 1.0 {
                     return None;
                 }
                 let machine = self.machines.get(&id)?;

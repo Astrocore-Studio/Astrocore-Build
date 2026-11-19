@@ -88,7 +88,10 @@ impl State {
             let center = Vec3::new(cell.x as f32 + 0.5, chest.y, cell.z as f32 + 0.5);
             let delta = chest - center;
             let face = center + delta * (0.61 / delta.x.abs().max(delta.z.abs()).max(0.61));
-            if chest.distance(face) > self.range_m || !ctx.is_unobstructed(chest, face) {
+            if crate::module::reach_distance(chest - Vec3::Y * crate::module::CHEST_M, face)
+                > self.range_m
+                || !ctx.is_unobstructed(chest, face)
+            {
                 return None;
             }
         } else {

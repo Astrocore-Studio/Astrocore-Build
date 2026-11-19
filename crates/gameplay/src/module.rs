@@ -60,8 +60,22 @@ use crate::wire::{
 /// Дальность взаимодействия, м: `InteractionRange` в SS14 (1,5). Меряется от груди персонажа
 /// до центра предмета; путь не должен перекрываться стенами и закрытыми дверями.
 pub const INTERACTION_RANGE_M: f32 = 1.5;
-/// Высота груди над ступнями, м.
-pub(crate) const CHEST_M: f32 = 0.55;
+/// Рост персонажа, м (капсула движка — 1,8 м). Остальные высоты тела считаются от него.
+pub const BODY_HEIGHT_M: f32 = 1.8;
+/// Высота груди над ступнями, м: от неё меряется дальность взаимодействия и летят выстрелы.
+pub const CHEST_M: f32 = 1.2;
+/// Высота глаз над ступнями, м (камера клиента — `astrocore_client::EYE_HEIGHT_M`).
+pub const EYE_M: f32 = 1.65;
+
+/// Насколько далеко точка от персонажа для досягаемости (`InteractionRange` SS14): по горизонтали,
+/// а по вертикали — только то, что ниже пола под ногами или выше вытянутой руки. Так предмет на
+/// полу и полка над головой одинаково досягаемы, а рост не «отодвигает» вещи у ног.
+pub(crate) fn reach_distance(feet: Vec3, at: Vec3) -> f32 {
+    let horizontal = (at.x - feet.x).hypot(at.z - feet.z);
+    let below = (feet.y - 0.3 - at.y).max(0.0);
+    let above = (at.y - (feet.y + BODY_HEIGHT_M + 0.4)).max(0.0);
+    horizontal.hypot(below.max(above))
+}
 /// Взрывчатка предмета (`ExplosiveComponent`): тип взрыва, общая интенсивность, спад, предел на клетку.
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) struct Explosive {
@@ -1469,7 +1483,8 @@ impl State {
     ) -> bool {
         let chest = feet + Vec3::Y * CHEST_M;
         let center = (obj.min() + obj.max()) * 0.5;
-        (center - chest).length() <= self.range_m && ctx.is_unobstructed(chest, center)
+        reach_distance(chest - Vec3::Y * CHEST_M, center) <= self.range_m
+            && ctx.is_unobstructed(chest, center)
     }
 
     /// Подбор. `any = false` — клик (только активная рука), `true` — глагол «поднять».
@@ -3142,7 +3157,7 @@ impl State {
             return false;
         };
         // Дальность до точки на полу меряется от ступней (цель лежит на полу).
-        if (point - feet).length() > self.range_m {
+        if reach_distance(feet, point) > self.range_m {
             return false;
         }
         if self
@@ -4272,7 +4287,9 @@ impl State {
             let view = self.dispenser_open.get(&p).copied().and_then(|id| {
                 let o = ctx.world.authored_object(id)?;
                 let feet = ctx.position_of(p)?;
-                if (((o.min() + o.max()) * 0.5) - feet).length() > self.range_m + 1.0 {
+                if crate::module::reach_distance(feet, (o.min() + o.max()) * 0.5)
+                    > self.range_m + 1.0
+                {
                     return None;
                 }
                 let d = self.dispensers.get(&id)?;
@@ -4486,7 +4503,9 @@ impl State {
             let view = self.console_open.get(&p).copied().and_then(|id| {
                 let o = ctx.world.authored_object(id)?;
                 let feet = ctx.position_of(p)?;
-                if (((o.min() + o.max()) * 0.5) - feet).length() > self.range_m + 1.0 {
+                if crate::module::reach_distance(feet, (o.min() + o.max()) * 0.5)
+                    > self.range_m + 1.0
+                {
                     return None;
                 }
                 let slots = self.consoles.get(&id)?;
@@ -4717,7 +4736,7 @@ impl State {
             .filter_map(|id| {
                 let o = ctx.world.authored_object(*id)?;
                 let c = (o.min() + o.max()) * 0.5;
-                Some((*id, (c - (feet + Vec3::Y * 0.9)).length()))
+                Some((*id, reach_distance(feet, c)))
             })
             .filter(|(_, d)| *d <= self.range_m)
             .min_by(|a, b| a.1.total_cmp(&b.1))
@@ -6453,7 +6472,7 @@ impl State {
             return false;
         };
         let chest = feet + Vec3::Y * CHEST_M;
-        let near = (spot - chest).length() <= self.range_m + 0.5;
+        let near = reach_distance(chest - Vec3::Y * CHEST_M, spot) <= self.range_m + 0.5;
         near && ctx.unobstructed_distance(chest, spot) + 0.7 >= (spot - chest).length()
     }
 
@@ -8288,7 +8307,10 @@ impl GameplayModule {
                 self.state.powered_map().get(&id)
             );
         }
-        if (at - chest).length() > self.state.range_m || !visible {
+        if crate::module::reach_distance(chest - Vec3::Y * crate::module::CHEST_M, at)
+            > self.state.range_m
+            || !visible
+        {
             return;
         }
         let used = self.state.used_item(user);

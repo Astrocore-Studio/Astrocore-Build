@@ -72,7 +72,7 @@ impl State {
         if !point.is_finite()
             || ctx
                 .position_of(actor)
-                .is_none_or(|feet| feet.distance(point) > self.range_m)
+                .is_none_or(|feet| crate::module::reach_distance(feet, point) > self.range_m)
         {
             return true;
         }
@@ -147,7 +147,7 @@ impl State {
             || item.id != stack
             || count < material_step(girder.is_some(), reinforced).amount
             || floor_at(ctx, feet.y) != Some(floor)
-            || (center - (feet + Vec3::Y * CHEST_M)).length() > self.range_m
+            || crate::module::reach_distance(feet, center) > self.range_m
             || !ctx.is_unobstructed(feet + Vec3::Y * CHEST_M, center)
             || girder.is_some_and(|id| self.loose_girders.contains(&id))
             || self.girder_at(ctx, cell) != girder
@@ -545,7 +545,9 @@ impl State {
         } else {
             center
         };
-        chest.distance(target) <= self.range_m && ctx.is_unobstructed(chest, target)
+        crate::module::reach_distance(chest - Vec3::Y * crate::module::CHEST_M, target)
+            <= self.range_m
+            && ctx.is_unobstructed(chest, target)
     }
 
     pub(super) fn finish_work(

@@ -189,7 +189,9 @@ impl State {
             0.16
         };
         let face = at + delta * (margin / delta.x.abs().max(delta.z.abs()).max(margin));
-        chest.distance(face) <= self.range_m && ctx.is_unobstructed(chest, face)
+        crate::module::reach_distance(chest - Vec3::Y * crate::module::CHEST_M, face)
+            <= self.range_m
+            && ctx.is_unobstructed(chest, face)
     }
 
     pub(super) fn begin_deflate(

@@ -109,7 +109,10 @@ impl DoorElectronics {
             };
             let at = (object.min() + object.max()) * 0.5;
             let chest = feet + Vec3::Y * crate::module::CHEST_M;
-            if chest.distance(at) > st.range_m || !ctx.is_unobstructed(chest, at) {
+            if crate::module::reach_distance(chest - Vec3::Y * crate::module::CHEST_M, at)
+                > st.range_m
+                || !ctx.is_unobstructed(chest, at)
+            {
                 return None;
             }
             prototype

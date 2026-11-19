@@ -278,7 +278,7 @@ impl Monitoring {
                 .actors
                 .get(&user)
                 .is_some_and(|actor| !actor.health.state().can_act() || actor.ghost)
-            && feet.distance(at) <= st.range_m + 1.0
+            && crate::module::reach_distance(feet, at) <= st.range_m + 1.0
             && ctx.is_unobstructed(feet + Vec3::Y, at)
             && (!st.power_required || st.powered_map().get(&id) == Some(&true))
     }

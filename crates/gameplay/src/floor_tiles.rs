@@ -497,7 +497,8 @@ impl State {
             .get(&actor)
             .is_some_and(|a| !a.ghost && a.health.state().can_act())
             && floor_at(ctx, feet.y) == Some(floor)
-            && chest.distance(center) <= self.range_m
+            && crate::module::reach_distance(chest - Vec3::Y * crate::module::CHEST_M, center)
+                <= self.range_m
             && ctx.is_unobstructed(chest, center)
             && !ctx.world.elements().any(|e| {
                 e.floor == floor && matches!(e.placement, Placement::Free(p) if p.cell == cell)

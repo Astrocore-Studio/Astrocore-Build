@@ -6,12 +6,11 @@ use bevy::prelude::*;
 use bevy_egui::input::EguiWantsInput;
 use gameplay::{CMD_ATTACK, CMD_HEAL};
 
-/// На какой высоте над ступнями целиться в персонажа, м.
-/// Насколько близко луч должен пройти к груди, чтобы считать, что игрок в цель попал, м.
-const PICK_RADIUS_M: f32 = 0.55;
+/// Насколько близко по горизонтали луч должен пройти к оси тела, чтобы попасть, м.
+const PICK_RADIUS_M: f32 = 0.45;
 
 /// Высота спрайта персонажа, м.
-const BODY_M: f32 = 1.0;
+const BODY_M: f32 = gameplay::BODY_HEIGHT_M;
 
 /// Куда пришёлся выстрел по спрайту: часть тела по высоте и по смещению в сторону (смещение от
 /// камеры вправо — левая часть тела, ведь персонаж обычно смотрит на нас).
@@ -43,24 +42,24 @@ pub fn pick_target(
     candidates
         .iter()
         .filter_map(|(id, feet)| {
-            let center = *feet + Vec3::Y * (BODY_M * 0.5);
-            let along = (center - origin).dot(dir);
-            if along <= 0.0 {
-                return None;
-            }
-            let miss = (center - (origin + dir * along)).length();
-            if miss > PICK_RADIUS_M {
-                return None;
-            }
-            // Точка луча, ближайшая к вертикальной оси персонажа, даёт высоту и смещение.
+            // Тело — вертикальный отрезок от ступней до макушки: берём точку луча, ближайшую к
+            // его оси, и смотрим, в пределах ли она роста и радиуса попадания.
             let flat = Vec3::new(dir.x, 0.0, dir.z);
             let t = if flat.length_squared() > 1e-6 {
                 ((*feet - origin).dot(flat)) / flat.length_squared()
             } else {
-                along
+                (*feet + Vec3::Y * (BODY_M * 0.5) - origin).dot(dir)
             };
+            if t <= 0.0 {
+                return None;
+            }
             let p = origin + dir * t;
-            Some((*id, along, zone_of(p.y - feet.y, (p - *feet).dot(right))))
+            let height = p.y - feet.y;
+            let miss = (p.x - feet.x).hypot(p.z - feet.z);
+            if miss > PICK_RADIUS_M || !(0.0..=BODY_M).contains(&height) {
+                return None;
+            }
+            Some((*id, t, zone_of(height, (p - *feet).dot(right))))
         })
         .min_by(|a, b| a.1.total_cmp(&b.1))
         .map(|(id, _, part)| (id, part))
@@ -359,8 +358,9 @@ mod tests {
         let near = (a, Vec3::new(0.0, 0.0, -2.0));
         let far = (b, Vec3::new(0.0, 0.0, -4.0));
         let aside = (c, Vec3::new(3.0, 0.0, -1.0));
-        // Луч на высоте 0,5 м идёт в торс ближайшего.
-        let origin = Vec3::new(0.0, 0.5, 0.0);
+        // Высоты — в долях роста: луч на середине роста идёт в торс ближайшего.
+        let at = |frac: f32| frac * BODY_M;
+        let origin = Vec3::new(0.0, at(0.5), 0.0);
         assert_eq!(
             pick_target(origin, dir, &[far, near, aside]),
             Some((a, "Torso"))
@@ -373,25 +373,25 @@ mod tests {
         );
         // Выше — голова, ниже — нога, сбоку — рука.
         assert_eq!(
-            pick_target(Vec3::new(0.0, 0.9, 0.0), dir, &[near])
+            pick_target(Vec3::new(0.0, at(0.9), 0.0), dir, &[near])
                 .unwrap()
                 .1,
             "Head"
         );
         assert_eq!(
-            pick_target(Vec3::new(0.0, 0.1, 0.0), dir, &[near])
+            pick_target(Vec3::new(0.0, at(0.1), 0.0), dir, &[near])
                 .unwrap()
                 .1,
             "RightLeg"
         );
         assert_eq!(
-            pick_target(Vec3::new(0.3, 0.5, 0.0), dir, &[near])
+            pick_target(Vec3::new(0.3, at(0.5), 0.0), dir, &[near])
                 .unwrap()
                 .1,
             "LeftArm"
         );
         assert_eq!(
-            pick_target(Vec3::new(-0.3, 0.5, 0.0), dir, &[near])
+            pick_target(Vec3::new(-0.3, at(0.5), 0.0), dir, &[near])
                 .unwrap()
                 .1,
             "RightArm"

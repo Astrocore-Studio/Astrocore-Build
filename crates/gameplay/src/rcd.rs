@@ -170,7 +170,10 @@ impl State {
         } else {
             center
         };
-        if chest.distance(face) > self.range_m || !ctx.is_unobstructed(chest, face) {
+        if crate::module::reach_distance(chest - Vec3::Y * crate::module::CHEST_M, face)
+            > self.range_m
+            || !ctx.is_unobstructed(chest, face)
+        {
             return None;
         }
         let slab = ctx.world.element_at(floor, SlotKey::FloorSlab(cell));

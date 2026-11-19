@@ -291,7 +291,7 @@ impl State {
         let id = self.lab_open.get(&p).copied()?;
         let o = ctx.world.authored_object(id)?;
         let feet = ctx.position_of(p)?;
-        if (((o.min() + o.max()) * 0.5) - feet).length() > self.range_m + 1.0 {
+        if crate::module::reach_distance(feet, (o.min() + o.max()) * 0.5) > self.range_m + 1.0 {
             return None;
         }
         let AuthoredKind::Placement { prototype } = &o.kind else {
@@ -613,9 +613,9 @@ impl State {
             id,
             prototype: prototype.clone(),
         };
-        let near = ctx
-            .position_of(actor)
-            .is_some_and(|f| (((o.min() + o.max()) * 0.5) - f).length() <= self.range_m + 0.5);
+        let near = ctx.position_of(actor).is_some_and(|f| {
+            crate::module::reach_distance(f, (o.min() + o.max()) * 0.5) <= self.range_m + 0.5
+        });
         near && self.lab.mixable.contains(prototype) && self.solution_volume(&held) > 0.0
     }
 

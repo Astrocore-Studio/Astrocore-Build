@@ -723,7 +723,7 @@ fn hand_keys(
 fn nearest_item(net: &Net, range: f32) -> Option<ObjectId> {
     let world = net.core.world()?;
     let me = net.core.position();
-    let chest = MVec3::new(me.x, me.y + 1.0, me.z);
+    let chest = MVec3::new(me.x, me.y + gameplay::CHEST_M, me.z);
     world
         .authored()
         .filter(|o| matches!(o.kind, astrocore_world::AuthoredKind::Placement { .. }))
@@ -801,7 +801,7 @@ fn autoplay(
         && let Some(look) = look.as_mut()
     {
         let at = (object.min() + object.max()) * 0.5 + MVec3::Y * 0.3;
-        let delta = at - net.core.position() - MVec3::Y * 0.9;
+        let delta = at - net.core.position() - MVec3::Y * gameplay::EYE_M;
         look.yaw = (-delta.x).atan2(-delta.z);
         look.pitch = (-delta.y).atan2(delta.x.hypot(delta.z));
     }
@@ -1182,7 +1182,7 @@ fn autoplay(
                 && let Some(look) = look.as_mut()
             {
                 let at = (object.min() + object.max()) * 0.5 + MVec3::Y * 0.45;
-                let delta = at - net.core.position() - MVec3::Y * 0.9;
+                let delta = at - net.core.position() - MVec3::Y * gameplay::EYE_M;
                 look.yaw = (-delta.x).atan2(-delta.z);
                 look.pitch = (-delta.y).atan2(delta.x.hypot(delta.z));
             }
