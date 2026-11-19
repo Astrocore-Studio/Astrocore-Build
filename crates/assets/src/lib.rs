@@ -148,6 +148,21 @@ pub fn model_path(image: &str, flat: bool) -> Option<String> {
     ))
 }
 
+/// Ручная модель из MagicaVoxel рядом со сгенерированной: `Models/a.rsi/s.vox`
+/// (`s.flat.vox` для лежащей вещи).
+pub fn hand_model_path(image: &str, flat: bool) -> Option<String> {
+    Some(model_path(image, flat)?.strip_suffix(".avox")?.to_string() + ".vox")
+}
+
+/// Какую модель взять для спрайта: ручную `.vox`, если художник её положил, иначе
+/// сгенерированную `.avox`; `None` — моделей нет, рисуется спрайт.
+pub fn model_file(assets_root: &Path, image: &str, flat: bool) -> Option<String> {
+    [hand_model_path(image, flat), model_path(image, flat)]
+        .into_iter()
+        .flatten()
+        .find(|rel| assets_root.join(rel).is_file())
+}
+
 /// Пикселей спрайта SS14 на метр.
 const PIXELS_PER_METER: f32 = 32.0;
 
@@ -304,8 +319,7 @@ pub fn build_manifest(
         );
         // Воксельная модель (ADR-0002), если конвертер её сделал: тогда клиент рисует её.
         let image_rel = format!("{textures_subdir}/{image}");
-        if let Some(rel) = model_path(&image_rel, s.flat)
-            && assets_root.join(&rel).is_file()
+        if let Some(rel) = model_file(assets_root, &image_rel, s.flat)
             && let Some(obj) = sprs.get_mut(&s.id).and_then(|v| v.as_object_mut())
         {
             obj.insert("model".into(), serde_json::Value::String(rel));
@@ -455,5 +469,32 @@ mod tests {
         .unwrap();
         assert!(matches!(load_rsi(&rsi), Err(AssetError::MissingImage(..))));
         let _ = std::fs::remove_dir_all(dir);
+    }
+}
+
+#[cfg(test)]
+mod model_file_tests {
+    use super::*;
+
+    #[test]
+    fn a_hand_made_vox_wins_over_the_generated_model() {
+        let root = std::env::temp_dir().join(format!("astro-models-{}", std::process::id()));
+        let dir = root.join("Models/Objects/Tools/crowbar.rsi");
+        std::fs::create_dir_all(&dir).unwrap();
+        let image = "Textures/Objects/Tools/crowbar.rsi/icon.png";
+        assert_eq!(model_file(&root, image, true), None, "моделей нет — спрайт");
+        std::fs::write(dir.join("icon.flat.avox"), b"x").unwrap();
+        assert_eq!(
+            model_file(&root, image, true).as_deref(),
+            Some("Models/Objects/Tools/crowbar.rsi/icon.flat.avox")
+        );
+        std::fs::write(dir.join("icon.flat.vox"), b"x").unwrap();
+        assert_eq!(
+            model_file(&root, image, true).as_deref(),
+            Some("Models/Objects/Tools/crowbar.rsi/icon.flat.vox"),
+            "ручная модель важнее сгенерированной"
+        );
+        assert_eq!(model_file(&root, image, false), None, "стоячая — свой файл");
+        let _ = std::fs::remove_dir_all(&root);
     }
 }
