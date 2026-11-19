@@ -22,8 +22,24 @@ pub fn enabled() -> bool {
 /// `ASTRO_SHOWCASE=map`: вместо камеры перед персонажем — окно маппинга (вид сверху) и
 /// расставленные через него автоматы, шкафы, стул и стол.
 fn map_mode() -> bool {
-    std::env::var("ASTRO_SHOWCASE").as_deref() == Ok("map")
+    matches!(
+        std::env::var("ASTRO_SHOWCASE").as_deref(),
+        Ok("map") | Ok("tiles")
+    )
 }
+
+/// `ASTRO_SHOWCASE=tiles`: пустая карта (`mapping`) и плитки, положенные прямоугольниками.
+fn tiles_mode() -> bool {
+    std::env::var("ASTRO_SHOWCASE").as_deref() == Ok("tiles")
+}
+
+/// Что кладёт режим `tiles` (плитка или пусто, углы прямоугольника).
+const TILE_SET: &[(Option<&str>, [i32; 2], [i32; 2])] = &[
+    (Some("ss14:tile_floorsteel"), [-3, -3], [4, 3]),
+    (Some("ss14:tile_floordark"), [-1, -1], [2, 1]),
+    (Some("ss14:tile_floorwhite"), [5, -3], [7, 3]),
+    (None, [6, 0], [6, 0]),
+];
 
 /// Что расставляет режим `map` (прототип, сдвиг от персонажа по X и Z, поворот).
 const MAP_SET: &[(&str, f32, f32, u8)] = &[
@@ -44,6 +60,29 @@ pub fn commands(
     mapping: &mut crate::mapping_ui::MappingState,
 ) {
     if !enabled() {
+        return;
+    }
+    if tiles_mode() {
+        mapping.open = true;
+        mapping.tab = crate::mapping_ui::Tab::Tiles;
+        if frame == 40 {
+            net.send_command(gameplay::admin::CMD_CONSOLE, b"mapping".to_vec());
+        }
+        for (i, (tile, from, to)) in TILE_SET.iter().enumerate() {
+            if frame == 200 + 5 * i as u32 {
+                let r = gameplay::systems::mapping::TileRequest {
+                    tile: tile.map(Into::into),
+                    from: *from,
+                    to: *to,
+                    level: 0,
+                    ceiling: false,
+                };
+                net.send_command(
+                    gameplay::systems::mapping::CMD_TILE,
+                    gameplay::systems::mapping::tile_data(&r),
+                );
+            }
+        }
         return;
     }
     if map_mode() {

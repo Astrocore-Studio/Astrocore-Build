@@ -117,6 +117,10 @@ pub fn check_tile_dir(dir: &Path) -> Result<usize, AssetError> {
 pub struct MaterialSource {
     pub id: String,
     pub image: String,
+    /// Имя плитки пола SS14 (`FloorSteel`), если материал — плитка: попадает в манифест, и окно
+    /// плиток маппинга строит по нему каталог.
+    #[serde(default)]
+    pub tile: Option<String>,
 }
 
 /// Спрайт предмета: набор RSI, состояние и размер в метрах.
@@ -266,10 +270,11 @@ pub fn build_manifest(
         if !textures.join(&m.image).is_file() {
             return Err(AssetError::MissingImage(textures.clone(), m.image.clone()));
         }
-        mats.insert(
-            m.id.clone(),
-            serde_json::json!({ "image": format!("{textures_subdir}/{}", m.image) }),
-        );
+        let mut entry = serde_json::json!({ "image": format!("{textures_subdir}/{}", m.image) });
+        if let Some(tile) = &m.tile {
+            entry["tile"] = serde_json::Value::String(tile.clone());
+        }
+        mats.insert(m.id.clone(), entry);
     }
     let mut sprs = serde_json::Map::new();
     for s in sprites {
@@ -377,6 +382,7 @@ mod tests {
         let mats = [MaterialSource {
             id: "ss14:wall_solid".into(),
             image: "Structures/Walls/solid.rsi/full.png".into(),
+            tile: None,
         }];
         let sprite = |id: &str, rsi: &str, state: &str| SpriteSource {
             id: id.into(),

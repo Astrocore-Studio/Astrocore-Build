@@ -96,7 +96,7 @@ fn run(args: &[String]) -> Result<(), String> {
             "ВНИМАНИЕ: все игроки получили админ-ранг (--admin-all); только для локальной игры"
         );
     }
-    let config = RoundConfig {
+    let mut config = RoundConfig {
         admins,
         tick_hz,
         round_secs,
@@ -137,7 +137,10 @@ fn run(args: &[String]) -> Result<(), String> {
             // Раунд окончен и сводка показана. Новый раунд строится в отдельном потоке, чтобы
             // сеть не замолчала (иначе клиенты отвалятся по таймауту).
             number += 1;
-            match signal.take_map() {
+            let request = signal.take_map();
+            // Карту сменили инструменты маппинга — дальше раунды в режиме маппинга.
+            config.mapping |= request.is_some();
+            match request {
                 Some(gameplay::NextMap::Empty) => {
                     println!("новая пустая карта для маппинга");
                     map = maps::MapFile::empty("mapping");

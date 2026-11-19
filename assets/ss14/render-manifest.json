@@ -2886,325 +2886,432 @@
       "image": "Textures/Structures/Furniture/Tables/wood.rsi/full.png"
     },
     "ss14:tile_floorarcadeblue": {
-      "image": "Textures/Tiles/arcadeblue.png"
+      "image": "Textures/Tiles/arcadeblue.png",
+      "tile": "FloorArcadeBlue"
     },
     "ss14:tile_floorarcadered": {
-      "image": "Textures/Tiles/arcadered.png"
+      "image": "Textures/Tiles/arcadered.png",
+      "tile": "FloorArcadeRed"
     },
     "ss14:tile_floorasteroidironsandborderless": {
-      "image": "Textures/Tiles/Ironsand/ironsand.png"
+      "image": "Textures/Tiles/Ironsand/ironsand.png",
+      "tile": "FloorAsteroidIronsandBorderless"
     },
     "ss14:tile_floorasteroidsand": {
-      "image": "Textures/Tiles/Asteroid/asteroid.png"
+      "image": "Textures/Tiles/Asteroid/asteroid.png",
+      "tile": "FloorAsteroidSand"
     },
     "ss14:tile_floorasteroidtile": {
-      "image": "Textures/Tiles/Asteroid/asteroid-tile.png"
+      "image": "Textures/Tiles/Asteroid/asteroid-tile.png",
+      "tile": "FloorAsteroidTile"
     },
     "ss14:tile_floorastroice": {
-      "image": "Textures/Tiles/Ice/ice.png"
+      "image": "Textures/Tiles/Ice/ice.png",
+      "tile": "FloorAstroIce"
     },
     "ss14:tile_floorbar": {
-      "image": "Textures/Tiles/Checker/checker-bar.png"
+      "image": "Textures/Tiles/Checker/checker-bar.png",
+      "tile": "FloorBar"
     },
     "ss14:tile_floorbasalt": {
-      "image": "Textures/Tiles/Cave/cave.png"
+      "image": "Textures/Tiles/Cave/cave.png",
+      "tile": "FloorBasalt"
     },
     "ss14:tile_floorblue": {
-      "image": "Textures/Tiles/blue.png"
+      "image": "Textures/Tiles/blue.png",
+      "tile": "FloorBlue"
     },
     "ss14:tile_floorbluecircuit": {
-      "image": "Textures/Tiles/Circuit/circuit-blue.png"
+      "image": "Textures/Tiles/Circuit/circuit-blue.png",
+      "tile": "FloorBlueCircuit"
     },
     "ss14:tile_floorboxing": {
-      "image": "Textures/Tiles/boxing.png"
+      "image": "Textures/Tiles/boxing.png",
+      "tile": "FloorBoxing"
     },
     "ss14:tile_floorbrokenwood": {
-      "image": "Textures/Tiles/Wood/wood-broken.png"
+      "image": "Textures/Tiles/Wood/wood-broken.png",
+      "tile": "FloorBrokenWood"
     },
     "ss14:tile_floorcarpetclown": {
-      "image": "Textures/Tiles/carpetclown.png"
+      "image": "Textures/Tiles/carpetclown.png",
+      "tile": "FloorCarpetClown"
     },
     "ss14:tile_floorcarpetoffice": {
-      "image": "Textures/Tiles/carpetoffice.png"
+      "image": "Textures/Tiles/carpetoffice.png",
+      "tile": "FloorCarpetOffice"
     },
     "ss14:tile_floorcave": {
-      "image": "Textures/Tiles/Cave/cave.png"
+      "image": "Textures/Tiles/Cave/cave.png",
+      "tile": "FloorCave"
     },
     "ss14:tile_floorchromite": {
-      "image": "Textures/Tiles/Chromite/chromite.png"
+      "image": "Textures/Tiles/Chromite/chromite.png",
+      "tile": "FloorChromite"
     },
     "ss14:tile_floorclown": {
-      "image": "Textures/Tiles/Checker/checker-clown.png"
+      "image": "Textures/Tiles/Checker/checker-clown.png",
+      "tile": "FloorClown"
     },
     "ss14:tile_floorconcretemono": {
-      "image": "Textures/Tiles/Concrete/concrete-mono.png"
+      "image": "Textures/Tiles/Concrete/concrete-mono.png",
+      "tile": "FloorConcreteMono"
     },
     "ss14:tile_floorconcretesmooth": {
-      "image": "Textures/Tiles/Concrete/concrete-smooth.png"
+      "image": "Textures/Tiles/Concrete/concrete-smooth.png",
+      "tile": "FloorConcreteSmooth"
     },
     "ss14:tile_floordark": {
-      "image": "Textures/Tiles/Basic/Dark/dark.png"
+      "image": "Textures/Tiles/Basic/Dark/dark.png",
+      "tile": "FloorDark"
     },
     "ss14:tile_floordarkherringbone": {
-      "image": "Textures/Tiles/Basic/Dark/dark-herringbone.png"
+      "image": "Textures/Tiles/Basic/Dark/dark-herringbone.png",
+      "tile": "FloorDarkHerringbone"
     },
     "ss14:tile_floordarkhorizontalslatsbordered": {
-      "image": "Textures/Tiles/Basic/Dark/dark-horizontal-slats.png"
+      "image": "Textures/Tiles/Basic/Dark/dark-horizontal-slats.png",
+      "tile": "FloorDarkHorizontalSlatsBordered"
     },
     "ss14:tile_floordarkmarble": {
-      "image": "Textures/Tiles/Marble/dark-marble.png"
+      "image": "Textures/Tiles/Marble/dark-marble.png",
+      "tile": "FloorDarkMarble"
     },
     "ss14:tile_floordarkmarblemono": {
-      "image": "Textures/Tiles/Marble/dark-marble-mono.png"
+      "image": "Textures/Tiles/Marble/dark-marble-mono.png",
+      "tile": "FloorDarkMarbleMono"
     },
     "ss14:tile_floordarkmini": {
-      "image": "Textures/Tiles/Basic/Dark/dark-mini.png"
+      "image": "Textures/Tiles/Basic/Dark/dark-mini.png",
+      "tile": "FloorDarkMini"
     },
     "ss14:tile_floordarkmono": {
-      "image": "Textures/Tiles/Basic/Dark/dark-mono.png"
+      "image": "Textures/Tiles/Basic/Dark/dark-mono.png",
+      "tile": "FloorDarkMono"
     },
     "ss14:tile_floordarkpavement": {
-      "image": "Textures/Tiles/Basic/Dark/dark-pavement.png"
+      "image": "Textures/Tiles/Basic/Dark/dark-pavement.png",
+      "tile": "FloorDarkPavement"
     },
     "ss14:tile_floordarkpavementvertical": {
-      "image": "Textures/Tiles/Basic/Dark/dark-pavement-vertical.png"
+      "image": "Textures/Tiles/Basic/Dark/dark-pavement-vertical.png",
+      "tile": "FloorDarkPavementVertical"
     },
     "ss14:tile_floordarkplastic": {
-      "image": "Textures/Tiles/Basic/Dark/dark-plastic.png"
+      "image": "Textures/Tiles/Basic/Dark/dark-plastic.png",
+      "tile": "FloorDarkPlastic"
     },
     "ss14:tile_floordarkverticalslatsbordered": {
-      "image": "Textures/Tiles/Basic/Dark/dark-vertical-slats.png"
+      "image": "Textures/Tiles/Basic/Dark/dark-vertical-slats.png",
+      "tile": "FloorDarkVerticalSlatsBordered"
     },
     "ss14:tile_floordesertastrosand": {
-      "image": "Textures/Tiles/Desert/desert.png"
+      "image": "Textures/Tiles/Desert/desert.png",
+      "tile": "FloorDesertAstroSand"
     },
     "ss14:tile_floordirt": {
-      "image": "Textures/Tiles/Dirt/dirt.png"
+      "image": "Textures/Tiles/Dirt/dirt.png",
+      "tile": "FloorDirt"
     },
     "ss14:tile_floorexoborg": {
-      "image": "Textures/Tiles/Exo/exo-borg.png"
+      "image": "Textures/Tiles/Exo/exo-borg.png",
+      "tile": "FloorExoBorg"
     },
     "ss14:tile_floorexocornerne": {
-      "image": "Textures/Tiles/Exo/exo-NE.png"
+      "image": "Textures/Tiles/Exo/exo-NE.png",
+      "tile": "FloorExoCornerNE"
     },
     "ss14:tile_floorexocornernw": {
-      "image": "Textures/Tiles/Exo/exo-NW.png"
+      "image": "Textures/Tiles/Exo/exo-NW.png",
+      "tile": "FloorExoCornerNW"
     },
     "ss14:tile_floorexocornerse": {
-      "image": "Textures/Tiles/Exo/exo-SE.png"
+      "image": "Textures/Tiles/Exo/exo-SE.png",
+      "tile": "FloorExoCornerSE"
     },
     "ss14:tile_floorexocornersw": {
-      "image": "Textures/Tiles/Exo/exo-SW.png"
+      "image": "Textures/Tiles/Exo/exo-SW.png",
+      "tile": "FloorExoCornerSW"
     },
     "ss14:tile_floorexohorizontal": {
-      "image": "Textures/Tiles/Exo/exo-horizontal.png"
+      "image": "Textures/Tiles/Exo/exo-horizontal.png",
+      "tile": "FloorExoHorizontal"
     },
     "ss14:tile_floorexohull": {
-      "image": "Textures/Tiles/Exo/exo-hull.png"
+      "image": "Textures/Tiles/Exo/exo-hull.png",
+      "tile": "FloorExoHull"
     },
     "ss14:tile_floorexotechmaint": {
-      "image": "Textures/Tiles/Exo/exo-maint.png"
+      "image": "Textures/Tiles/Exo/exo-maint.png",
+      "tile": "FloorExoTechmaint"
     },
     "ss14:tile_floorexovertical": {
-      "image": "Textures/Tiles/Exo/exo-vertical.png"
+      "image": "Textures/Tiles/Exo/exo-vertical.png",
+      "tile": "FloorExoVertical"
     },
     "ss14:tile_floorflesh": {
-      "image": "Textures/Tiles/meat.png"
+      "image": "Textures/Tiles/meat.png",
+      "tile": "FloorFlesh"
     },
     "ss14:tile_floorfreezer": {
-      "image": "Textures/Tiles/freezer.png"
+      "image": "Textures/Tiles/freezer.png",
+      "tile": "FloorFreezer"
     },
     "ss14:tile_floorglassplasma": {
-      "image": "Textures/Tiles/Glass/glass-plasma.png"
+      "image": "Textures/Tiles/Glass/glass-plasma.png",
+      "tile": "FloorGlassPlasma"
     },
     "ss14:tile_floorglassplastitanium": {
-      "image": "Textures/Tiles/Glass/glass-plastitanium.png"
+      "image": "Textures/Tiles/Glass/glass-plastitanium.png",
+      "tile": "FloorGlassPlastitanium"
     },
     "ss14:tile_floorglassuranium": {
-      "image": "Textures/Tiles/Glass/glass-uranium.png"
+      "image": "Textures/Tiles/Glass/glass-uranium.png",
+      "tile": "FloorGlassUranium"
     },
     "ss14:tile_floorgold": {
-      "image": "Textures/Tiles/gold.png"
+      "image": "Textures/Tiles/gold.png",
+      "tile": "FloorGold"
     },
     "ss14:tile_floorgrass": {
-      "image": "Textures/Tiles/Grass/grass.png"
+      "image": "Textures/Tiles/Grass/grass.png",
+      "tile": "FloorGrass"
     },
     "ss14:tile_floorgrassdark": {
-      "image": "Textures/Tiles/GrassDark/grass.png"
+      "image": "Textures/Tiles/GrassDark/grass.png",
+      "tile": "FloorGrassDark"
     },
     "ss14:tile_floorgrassjungle": {
-      "image": "Textures/Tiles/GrassJungle/grass.png"
+      "image": "Textures/Tiles/GrassJungle/grass.png",
+      "tile": "FloorGrassJungle"
     },
     "ss14:tile_floorgym": {
-      "image": "Textures/Tiles/gym.png"
+      "image": "Textures/Tiles/gym.png",
+      "tile": "FloorGym"
     },
     "ss14:tile_floorhull": {
-      "image": "Textures/Tiles/hull.png"
+      "image": "Textures/Tiles/hull.png",
+      "tile": "FloorHull"
     },
     "ss14:tile_floorhullreinforced": {
-      "image": "Textures/Tiles/debug-indestructible.png"
+      "image": "Textures/Tiles/debug-indestructible.png",
+      "tile": "FloorHullReinforced"
     },
     "ss14:tile_floorkitchen": {
-      "image": "Textures/Tiles/Checker/checker-kitchen.png"
+      "image": "Textures/Tiles/Checker/checker-kitchen.png",
+      "tile": "FloorKitchen"
     },
     "ss14:tile_floorlaundry": {
-      "image": "Textures/Tiles/Checker/checker-laundry.png"
+      "image": "Textures/Tiles/Checker/checker-laundry.png",
+      "tile": "FloorLaundry"
     },
     "ss14:tile_floorlino": {
-      "image": "Textures/Tiles/lino.png"
+      "image": "Textures/Tiles/lino.png",
+      "tile": "FloorLino"
     },
     "ss14:tile_floormetaldiamond": {
-      "image": "Textures/Tiles/metaldiamond.png"
+      "image": "Textures/Tiles/metaldiamond.png",
+      "tile": "FloorMetalDiamond"
     },
     "ss14:tile_floormetalfoam": {
-      "image": "Textures/Tiles/foammetal.png"
+      "image": "Textures/Tiles/foammetal.png",
+      "tile": "FloorMetalFoam"
     },
     "ss14:tile_floormime": {
-      "image": "Textures/Tiles/Checker/checker-mime.png"
+      "image": "Textures/Tiles/Checker/checker-mime.png",
+      "tile": "FloorMime"
     },
     "ss14:tile_floorplastic": {
-      "image": "Textures/Tiles/Basic/Gray/gray-plastic.png"
+      "image": "Textures/Tiles/Basic/Gray/gray-plastic.png",
+      "tile": "FloorPlastic"
     },
     "ss14:tile_floorredcircuit": {
-      "image": "Textures/Tiles/Circuit/circuit-red.png"
+      "image": "Textures/Tiles/Circuit/circuit-red.png",
+      "tile": "FloorRedCircuit"
     },
     "ss14:tile_floorreinforced": {
-      "image": "Textures/Tiles/reinforced.png"
+      "image": "Textures/Tiles/reinforced.png",
+      "tile": "FloorReinforced"
     },
     "ss14:tile_floorreinforcedhardened": {
-      "image": "Textures/Tiles/super_reinforced.png"
+      "image": "Textures/Tiles/super_reinforced.png",
+      "tile": "FloorReinforcedHardened"
     },
     "ss14:tile_floorrglass": {
-      "image": "Textures/Tiles/Glass/glass-reinf.png"
+      "image": "Textures/Tiles/Glass/glass-reinf.png",
+      "tile": "FloorRGlass"
     },
     "ss14:tile_floorshuttleblack": {
-      "image": "Textures/Tiles/Shuttle/shuttle-black.png"
+      "image": "Textures/Tiles/Shuttle/shuttle-black.png",
+      "tile": "FloorShuttleBlack"
     },
     "ss14:tile_floorshuttleblue": {
-      "image": "Textures/Tiles/Shuttle/shuttle-blue.png"
+      "image": "Textures/Tiles/Shuttle/shuttle-blue.png",
+      "tile": "FloorShuttleBlue"
     },
     "ss14:tile_floorshuttlegrey": {
-      "image": "Textures/Tiles/Shuttle/shuttle-gray.png"
+      "image": "Textures/Tiles/Shuttle/shuttle-gray.png",
+      "tile": "FloorShuttleGrey"
     },
     "ss14:tile_floorshuttleorange": {
-      "image": "Textures/Tiles/Shuttle/shuttle-orange.png"
+      "image": "Textures/Tiles/Shuttle/shuttle-orange.png",
+      "tile": "FloorShuttleOrange"
     },
     "ss14:tile_floorshuttlepurple": {
-      "image": "Textures/Tiles/Shuttle/shuttle-purple.png"
+      "image": "Textures/Tiles/Shuttle/shuttle-purple.png",
+      "tile": "FloorShuttlePurple"
     },
     "ss14:tile_floorshuttlered": {
-      "image": "Textures/Tiles/Shuttle/shuttle-red.png"
+      "image": "Textures/Tiles/Shuttle/shuttle-red.png",
+      "tile": "FloorShuttleRed"
     },
     "ss14:tile_floorsilver": {
-      "image": "Textures/Tiles/silver.png"
+      "image": "Textures/Tiles/silver.png",
+      "tile": "FloorSilver"
     },
     "ss14:tile_floorsnow": {
-      "image": "Textures/Tiles/Snow/snow.png"
+      "image": "Textures/Tiles/Snow/snow.png",
+      "tile": "FloorSnow"
     },
     "ss14:tile_floorsteel": {
-      "image": "Textures/Tiles/Basic/Gray/gray.png"
+      "image": "Textures/Tiles/Basic/Gray/gray.png",
+      "tile": "FloorSteel"
     },
     "ss14:tile_floorsteelcheckerdark": {
-      "image": "Textures/Tiles/Checker/checker-dark.png"
+      "image": "Textures/Tiles/Checker/checker-dark.png",
+      "tile": "FloorSteelCheckerDark"
     },
     "ss14:tile_floorsteelcheckerlight": {
-      "image": "Textures/Tiles/Checker/checker-light.png"
+      "image": "Textures/Tiles/Checker/checker-light.png",
+      "tile": "FloorSteelCheckerLight"
     },
     "ss14:tile_floorsteeldamaged": {
-      "image": "Textures/Tiles/Basic/Gray/gray-damaged.png"
+      "image": "Textures/Tiles/Basic/Gray/gray-damaged.png",
+      "tile": "FloorSteelDamaged"
     },
     "ss14:tile_floorsteelherringbone": {
-      "image": "Textures/Tiles/Basic/Gray/gray-herringbone.png"
+      "image": "Textures/Tiles/Basic/Gray/gray-herringbone.png",
+      "tile": "FloorSteelHerringbone"
     },
     "ss14:tile_floorsteelhorizontalslatsbordered": {
-      "image": "Textures/Tiles/Basic/Gray/gray-horizontal-slats.png"
+      "image": "Textures/Tiles/Basic/Gray/gray-horizontal-slats.png",
+      "tile": "FloorSteelHorizontalSlatsBordered"
     },
     "ss14:tile_floorsteellime": {
-      "image": "Textures/Tiles/lime.png"
+      "image": "Textures/Tiles/lime.png",
+      "tile": "FloorSteelLime"
     },
     "ss14:tile_floorsteelmini": {
-      "image": "Textures/Tiles/Basic/Gray/gray-mini.png"
+      "image": "Textures/Tiles/Basic/Gray/gray-mini.png",
+      "tile": "FloorSteelMini"
     },
     "ss14:tile_floorsteelmono": {
-      "image": "Textures/Tiles/Basic/Gray/gray-mono.png"
+      "image": "Textures/Tiles/Basic/Gray/gray-mono.png",
+      "tile": "FloorSteelMono"
     },
     "ss14:tile_floorsteelpavement": {
-      "image": "Textures/Tiles/Basic/Gray/gray-pavement.png"
+      "image": "Textures/Tiles/Basic/Gray/gray-pavement.png",
+      "tile": "FloorSteelPavement"
     },
     "ss14:tile_floorsteelpavementvertical": {
-      "image": "Textures/Tiles/Basic/Gray/gray-pavement-vertical.png"
+      "image": "Textures/Tiles/Basic/Gray/gray-pavement-vertical.png",
+      "tile": "FloorSteelPavementVertical"
     },
     "ss14:tile_floorsteelverticalslatsbordered": {
-      "image": "Textures/Tiles/Basic/Gray/gray-vertical-slats.png"
+      "image": "Textures/Tiles/Basic/Gray/gray-vertical-slats.png",
+      "tile": "FloorSteelVerticalSlatsBordered"
     },
     "ss14:tile_floortechmaint2": {
-      "image": "Textures/Tiles/Basic/Gray/gray-maint.png"
+      "image": "Textures/Tiles/Basic/Gray/gray-maint.png",
+      "tile": "FloorTechMaint2"
     },
     "ss14:tile_floortechmaint3": {
-      "image": "Textures/Tiles/grating-maint.png"
+      "image": "Textures/Tiles/grating-maint.png",
+      "tile": "FloorTechMaint3"
     },
     "ss14:tile_floortechmaintdark": {
-      "image": "Textures/Tiles/Basic/Dark/dark-maint.png"
+      "image": "Textures/Tiles/Basic/Dark/dark-maint.png",
+      "tile": "FloorTechMaintDark"
     },
     "ss14:tile_floorwebtile": {
-      "image": "Textures/Tiles/web.png"
+      "image": "Textures/Tiles/web.png",
+      "tile": "FloorWebTile"
     },
     "ss14:tile_floorwhite": {
-      "image": "Textures/Tiles/Basic/White/white.png"
+      "image": "Textures/Tiles/Basic/White/white.png",
+      "tile": "FloorWhite"
     },
     "ss14:tile_floorwhiteherringbone": {
-      "image": "Textures/Tiles/Basic/White/white-herringbone.png"
+      "image": "Textures/Tiles/Basic/White/white-herringbone.png",
+      "tile": "FloorWhiteHerringbone"
     },
     "ss14:tile_floorwhitehorizontalslatsbordered": {
-      "image": "Textures/Tiles/Basic/White/white-horizontal-slats.png"
+      "image": "Textures/Tiles/Basic/White/white-horizontal-slats.png",
+      "tile": "FloorWhiteHorizontalSlatsBordered"
     },
     "ss14:tile_floorwhitemarblemono": {
-      "image": "Textures/Tiles/Marble/white-marble-mono.png"
+      "image": "Textures/Tiles/Marble/white-marble-mono.png",
+      "tile": "FloorWhiteMarbleMono"
     },
     "ss14:tile_floorwhitemini": {
-      "image": "Textures/Tiles/Basic/White/white-mini.png"
+      "image": "Textures/Tiles/Basic/White/white-mini.png",
+      "tile": "FloorWhiteMini"
     },
     "ss14:tile_floorwhitemono": {
-      "image": "Textures/Tiles/Basic/White/white-mono.png"
+      "image": "Textures/Tiles/Basic/White/white-mono.png",
+      "tile": "FloorWhiteMono"
     },
     "ss14:tile_floorwhitepavement": {
-      "image": "Textures/Tiles/Basic/White/white-pavement.png"
+      "image": "Textures/Tiles/Basic/White/white-pavement.png",
+      "tile": "FloorWhitePavement"
     },
     "ss14:tile_floorwhitepavementvertical": {
-      "image": "Textures/Tiles/Basic/White/white-pavement-vertical.png"
+      "image": "Textures/Tiles/Basic/White/white-pavement-vertical.png",
+      "tile": "FloorWhitePavementVertical"
     },
     "ss14:tile_floorwhiteplastic": {
-      "image": "Textures/Tiles/Basic/White/white-plastic.png"
+      "image": "Textures/Tiles/Basic/White/white-plastic.png",
+      "tile": "FloorWhitePlastic"
     },
     "ss14:tile_floorwhiteverticalslatsbordered": {
-      "image": "Textures/Tiles/Basic/White/white-vertical-slats.png"
+      "image": "Textures/Tiles/Basic/White/white-vertical-slats.png",
+      "tile": "FloorWhiteVerticalSlatsBordered"
     },
     "ss14:tile_floorwood": {
-      "image": "Textures/Tiles/Wood/wood.png"
+      "image": "Textures/Tiles/Wood/wood.png",
+      "tile": "FloorWood"
     },
     "ss14:tile_floorwoodlarge": {
-      "image": "Textures/Tiles/Wood/wood-large.png"
+      "image": "Textures/Tiles/Wood/wood-large.png",
+      "tile": "FloorWoodLarge"
     },
     "ss14:tile_floorwoodtile": {
-      "image": "Textures/Tiles/Wood/wood-tile.png"
+      "image": "Textures/Tiles/Wood/wood-tile.png",
+      "tile": "FloorWoodTile"
     },
     "ss14:tile_lattice": {
-      "image": "Textures/Tiles/lattice.png"
+      "image": "Textures/Tiles/lattice.png",
+      "tile": "Lattice"
     },
     "ss14:tile_plating": {
-      "image": "Textures/Tiles/plating.png"
+      "image": "Textures/Tiles/plating.png",
+      "tile": "Plating"
     },
     "ss14:tile_platingasteroid": {
-      "image": "Textures/Tiles/Asteroid/asteroid-plating.png"
+      "image": "Textures/Tiles/Asteroid/asteroid-plating.png",
+      "tile": "PlatingAsteroid"
     },
     "ss14:tile_platingdamaged": {
-      "image": "Textures/Tiles/plating-damaged.png"
+      "image": "Textures/Tiles/plating-damaged.png",
+      "tile": "PlatingDamaged"
     },
     "ss14:tile_platingrcd": {
-      "image": "Textures/Tiles/plating.png"
+      "image": "Textures/Tiles/plating.png",
+      "tile": "PlatingRCD"
     },
     "ss14:tile_platingsnow": {
-      "image": "Textures/Tiles/Snow/snow-plating.png"
+      "image": "Textures/Tiles/Snow/snow-plating.png",
+      "tile": "PlatingSnow"
     },
     "ss14:tinted_window": {
       "image": "Textures/Structures/Windows/window-tinted.rsi/full.png"

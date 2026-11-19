@@ -395,6 +395,10 @@ pub struct State {
     pub(crate) spawn: Option<Vec3>,
     /// Папка, куда команда `savemap` пишет карты; `None` — сохранение выключено.
     pub(crate) map_dir: Option<std::path::PathBuf>,
+    /// Режим маппинга: все входят админ-призраками, раунд не заканчивается.
+    pub(crate) mapping_mode: bool,
+    /// Материалы плиток пола (`ss14:tile_…`), которые можно класть маппингом.
+    pub(crate) tiles: BTreeSet<PrototypeId>,
     /// Сколько тел оставлено (для идентификаторов).
     pub(crate) corpses: u32,
     /// Атмосфера по этажам.
@@ -1128,6 +1132,8 @@ impl State {
             charges: BTreeMap::new(),
             spawn: None,
             map_dir: None,
+            mapping_mode: false,
+            tiles: BTreeSet::new(),
             corpses: 0,
             atmos: atmos::Grid::new(),
             speed_sent: BTreeMap::new(),
@@ -5292,7 +5298,7 @@ impl State {
             return;
         }
         self.round.clock += dt;
-        if self.round.ended.is_none() {
+        if self.round.ended.is_none() && !self.mapping_mode {
             let alive = |a: &NetworkEntityId| {
                 self.actors.get(a).is_some_and(|x| {
                     !x.ghost && !matches!(x.health.state(), crate::health::MobState::Dead)
@@ -7302,6 +7308,15 @@ impl State {
         }
         for p in fresh {
             self.placed.insert(p);
+            if self.mapping_mode {
+                let clock = self.clock;
+                let a = self.actor(p);
+                a.ghost = true;
+                a.admin_ghost = true;
+                a.respawn_at = clock;
+                ctx.set_ghost(p, true);
+                self.publish(ctx, p);
+            }
             // Своя точка должности, иначе точка позднего входа.
             let own = self
                 .player_job
@@ -8175,6 +8190,21 @@ impl GameplayModule {
     #[must_use]
     pub fn with_spawn(mut self, spawn: Vec3) -> Self {
         self.state.spawn = Some(spawn);
+        self
+    }
+
+    /// Режим маппинга (`mapping`, `loadmap`): все входят админ-призраками (летают, вид сверху),
+    /// раунд не заканчивается — на пустой карте нет воздуха.
+    #[must_use]
+    pub fn with_mapping_mode(mut self) -> Self {
+        self.state.mapping_mode = true;
+        self
+    }
+
+    /// Плитки пола для окна плиток маппинга (материалы движка `ss14:tile_…`).
+    #[must_use]
+    pub fn with_tiles(mut self, tiles: impl IntoIterator<Item = PrototypeId>) -> Self {
+        self.state.tiles = tiles.into_iter().collect();
         self
     }
 

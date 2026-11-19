@@ -69,6 +69,37 @@ pub struct Icons {
     sheets: HashMap<String, IconSheet>,
     /// Названия прототипов для подсказки под прицелом.
     names: HashMap<String, AimInfo>,
+    /// Плитки пола для окна плиток маппинга (по имени).
+    tiles: Vec<TileEntry>,
+}
+
+/// Плитка пола из манифеста рендера: материал движка, имя плитки SS14 и картинка.
+#[derive(Clone, Debug, PartialEq)]
+pub struct TileEntry {
+    pub id: String,
+    pub name: String,
+    pub image: String,
+}
+
+/// Плитки из материалов манифеста: у плитки есть поле `tile` (имя SS14).
+pub fn tiles_of(manifest: &serde_json::Value) -> Vec<TileEntry> {
+    let mut out: Vec<TileEntry> = manifest
+        .get("materials")
+        .and_then(|m| m.as_object())
+        .map(|m| {
+            m.iter()
+                .filter_map(|(id, e)| {
+                    Some(TileEntry {
+                        id: id.clone(),
+                        name: e.get("tile")?.as_str()?.to_string(),
+                        image: e.get("image")?.as_str()?.to_string(),
+                    })
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+    out.sort_by(|a, b| a.name.cmp(&b.name));
+    out
 }
 
 /// Лист кадров значка: ячейки по строкам слева направо, первое направление.
@@ -119,6 +150,7 @@ impl Icons {
             first_frames: HashMap::new(),
             sheets: HashMap::new(),
             names: HashMap::new(),
+            tiles: Vec::new(),
         }
     }
 
@@ -135,6 +167,11 @@ impl Icons {
                 .then(a.0.cmp(&b.0))
         });
         out
+    }
+
+    /// Плитки пола для окна плиток маппинга.
+    pub(crate) fn tiles(&self) -> &[TileEntry] {
+        &self.tiles
     }
 
     /// Значок прототипа для списков (как у предметов в руках).
@@ -225,9 +262,15 @@ impl Icons {
                 })
             })
             .unwrap_or_default();
+        let tiles = std::fs::read(path)
+            .ok()
+            .and_then(|b| serde_json::from_slice::<serde_json::Value>(&b).ok())
+            .map(|v| tiles_of(&v))
+            .unwrap_or_default();
         let mut icons = Self::new(root, items);
         icons.names = names;
         icons.sheets = sheets;
+        icons.tiles = tiles;
         icons
     }
 

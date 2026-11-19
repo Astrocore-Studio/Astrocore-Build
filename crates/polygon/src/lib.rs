@@ -181,6 +181,7 @@ pub fn load_materials(content: &Path) -> Result<Vec<MaterialSource>, PolygonErro
         list.push(MaterialSource {
             id: tile_material_id(&t.tile),
             image: t.image,
+            tile: Some(t.tile),
         });
     }
     Ok(list)

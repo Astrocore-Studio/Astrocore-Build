@@ -36,6 +36,9 @@ pub struct RoundConfig {
     pub auto_jobs: bool,
     /// Куда команда `savemap` пишет карты; `None` — команда сообщает, что сохранение выключено.
     pub map_dir: Option<std::path::PathBuf>,
+    /// Режим маппинга (после `mapping` и `loadmap`): без лобби и конца раунда, все входят
+    /// админ-призраками — на пустой карте нет воздуха, и строить удобнее сверху.
+    pub mapping: bool,
 }
 
 impl Default for RoundConfig {
@@ -49,6 +52,7 @@ impl Default for RoundConfig {
             admins: gameplay::admin::AdminRoster::default(),
             auto_jobs: true,
             map_dir: None,
+            mapping: false,
         }
     }
 }
@@ -103,6 +107,13 @@ impl Round {
         } else {
             module
         };
+        let tiles = polygon::load_tiles(content)?
+            .iter()
+            .filter_map(|t| {
+                astrocore_core::PrototypeId::new(polygon::tile_material_id(&t.tile)).ok()
+            })
+            .collect::<Vec<_>>();
+        let module = module.with_tiles(tiles);
         let module = match &config.map_dir {
             Some(dir) => module.with_map_dir(dir),
             None => module,
@@ -116,8 +127,13 @@ impl Round {
         let signal = gameplay::RoundSignal::new();
         let module = module.with_round_end(signal.clone(), config.round_secs);
         let module = match config.lobby_secs {
-            Some(secs) => module.with_lobby(secs, number),
-            None => module,
+            Some(secs) if !config.mapping => module.with_lobby(secs, number),
+            _ => module,
+        };
+        let module = if config.mapping {
+            module.with_mapping_mode()
+        } else {
+            module
         };
         modules
             .register(Box::new(module))

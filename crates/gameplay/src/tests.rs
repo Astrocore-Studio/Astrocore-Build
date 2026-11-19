@@ -6,7 +6,9 @@ use astrocore_math::glam::Vec3;
 use astrocore_network::client::ClientEvent;
 use astrocore_network::server::{ConnId, GameServer};
 use astrocore_network::testkit::{ByBuild, Harness, test_world};
-use astrocore_world::{AuthoredKind, AuthoredObject, FloorId, WorldCommand};
+use astrocore_world::{
+    AuthoredKind, AuthoredObject, FloorId, Placement, StructureKind, WorldCommand,
+};
 use prototypes::PrototypeRegistry;
 
 use crate::*;
@@ -3004,6 +3006,107 @@ mod disposal_tests {
         );
         h.ticks(5);
         assert!(placements_of(&h, a, cola).is_empty(), "удалён");
+    }
+
+    fn map_tiles(h: &mut Harness, who: ConnId, r: &crate::systems::mapping::TileRequest) {
+        command(
+            h,
+            who,
+            crate::systems::mapping::CMD_TILE,
+            crate::systems::mapping::tile_data(r),
+        );
+        h.ticks(5);
+    }
+
+    /// Плиты на уровне в прямоугольнике: (вид, клетка, материал).
+    fn slabs(h: &Harness, who: ConnId, level: i32) -> Vec<(StructureKind, (i32, i32), String)> {
+        let w = h.client(who).world().unwrap();
+        let mut out: Vec<_> = w
+            .elements()
+            .filter(|e| e.floor.0 == level)
+            .filter_map(|e| match e.placement {
+                Placement::Cell(c) if (40..=45).contains(&c.x) => {
+                    Some((e.kind, (c.x, c.z), e.material.as_str().to_string()))
+                }
+                _ => None,
+            })
+            .collect();
+        out.sort_by_key(|(k, c, _)| (*c, matches!(k, StructureKind::Ceiling)));
+        out
+    }
+
+    #[test]
+    fn in_mapping_mode_everyone_enters_as_an_admin_ghost_and_the_round_never_ends() {
+        let signal = crate::RoundSignal::new();
+        let s = signal.clone();
+        let mut h = harness_with(move |m| {
+            m.with_mapping_mode()
+                .with_auto_jobs()
+                .with_round_end(s, Some(1.0))
+        });
+        let a = h.join("a");
+        h.ticks(200);
+        let net = h.client(a).net_id().unwrap();
+        let ghost = h
+            .client(a)
+            .component(net, crate::GHOST_COMPONENT)
+            .map(|b| b[0]);
+        assert_eq!(ghost, Some(1), "вошёл призраком");
+        assert!(!signal.take(), "ни гибели экипажа, ни предела времени");
+    }
+
+    #[test]
+    fn a_mapper_lays_and_erases_floor_tiles_by_rectangle() {
+        use crate::systems::mapping::TileRequest;
+        let token = "fedcba9876543210fedcba9876543210";
+        let steel = "ss14:tile_floorsteel";
+        let dark = "ss14:tile_floordark";
+        let mut h = harness_with(move |m| {
+            m.with_admins(admin_roster(token, "Mapper"))
+                .with_tiles([steel, dark].map(|t| astrocore_core::PrototypeId::new(t).unwrap()))
+        });
+        let (a, guest) = (h.join("a"), h.join("guest"));
+        h.ticks(10);
+        hello(&mut h, a, token);
+        let rect = |tile: Option<&str>, to: [i32; 2], ceiling: bool| TileRequest {
+            tile: tile.map(Into::into),
+            from: [40, 40],
+            to,
+            level: 0,
+            ceiling,
+        };
+        // Гостю нельзя.
+        map_tiles(&mut h, guest, &rect(Some(steel), [41, 41], true));
+        assert!(slabs(&h, a, 0).is_empty());
+        // Пол с потолком на 2 × 2.
+        map_tiles(&mut h, a, &rect(Some(steel), [41, 41], true));
+        let laid = slabs(&h, a, 0);
+        assert_eq!(laid.len(), 8, "{laid:?}");
+        assert!(laid.iter().all(|(_, _, m)| m == steel));
+        // Другая плитка заменяет пол, без потолка — потолок убран.
+        map_tiles(&mut h, a, &rect(Some(dark), [40, 40], false));
+        let one = slabs(&h, a, 0);
+        let cell: Vec<_> = one.iter().filter(|(_, c, _)| *c == (40, 40)).collect();
+        assert_eq!(cell.len(), 1, "{one:?}");
+        assert_eq!(cell[0].0, StructureKind::Floor);
+        assert_eq!(cell[0].2, dark);
+        // Пустая плитка убирает всё.
+        map_tiles(&mut h, a, &rect(None, [41, 41], false));
+        assert!(slabs(&h, a, 0).is_empty());
+        // Неизвестная плитка и слишком большой прямоугольник — ничего.
+        map_tiles(&mut h, a, &rect(Some("ss14:tile_nope"), [41, 41], false));
+        map_tiles(&mut h, a, &rect(Some(steel), [400, 400], false));
+        assert!(slabs(&h, a, 0).is_empty());
+        // Уровня 3 ещё нет: он создаётся сам, над остальными.
+        let up = TileRequest {
+            level: 3,
+            ..rect(Some(steel), [40, 40], false)
+        };
+        map_tiles(&mut h, a, &up);
+        assert_eq!(slabs(&h, a, 3).len(), 1);
+        let w = h.client(a).world().unwrap();
+        let level3 = w.floor(FloorId(3)).expect("уровень создан");
+        assert!(w.floors().all(|f| f.id.0 == 3 || f.base_y < level3.base_y));
     }
 
     fn chat_of(h: &Harness, who: ConnId) -> Vec<crate::ChatLine> {
