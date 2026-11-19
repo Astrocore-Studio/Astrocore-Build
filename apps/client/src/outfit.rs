@@ -518,14 +518,14 @@ mod tests {
         sheet.save(out).unwrap();
     }
 
-    /// Модель персонажа — настоящий объём ростом 1,8 м, стоит ступнями на полу, а одежда делает
-    /// её другой.
+    /// Модель персонажа — настоящий объём ростом в тайл (1 м), стоит ступнями на полу, а одежда
+    /// делает её другой.
     #[test]
     fn a_character_becomes_a_voxel_model_of_full_height() {
         let mut o = outfits();
         let plain: Key = (Some(look([255, 225, 204], None)), Vec::new(), false);
         let (model, squeeze) = o.body_model(&plain).expect("модель тела");
-        assert!(squeeze < 1.0, "коренастый спрайт сжат по ширине: {squeeze}");
+        assert_eq!(squeeze, 1.0, "в масштабе тайла спрайт не сжимается");
         let mesh = astrocore_voxels::build_mesh(&model);
         let ys: Vec<f32> = mesh.positions.iter().map(|p| p[1]).collect();
         let low = ys.iter().cloned().fold(f32::MAX, f32::min);

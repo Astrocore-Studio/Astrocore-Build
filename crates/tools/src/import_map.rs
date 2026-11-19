@@ -1227,7 +1227,8 @@ pub fn import(
                     z_mm: 500,
                     y_mm: (FLOOR_TOP_M * 1000.0) as i32 + level * WALL_BLOCK_MM as i32,
                     yaw_cdeg: 0,
-                    half_mm: [500, WALL_BLOCK_MM, 500],
+                    // Полувысота: куб от `y_mm` вверх на 2 × половину, то есть ровно на тайл.
+                    half_mm: [500, WALL_BLOCK_MM / 2, 500],
                 }),
                 wall_material(c),
                 0.1,
