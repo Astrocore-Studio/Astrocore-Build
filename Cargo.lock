@@ -7926,6 +7926,7 @@ dependencies = [
  "astrocore-lightyear",
  "astrocore-network",
  "gameplay",
+ "maps",
  "polygon",
  "round",
 ]

@@ -682,3 +682,21 @@ fn saltern_joiners_spawn_on_map_points() {
     }
     assert_eq!(seen.len(), 3, "разные точки появления");
 }
+
+/// `mapping`: раунд на пустой карте — площадка под точкой появления, игрок стоит на ней, а не
+/// падает.
+#[test]
+fn a_round_starts_on_an_empty_map_for_mapping() {
+    let map = maps::MapFile::empty("mapping");
+    let r = Round::start_map(1, &content(), &RoundConfig::default(), &map, |_| {}).unwrap();
+    assert_eq!(r.server.world().elements().count(), 9);
+    assert_eq!(r.server.world().authored_count(), 0);
+    let mut h = Harness::with_server(r.server);
+    let a = h.join("a");
+    h.ticks(40);
+    let y = h.client(a).position().y;
+    assert!(
+        (y - maps::FLOOR_TOP_M).abs() < 0.1,
+        "стоит на площадке: y = {y}"
+    );
+}

@@ -100,28 +100,43 @@ pub fn panel(
                 .size(11.0)
                 .color(Color32::from_gray(150)),
             );
-            // Сохранение карты: та же консольная команда `savemap`, права (флаг Mapping)
-            // и проверку имени делает сервер, ответ приходит в консоль.
-            if admin.is_some_and(|a| a.commands.iter().any(|c| c.name == "savemap")) {
+            // Карты: те же консольные команды `savemap`, `loadmap`, `mapping`; права (флаг
+            // Mapping) и проверку имени делает сервер, ответ приходит в консоль.
+            let can = |cmd: &str| admin.is_some_and(|a| a.commands.iter().any(|c| c.name == cmd));
+            if can("savemap") {
                 ui.horizontal(|ui| {
                     ui.label("Карта:");
                     ui.add(
                         egui::TextEdit::singleline(&mut st.save_name)
                             .hint_text("имя файла")
-                            .desired_width(150.0),
+                            .desired_width(120.0),
                     );
                     let name = st.save_name.trim();
-                    if ui
-                        .add_enabled(!name.is_empty(), egui::Button::new("Сохранить карту"))
-                        .on_hover_text("savemap <имя>: стены, полы, предметы на земле и зоны")
-                        .clicked()
-                    {
-                        out.push((
-                            gameplay::admin::CMD_CONSOLE,
-                            format!("savemap {name}").into_bytes(),
-                        ));
+                    let mut button = |ui: &mut egui::Ui, cmd: &str, label: &str, hint: &str| {
+                        if ui
+                            .add_enabled(!name.is_empty(), egui::Button::new(label))
+                            .on_hover_text(hint)
+                            .clicked()
+                        {
+                            out.push((
+                                gameplay::admin::CMD_CONSOLE,
+                                format!("{cmd} {name}").into_bytes(),
+                            ));
+                        }
+                    };
+                    button(ui, "savemap", "Сохранить", "savemap <имя>: стены, полы, предметы на земле и зоны");
+                    if can("loadmap") {
+                        button(ui, "loadmap", "Загрузить", "loadmap <имя>: новый раунд на этой карте");
                     }
                 });
+            }
+            if can("mapping")
+                && ui
+                    .button("Новая пустая карта")
+                    .on_hover_text("mapping: новый раунд на пустой карте (несохранённое пропадёт)")
+                    .clicked()
+            {
+                out.push((gameplay::admin::CMD_CONSOLE, b"mapping".to_vec()));
             }
             ui.separator();
             egui::ScrollArea::vertical().max_height(420.0).show(ui, |ui| {

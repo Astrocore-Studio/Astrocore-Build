@@ -61,6 +61,9 @@ pub fn load_descriptions(content: &Path) -> std::collections::BTreeMap<String, S
         .unwrap_or_default()
 }
 
+/// Идентификатор мира: клиент подключается с `--world-id polygon` к любой карте.
+pub const WORLD_ID: &str = "polygon";
+
 const POLYGON_MAP: &str = include_str!("../../../content/maps/polygon.ron");
 
 /// Карта полигона из `content/maps/polygon.ron`: две комнаты, дверь между ними, лестница на второй
@@ -88,7 +91,7 @@ pub fn map() -> MapFile {
 
 /// Мир полигона: этажи и конструкции из файла карты (предметы ставит `place_items`).
 pub fn build_world() -> Result<World, PolygonError> {
-    Ok(map().build_world("polygon")?)
+    Ok(map().build_world(WORLD_ID)?)
 }
 
 /// Точка появления игроков из файла карты.

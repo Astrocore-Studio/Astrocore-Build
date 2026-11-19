@@ -10,6 +10,8 @@ pub enum RoundError {
     Polygon(#[from] polygon::PolygonError),
     #[error("модуль: {0}")]
     Module(String),
+    #[error("{0}")]
+    Map(#[from] maps::MapError),
 }
 
 /// Время лобби по умолчанию (`game.lobbyduration` SS14).
@@ -73,17 +75,28 @@ impl Round {
         config: &RoundConfig,
         edit: impl FnOnce(&mut astrocore_world::World),
     ) -> Result<Self, RoundError> {
+        Self::start_map(number, content, config, &polygon::map(), edit)
+    }
+
+    /// Раунд на заданной карте (`loadmap`, `mapping`, карта сервера по умолчанию).
+    pub fn start_map(
+        number: u32,
+        content: &Path,
+        config: &RoundConfig,
+        map: &maps::MapFile,
+        edit: impl FnOnce(&mut astrocore_world::World),
+    ) -> Result<Self, RoundError> {
         let registry = Arc::new(polygon::load_registry(content)?);
-        let mut world = polygon::build_world()?;
-        polygon::place_items(&mut world, &registry)?;
+        let mut world = map.build_world(polygon::WORLD_ID)?;
+        polygon::place_items_from(&mut world, &registry, &map.items)?;
         edit(&mut world);
 
         let mut modules = ModuleHost::new();
         let module = gameplay::GameplayModule::new(registry)
             .map_err(|e| RoundError::Module(e.to_string()))?
             .with_descriptions(polygon::load_descriptions(content))
-            .with_spawn(astrocore_math::glam::Vec3::from_array(polygon::spawn()))
-            .with_station_name(polygon::map().name)
+            .with_spawn(astrocore_math::glam::Vec3::from_array(map.spawn))
+            .with_station_name(map.name.clone())
             .with_admins(config.admins.clone());
         let module = if config.auto_jobs {
             module.with_auto_jobs()
@@ -118,7 +131,7 @@ impl Round {
 
         let net = ServerNetConfig {
             tick_hz: config.tick_hz,
-            spawn: astrocore_math::glam::Vec3::from_array(polygon::spawn()),
+            spawn: astrocore_math::glam::Vec3::from_array(map.spawn),
             ..ServerNetConfig::default()
         };
         let server = GameServer::new(

@@ -122,6 +122,8 @@ impl ConsoleSystem {
             "tp" => Self::cmd_tp(ctx, actor, &args),
             "spawn" => Self::cmd_spawn(st, ctx, actor, &args),
             "savemap" => Self::cmd_savemap(st, ctx, &args),
+            "loadmap" => Self::cmd_loadmap(st, &args),
+            "mapping" => Self::cmd_mapping(st),
             "endround" => Self::cmd_endround(st),
             _ => Err(format!("Команда «{}» не реализована.", spec.name)),
         };
@@ -276,6 +278,41 @@ impl ConsoleSystem {
             text.push_str(&format!(" Без прототипа пропущено: {skipped}."));
         }
         Ok(text)
+    }
+
+    /// Новый раунд сразу на карте из папки карт. Файл читается здесь же, чтобы ошибку увидел
+    /// маппер, а не только журнал сервера.
+    fn cmd_loadmap(st: &State, args: &[&str]) -> Result<String, String> {
+        let [name] = args else {
+            return Err("Использование: loadmap <имя>".into());
+        };
+        if !admin::valid_map_name(name) {
+            return Err(format!("Нет карты «{name}»."));
+        }
+        let dir = st
+            .map_dir
+            .as_ref()
+            .ok_or("Загрузка карт на этом сервере выключена.")?;
+        let path = dir.join(format!("{name}.ron"));
+        maps::MapFile::load(&path).map_err(|e| format!("Карта «{name}» не читается: {e}"))?;
+        let signal = st
+            .round
+            .signal
+            .as_ref()
+            .ok_or("Сервер не умеет перезапускать раунд.")?;
+        signal.request_map(crate::NextMap::File(path));
+        Ok(format!("Загружаю карту «{name}»: новый раунд."))
+    }
+
+    /// Новый раунд сразу на пустой карте (площадка под точкой появления).
+    fn cmd_mapping(st: &State) -> Result<String, String> {
+        let signal = st
+            .round
+            .signal
+            .as_ref()
+            .ok_or("Сервер не умеет перезапускать раунд.")?;
+        signal.request_map(crate::NextMap::Empty);
+        Ok("Пустая карта для маппинга: новый раунд.".into())
     }
 
     fn cmd_spawn(

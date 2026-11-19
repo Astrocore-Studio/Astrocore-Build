@@ -12,6 +12,7 @@ astrocore-math.workspace = true
 astrocore-network.workspace = true
 astrocore-world.workspace = true
 gameplay.workspace = true
+maps.workspace = true
 polygon.workspace = true
 prefs.workspace = true
 prototypes.workspace = true

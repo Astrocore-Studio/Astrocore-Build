@@ -10,6 +10,7 @@ license.workspace = true
 astrocore-lightyear.workspace = true
 astrocore-network.workspace = true
 polygon.workspace = true
+maps.workspace = true
 round.workspace = true
 gameplay.workspace = true
 

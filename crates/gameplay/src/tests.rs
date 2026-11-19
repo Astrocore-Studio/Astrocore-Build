@@ -2853,6 +2853,40 @@ mod disposal_tests {
         );
     }
 
+    #[test]
+    fn a_mapper_loads_a_saved_map_or_starts_an_empty_one() {
+        let token = "fedcba9876543210fedcba9876543210";
+        let dir = std::env::temp_dir().join(format!("astro-loadmap-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        let signal = crate::RoundSignal::new();
+        let (d, s) = (dir.clone(), signal.clone());
+        let mut h = harness_with(move |m| {
+            m.with_admins(admin_roster(token, "Mapper"))
+                .with_map_dir(d)
+                .with_round_end(s, None)
+        });
+        let a = h.join("a");
+        h.ticks(10);
+        hello(&mut h, a, token);
+        // Нет такой карты — ошибка сразу, раунд не перезапускается.
+        let missing = console(&mut h, a, "loadmap nope");
+        assert!(missing.last().unwrap().error, "{missing:?}");
+        assert!(!signal.take());
+        console(&mut h, a, "savemap base");
+        let ok = console(&mut h, a, "loadmap base");
+        assert!(!ok.last().unwrap().error, "{ok:?}");
+        assert!(signal.take(), "новый раунд сразу");
+        assert_eq!(
+            signal.take_map(),
+            Some(crate::NextMap::File(dir.join("base.ron")))
+        );
+        console(&mut h, a, "mapping");
+        assert!(signal.take());
+        assert_eq!(signal.take_map(), Some(crate::NextMap::Empty));
+        assert_eq!(signal.take_map(), None, "запрос забирается один раз");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
     /// Форк меняет механику, не трогая остальной код: систему можно отключить или подменить своей.
     #[test]
     fn a_system_can_be_switched_off_or_replaced() {

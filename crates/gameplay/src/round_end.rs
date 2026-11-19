@@ -19,9 +19,21 @@ pub const ROUNDEND_MAX_BYTES: usize = 4096;
 /// Сколько секунд показывается сводка до нового раунда.
 pub const RESTART_DELAY_S: f32 = 20.0;
 
-/// Сигнал модуля серверу: раунд закончен, пора начинать новый.
+/// Какую карту взять в следующем раунде (команды консоли `mapping` и `loadmap`).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum NextMap {
+    /// Пустая карта для маппинга.
+    Empty,
+    /// Карта из файла.
+    File(std::path::PathBuf),
+}
+
+/// Сигнал модуля серверу: раунд закончен, пора начинать новый (и, возможно, с другой картой).
 #[derive(Debug, Clone, Default)]
-pub struct RoundSignal(Arc<AtomicBool>);
+pub struct RoundSignal {
+    restart: Arc<AtomicBool>,
+    next_map: Arc<std::sync::Mutex<Option<NextMap>>>,
+}
 
 impl RoundSignal {
     pub fn new() -> Self {
@@ -29,12 +41,25 @@ impl RoundSignal {
     }
 
     pub fn request_restart(&self) {
-        self.0.store(true, Ordering::SeqCst);
+        self.restart.store(true, Ordering::SeqCst);
+    }
+
+    /// Новый раунд сразу и с этой картой.
+    pub fn request_map(&self, map: NextMap) {
+        if let Ok(mut next) = self.next_map.lock() {
+            *next = Some(map);
+        }
+        self.request_restart();
     }
 
     /// Был ли запрос; сбрасывает его.
     pub fn take(&self) -> bool {
-        self.0.swap(false, Ordering::SeqCst)
+        self.restart.swap(false, Ordering::SeqCst)
+    }
+
+    /// Запрошенная карта следующего раунда; сбрасывает запрос. `None` — та же карта.
+    pub fn take_map(&self) -> Option<NextMap> {
+        self.next_map.lock().ok().and_then(|mut n| n.take())
     }
 }
 

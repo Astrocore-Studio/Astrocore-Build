@@ -222,6 +222,18 @@ pub const COMMANDS: &[CommandSpec] = &[
         flag: Some("Mapping"),
     },
     CommandSpec {
+        name: "loadmap",
+        usage: "loadmap <имя>",
+        help: "Новый раунд на сохранённой карте <имя>.ron (сразу, без сводки)",
+        flag: Some("Mapping"),
+    },
+    CommandSpec {
+        name: "mapping",
+        usage: "mapping",
+        help: "Новый раунд на пустой карте для маппинга (сразу, без сводки)",
+        flag: Some("Mapping"),
+    },
+    CommandSpec {
         name: "endround",
         usage: "endround",
         help: "Закончить раунд и начать следующий",
