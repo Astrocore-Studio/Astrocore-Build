@@ -76,6 +76,8 @@ pub struct Icons {
     names: HashMap<String, AimInfo>,
     /// Плитки пола для окна плиток маппинга (по имени).
     tiles: Vec<TileEntry>,
+    /// Картинка материала по идентификатору: стены и окна — текстура, двери — лист «закрыто».
+    material_images: HashMap<String, String>,
 }
 
 /// Плитка пола из манифеста рендера: материал движка, имя плитки SS14 и картинка.
@@ -84,6 +86,25 @@ pub struct TileEntry {
     pub id: String,
     pub name: String,
     pub image: String,
+}
+
+/// Картинки материалов манифеста и закрытых дверей: идентификатор → путь.
+pub fn material_images_of(manifest: &serde_json::Value) -> HashMap<String, String> {
+    let mut out: HashMap<String, String> = HashMap::new();
+    for (key, part) in [("materials", None), ("doors", Some("closed"))] {
+        for (id, e) in manifest
+            .get(key)
+            .and_then(|m| m.as_object())
+            .into_iter()
+            .flatten()
+        {
+            let e = part.map_or(Some(e), |p| e.get(p));
+            if let Some(image) = e.and_then(|e| e.get("image")).and_then(|i| i.as_str()) {
+                out.insert(id.clone(), image.to_string());
+            }
+        }
+    }
+    out
 }
 
 /// Плитки из материалов манифеста: у плитки есть поле `tile` (имя SS14).
@@ -156,6 +177,7 @@ impl Icons {
             sheets: HashMap::new(),
             names: HashMap::new(),
             tiles: Vec::new(),
+            material_images: HashMap::new(),
         }
     }
 
@@ -177,6 +199,16 @@ impl Icons {
     /// Плитки пола для окна плиток маппинга.
     pub(crate) fn tiles(&self) -> &[TileEntry] {
         &self.tiles
+    }
+
+    /// Значок материала конструкции (первый кадр текстуры стены или закрытой двери).
+    pub(crate) fn material_icon(
+        &mut self,
+        ctx: &egui::Context,
+        material: &str,
+    ) -> Option<(egui::TextureId, Rect)> {
+        let rel = self.material_images.get(material)?.clone();
+        self.first_frame(ctx, &rel)
     }
 
     /// Значок прототипа для списков (как у предметов в руках).
@@ -272,10 +304,16 @@ impl Icons {
             .and_then(|b| serde_json::from_slice::<serde_json::Value>(&b).ok())
             .map(|v| tiles_of(&v))
             .unwrap_or_default();
+        let material_images = std::fs::read(path)
+            .ok()
+            .and_then(|b| serde_json::from_slice::<serde_json::Value>(&b).ok())
+            .map(|v| material_images_of(&v))
+            .unwrap_or_default();
         let mut icons = Self::new(root, items);
         icons.names = names;
         icons.sheets = sheets;
         icons.tiles = tiles;
+        icons.material_images = material_images;
         icons
     }
 

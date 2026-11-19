@@ -7,7 +7,7 @@ mod barriers;
 #[path = "computer_construction.rs"]
 mod computer_construction;
 #[path = "construction.rs"]
-mod construction;
+pub(crate) mod construction;
 #[path = "floor_tiles.rs"]
 mod floor_tiles;
 #[path = "inflatables.rs"]
@@ -6373,7 +6373,7 @@ impl State {
     }
 
     /// Таблица стен карты; читается из зон карты при первом обращении.
-    fn take_walls(
+    pub(crate) fn take_walls(
         &mut self,
         ctx: &HookContext<'_>,
     ) -> BTreeMap<(i32, i32), crate::explosion::Wall> {
@@ -6391,12 +6391,32 @@ impl State {
                         Some((x.parse::<i32>().ok()?, z.parse::<i32>().ok()?))
                     }));
             }
-            crate::explosion::parse_walls(
+            let mut walls = crate::explosion::parse_walls(
                 ctx.world
                     .authored()
                     .filter(|o| matches!(o.kind, AuthoredKind::Zone))
                     .flat_map(|o| o.metadata.iter()),
-            )
+            );
+            // Стены, которых нет в зонах карты (поставлены маппингом или постройкой и сохранены):
+            // по блоку и его материалу — материал стены совпадает с её прототипом.
+            let barriers = &crate::crafting::CATALOG["barriers"];
+            for e in ctx.world.elements() {
+                let (StructureKind::Freeform, Placement::Free(p)) = (&e.kind, &e.placement) else {
+                    continue;
+                };
+                let cell = (p.cell.x, p.cell.z);
+                if walls.contains_key(&cell) {
+                    continue;
+                }
+                if let Some(name) = self
+                    .ss14_names
+                    .get(&e.material)
+                    .filter(|n| barriers.get(n.as_str()).is_some())
+                {
+                    walls.insert(cell, construction::barrier_health(name));
+                }
+            }
+            walls
         })
     }
 

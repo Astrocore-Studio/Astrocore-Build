@@ -24,9 +24,24 @@ pub fn enabled() -> bool {
 fn map_mode() -> bool {
     matches!(
         std::env::var("ASTRO_SHOWCASE").as_deref(),
-        Ok("map") | Ok("tiles")
+        Ok("map") | Ok("tiles") | Ok("room")
     )
 }
+
+/// `ASTRO_SHOWCASE=room`: новая карта 1, пол, кольцо стен линиями и шлюз в проёме.
+fn room_mode() -> bool {
+    std::env::var("ASTRO_SHOWCASE").as_deref() == Ok("room")
+}
+
+/// Что строит режим `room`: прототип, начало и конец линии, поворот.
+const ROOM_SET: &[(&str, [i32; 2], [i32; 2], u8)] = &[
+    ("WallSolid", [-4, -4], [4, -4], 0),
+    ("WallSolid", [-4, -3], [-4, 4], 0),
+    ("WallSolid", [4, -3], [4, 4], 0),
+    ("WallReinforced", [-3, 4], [-1, 4], 0),
+    ("Window", [1, 4], [3, 4], 0),
+    ("Airlock", [0, 4], [0, 4], 0),
+];
 
 /// `ASTRO_SHOWCASE=tiles`: новая карта 1 (`mapping 1`) и плитки, положенные прямоугольниками.
 fn tiles_mode() -> bool {
@@ -60,6 +75,42 @@ pub fn commands(
     mapping: &mut crate::mapping_ui::MappingState,
 ) {
     if !enabled() {
+        return;
+    }
+    if room_mode() {
+        mapping.open = true;
+        mapping.tab = crate::mapping_ui::Tab::Structures;
+        if frame == 40 {
+            net.send_command(gameplay::admin::CMD_CONSOLE, b"mapping 1".to_vec());
+        }
+        if frame == 200 {
+            let r = gameplay::systems::mapping::TileRequest {
+                tile: Some("ss14:tile_floorsteel".into()),
+                from: [-3, -3],
+                to: [3, 4],
+                level: 0,
+                ceiling: false,
+            };
+            net.send_command(
+                gameplay::systems::mapping::CMD_TILE,
+                gameplay::systems::mapping::tile_data(&r),
+            );
+        }
+        for (i, (proto, from, to, rot)) in ROOM_SET.iter().enumerate() {
+            if frame == 205 + 5 * i as u32 {
+                let r = gameplay::systems::mapping::StructureRequest {
+                    proto: (*proto).into(),
+                    from: *from,
+                    to: *to,
+                    rot: *rot,
+                    level: 0,
+                };
+                net.send_command(
+                    gameplay::systems::mapping::CMD_STRUCTURE,
+                    gameplay::systems::mapping::structure_data(&r),
+                );
+            }
+        }
         return;
     }
     if tiles_mode() {

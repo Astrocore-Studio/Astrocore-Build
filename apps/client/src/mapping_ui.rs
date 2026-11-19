@@ -8,8 +8,9 @@ use bevy::prelude::*;
 use bevy_egui::egui::{self, Color32, Key};
 use gameplay::admin::AdminView;
 use gameplay::systems::mapping::{
-    CMD_DELETE, CMD_SPAWN, CMD_TILE, FLAG, SpawnRequest, TILE_FLAG, TileRequest, delete_data,
-    spawn_data, tile_data,
+    CMD_DELETE, CMD_SPAWN, CMD_STRUCTURE, CMD_TILE, FLAG, SpawnRequest, StructureEntry,
+    StructureRequest, TILE_FLAG, TileRequest, delete_data, spawn_data, structure_catalog,
+    structure_data, tile_data,
 };
 
 use crate::hud::{Commands, Icons, TileEntry};
@@ -23,6 +24,7 @@ pub enum Tab {
     #[default]
     Entities,
     Tiles,
+    Structures,
 }
 
 pub struct MappingState {
@@ -44,6 +46,10 @@ pub struct MappingState {
     pub level: i32,
     /// Клетка, где нажата кнопка мыши (протяжка прямоугольником).
     pub drag_from: Option<[i32; 2]>,
+    /// Выбранная конструкция (прототип SS14).
+    pub structure: Option<String>,
+    /// Каталог конструкций (стены, окна, решётки, шлюзы), по имени.
+    structures: Vec<StructureEntry>,
 }
 
 impl Default for MappingState {
@@ -61,6 +67,8 @@ impl Default for MappingState {
             ceiling: true,
             level: 0,
             drag_from: None,
+            structure: None,
+            structures: structure_catalog(),
         }
     }
 }
@@ -115,6 +123,7 @@ pub fn panel(
                 ui.selectable_value(&mut st.tab, Tab::Entities, "Сущности");
                 if can_tiles {
                     ui.selectable_value(&mut st.tab, Tab::Tiles, "Плитки");
+                    ui.selectable_value(&mut st.tab, Tab::Structures, "Стены и двери");
                 }
             });
             ui.horizontal(|ui| {
@@ -124,6 +133,7 @@ pub fn panel(
             match st.tab {
                 Tab::Entities => entities_head(ui, st, icons),
                 Tab::Tiles => tiles_head(ui, st, icons),
+                Tab::Structures => structures_head(ui, st),
             }
             maps_row(ui, st, &can, &mut out);
             ui.separator();
@@ -132,6 +142,7 @@ pub fn panel(
                 .show(ui, |ui| match st.tab {
                     Tab::Entities => entity_list(ctx, ui, st, icons),
                     Tab::Tiles => tile_list(ctx, ui, st, icons),
+                    Tab::Structures => structure_list(ctx, ui, st, icons),
                 });
         });
     if !open {
@@ -298,6 +309,72 @@ fn tile_list(ctx: &egui::Context, ui: &mut egui::Ui, st: &mut MappingState, icon
     }
 }
 
+fn structures_head(ui: &mut egui::Ui, st: &mut MappingState) {
+    ui.label(format!("Поворот шлюза: {}°", u16::from(st.rot) * 90));
+    if let Some(sel) = &st.structure {
+        ui.label(
+            egui::RichText::new(format!("Строим: {}", camel_words(sel)))
+                .color(Color32::from_rgb(140, 200, 255)),
+        );
+    }
+    hint(
+        ui,
+        "Стены, окна, решётки: протяжка — линия (до 64 клеток). Шлюз: ЛКМ по клетке, R — поворот проёма. Esc — снять выбор",
+    );
+}
+
+fn structure_list(
+    ctx: &egui::Context,
+    ui: &mut egui::Ui,
+    st: &mut MappingState,
+    icons: &mut Icons,
+) {
+    let q = st.search.trim().to_lowercase();
+    let list: Vec<StructureEntry> = st
+        .structures
+        .iter()
+        .filter(|e| q.is_empty() || e.proto.to_lowercase().contains(&q))
+        .cloned()
+        .collect();
+    for e in list {
+        ui.horizontal(|ui| {
+            match icons.material_icon(ctx, &e.material) {
+                Some((tex, uv)) => {
+                    ui.add(egui::Image::new((tex, egui::vec2(24.0, 24.0))).uv(uv));
+                }
+                None => {
+                    ui.add_space(28.0);
+                }
+            }
+            let chosen = st.structure.as_deref() == Some(e.proto.as_str());
+            let label = if e.airlock {
+                format!("{} (шлюз)", camel_words(&e.proto))
+            } else {
+                camel_words(&e.proto)
+            };
+            if ui
+                .selectable_label(chosen, label)
+                .on_hover_text(&e.proto)
+                .clicked()
+            {
+                st.structure = Some(e.proto.clone());
+            }
+        });
+    }
+}
+
+/// `AirlockEngineeringLocked` → `Airlock Engineering Locked`.
+pub fn camel_words(name: &str) -> String {
+    let mut out = String::new();
+    for (i, c) in name.chars().enumerate() {
+        if i > 0 && c.is_uppercase() {
+            out.push(' ');
+        }
+        out.push(c);
+    }
+    out
+}
+
 /// Название плитки для списка: `FloorSteelMini` → `Steel Mini`.
 pub fn tile_label(name: &str) -> String {
     let name = name
@@ -351,8 +428,32 @@ pub fn input(
             st.selected = None;
             st.delete = false;
             st.tile = None;
+            st.structure = None;
             st.drag_from = None;
         }
+    }
+    if st.tab == Tab::Structures {
+        // Протяжка: клетка нажатия — начало линии, клетка отпускания — её направление и длина.
+        let Some(proto) = st.structure.clone() else {
+            st.drag_from = None;
+            return;
+        };
+        if buttons.just_pressed(MouseButton::Left) && !wants.wants_any_pointer_input() {
+            st.drag_from = ground.0.map(cell_of);
+        }
+        if buttons.just_released(MouseButton::Left)
+            && let (Some(from), Some(point)) = (st.drag_from.take(), ground.0)
+        {
+            let r = StructureRequest {
+                proto,
+                from,
+                to: cell_of(point),
+                rot: st.rot,
+                level: st.level,
+            };
+            net.send_command(CMD_STRUCTURE, structure_data(&r));
+        }
+        return;
     }
     if st.tab == Tab::Tiles {
         // Протяжка: клетка нажатия — один угол, клетка отпускания — другой.
@@ -428,6 +529,7 @@ mod tests {
         assert_eq!(tile_label("FloorSteelMini"), "Steel Mini");
         assert_eq!(tile_label("Plating"), "Plating");
         assert_eq!(cell_of([-0.2, 0.3, 3.9]), [-1, 3]);
+        assert_eq!(camel_words("AirlockEngineering"), "Airlock Engineering");
         // Каталог плиток — материалы манифеста с полем `tile`, по имени.
         let manifest = serde_json::json!({ "materials": {
             "ss14:wall_solid": { "image": "Textures/w.png" },

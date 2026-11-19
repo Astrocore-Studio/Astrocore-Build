@@ -3234,6 +3234,94 @@ mod disposal_tests {
         out
     }
 
+    /// Стены и шлюзы — сущности каталога, как в SS14: протяжка ставит линию стен (два куба на
+    /// клетку и рёбра вокруг), шлюз — проём двери на ребре по повороту и зону шлюза.
+    #[test]
+    fn a_mapper_builds_a_wall_line_and_an_airlock() {
+        use crate::systems::mapping::{
+            CMD_STRUCTURE, StructureRequest, line_cells, structure_catalog, structure_data,
+        };
+        let catalog = structure_catalog();
+        assert!(catalog.iter().any(|e| e.proto == "WallSolid" && !e.airlock));
+        assert!(catalog.iter().any(|e| e.proto == "Airlock" && e.airlock));
+        assert_eq!(
+            line_cells([0, 0], [3, 1]),
+            vec![[0, 0], [1, 0], [2, 0], [3, 0]]
+        );
+        assert_eq!(line_cells([0, 0], [-1, -2]), vec![[0, 0], [0, -1], [0, -2]]);
+        let token = "fedcba9876543210fedcba9876543210";
+        let mut h = harness_with(move |m| m.with_admins(admin_roster(token, "Mapper")));
+        let (a, guest) = (h.join("a"), h.join("guest"));
+        h.ticks(10);
+        hello(&mut h, a, token);
+        let build = |h: &mut Harness, who, proto: &str, from, to, rot| {
+            let r = StructureRequest {
+                proto: proto.into(),
+                from,
+                to,
+                rot,
+                level: 0,
+            };
+            command(h, who, CMD_STRUCTURE, structure_data(&r));
+            h.ticks(5);
+        };
+        let blocks = |h: &Harness| {
+            h.server
+                .world()
+                .elements()
+                .filter(|e| {
+                    matches!(e.placement, Placement::Free(p) if p.cell.z == 40 && p.cell.x >= 40)
+                })
+                .count()
+        };
+        build(&mut h, guest, "WallSolid", [40, 40], [44, 40], 0);
+        assert_eq!(blocks(&h), 0, "гостю нельзя");
+        build(&mut h, a, "WallSolid", [40, 40], [44, 41], 0);
+        assert_eq!(blocks(&h), 10, "пять клеток по два куба");
+        let cube = h
+            .server
+            .world()
+            .elements()
+            .find_map(|e| match e.placement {
+                Placement::Free(p) if p.cell.x == 40 && p.cell.z == 40 => Some(p),
+                _ => None,
+            })
+            .unwrap();
+        assert_eq!(cube.half_mm[1], 500, "куб высотой 1 м");
+        // Повтор по тем же клеткам ничего не добавляет.
+        build(&mut h, a, "WallSolid", [40, 40], [44, 40], 0);
+        assert_eq!(blocks(&h), 10);
+        // Шлюз на клетке (50, 50), проём к +X.
+        build(&mut h, a, "Airlock", [50, 50], [50, 50], 1);
+        let w = h.server.world();
+        let edge = astrocore_math::GridEdge::between(
+            astrocore_math::GridCell::new(50, 50),
+            astrocore_math::GridCell::new(51, 50),
+        )
+        .unwrap();
+        let door = w.edge_element(FloorId(0), edge).expect("проём шлюза");
+        assert!(matches!(
+            door.kind,
+            StructureKind::Opening(astrocore_world::OpeningKind::Door)
+        ));
+        let zone = w
+            .authored()
+            .find(|o| o.metadata.get("airlock_proto").map(String::as_str) == Some("Airlock"))
+            .expect("зона шлюза");
+        assert_eq!(
+            zone.metadata.get("door_element"),
+            Some(&format!("{:x}", door.id.as_uuid().as_u128()))
+        );
+        // Неизвестное не строится.
+        build(&mut h, a, "Crowbar", [60, 60], [60, 60], 0);
+        assert!(
+            !h.server
+                .world()
+                .elements()
+                .any(|e| matches!(e.placement, Placement::Free(p) if p.cell.x == 60))
+        );
+    }
+
     #[test]
     fn a_mapper_lays_and_erases_floor_tiles_by_rectangle() {
         use crate::systems::mapping::TileRequest;

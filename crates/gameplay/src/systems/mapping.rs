@@ -10,7 +10,12 @@
 //! потолок из той же плитки — на прямоугольник клеток текущего уровня; пустая плитка убирает пол
 //! и потолок. Уровень, которого ещё нет, создаётся сам (ADR-0003).
 //!
-//! Не сделано: декали, стены и проёмы.
+//! Стены, окна, решётки и шлюзы (`mapping.structure`, флаг `Mapping`) — сущности каталога, как в
+//! SS14: сервер переводит их в конструкции движка. Стена, окно, решётка — два куба 1 × 1 × 1 м на
+//! клетку и рёбра вокруг (как постройка в игре); ставятся линией протяжкой. Шлюз — проём двери на
+//! ребре клетки по повороту и служебная зона шлюза (плата, провода, доступ), как у импортёра.
+//!
+//! Не сделано: декали.
 
 use astrocore_api::HookContext;
 use astrocore_core::{NetworkEntityId, ObjectId, PrototypeId};
@@ -28,6 +33,9 @@ use crate::systems::GameSystem;
 pub const CMD_SPAWN: &str = "mapping.spawn";
 pub const CMD_DELETE: &str = "mapping.delete";
 pub const CMD_TILE: &str = "mapping.tile";
+pub const CMD_STRUCTURE: &str = "mapping.structure";
+/// Самая длинная линия стен за одну протяжку, клеток.
+pub const MAX_LINE_CELLS: usize = 64;
 /// Флаг прав для плиток (и других правок конструкции карты).
 pub const TILE_FLAG: &str = "Mapping";
 /// Самый большой прямоугольник плиток за один запрос, клеток.
@@ -75,6 +83,93 @@ pub fn tile_data(r: &TileRequest) -> Vec<u8> {
     serde_json::to_vec(r).unwrap_or_default()
 }
 
+/// Запрос постройки: прототип SS14 (`WallSolid`, `Window`, `AirlockEngineering`…), линия клеток
+/// (для шлюза — первая клетка), поворот шлюза и уровень.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct StructureRequest {
+    pub proto: String,
+    pub from: [i32; 2],
+    pub to: [i32; 2],
+    #[serde(default)]
+    pub rot: u8,
+    #[serde(default)]
+    pub level: i32,
+}
+
+pub fn structure_data(r: &StructureRequest) -> Vec<u8> {
+    serde_json::to_vec(r).unwrap_or_default()
+}
+
+/// Конструкция каталога маппинга: прототип SS14, материал движка (по нему — значок) и шлюз ли.
+#[derive(Debug, Clone, PartialEq)]
+pub struct StructureEntry {
+    pub proto: String,
+    pub material: String,
+    pub airlock: bool,
+}
+
+/// Описания шлюзов: прототип → материал, узел постройки, плата, провода.
+fn airlocks() -> &'static serde_json::Value {
+    static AIRLOCKS: std::sync::LazyLock<serde_json::Value> = std::sync::LazyLock::new(|| {
+        serde_json::from_str(include_str!(
+            "../../../../content/engineering-airlocks.json"
+        ))
+        .expect("описания шлюзов")
+    });
+    &AIRLOCKS
+}
+
+/// Что можно строить: стены, окна и решётки из графов постройки SS14 и шлюзы, по имени.
+pub fn structure_catalog() -> Vec<StructureEntry> {
+    let mut out: Vec<StructureEntry> = crate::crafting::CATALOG["barriers"]
+        .as_object()
+        .into_iter()
+        .flatten()
+        .filter(|(name, _)| name.as_str() != "InflatableWall")
+        .filter_map(|(name, _)| {
+            Some(StructureEntry {
+                proto: name.clone(),
+                material: prototypes::engine_id("ss14", name)?.as_str().to_string(),
+                airlock: false,
+            })
+        })
+        .collect();
+    out.extend(
+        airlocks()
+            .as_object()
+            .into_iter()
+            .flatten()
+            .filter_map(|(name, def)| {
+                Some(StructureEntry {
+                    proto: name.clone(),
+                    material: def["material"].as_str()?.to_string(),
+                    airlock: true,
+                })
+            }),
+    );
+    out.sort_by(|a, b| a.proto.cmp(&b.proto));
+    out
+}
+
+/// Клетки линии протяжки: от `from` вдоль оси, по которой сдвиг больше (как линия в SS14).
+pub fn line_cells(from: [i32; 2], to: [i32; 2]) -> Vec<[i32; 2]> {
+    let (dx, dz) = (to[0] - from[0], to[1] - from[1]);
+    let (axis, len) = if dx.abs() >= dz.abs() {
+        (0, dx)
+    } else {
+        (1, dz)
+    };
+    let step = len.signum();
+    (0..=len.abs())
+        .take(MAX_LINE_CELLS)
+        .map(|i| {
+            let mut c = from;
+            c[axis] += i * step;
+            c
+        })
+        .collect()
+}
+
 pub fn delete_data(id: ObjectId) -> Vec<u8> {
     id.as_uuid().as_u128().to_le_bytes().to_vec()
 }
@@ -90,7 +185,7 @@ impl GameSystem for MappingSystem {
     }
 
     fn commands(&self) -> &'static [&'static str] {
-        &[CMD_SPAWN, CMD_DELETE, CMD_TILE]
+        &[CMD_SPAWN, CMD_DELETE, CMD_TILE, CMD_STRUCTURE]
     }
 
     fn command(
@@ -101,7 +196,11 @@ impl GameSystem for MappingSystem {
         kind: &str,
         data: &[u8],
     ) {
-        let flag = if kind == CMD_TILE { TILE_FLAG } else { FLAG };
+        let flag = if matches!(kind, CMD_TILE | CMD_STRUCTURE) {
+            TILE_FLAG
+        } else {
+            FLAG
+        };
         if !st.allowed(actor, Some(flag)) {
             st.popup(actor, format!("Нет прав на маппинг (нужен флаг {flag})"));
             return;
@@ -109,6 +208,7 @@ impl GameSystem for MappingSystem {
         let result = match kind {
             CMD_SPAWN => self.spawn(st, ctx, data),
             CMD_TILE => self.tiles(st, ctx, data),
+            CMD_STRUCTURE => self.structure(st, ctx, data),
             _ => Self::delete(ctx, data),
         };
         if let Err(text) = result {
@@ -250,6 +350,112 @@ impl MappingSystem {
                 }
             }
         }
+        Ok(())
+    }
+
+    fn structure(
+        &mut self,
+        st: &mut State,
+        ctx: &mut HookContext<'_>,
+        data: &[u8],
+    ) -> Result<(), String> {
+        if data.len() > MAX_REQUEST_BYTES {
+            return Err("Слишком длинный запрос".into());
+        }
+        let r: StructureRequest =
+            serde_json::from_slice(data).map_err(|_| "Неверный запрос".to_string())?;
+        if !(-50..50).contains(&r.level) {
+            return Err("Нет такого уровня".into());
+        }
+        let floor = FloorId(r.level);
+        if ctx.world.floor(floor).is_none() {
+            ctx.request(WorldCommand::DefineFloor(level_def(ctx, r.level)));
+        }
+        if let Some(def) = airlocks().get(r.proto.as_str()) {
+            return self.airlock(ctx, &r, floor, def);
+        }
+        if crate::crafting::CATALOG["barriers"]
+            .get(r.proto.as_str())
+            .is_none()
+            || r.proto == "InflatableWall"
+        {
+            return Err(format!("{} не строится маппингом", r.proto));
+        }
+        let material = prototypes::engine_id("ss14", &r.proto).ok_or("Нет материала")?;
+        for [x, z] in line_cells(r.from, r.to) {
+            let cell = (x, z);
+            let walls = st.take_walls(ctx);
+            let taken = walls.contains_key(&cell);
+            st.walls = Some(walls);
+            if !taken {
+                st.build_barrier(ctx, floor, cell, &r.proto, material.clone());
+            }
+        }
+        Ok(())
+    }
+
+    /// Шлюз на клетке: проём двери на ребре по повороту (`rot`: 0 — к +Z, 1 — к +X, 2 — к −Z,
+    /// 3 — к −X) и служебная зона шлюза, как у импортёра карт.
+    fn airlock(
+        &mut self,
+        ctx: &mut HookContext<'_>,
+        r: &StructureRequest,
+        floor: FloorId,
+        def: &serde_json::Value,
+    ) -> Result<(), String> {
+        let [x, z] = r.from;
+        let (dx, dz) = [(0, 1), (1, 0), (0, -1), (-1, 0)][usize::from(r.rot % 4)];
+        let edge =
+            astrocore_math::GridEdge::between(GridCell::new(x, z), GridCell::new(x + dx, z + dz))
+                .ok_or("Нет ребра")?;
+        if ctx.world.edge_element(floor, edge).is_some() {
+            return Err("Здесь уже стена или дверь".into());
+        }
+        let material = def["material"]
+            .as_str()
+            .and_then(|m| PrototypeId::new(m).ok())
+            .ok_or("У шлюза нет материала")?;
+        let door = self.fresh_id(ctx);
+        ctx.request(WorldCommand::PlaceElement(StructureElement {
+            id: door,
+            kind: StructureKind::Opening(astrocore_world::OpeningKind::Door),
+            placement: Placement::Edge(edge),
+            floor,
+            material,
+            thickness: 0.1,
+        }));
+        let base = ctx
+            .world
+            .floor(floor)
+            .map_or(floor.0 as f32 * maps::LEVEL_HEIGHT_M, |f| f.base_y)
+            + maps::FLOOR_TOP_M;
+        let (cx, cz) = (x as f32 + 0.5, z as f32 + 0.5);
+        let text = |k: &str| def[k].as_str().unwrap_or_default().to_string();
+        let mut zone = AuthoredObject::new(
+            self.fresh_id(ctx),
+            AuthoredKind::Zone,
+            floor,
+            Vec3::new(cx - 0.35, base, cz - 0.35),
+            Vec3::new(cx + 0.35, base + 0.8, cz + 0.35),
+        );
+        zone.metadata = [
+            ("construction_graph".to_string(), "Airlock".to_string()),
+            ("construction_node".into(), text("node")),
+            ("airlock_proto".into(), r.proto.clone()),
+            ("wire_layout".into(), text("wires")),
+            ("installed_access".into(), String::new()),
+            ("frame_board".into(), text("board")),
+            ("rot".into(), (r.rot % 4).to_string()),
+            (
+                "door_element".into(),
+                format!("{:x}", door.as_uuid().as_u128()),
+            ),
+            ("welded".into(), "0".into()),
+            ("bolted".into(), "0".into()),
+            ("panel_open".into(), "0".into()),
+        ]
+        .into();
+        ctx.request(WorldCommand::PlaceAuthored(zone));
         Ok(())
     }
 
