@@ -2896,6 +2896,7 @@ dependencies = [
  "astrocore-math",
  "astrocore-render",
  "astrocore-sprites",
+ "astrocore-voxels",
  "astrocore-world",
  "bevy",
  "bevy_egui",
@@ -2903,6 +2904,7 @@ dependencies = [
  "image",
  "prototypes",
  "serde_json",
+ "voxelize",
 ]
 
 [[package]]
@@ -6985,7 +6987,6 @@ dependencies = [
  "prototypes",
  "ron 0.10.1",
  "serde",
- "serde_json",
  "thiserror 2.0.21",
 ]
 
@@ -8566,6 +8567,7 @@ dependencies = [
  "serde_yaml",
  "tempfile",
  "thiserror 2.0.21",
+ "voxelize",
  "walkdir",
 ]
 
@@ -8866,6 +8868,14 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ca550556ffc489e9c0f028cf0ee230d0693b6a965e8642dd9f85e676e7f56c2a"
 dependencies = [
  "rayon",
+]
+
+[[package]]
+name = "voxelize"
+version = "0.1.0"
+dependencies = [
+ "astrocore-voxels",
+ "image",
 ]
 
 [[package]]

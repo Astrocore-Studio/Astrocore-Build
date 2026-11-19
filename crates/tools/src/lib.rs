@@ -2,4 +2,4 @@
 
 pub mod import_map;
 pub mod sync_sprites;
-pub mod voxelize;
+pub use voxelize;

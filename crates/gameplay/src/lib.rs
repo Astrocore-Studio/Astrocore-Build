@@ -86,7 +86,9 @@ pub use interact::{InteractionHandler, Target, Used};
 pub use inventory::{Inventory, InventoryError};
 pub use items::{ItemInfo, ItemSize};
 pub use module::State;
-pub use module::{BODY_HEIGHT_M, CHEST_M, EYE_M, GameplayModule, INTERACTION_RANGE_M, NAMESPACE};
+pub use module::{
+    BODY_HEIGHT_M, BODY_WIDTH_M, CHEST_M, EYE_M, GameplayModule, INTERACTION_RANGE_M, NAMESPACE,
+};
 pub use storage::{Storage, StorageError, StorageSpec};
 pub use wire::{
     BagView, CMD_ATTACK, CMD_ATTACK_OBJECT, CMD_CANCEL, CMD_CHAT, CMD_CHEM_AMOUNT, CMD_COMBAT,

@@ -144,7 +144,7 @@ impl Plugin for BuildClientPlugin {
                 hand_keys,
                 autoplay,
                 outfit::sync_outfits,
-                outfit::update_worn_layers,
+                outfit::follow_body_models,
             )
                 .chain(),
         )

@@ -62,14 +62,11 @@ pub fn install(
         eprintln!("части тела не найдены в {}", root.display());
         return;
     };
-    commands.insert_resource(
-        crate::outfit::Outfits::new(
-            root.to_path_buf(),
-            sheet.clone(),
-            crate::hud::Icons::icon_paths(manifest),
-        )
-        .with_worn(crate::outfit::WornVolume::from_manifest(manifest)),
-    );
+    commands.insert_resource(crate::outfit::Outfits::new(
+        root.to_path_buf(),
+        sheet.clone(),
+        crate::hud::Icons::icon_paths(manifest),
+    ));
     let mut image = Image::new(
         Extent3d {
             width: sheet.width(),

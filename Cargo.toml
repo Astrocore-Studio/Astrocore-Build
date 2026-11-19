@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["crates/prototypes", "crates/assets", "crates/gameplay", "crates/polygon", "crates/maps", "crates/atmos", "crates/power", "crates/tools", "crates/round", "crates/prefs", "apps/server", "apps/client"]
+members = ["crates/prototypes", "crates/assets", "crates/gameplay", "crates/polygon", "crates/maps", "crates/atmos", "crates/power", "crates/tools", "crates/voxelize", "crates/round", "crates/prefs", "apps/server", "apps/client"]
 
 [workspace.package]
 version = "0.1.0"
@@ -57,3 +57,6 @@ path = "crates/polygon"
 
 [workspace.dependencies.round]
 path = "crates/round"
+
+[workspace.dependencies.voxelize]
+path = "crates/voxelize"
