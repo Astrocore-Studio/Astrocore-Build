@@ -28,7 +28,7 @@ fn map_mode() -> bool {
     )
 }
 
-/// `ASTRO_SHOWCASE=tiles`: пустая карта (`mapping`) и плитки, положенные прямоугольниками.
+/// `ASTRO_SHOWCASE=tiles`: новая карта 1 (`mapping 1`) и плитки, положенные прямоугольниками.
 fn tiles_mode() -> bool {
     std::env::var("ASTRO_SHOWCASE").as_deref() == Ok("tiles")
 }
@@ -66,7 +66,7 @@ pub fn commands(
         mapping.open = true;
         mapping.tab = crate::mapping_ui::Tab::Tiles;
         if frame == 40 {
-            net.send_command(gameplay::admin::CMD_CONSOLE, b"mapping".to_vec());
+            net.send_command(gameplay::admin::CMD_CONSOLE, b"mapping 1".to_vec());
         }
         for (i, (tile, from, to)) in TILE_SET.iter().enumerate() {
             if frame == 200 + 5 * i as u32 {
