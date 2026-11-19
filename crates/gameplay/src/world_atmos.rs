@@ -145,3 +145,47 @@ fn edge_cells(floor: i32, g: &astrocore_math::GridEdge) -> atmos::Edge {
     };
     edge(a, b)
 }
+
+/// Этаж клетки общей сетки (обратное к `atmos::floor_cell`).
+pub fn cell_floor(cell: Cell) -> astrocore_world::FloorId {
+    astrocore_world::FloorId((cell.1 + FLOOR_STRIDE / 2).div_euclid(FLOOR_STRIDE))
+}
+
+/// Клетка на этаже замороженной карты.
+pub fn cell_floor_paused(world: &World, cell: Cell) -> bool {
+    world.floor_paused(cell_floor(cell))
+}
+
+/// Раскладка без клеток, рёбер и связей замороженных карт (ADR-0012): они не симулируются.
+pub fn without_frozen(world: &World, full: &Layout) -> Layout {
+    if world.maps().iter().all(|m| !m.paused) {
+        return full.clone();
+    }
+    let live = |c: &Cell| !cell_floor_paused(world, *c);
+    Layout {
+        cells: full
+            .cells
+            .iter()
+            .filter(|(c, _)| live(c))
+            .map(|(c, k)| (*c, *k))
+            .collect(),
+        blocked: full
+            .blocked
+            .iter()
+            .filter(|e| live(&e.0) && live(&e.1))
+            .copied()
+            .collect(),
+        links: full
+            .links
+            .iter()
+            .filter(|(a, b)| live(a) && live(b))
+            .copied()
+            .collect(),
+        fills: full
+            .fills
+            .iter()
+            .filter(|(c, _)| live(c))
+            .map(|(c, f)| (*c, f.clone()))
+            .collect(),
+    }
+}

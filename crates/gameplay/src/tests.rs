@@ -2955,6 +2955,89 @@ mod disposal_tests {
         let _ = std::fs::remove_dir_all(&dir);
     }
 
+    /// Замороженная карта стоит, как в SS14: из комнаты с дырой воздух медленно уходит, но, пока
+    /// карта на паузе, утечки нет, а после разморозки газ клеток — тот же, что был при паузе.
+    #[test]
+    fn a_paused_map_freezes_its_air_and_gives_it_back_on_unpause() {
+        use astrocore_math::GridEdge;
+        let token = "fedcba9876543210fedcba9876543210";
+        let steel = "ss14:tile_floorsteel";
+        let mut h = harness_with(move |m| {
+            m.with_admins(admin_roster(token, "Mapper"))
+                .with_tiles([astrocore_core::PrototypeId::new(steel).unwrap()])
+        });
+        let a = h.join("a");
+        h.ticks(10);
+        hello(&mut h, a, token);
+        console(&mut h, a, "mapping 6");
+        map_tiles(
+            &mut h,
+            a,
+            &crate::systems::mapping::TileRequest {
+                tile: Some(steel.into()),
+                from: [-3, -3],
+                to: [3, 3],
+                level: 0,
+                ceiling: true,
+            },
+        );
+        // Стены по краю комнаты 7 × 7, кроме одного ребра — дыры.
+        let floor = maps::floor_id(astrocore_world::MapId(6), 0);
+        let mut edges: Vec<GridEdge> = Vec::new();
+        for k in -3..=3 {
+            edges.push(GridEdge::along_x(k, -3));
+            edges.push(GridEdge::along_z(-3, k));
+            edges.push(GridEdge::along_z(4, k));
+            if k != 0 {
+                edges.push(GridEdge::along_x(k, 4));
+            }
+        }
+        for (n, e) in edges.into_iter().enumerate() {
+            h.server
+                .apply_world_command(WorldCommand::PlaceElement(
+                    astrocore_world::StructureElement {
+                        id: oid(0x7A11_0000 + n as u128),
+                        kind: StructureKind::Wall,
+                        placement: Placement::Edge(e),
+                        floor,
+                        material: astrocore_core::PrototypeId::new("ss14:wall_solid").unwrap(),
+                        thickness: 0.1,
+                    },
+                ))
+                .unwrap();
+        }
+        console(&mut h, a, "aghost");
+        let pressure = |h: &Harness| {
+            let net = h.client(a).net_id().unwrap();
+            crate::decode_vitals(
+                h.client(a)
+                    .component(net, crate::VITALS_COMPONENT)
+                    .expect("vitals"),
+            )
+            .unwrap()
+            .pressure_kpa
+        };
+        // Карта пошла: воздух медленно уходит через дыру.
+        console(&mut h, a, "unpausemap 6");
+        h.ticks(60);
+        let start = pressure(&h);
+        h.ticks(100);
+        let before = pressure(&h);
+        assert!(before < start - 0.5, "утекает: {start} → {before}");
+        let rate = (start - before) / 100.0;
+        console(&mut h, a, "pausemap 6");
+        h.ticks(600);
+        console(&mut h, a, "unpausemap 6");
+        h.ticks(25);
+        let after = pressure(&h);
+        // Без заморозки за 600 тиков паузы воздух ушёл бы весь (≈ 1 кПа); с ней — только за 25
+        // тиков после разморозки.
+        assert!(
+            after > before * 0.5,
+            "газ вернулся тем же: было {before}, стало {after}, утечка {rate}/тик"
+        );
+    }
+
     /// Форк меняет механику, не трогая остальной код: систему можно отключить или подменить своей.
     #[test]
     fn a_system_can_be_switched_off_or_replaced() {

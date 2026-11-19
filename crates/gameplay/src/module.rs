@@ -397,6 +397,8 @@ pub struct State {
     pub(crate) map_dir: Option<std::path::PathBuf>,
     /// Реестр прототипов: предметы карт, загружаемых на ходу (`loadmap`, `mapping`).
     pub(crate) registry: Arc<PrototypeRegistry>,
+    /// Газ клеток замороженных карт: клетки выведены из симуляции, воздух вернётся при разморозке.
+    pub(crate) frozen_air: BTreeMap<atmos::Cell, atmos::GasMixture>,
     /// Точки появления карт, загруженных на ходу (карта 0 — `spawn`).
     pub(crate) map_spawns: BTreeMap<astrocore_world::MapId, Vec3>,
     /// Материалы плиток пола (`ss14:tile_…`), которые можно класть маппингом.
@@ -1136,6 +1138,7 @@ impl State {
             map_dir: None,
             registry: registry.clone(),
             map_spawns: BTreeMap::new(),
+            frozen_air: BTreeMap::new(),
             tiles: BTreeSet::new(),
             corpses: 0,
             atmos: atmos::Grid::new(),
@@ -2720,6 +2723,10 @@ impl State {
             let Some(pos) = ctx.position_of(id) else {
                 continue;
             };
+            // Тело на замороженной карте не дышит, не голодает и не истекает кровью.
+            if frozen_at(ctx, pos) {
+                continue;
+            }
             let floor = floor_at(ctx, pos.y).map_or(0, |f| f.0);
             let cell = atmos::floor_cell(floor, pos.x.floor() as i32, pos.z.floor() as i32);
             let clock = self.clock;
@@ -2848,12 +2855,38 @@ impl State {
     /// Геометрия и ход газа: при любом изменении стен или дверей сетка перестраивается, воздух
     /// уцелевших клеток сохраняется.
     fn tick_atmosphere(&mut self, ctx: &mut HookContext<'_>, dt: f32) {
-        let layout = crate::world_atmos::layout(ctx.world, &|id| ctx.door_open(id) == Some(true));
+        let full = crate::world_atmos::layout(ctx.world, &|id| ctx.door_open(id) == Some(true));
+        // Клетки замороженных карт (ADR-0012) в симуляции не участвуют; их воздух хранится в
+        // стороне и возвращается, когда карта снова идёт.
+        let layout = crate::world_atmos::without_frozen(ctx.world, &full);
         if self.atmos.layout() != &layout {
+            let dropped: Vec<atmos::Cell> = self
+                .atmos
+                .layout()
+                .cells
+                .keys()
+                .filter(|c| !layout.cells.contains_key(c) && full.cells.contains_key(c))
+                .copied()
+                .collect();
+            for c in dropped {
+                self.frozen_air.insert(c, self.atmos.air(c));
+            }
             self.atmos.set_layout(layout);
+            let back: Vec<atmos::Cell> = self
+                .frozen_air
+                .keys()
+                .filter(|c| self.atmos.contains(**c))
+                .copied()
+                .collect();
+            for c in back {
+                if let Some(air) = self.frozen_air.remove(&c) {
+                    self.atmos.with_air(c, |m| *m = air);
+                }
+            }
+            self.frozen_air.retain(|c, _| full.cells.contains_key(c));
         }
         self.tick_igniters(ctx);
-        self.tick_puddles(ctx, dt);
+        self.tick_puddles(ctx, &full, dt);
         self.sync_pipes(ctx);
         self.sync_power(ctx);
         self.tick_lobby(ctx);
@@ -2952,6 +2985,10 @@ impl State {
         let mut sig: Vec<(ObjectId, atmos::Cell, u8)> = Vec::new();
         let mut parts: Vec<(ObjectId, atmos::Cell, crate::piping::PipePart)> = Vec::new();
         for o in ctx.world.authored() {
+            // Трубы и устройства замороженной карты в сеть не входят.
+            if ctx.world.floor_paused(o.floor) {
+                continue;
+            }
             let centre = (o.min() + o.max()) * 0.5;
             let cell = cell_at(o.floor.0, centre);
             match &o.kind {
@@ -3064,8 +3101,11 @@ impl State {
     }
 
     /// Лужи: испарение, растекание, поскальзывание, рассылка клиентам.
-    fn tick_puddles(&mut self, ctx: &mut HookContext<'_>, dt: f32) {
-        self.puddles.tick(dt, self.atmos.layout());
+    fn tick_puddles(&mut self, ctx: &mut HookContext<'_>, full: &atmos::Layout, dt: f32) {
+        let world = ctx.world;
+        self.puddles.tick(dt, full, &|c| {
+            crate::world_atmos::cell_floor_paused(world, c)
+        });
         // Поскальзывание: вход на скользкую клетку на достаточной скорости.
         let ids: Vec<NetworkEntityId> = ctx.players().collect();
         let mut slips: Vec<NetworkEntityId> = Vec::new();
@@ -3481,6 +3521,13 @@ impl State {
         let powered = self.powered_map();
         let mut due = Vec::new();
         for (id, slot) in &mut self.disposal_state {
+            if ctx
+                .world
+                .authored_object(*id)
+                .is_some_and(|o| ctx.world.floor_paused(o.floor))
+            {
+                continue;
+            }
             let on = !self.power_required
                 || !self.power_gated.contains(id)
                 || powered.get(id).copied().unwrap_or(false);
@@ -3847,8 +3894,10 @@ impl State {
             .world
             .authored()
             .filter_map(|o| match &o.kind {
+                // Спавнер — часть MapInit: на неинициализированной карте (маппинг) не срабатывает.
                 AuthoredKind::Placement { prototype }
-                    if self.spawner_specs.contains_key(prototype) =>
+                    if self.spawner_specs.contains_key(prototype)
+                        && map_initialized(ctx.world, o.floor) =>
                 {
                     let c = (o.min() + o.max()) * 0.5;
                     Some((o.id, prototype.clone(), Vec3::new(c.x, o.min().y, c.z), 0.0))
@@ -4856,6 +4905,9 @@ impl State {
             let Some(speed) = self.conveyor_protos.get(prototype) else {
                 continue;
             };
+            if ctx.world.floor_paused(o.floor) {
+                continue;
+            }
             let state = self.conveyor_state.get(&o.id).copied().unwrap_or_default();
             let on = !self.power_required
                 || !self.power_gated.contains(&o.id)
@@ -7908,6 +7960,9 @@ impl State {
                 self.cancel(ctx, id);
                 continue;
             };
+            if frozen_at(ctx, pos) {
+                continue;
+            }
             let Some(actor) = self.actors.get_mut(&id) else {
                 continue;
             };
@@ -8140,6 +8195,19 @@ pub(crate) fn access_lists(c: &prototypes::Data) -> Vec<Vec<String>> {
                 .collect()
         })
         .unwrap_or_default()
+}
+
+/// Стоит ли точка на замороженной карте (ADR-0012): симуляции её не продвигают.
+pub(crate) fn frozen_at(ctx: &HookContext<'_>, p: Vec3) -> bool {
+    floor_at(ctx, p.y).is_some_and(|f| ctx.world.floor_paused(f))
+}
+
+/// Прошла ли инициализация карты этажа (MapInit SS14); неизвестный этаж — как карта 0.
+pub(crate) fn map_initialized(world: &astrocore_world::World, floor: FloorId) -> bool {
+    world
+        .map_of_floor(floor)
+        .and_then(|m| world.map(m))
+        .is_none_or(|m| m.initialized)
 }
 
 pub(crate) fn floor_at(ctx: &HookContext<'_>, y: f32) -> Option<FloorId> {

@@ -257,16 +257,22 @@ impl Puddles {
     }
 
     /// Шаг времени: испарение и растекание раз в секунду.
-    pub fn tick(&mut self, dt: f32, layout: &Layout) {
+    /// Шаг луж. `frozen` — клетки замороженных карт: там лужи не сохнут и не растекаются.
+    pub fn tick(&mut self, dt: f32, layout: &Layout, frozen: &dyn Fn(Cell) -> bool) {
         self.cells
             .retain(|c, _| layout.cells.get(c) == Some(&CellKind::Air));
         self.active.retain(|c| self.cells.contains_key(c));
         self.timer += dt;
         while self.timer >= SPREAD_COOLDOWN_S {
             self.timer -= SPREAD_COOLDOWN_S;
-            self.evaporate();
+            self.evaporate(frozen);
             let mut updates = SPREAD_UPDATES_PER_SECOND;
-            let run: Vec<Cell> = self.active.iter().copied().collect();
+            let run: Vec<Cell> = self
+                .active
+                .iter()
+                .copied()
+                .filter(|c| !frozen(*c))
+                .collect();
             for c in run {
                 if updates <= 0 {
                     break;
@@ -277,9 +283,12 @@ impl Puddles {
     }
 
     /// `TickEvaporation`.
-    fn evaporate(&mut self) {
+    fn evaporate(&mut self, frozen: &dyn Fn(Cell) -> bool) {
         let mut empty = Vec::new();
         for (cell, s) in &mut self.cells {
+            if frozen(*cell) {
+                continue;
+            }
             let speeds: Vec<(String, f32)> = s
                 .contents
                 .keys()
@@ -449,14 +458,14 @@ mod tests {
         let mut p = Puddles::new();
         p.spill(&l, (1, 1), &sol("Water", 10.0));
         p.spill(&l, (0, 0), &sol("Blood", 10.0));
-        p.tick(10.0, &l);
+        p.tick(10.0, &l, &|_| false);
         assert!(
             (p.volume((1, 1)) - 7.0).abs() < 0.05,
             "{}",
             p.volume((1, 1))
         );
         assert_eq!(p.volume((0, 0)), 10.0);
-        p.tick(40.0, &l);
+        p.tick(40.0, &l, &|_| false);
         assert_eq!(p.volume((1, 1)), 0.0, "вода высохла целиком");
         assert!(p.volume((0, 0)) > 9.9);
     }
@@ -467,7 +476,7 @@ mod tests {
         let mut p = Puddles::new();
         p.spill(&l, (2, 2), &sol("Blood", 400.0));
         for _ in 0..40 {
-            p.tick(1.0, &l);
+            p.tick(1.0, &l, &|_| false);
         }
         assert!(p.len() > 9, "лужа растеклась: {}", p.len());
         let total: f32 = p.cells().map(|(_, s)| s.volume()).sum();
@@ -485,7 +494,7 @@ mod tests {
         let mut p = Puddles::new();
         p.spill(&l, (0, 0), &sol("Blood", 200.0));
         for _ in 0..30 {
-            p.tick(1.0, &l);
+            p.tick(1.0, &l, &|_| false);
         }
         assert_eq!(p.len(), 1);
     }
