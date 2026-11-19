@@ -3,7 +3,7 @@
 //! `AtmosphereSystem.Processing.cs` из SS14).
 //!
 //! Выравнивание давления и взрывная разгерметизация Monstermos (`AtmosphereSystem.Monstermos.cs`)
-//! включены, как в SS14 по умолчанию. Не перенесено (в README Build сказано явно): реакции и огонь,
+//! включены, как в SS14 по умолчанию. Не перенесено (в docs/FEATURES.md Build сказано явно): реакции и огонь,
 //! трубы и приборы, космический ветер (по умолчанию выключен в SS14), сверхпроводимость.
 
 use std::collections::{BTreeMap, BTreeSet};

@@ -29,7 +29,7 @@
 3. Реализуй в `gameplay` (состояние в `State`, разбор прототипа при создании, команды в `wire.rs`, обработчик в `handlers.rs`, окно в `apps/client/src/hud.rs`).
 4. Добавь тест: интеграционный в `crates/gameplay/src/tests.rs` (есть `harness`, `command`, `spawn`, хелперы `peek`, `lab_view`, `cryo_view`) и/или модульный рядом с кодом.
 5. Спрайты и звуки: добавь пути в sparse-checkout SS14, запусти `cargo run -q -p tools --bin sync-sprites -- <SS14>/Resources/Textures`, `python3 scripts/sync_audio.py <SS14>` и `cargo run -q -p server -- --write-manifest assets/ss14/render-manifest.json`.
-6. Раздел в `README.md`, коммит, пуш.
+6. Раздел в `docs/FEATURES.md`, коммит, пуш.
 
 ## Команды
 - Основной запуск Windows: `.\scripts\run_saltern.ps1 -LocalEngine -GraphicsBackend Vulkan -ClientArguments '--no-shadows'`. Для актуализации существующего импорта — `-Reimport`. Локальный Engine подключается через отдельный `.local/dev/Cargo.toml`; закреплённые зависимости основного Build не подменяются.
