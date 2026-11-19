@@ -2694,6 +2694,14 @@ mod disposal_tests {
         command(&mut h, a, crate::CMD_JOB, b"Free".to_vec());
         h.ticks(5);
         console(&mut h, a, "aghost");
+        // Клиент знает, что призрак админский, и не предлагает возродиться.
+        let net = h.client(a).net_id().unwrap();
+        let view = h
+            .client(a)
+            .component(net, crate::HEALTH_COMPONENT)
+            .and_then(crate::decode_health)
+            .unwrap();
+        assert!(view.ghost && view.admin_ghost);
         h.ticks(30 * 25);
         assert!(roundend_view(&h, a).is_none(), "сводки нет");
         assert!(!signal.take(), "раунд не перезапускается");

@@ -234,6 +234,9 @@ pub struct HealthView {
     /// Сколько секунд до возможности возродиться (на момент рассылки).
     #[serde(default)]
     pub respawn_in: f32,
+    /// Админ-призрак (aghost, маппинг): тело живо, возрождаться не нужно — возврат командой `aghost`.
+    #[serde(default)]
+    pub admin_ghost: bool,
 }
 
 pub const HEALTH_COMPONENT: &str = "build.health";
@@ -256,6 +259,7 @@ impl Health {
             suffocating: false,
             ghost: false,
             respawn_in: 0.0,
+            admin_ghost: false,
         }
     }
 }

@@ -1418,6 +1418,7 @@ impl State {
         ctx.set_component(actor, HANDS_COMPONENT, encode_hands(&a.hands));
         let mut health_view = a.health.view();
         health_view.ghost = a.ghost;
+        health_view.admin_ghost = a.ghost && a.admin_ghost;
         health_view.suffocating = a.body.as_ref().is_some_and(|b| b.low_oxygen);
         health_view.respawn_in = if a.ghost {
             (a.respawn_at - self.clock).max(0.0)

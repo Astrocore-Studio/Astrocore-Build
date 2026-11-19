@@ -1243,7 +1243,6 @@ fn autoplay(
         100 => {
             net.send_command(CMD_EQUIP, equip_data(0, "back"));
         }
-        120 => hud.state.clothes_open = true,
         140 | 180 => {
             if let Some(id) = nearest_item(&net, 1.5) {
                 net.send_command(gameplay::CMD_INTERACT, gameplay::interact_data(id));
@@ -1332,6 +1331,15 @@ fn loadout_window(
             .anchor(egui::Align2::CENTER_TOP, egui::vec2(0.0, 24.0))
             .show(&ctx, |ui| {
                 ui.vertical_centered(|ui| {
+                    // Админ-призрак (aghost, маппинг): тело живо, возрождение не нужно.
+                    if h.admin_ghost {
+                        ui.label(
+                            egui::RichText::new("Админ-призрак")
+                                .size(20.0)
+                                .color(egui::Color32::from_rgb(170, 200, 255)),
+                        );
+                        return;
+                    }
                     ui.label(
                         egui::RichText::new("Вы призрак")
                             .size(32.0)
@@ -1509,7 +1517,10 @@ fn loadout_window(
     hud::examine_window(&ctx, state, loadout.examine.as_ref());
     commands.extend(hud::strip_window(&ctx, state, loadout.strip.as_ref()));
     hud::ammo_counter(&ctx, loadout.ammo.as_ref());
-    let chat_at = egui::pos2(16.0, (ctx.content_rect().max.y - 290.0).max(16.0));
+    let chat_at = egui::pos2(
+        16.0,
+        (ctx.content_rect().max.y - hud::CHAT_FROM_BOTTOM).max(16.0),
+    );
     commands.extend(hud::chat_panel(&ctx, state, loadout.chat.as_ref(), chat_at));
     commands.extend(console_ui::console_panel(
         &ctx,
