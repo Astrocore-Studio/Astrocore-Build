@@ -76,12 +76,10 @@ scripts/run_all.sh
 
 ## Лицензии
 
-Код этого репозитория распространяется по [лицензии MIT](LICENSE).
-
-Build использует Astrocore Engine, который распространяется по
-[GNU AGPL-3.0-or-later](https://github.com/Astrocore-Studio/Astrocore-Engine/blob/main/LICENSE).
-Собранные сервер и клиент включают движок и подпадают под условия AGPL, в том числе обязанность
-предоставить исходный код пользователям сетевого сервиса.
+Код этого репозитория, как и [Astrocore Engine](https://github.com/Astrocore-Studio/Astrocore-Engine),
+распространяется по лицензии [GNU Affero General Public License v3.0 или новее](LICENSE)
+(`AGPL-3.0-or-later`). Если вы распространяете игру или запускаете изменённый сервер как сетевой
+сервис, AGPL обязывает предоставить исходный код пользователям, включая ваши изменения.
 
 Ассеты распространяются по лицензиям, указанным в их файлах метаданных. Спрайты в `assets/ss14`
 взяты из [Space Station 14](https://github.com/space-wizards/space-station-14) и его форков;
