@@ -97,6 +97,31 @@ pub fn commands(
                 gameplay::systems::mapping::tile_data(&r),
             );
         }
+        // Маркеры появления и лестница на уровень 1.
+        if frame == 250 {
+            for (job, at) in [("Latejoin", [-2, 2]), ("Captain", [2, 2])] {
+                let r = gameplay::systems::mapping::MarkerRequest {
+                    job: job.into(),
+                    at,
+                    level: 0,
+                };
+                net.send_command(
+                    gameplay::systems::mapping::CMD_MARKER,
+                    gameplay::systems::mapping::marker_data(&r),
+                );
+            }
+            let r = gameplay::systems::mapping::StructureRequest {
+                proto: gameplay::systems::mapping::STAIRS.into(),
+                from: [-3, -2],
+                to: [-1, -2],
+                rot: 0,
+                level: 0,
+            };
+            net.send_command(
+                gameplay::systems::mapping::CMD_STRUCTURE,
+                gameplay::systems::mapping::structure_data(&r),
+            );
+        }
         // Ластик: стереть два окна справа от шлюза.
         if frame == 245 {
             let r = gameplay::systems::mapping::EraseRequest {

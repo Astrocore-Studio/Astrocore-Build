@@ -8,9 +8,9 @@ use bevy::prelude::*;
 use bevy_egui::egui::{self, Color32, Key};
 use gameplay::admin::AdminView;
 use gameplay::systems::mapping::{
-    CMD_ERASE, CMD_SPAWN, CMD_STRUCTURE, CMD_TILE, EraseRequest, FLAG, SpawnRequest,
-    StructureEntry, StructureRequest, TILE_FLAG, TileRequest, erase_data, line_cells, spawn_data,
-    structure_catalog, structure_data, tile_data,
+    CMD_ERASE, CMD_MARKER, CMD_SPAWN, CMD_STRUCTURE, CMD_TILE, EraseRequest, FLAG, LATEJOIN,
+    MarkerRequest, SpawnRequest, StructureEntry, StructureRequest, TILE_FLAG, TileRequest,
+    erase_data, line_cells, marker_data, spawn_data, structure_catalog, structure_data, tile_data,
 };
 
 use crate::hud::{Commands, Icons, TileEntry};
@@ -25,6 +25,7 @@ pub enum Tab {
     Entities,
     Tiles,
     Structures,
+    Markers,
 }
 
 pub struct MappingState {
@@ -53,6 +54,8 @@ pub struct MappingState {
     pub drag_from: Option<[i32; 2]>,
     /// Выбранная конструкция (прототип SS14).
     pub structure: Option<String>,
+    /// Выбранный маркер: должность точки появления или `Latejoin`.
+    pub marker: Option<String>,
     /// Каталог конструкций (стены, окна, решётки, шлюзы), по имени.
     structures: Vec<StructureEntry>,
 }
@@ -75,6 +78,7 @@ impl Default for MappingState {
             level: 0,
             drag_from: None,
             structure: None,
+            marker: None,
             structures: structure_catalog(),
         }
     }
@@ -102,6 +106,7 @@ pub fn panel(
     st: &mut MappingState,
     icons: &mut Icons,
     admin: Option<&AdminView>,
+    jobs: &[(String, String)],
 ) -> Commands {
     if !allowed(admin) {
         st.open = false;
@@ -131,6 +136,7 @@ pub fn panel(
                 if can_tiles {
                     ui.selectable_value(&mut st.tab, Tab::Tiles, "Плитки");
                     ui.selectable_value(&mut st.tab, Tab::Structures, "Стены и двери");
+                    ui.selectable_value(&mut st.tab, Tab::Markers, "Маркеры");
                 }
             });
             // Общие для всех вкладок: ластик и вид.
@@ -142,6 +148,7 @@ pub fn panel(
                 ui.checkbox(&mut st.ortho, "Без перспективы")
                     .on_hover_text("Ортографический вид сверху, как в SS14");
             });
+            ui.label(format!("Уровень: {} (PgUp / PgDn)", st.level));
             if st.eraser {
                 ui.label(
                     egui::RichText::new("Ластик: ЛКМ — клетка, протяжка — рамка (до 32 × 32)")
@@ -156,6 +163,10 @@ pub fn panel(
                 Tab::Entities => entities_head(ui, st, icons),
                 Tab::Tiles => tiles_head(ui, st, icons),
                 Tab::Structures => structures_head(ui, st),
+                Tab::Markers => hint(
+                    ui,
+                    "Точки появления: ЛКМ по клетке. В игре их не видно, в маппинге — кружки. Убрать — ластиком",
+                ),
             }
             maps_row(ui, st, &can, &mut out);
             ui.separator();
@@ -165,6 +176,7 @@ pub fn panel(
                     Tab::Entities => entity_list(ctx, ui, st, icons),
                     Tab::Tiles => tile_list(ctx, ui, st, icons),
                     Tab::Structures => structure_list(ctx, ui, st, icons),
+                    Tab::Markers => marker_list(ui, st, jobs),
                 });
         });
     if !open {
@@ -378,6 +390,24 @@ fn structure_list(
     }
 }
 
+fn marker_list(ui: &mut egui::Ui, st: &mut MappingState, jobs: &[(String, String)]) {
+    let q = st.search.trim().to_lowercase();
+    let all = std::iter::once((LATEJOIN.to_string(), "Поздний вход (Latejoin)".to_string()))
+        .chain(jobs.iter().cloned());
+    for (id, title) in all.filter(|(id, t)| {
+        q.is_empty() || id.to_lowercase().contains(&q) || t.to_lowercase().contains(&q)
+    }) {
+        let chosen = st.marker.as_deref() == Some(id.as_str());
+        if ui
+            .selectable_label(chosen, format!("Появление: {title}"))
+            .on_hover_text(&id)
+            .clicked()
+        {
+            st.marker = Some(id);
+        }
+    }
+}
+
 /// `AirlockEngineeringLocked` → `Airlock Engineering Locked`.
 pub fn camel_words(name: &str) -> String {
     let mut out = String::new();
@@ -439,11 +469,19 @@ pub fn input(
         if keys.just_pressed(KeyCode::KeyR) {
             st.rot = (st.rot + 1) % 4;
         }
+        // Уровни: выше и ниже (ADR-0003).
+        if keys.just_pressed(KeyCode::PageUp) {
+            st.level = (st.level + 1).min(49);
+        }
+        if keys.just_pressed(KeyCode::PageDown) {
+            st.level = (st.level - 1).max(-50);
+        }
         if keys.just_pressed(KeyCode::Escape) {
             st.selected = None;
             st.eraser = false;
             st.tile = None;
             st.structure = None;
+            st.marker = None;
             st.drag_from = None;
         }
     }
@@ -460,6 +498,20 @@ pub fn input(
                 level: st.level,
             };
             net.send_command(CMD_ERASE, erase_data(&r));
+        }
+        return;
+    }
+    if st.tab == Tab::Markers {
+        if let (Some(job), Some(point)) = (st.marker.clone(), ground.0)
+            && buttons.just_pressed(MouseButton::Left)
+            && !wants.wants_any_pointer_input()
+        {
+            let r = MarkerRequest {
+                job,
+                at: cell_of(point),
+                level: st.level,
+            };
+            net.send_command(CMD_MARKER, marker_data(&r));
         }
         return;
     }
@@ -539,21 +591,50 @@ pub fn view(
     buttons: Res<ButtonInput<MouseButton>>,
     hud: Res<crate::Hud>,
     rendered: Option<ResMut<astrocore_render::RenderedWorld>>,
-    mut hiding: Local<bool>,
+    net: Option<NonSend<astrocore_client::Net>>,
+    mut shown: Local<Option<(bool, i32)>>,
 ) {
     let st = &hud.state.mapping;
-    // Потолки прячутся, только пока открыт маппинг и флажок снят.
-    let hide = st.open && !st.ceilings;
+    // Пока открыт маппинг: уровни выше выбранного скрыты, потолки — по флажку.
+    let want = st.open.then_some((st.ceilings, st.level));
     if let Some(mut r) = rendered
-        && (hide != *hiding || (hide && r.filter.is_none()))
+        && (want != *shown || (want.is_some() && r.filter.is_none()))
     {
-        r.filter = hide.then(|| {
-            std::sync::Arc::new(|e: &astrocore_world::StructureElement| {
-                !matches!(e.kind, astrocore_world::StructureKind::Ceiling)
+        r.filter = want.map(|(ceilings, level)| {
+            std::sync::Arc::new(move |e: &astrocore_world::StructureElement| {
+                e.floor.0 <= level
+                    && (ceilings || !matches!(e.kind, astrocore_world::StructureKind::Ceiling))
             }) as astrocore_render::ElementFilter
         });
         r.rebuild_all = true;
-        *hiding = hide;
+        *shown = want;
+    }
+    // Маркеры точек появления выбранного уровня: кружок с крестом (поздний вход — голубой).
+    if st.open
+        && let Some(world) = net.as_ref().and_then(|n| n.core.world())
+    {
+        for o in world.authored() {
+            let Some(job) = o.metadata.get("spawn_job") else {
+                continue;
+            };
+            if o.floor.0 != st.level {
+                continue;
+            }
+            let c = (o.min() + o.max()) * 0.5;
+            let at = Vec3::new(c.x, o.min().y + 0.03, c.z);
+            let color = if job == LATEJOIN {
+                Color::srgb(0.3, 0.8, 1.0)
+            } else {
+                Color::srgb(0.3, 1.0, 0.4)
+            };
+            gizmos.circle(
+                Isometry3d::new(at, Quat::from_rotation_x(std::f32::consts::FRAC_PI_2)),
+                0.35,
+                color,
+            );
+            gizmos.line(at - Vec3::X * 0.25, at + Vec3::X * 0.25, color);
+            gizmos.line(at - Vec3::Z * 0.25, at + Vec3::Z * 0.25, color);
+        }
     }
     if !st.open {
         return;

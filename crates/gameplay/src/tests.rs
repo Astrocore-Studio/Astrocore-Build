@@ -3419,6 +3419,95 @@ mod disposal_tests {
         assert_eq!(floors, 21, "пол цел");
     }
 
+    /// Маркеры точек появления — зоны `spawn_job` (как `SpawnPoint*` SS14); лестница — протяжкой
+    /// в сторону подъёма, верхний уровень создаётся сам; ластик убирает и то, и другое.
+    #[test]
+    fn a_mapper_places_spawn_markers_and_stairs() {
+        use crate::systems::mapping::{
+            CMD_ERASE, CMD_MARKER, CMD_STRUCTURE, EraseRequest, LATEJOIN, MarkerRequest, STAIRS,
+            StructureRequest, erase_data, marker_data, structure_data,
+        };
+        let token = "fedcba9876543210fedcba9876543210";
+        let mut h = harness_with(move |m| m.with_admins(admin_roster(token, "Mapper")));
+        let a = h.join("a");
+        h.ticks(10);
+        hello(&mut h, a, token);
+        let send = |h: &mut Harness, kind: &'static str, data: Vec<u8>| {
+            command(h, a, kind, data);
+            h.ticks(5);
+        };
+        let marker = |job: &str, at| MarkerRequest {
+            job: job.into(),
+            at,
+            level: 0,
+        };
+        // Должность — из списка, который сервер присылает игроку.
+        let net = h.client(a).net_id().unwrap();
+        let job = h
+            .client(a)
+            .component(net, crate::JOBS_COMPONENT)
+            .and_then(crate::decode_jobs)
+            .and_then(|v| v.jobs.first().map(|j| j.id.clone()))
+            .expect("есть должности");
+        send(&mut h, CMD_MARKER, marker_data(&marker(&job, [45, 45])));
+        send(&mut h, CMD_MARKER, marker_data(&marker(&job, [45, 45])));
+        send(&mut h, CMD_MARKER, marker_data(&marker(LATEJOIN, [46, 45])));
+        send(
+            &mut h,
+            CMD_MARKER,
+            marker_data(&marker("NoSuchJob", [47, 45])),
+        );
+        let markers = |h: &Harness| -> Vec<String> {
+            h.server
+                .world()
+                .authored()
+                .filter_map(|o| o.metadata.get("spawn_job").cloned())
+                .filter(|j| j == &job || j == LATEJOIN || j == "NoSuchJob")
+                .collect()
+        };
+        let before = markers(&h).len();
+        assert!(before >= 2, "{:?}", markers(&h));
+        assert!(!markers(&h).contains(&"NoSuchJob".to_string()));
+        // Лестница на 3 клетки на восток — на уровень 1, который появляется сам.
+        let r = StructureRequest {
+            proto: STAIRS.into(),
+            from: [40, 45],
+            to: [42, 45],
+            rot: 0,
+            level: 0,
+        };
+        send(&mut h, CMD_STRUCTURE, structure_data(&r));
+        let w = h.server.world();
+        let stair = w
+            .elements()
+            .find(|e| matches!(e.kind, StructureKind::Stair { .. }) && matches!(e.placement, Placement::Run { start, .. } if start.x == 40 && start.z == 45))
+            .expect("лестница");
+        assert!(matches!(stair.kind, StructureKind::Stair { to } if to == FloorId(1)));
+        assert!(matches!(
+            stair.placement,
+            Placement::Run {
+                dir: astrocore_math::Facing::East,
+                length: 3,
+                ..
+            }
+        ));
+        assert!(w.floor(FloorId(1)).is_some(), "уровень 1 создан");
+        // Ластик по клеткам маркеров и середине лестницы.
+        let erase = EraseRequest {
+            from: [41, 45],
+            to: [46, 45],
+            level: 0,
+        };
+        send(&mut h, CMD_ERASE, erase_data(&erase));
+        let w = h.server.world();
+        assert!(
+            !w.elements()
+                .any(|e| matches!(e.kind, StructureKind::Stair { .. })
+                    && matches!(e.placement, Placement::Run { start, .. } if start.x == 40))
+        );
+        assert_eq!(markers(&h).len(), before - 2);
+    }
+
     #[test]
     fn a_mapper_lays_and_erases_floor_tiles_by_rectangle() {
         use crate::systems::mapping::TileRequest;

@@ -15,6 +15,10 @@
 //! клетку и рёбра вокруг (как постройка в игре); ставятся линией протяжкой. Шлюз — проём двери на
 //! ребре клетки по повороту и служебная зона шлюза (плата, провода, доступ), как у импортёра.
 //!
+//! Маркеры (`mapping.marker`): точки появления должностей и позднего входа — зоны `spawn_job`,
+//! как `SpawnPoint<должность>` SS14; в игре их не видно. Лестница — конструкция каталога
+//! (`Stairs`): протяжка от нижней клетки в сторону подъёма ведёт на уровень выше.
+//!
 //! Не сделано: декали.
 
 use astrocore_api::HookContext;
@@ -34,6 +38,12 @@ pub const CMD_SPAWN: &str = "mapping.spawn";
 pub const CMD_DELETE: &str = "mapping.delete";
 pub const CMD_TILE: &str = "mapping.tile";
 pub const CMD_STRUCTURE: &str = "mapping.structure";
+/// Маркер точки появления (флаг `Mapping`).
+pub const CMD_MARKER: &str = "mapping.marker";
+/// Должность маркера позднего входа (запасная точка появления, как `SpawnPointLatejoin` SS14).
+pub const LATEJOIN: &str = "Latejoin";
+/// Лестница в каталоге конструкций.
+pub const STAIRS: &str = "Stairs";
 /// Ластик: всё, кроме пола и потолка, в прямоугольнике клеток (флаг `Mapping`).
 pub const CMD_ERASE: &str = "mapping.erase";
 /// Самая длинная линия стен за одну протяжку, клеток.
@@ -107,6 +117,19 @@ pub struct EraseRequest {
     pub level: i32,
 }
 
+/// Запрос маркера: должность (`Captain`… или `Latejoin`), клетка и уровень.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct MarkerRequest {
+    pub job: String,
+    pub at: [i32; 2],
+    #[serde(default)]
+    pub level: i32,
+}
+
+pub fn marker_data(r: &MarkerRequest) -> Vec<u8> {
+    serde_json::to_vec(r).unwrap_or_default()
+}
+
 pub fn erase_data(r: &EraseRequest) -> Vec<u8> {
     serde_json::to_vec(r).unwrap_or_default()
 }
@@ -162,6 +185,11 @@ pub fn structure_catalog() -> Vec<StructureEntry> {
                 })
             }),
     );
+    out.push(StructureEntry {
+        proto: STAIRS.into(),
+        material: "ss14:floor_dark".into(),
+        airlock: false,
+    });
     out.sort_by(|a, b| a.proto.cmp(&b.proto));
     out
 }
@@ -200,7 +228,14 @@ impl GameSystem for MappingSystem {
     }
 
     fn commands(&self) -> &'static [&'static str] {
-        &[CMD_SPAWN, CMD_DELETE, CMD_TILE, CMD_STRUCTURE, CMD_ERASE]
+        &[
+            CMD_SPAWN,
+            CMD_DELETE,
+            CMD_TILE,
+            CMD_STRUCTURE,
+            CMD_ERASE,
+            CMD_MARKER,
+        ]
     }
 
     fn command(
@@ -211,7 +246,7 @@ impl GameSystem for MappingSystem {
         kind: &str,
         data: &[u8],
     ) {
-        let flag = if matches!(kind, CMD_TILE | CMD_STRUCTURE | CMD_ERASE) {
+        let flag = if matches!(kind, CMD_TILE | CMD_STRUCTURE | CMD_ERASE | CMD_MARKER) {
             TILE_FLAG
         } else {
             FLAG
@@ -225,6 +260,7 @@ impl GameSystem for MappingSystem {
             CMD_TILE => self.tiles(st, ctx, data),
             CMD_STRUCTURE => self.structure(st, ctx, data),
             CMD_ERASE => Self::erase(st, ctx, data),
+            CMD_MARKER => self.marker(st, ctx, data),
             _ => Self::delete(ctx, data),
         };
         if let Err(text) = result {
@@ -390,6 +426,9 @@ impl MappingSystem {
         if let Some(def) = airlocks().get(r.proto.as_str()) {
             return self.airlock(ctx, &r, floor, def);
         }
+        if r.proto == STAIRS {
+            return self.stairs(ctx, &r, floor);
+        }
         if crate::crafting::CATALOG["barriers"]
             .get(r.proto.as_str())
             .is_none()
@@ -475,6 +514,96 @@ impl MappingSystem {
         Ok(())
     }
 
+    /// Лестница от клетки `from` в сторону `to` (длина — клеток в линии, 2…8) на уровень выше;
+    /// верхний уровень создаётся, если его нет.
+    fn stairs(
+        &mut self,
+        ctx: &mut HookContext<'_>,
+        r: &StructureRequest,
+        floor: FloorId,
+    ) -> Result<(), String> {
+        use astrocore_math::Facing;
+        let cells = line_cells(r.from, r.to);
+        let length = cells.len().clamp(2, 8);
+        if cells.len() < 2 {
+            return Err("Протяните лестницу в сторону подъёма (2–8 клеток)".into());
+        }
+        let (dx, dz) = (cells[1][0] - cells[0][0], cells[1][1] - cells[0][1]);
+        let dir = match (dx, dz) {
+            (1, 0) => Facing::East,
+            (-1, 0) => Facing::West,
+            (0, 1) => Facing::South,
+            _ => Facing::North,
+        };
+        let up = FloorId(floor.0 + 1);
+        if ctx.world.floor(up).is_none() {
+            let mut def = level_def(ctx, up.0);
+            // Уровень вызова мог появиться этим же запросом: верхний — над ним.
+            if ctx.world.floor(floor).is_none() {
+                def.base_y = (floor.0 + 1) as f32 * maps::LEVEL_HEIGHT_M;
+            }
+            ctx.request(WorldCommand::DefineFloor(def));
+        }
+        let id = self.fresh_id(ctx);
+        ctx.request(WorldCommand::PlaceElement(StructureElement {
+            id,
+            kind: StructureKind::Stair { to: up },
+            placement: Placement::Run {
+                start: GridCell::new(r.from[0], r.from[1]),
+                dir,
+                length: length as u8,
+            },
+            floor,
+            material: PrototypeId::new("ss14:floor_dark").map_err(|e| e.to_string())?,
+            thickness: 0.2,
+        }));
+        Ok(())
+    }
+
+    /// Маркер точки появления: зона `spawn_job` на клетке, как у импортёра.
+    fn marker(
+        &mut self,
+        st: &mut State,
+        ctx: &mut HookContext<'_>,
+        data: &[u8],
+    ) -> Result<(), String> {
+        if data.len() > MAX_REQUEST_BYTES {
+            return Err("Слишком длинный запрос".into());
+        }
+        let r: MarkerRequest =
+            serde_json::from_slice(data).map_err(|_| "Неверный запрос".to_string())?;
+        if r.job != LATEJOIN && !st.jobs.iter().any(|j| j.id == r.job) {
+            return Err(format!("Нет должности {}", r.job));
+        }
+        let floor = FloorId(r.level);
+        let (cx, cz) = (r.at[0] as f32 + 0.5, r.at[1] as f32 + 0.5);
+        let exists = ctx.world.authored().any(|o| {
+            o.floor == floor
+                && o.metadata.get("spawn_job") == Some(&r.job)
+                && ((o.min() + o.max()) * 0.5 - Vec3::new(cx, (o.min() + o.max()).y * 0.5, cz))
+                    .length()
+                    < 0.1
+        });
+        if exists {
+            return Ok(());
+        }
+        let base = ctx
+            .world
+            .floor(floor)
+            .map_or(floor.0 as f32 * maps::LEVEL_HEIGHT_M, |f| f.base_y)
+            + maps::FLOOR_TOP_M;
+        let mut zone = AuthoredObject::new(
+            self.fresh_id(ctx),
+            AuthoredKind::Zone,
+            floor,
+            Vec3::new(cx - 0.4, base, cz - 0.4),
+            Vec3::new(cx + 0.4, base + 2.0, cz + 0.4),
+        );
+        zone.metadata.insert("spawn_job".into(), r.job);
+        ctx.request(WorldCommand::PlaceAuthored(zone));
+        Ok(())
+    }
+
     /// Ластик (`Eraser` окна спавна SS14): в прямоугольнике убираются сущности и предметы,
     /// стены, окна и решётки (их рёбра — если по другую сторону не стена), шлюзы с их зонами,
     /// огнезапоры и маркеры появления. Пол и потолок остаются — для них «пустая плитка».
@@ -521,6 +650,17 @@ impl MappingSystem {
                 _ => continue,
             }
             gone.push(WorldCommand::RemoveAuthored { id: o.id });
+        }
+        // Лестницы и пандусы, задевающие рамку.
+        for e in ctx.world.elements().filter(|e| e.floor == floor) {
+            if let Placement::Run { start, dir, length } = e.placement
+                && (0..i32::from(length)).any(|i| {
+                    let c = start.step(dir, i);
+                    inside(c.x, c.z)
+                })
+            {
+                gone.push(WorldCommand::RemoveElement { id: e.id });
+            }
         }
         // Стены, окна, решётки: блоки клеток.
         let mut walls = st.take_walls(ctx);
