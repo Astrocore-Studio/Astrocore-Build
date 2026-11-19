@@ -1508,6 +1508,7 @@ pub fn import(
             name: "Этаж 0".into(),
             base_y: 0.0,
             height: STOREY_M,
+            map: Default::default(),
         }],
         elements,
         items,

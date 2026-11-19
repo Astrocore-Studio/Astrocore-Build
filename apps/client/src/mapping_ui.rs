@@ -33,7 +33,8 @@ pub struct MappingState {
     pub selected: Option<String>,
     pub rot: u8,
     pub delete: bool,
-    /// Имя файла для «Сохранить карту» (`savemap <имя>` на сервере).
+    /// Номер карты и имя файла для команд карт (`savemap <карта> <имя>` и др.).
+    map_id: String,
     save_name: String,
     /// Выбранная плитка: `Some(None)` — пустая (убрать пол).
     pub tile: Option<Option<String>>,
@@ -54,6 +55,7 @@ impl Default for MappingState {
             selected: None,
             rot: 0,
             delete: false,
+            map_id: "1".into(),
             save_name: String::new(),
             tile: None,
             ceiling: true,
@@ -191,59 +193,51 @@ fn tiles_head(ui: &mut egui::Ui, st: &mut MappingState, icons: &Icons) {
     );
 }
 
-/// Сохранить, загрузить, новая карта: те же консольные команды `savemap`, `loadmap`, `mapping`;
-/// права (флаг Mapping) и проверку имени делает сервер, ответ приходит в консоль.
+/// Карты: номер и имя файла; кнопки — те же консольные команды SS14 (`mapping <карта> [имя]`,
+/// `loadmap <карта> <имя>`, `savemap <карта> <имя>`). Права (флаг Mapping), проверку имени и
+/// номера делает сервер, ответ приходит в консоль.
 fn maps_row(
     ui: &mut egui::Ui,
     st: &mut MappingState,
     can: &dyn Fn(&str) -> bool,
     out: &mut Commands,
 ) {
-    if can("savemap") {
-        ui.horizontal(|ui| {
-            ui.label("Карта:");
-            ui.add(
-                egui::TextEdit::singleline(&mut st.save_name)
-                    .hint_text("имя файла")
-                    .desired_width(120.0),
-            );
-            let name = st.save_name.trim();
-            let mut button = |ui: &mut egui::Ui, cmd: &str, label: &str, tip: &str| {
-                if ui
-                    .add_enabled(!name.is_empty(), egui::Button::new(label))
-                    .on_hover_text(tip)
-                    .clicked()
-                {
-                    out.push((
-                        gameplay::admin::CMD_CONSOLE,
-                        format!("{cmd} {name}").into_bytes(),
-                    ));
-                }
-            };
-            button(
-                ui,
-                "savemap",
-                "Сохранить",
-                "savemap <имя>: стены, полы, предметы на земле и зоны",
-            );
-            if can("loadmap") {
-                button(
-                    ui,
-                    "loadmap",
-                    "Загрузить",
-                    "loadmap <имя>: новый раунд на этой карте",
-                );
+    if !can("savemap") {
+        return;
+    }
+    ui.horizontal(|ui| {
+        ui.label("Карта №");
+        ui.add(egui::TextEdit::singleline(&mut st.map_id).desired_width(32.0));
+        ui.add(
+            egui::TextEdit::singleline(&mut st.save_name)
+                .hint_text("имя файла")
+                .desired_width(110.0),
+        );
+    });
+    let (id, name) = (
+        st.map_id.trim().to_string(),
+        st.save_name.trim().to_string(),
+    );
+    ui.horizontal(|ui| {
+        let mut send = |ui: &mut egui::Ui, enabled: bool, label: &str, tip: &str, line: String| {
+            if ui
+                .add_enabled(enabled, egui::Button::new(label))
+                .on_hover_text(tip)
+                .clicked()
+            {
+                out.push((gameplay::admin::CMD_CONSOLE, line.into_bytes()));
             }
-        });
-    }
-    if can("mapping")
-        && ui
-            .button("Новая пустая карта")
-            .on_hover_text("mapping: новый раунд на пустой карте (несохранённое пропадёт)")
-            .clicked()
-    {
-        out.push((gameplay::admin::CMD_CONSOLE, b"mapping".to_vec()));
-    }
+        };
+        let both = !id.is_empty() && !name.is_empty();
+        send(ui, both, "Сохранить", "savemap <карта> <имя>: инициализированную — только с force", format!("savemap {id} {name}"));
+        if can("loadmap") {
+            send(ui, both, "Загрузить", "loadmap <карта> <имя>: карта идёт, как в игре", format!("loadmap {id} {name}"));
+        }
+        if can("mapping") {
+            let line = if name.is_empty() { format!("mapping {id}") } else { format!("mapping {id} {name}") };
+            send(ui, !id.is_empty(), "Маппинг", "mapping <карта> [имя]: новая карта на паузе (пустая или из файла), вы на ней призраком", line);
+        }
+    });
 }
 
 fn entity_list(ctx: &egui::Context, ui: &mut egui::Ui, st: &mut MappingState, icons: &mut Icons) {

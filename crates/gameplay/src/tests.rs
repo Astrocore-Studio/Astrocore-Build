@@ -616,6 +616,7 @@ mod module_level {
             name: "g".into(),
             base_y: 0.0,
             height: 3.0,
+            map: Default::default(),
         }))
         .unwrap();
         for z in 0..6 {
@@ -2820,16 +2821,22 @@ mod disposal_tests {
         hello(&mut h, a, token);
         console(&mut h, a, "spawn Crowbar");
         // Имя становится именем файла: пути и точки запрещены.
-        assert!(console(&mut h, a, "savemap ../evil").last().unwrap().error);
-        let done = console(&mut h, a, "savemap station_1");
-        let last = done.last().unwrap();
         assert!(
-            !last.error && last.text.contains("Карта сохранена"),
-            "{done:?}"
+            console(&mut h, a, "savemap 0 ../evil force")
+                .last()
+                .unwrap()
+                .error
         );
+        // Станция (карта 0) инициализирована: без force в файл не пишется, как в SS14.
+        let refused = console(&mut h, a, "savemap 0 station_1");
+        assert!(refused.last().unwrap().error, "{refused:?}");
+        assert!(!dir.join("station_1.ron").exists());
+        let done = console(&mut h, a, "savemap 0 station_1 force");
+        let last = done.last().unwrap();
+        assert!(!last.error && last.text.contains("сохранена"), "{done:?}");
         let map = maps::MapFile::load(&dir.join("station_1.ron")).unwrap();
         assert_eq!(map.name, "station_1");
-        assert!(!map.elements.is_empty() && !map.floors.is_empty());
+        assert!(!map.elements.is_empty());
         assert!(
             map.items.iter().any(|i| i.prototype == "Crowbar"),
             "{:?}",
@@ -2842,50 +2849,109 @@ mod disposal_tests {
         let a = h.join("a");
         h.ticks(10);
         hello(&mut h, a, token);
-        let off = console(&mut h, a, "savemap x");
+        let off = console(&mut h, a, "savemap 0 x force");
         assert!(off.last().unwrap().text.contains("выключено"), "{off:?}");
         let mut h = harness_with(move |m| m.with_admins(admin_roster(token, "Moderator")));
         let a = h.join("a");
         h.ticks(10);
         hello(&mut h, a, token);
-        let denied = console(&mut h, a, "savemap x");
+        let denied = console(&mut h, a, "savemap 0 x");
         assert!(
             denied.last().unwrap().text.contains("Mapping"),
             "{denied:?}"
         );
     }
 
+    /// Карты как в SS14: `mapping` — новая замороженная карта и маппер призраком на ней, плитки
+    /// ложатся на неё, `savemap` без force, `loadmap` — карта из файла рядом со станцией, флаги,
+    /// `tp` на карту, `rmmap` — карта исчезает, кто был на ней — на станцию.
     #[test]
-    fn a_mapper_loads_a_saved_map_or_starts_an_empty_one() {
+    fn several_maps_live_side_by_side_like_in_ss14() {
         let token = "fedcba9876543210fedcba9876543210";
-        let dir = std::env::temp_dir().join(format!("astro-loadmap-{}", std::process::id()));
+        let steel = "ss14:tile_floorsteel";
+        let dir = std::env::temp_dir().join(format!("astro-maps-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
-        let signal = crate::RoundSignal::new();
-        let (d, s) = (dir.clone(), signal.clone());
+        let d = dir.clone();
         let mut h = harness_with(move |m| {
             m.with_admins(admin_roster(token, "Mapper"))
                 .with_map_dir(d)
-                .with_round_end(s, None)
+                .with_tiles([astrocore_core::PrototypeId::new(steel).unwrap()])
         });
         let a = h.join("a");
         h.ticks(10);
         hello(&mut h, a, token);
-        // Нет такой карты — ошибка сразу, раунд не перезапускается.
-        let missing = console(&mut h, a, "loadmap nope");
-        assert!(missing.last().unwrap().error, "{missing:?}");
-        assert!(!signal.take());
-        console(&mut h, a, "savemap base");
-        let ok = console(&mut h, a, "loadmap base");
-        assert!(!ok.last().unwrap().error, "{ok:?}");
-        assert!(signal.take(), "новый раунд сразу");
-        assert_eq!(
-            signal.take_map(),
-            Some(crate::NextMap::File(dir.join("base.ron")))
+        let station = h.server.world().element_count();
+        let ok = |lines: Vec<crate::admin::ConsoleLine>| {
+            let last = lines.last().cloned().unwrap();
+            assert!(!last.error, "{lines:?}");
+            last.text
+        };
+        assert!(
+            console(&mut h, a, "mapping 0").last().unwrap().error,
+            "карта 0 занята"
         );
-        console(&mut h, a, "mapping");
-        assert!(signal.take());
-        assert_eq!(signal.take_map(), Some(crate::NextMap::Empty));
-        assert_eq!(signal.take_map(), None, "запрос забирается один раз");
+        ok(console(&mut h, a, "mapping 5"));
+        h.ticks(10);
+        let five = astrocore_world::MapId(5);
+        let def = h.server.world().map(five).expect("карта 5");
+        assert!(def.paused && !def.initialized);
+        let p = h.client(a).position();
+        assert!((p.y - 5000.0).abs() < 5.0, "маппер на карте 5: {p:?}");
+        let net = h.client(a).net_id().unwrap();
+        assert_eq!(
+            h.client(a)
+                .component(net, crate::GHOST_COMPONENT)
+                .map(|b| b[0]),
+            Some(1)
+        );
+        // Плитки ложатся на уровень 0 карты 5, станция не задета.
+        map_tiles(
+            &mut h,
+            a,
+            &crate::systems::mapping::TileRequest {
+                tile: Some(steel.into()),
+                from: [0, 0],
+                to: [2, 1],
+                level: 0,
+                ceiling: false,
+            },
+        );
+        let w = h.server.world();
+        assert_eq!(w.element_count(), station + 6);
+        assert_eq!(w.floor(maps::floor_id(five, 0)).unwrap().map, five);
+        // Неинициализированную карту можно сохранить без force.
+        ok(console(&mut h, a, "savemap 5 room"));
+        let file = maps::MapFile::load(&dir.join("room.ron")).unwrap();
+        assert_eq!(file.elements.len(), 6);
+        assert!(
+            file.elements.iter().all(|e| e.floor.0 == 0),
+            "уровни карты, не этажи мира"
+        );
+        // Та же карта ещё раз — картой 7, идёт и инициализирована.
+        ok(console(&mut h, a, "loadmap 7 room"));
+        h.ticks(5);
+        let seven = h.server.world().map(astrocore_world::MapId(7)).unwrap();
+        assert!(!seven.paused && seven.initialized);
+        assert_eq!(h.server.world().element_count(), station + 12);
+        assert_eq!(ok(console(&mut h, a, "querymappaused 7")), "false");
+        ok(console(&mut h, a, "pausemap 7"));
+        assert_eq!(ok(console(&mut h, a, "querymappaused 7")), "true");
+        ok(console(&mut h, a, "mapinit 5"));
+        let def = h.server.world().map(five).unwrap();
+        assert!(!def.paused && def.initialized);
+        assert!(ok(console(&mut h, a, "lsmap")).contains("7 | room"));
+        // Телепорт на карту 7.
+        ok(console(&mut h, a, "tp 1 1 7"));
+        h.ticks(10);
+        assert!((h.client(a).position().y - 7000.0).abs() < 5.0);
+        // Удалить карту 7: её конструкции исчезают, маппер — на станции.
+        ok(console(&mut h, a, "rmmap 7"));
+        h.ticks(10);
+        assert!(h.server.world().map(astrocore_world::MapId(7)).is_none());
+        assert_eq!(h.server.world().element_count(), station + 6);
+        assert!(h.client(a).position().y < 100.0, "на станции");
+        assert!(console(&mut h, a, "rmmap 0").last().unwrap().error);
+        assert!(console(&mut h, a, "loadmap 8 nope").last().unwrap().error);
         let _ = std::fs::remove_dir_all(&dir);
     }
 
@@ -3033,26 +3099,6 @@ mod disposal_tests {
             .collect();
         out.sort_by_key(|(k, c, _)| (*c, matches!(k, StructureKind::Ceiling)));
         out
-    }
-
-    #[test]
-    fn in_mapping_mode_everyone_enters_as_an_admin_ghost_and_the_round_never_ends() {
-        let signal = crate::RoundSignal::new();
-        let s = signal.clone();
-        let mut h = harness_with(move |m| {
-            m.with_mapping_mode()
-                .with_auto_jobs()
-                .with_round_end(s, Some(1.0))
-        });
-        let a = h.join("a");
-        h.ticks(200);
-        let net = h.client(a).net_id().unwrap();
-        let ghost = h
-            .client(a)
-            .component(net, crate::GHOST_COMPONENT)
-            .map(|b| b[0]);
-        assert_eq!(ghost, Some(1), "вошёл призраком");
-        assert!(!signal.take(), "ни гибели экипажа, ни предела времени");
     }
 
     #[test]

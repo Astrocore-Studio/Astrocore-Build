@@ -17,6 +17,7 @@ astrocore-runtime.workspace = true
 astrocore-world.workspace = true
 prototypes.workspace = true
 maps.workspace = true
+polygon.workspace = true
 serde.workspace = true
 ron.workspace = true
 sha2 = "0.10"

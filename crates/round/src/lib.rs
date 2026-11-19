@@ -36,9 +36,6 @@ pub struct RoundConfig {
     pub auto_jobs: bool,
     /// Куда команда `savemap` пишет карты; `None` — команда сообщает, что сохранение выключено.
     pub map_dir: Option<std::path::PathBuf>,
-    /// Режим маппинга (после `mapping` и `loadmap`): без лобби и конца раунда, все входят
-    /// админ-призраками — на пустой карте нет воздуха, и строить удобнее сверху.
-    pub mapping: bool,
 }
 
 impl Default for RoundConfig {
@@ -52,7 +49,6 @@ impl Default for RoundConfig {
             admins: gameplay::admin::AdminRoster::default(),
             auto_jobs: true,
             map_dir: None,
-            mapping: false,
         }
     }
 }
@@ -127,13 +123,8 @@ impl Round {
         let signal = gameplay::RoundSignal::new();
         let module = module.with_round_end(signal.clone(), config.round_secs);
         let module = match config.lobby_secs {
-            Some(secs) if !config.mapping => module.with_lobby(secs, number),
-            _ => module,
-        };
-        let module = if config.mapping {
-            module.with_mapping_mode()
-        } else {
-            module
+            Some(secs) => module.with_lobby(secs, number),
+            None => module,
         };
         modules
             .register(Box::new(module))

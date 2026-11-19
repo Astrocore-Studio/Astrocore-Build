@@ -57,7 +57,7 @@ pub use lobby::{
     decode_lobby,
 };
 pub use round_end::{
-    CrewEntry, EndReason, NextMap, RESTART_DELAY_S, ROUNDEND_COMPONENT, RoundEndView, RoundSignal,
+    CrewEntry, EndReason, RESTART_DELAY_S, ROUNDEND_COMPONENT, RoundEndView, RoundSignal,
     decode_end,
 };
 pub mod interact;

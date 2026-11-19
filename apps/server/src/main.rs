@@ -96,7 +96,7 @@ fn run(args: &[String]) -> Result<(), String> {
             "ВНИМАНИЕ: все игроки получили админ-ранг (--admin-all); только для локальной игры"
         );
     }
-    let mut config = RoundConfig {
+    let config = RoundConfig {
         admins,
         tick_hz,
         round_secs,
@@ -109,8 +109,8 @@ fn run(args: &[String]) -> Result<(), String> {
         ),
         ..RoundConfig::default()
     };
-    // Карта раундов: файл сервера (`--map`) или встроенная; `mapping` и `loadmap` её меняют.
-    let mut map = polygon::map();
+    // Карта станции (карта 0 мира): файл сервера (`--map`) или встроенная.
+    let map = polygon::map();
     let mut round =
         Round::start_map(1, &content, &config, &map, |_| {}).map_err(|e| e.to_string())?;
     // Initialize map-dependent systems before accepting clients. On Saltern the
@@ -137,23 +137,6 @@ fn run(args: &[String]) -> Result<(), String> {
             // Раунд окончен и сводка показана. Новый раунд строится в отдельном потоке, чтобы
             // сеть не замолчала (иначе клиенты отвалятся по таймауту).
             number += 1;
-            let request = signal.take_map();
-            // Карту сменили инструменты маппинга — дальше раунды в режиме маппинга.
-            config.mapping |= request.is_some();
-            match request {
-                Some(gameplay::NextMap::Empty) => {
-                    println!("новая пустая карта для маппинга");
-                    map = maps::MapFile::empty("mapping");
-                }
-                Some(gameplay::NextMap::File(path)) => match maps::MapFile::load(&path) {
-                    Ok(loaded) => {
-                        println!("карта загружена: {}", path.display());
-                        map = loaded;
-                    }
-                    Err(e) => println!("карта не загружена, остаётся прежняя: {e}"),
-                },
-                None => {}
-            }
             let (content, config, n, map) = (content.clone(), config.clone(), number, map.clone());
             pending = Some(std::thread::spawn(move || {
                 let mut round = Round::start_map(n, &content, &config, &map, |_| {})

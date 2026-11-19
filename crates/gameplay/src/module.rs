@@ -395,8 +395,10 @@ pub struct State {
     pub(crate) spawn: Option<Vec3>,
     /// Папка, куда команда `savemap` пишет карты; `None` — сохранение выключено.
     pub(crate) map_dir: Option<std::path::PathBuf>,
-    /// Режим маппинга: все входят админ-призраками, раунд не заканчивается.
-    pub(crate) mapping_mode: bool,
+    /// Реестр прототипов: предметы карт, загружаемых на ходу (`loadmap`, `mapping`).
+    pub(crate) registry: Arc<PrototypeRegistry>,
+    /// Точки появления карт, загруженных на ходу (карта 0 — `spawn`).
+    pub(crate) map_spawns: BTreeMap<astrocore_world::MapId, Vec3>,
     /// Материалы плиток пола (`ss14:tile_…`), которые можно класть маппингом.
     pub(crate) tiles: BTreeSet<PrototypeId>,
     /// Сколько тел оставлено (для идентификаторов).
@@ -1132,7 +1134,8 @@ impl State {
             charges: BTreeMap::new(),
             spawn: None,
             map_dir: None,
-            mapping_mode: false,
+            registry: registry.clone(),
+            map_spawns: BTreeMap::new(),
             tiles: BTreeSet::new(),
             corpses: 0,
             atmos: atmos::Grid::new(),
@@ -5298,7 +5301,7 @@ impl State {
             return;
         }
         self.round.clock += dt;
-        if self.round.ended.is_none() && !self.mapping_mode {
+        if self.round.ended.is_none() {
             let alive = |a: &NetworkEntityId| {
                 self.actors.get(a).is_some_and(|x| {
                     !x.ghost && !matches!(x.health.state(), crate::health::MobState::Dead)
@@ -7308,15 +7311,6 @@ impl State {
         }
         for p in fresh {
             self.placed.insert(p);
-            if self.mapping_mode {
-                let clock = self.clock;
-                let a = self.actor(p);
-                a.ghost = true;
-                a.admin_ghost = true;
-                a.respawn_at = clock;
-                ctx.set_ghost(p, true);
-                self.publish(ctx, p);
-            }
             // Своя точка должности, иначе точка позднего входа.
             let own = self
                 .player_job
@@ -8190,14 +8184,6 @@ impl GameplayModule {
     #[must_use]
     pub fn with_spawn(mut self, spawn: Vec3) -> Self {
         self.state.spawn = Some(spawn);
-        self
-    }
-
-    /// Режим маппинга (`mapping`, `loadmap`): все входят админ-призраками (летают, вид сверху),
-    /// раунд не заканчивается — на пустой карте нет воздуха.
-    #[must_use]
-    pub fn with_mapping_mode(mut self) -> Self {
-        self.state.mapping_mode = true;
         self
     }
 

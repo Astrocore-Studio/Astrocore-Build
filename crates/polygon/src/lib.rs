@@ -1,9 +1,8 @@
 use std::path::{Path, PathBuf};
 
 use assets::{DoorSource, MaterialSource, SpriteSource, build_manifest};
-use astrocore_core::ObjectId;
-use astrocore_math::glam::Vec3;
-use astrocore_world::{AuthoredKind, AuthoredObject, FloorId, World, WorldCommand, WorldError};
+use astrocore_core::PrototypeId;
+use astrocore_world::{World, WorldError};
 use maps::{MapFile, MapItem};
 use prototypes::{Data, PrototypeRegistry};
 
@@ -115,59 +114,44 @@ pub fn place_items(world: &mut World, registry: &PrototypeRegistry) -> Result<us
     place_items_from(world, registry, &map().items)
 }
 
-/// Расставить произвольный список предметов карты (идентификаторы — по порядку в списке).
+/// Расставить произвольный список предметов карты (идентификаторы — по порядку в списке) картой 0.
 pub fn place_items_from(
     world: &mut World,
     registry: &PrototypeRegistry,
     items: &[MapItem],
 ) -> Result<usize, PolygonError> {
+    let map = MapFile {
+        items: items.to_vec(),
+        ..MapFile::empty("")
+    };
+    let resolve = item_resolver(registry)?;
+    let commands = map
+        .item_commands(astrocore_world::MapId(0), resolve)
+        .map_err(PolygonError::UnknownItem)?;
+    let placed = commands.len();
+    for c in commands {
+        world.apply(c)?;
+    }
+    Ok(placed)
+}
+
+/// Имя прототипа Build → идентификатор движка и размер предмета на земле, м (по размеру из
+/// прототипа). Нужен для предметов карты (`MapFile::item_commands`).
+pub fn item_resolver(
+    registry: &PrototypeRegistry,
+) -> Result<impl Fn(&str) -> Option<(PrototypeId, f32)> + '_, PolygonError> {
     let index = registry.engine_index(NAMESPACE)?;
-    let mut placed = 0;
-    for (
-        i,
-        MapItem {
-            prototype: name,
-            x,
-            z,
-            rot,
-            links,
-            meta,
-        },
-    ) in items.iter().enumerate()
-    {
-        let id = index
-            .iter()
-            .find(|(_, n)| n.as_str() == name)
-            .map(|(id, _)| id.clone())
-            .ok_or_else(|| PolygonError::UnknownItem(name.clone()))?;
+    Ok(move |name: &str| {
+        let id = index.iter().find(|(_, n)| n.as_str() == name)?.0.clone();
         let size = registry
-            .resolve(name)?
+            .resolve(name)
+            .ok()?
             .component("Item")
             .and_then(|c| c.get("size"))
             .and_then(Data::as_str)
             .map_or(0.3, dropped_extent);
-        let h = size * 0.5;
-        let mut obj = AuthoredObject::new(
-            ObjectId::from_u128(0x1000_0000 + i as u128),
-            AuthoredKind::Placement { prototype: id },
-            FloorId(0),
-            Vec3::new(x - h, FLOOR_TOP_M, z - h),
-            Vec3::new(x + h, FLOOR_TOP_M + size, z + h),
-        );
-        if *rot != 0 {
-            obj.metadata.insert("rot".into(), rot.to_string());
-        }
-        for (k, v) in meta {
-            obj.metadata.insert(k.clone(), v.clone());
-        }
-        if !links.is_empty() {
-            let text: Vec<String> = links.iter().map(|[x, z]| format!("{x},{z}")).collect();
-            obj.metadata.insert("links".into(), text.join(";"));
-        }
-        world.apply(WorldCommand::PlaceAuthored(obj))?;
-        placed += 1;
-    }
-    Ok(placed)
+        Some((id, size))
+    })
 }
 
 /// Материалы геометрии из `content/materials.ron`.

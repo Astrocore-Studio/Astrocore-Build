@@ -7,7 +7,7 @@ use astrocore_math::glam::Vec3;
 
 use crate::admin::{self, ConsoleLine};
 use crate::module::State;
-use crate::systems::GameSystem;
+use crate::systems::{GameSystem, maps};
 
 /// Сколько предметов за раз можно создать командой `spawn`.
 const SPAWN_MAX: u32 = 20;
@@ -121,9 +121,15 @@ impl ConsoleSystem {
             "aghost" => Self::cmd_aghost(st, ctx, actor),
             "tp" => Self::cmd_tp(ctx, actor, &args),
             "spawn" => Self::cmd_spawn(st, ctx, actor, &args),
-            "savemap" => Self::cmd_savemap(st, ctx, &args),
-            "loadmap" => Self::cmd_loadmap(st, &args),
-            "mapping" => Self::cmd_mapping(st),
+            "lsmap" => Ok(maps::lsmap(ctx)),
+            "mapping" => maps::mapping(st, ctx, actor, &args),
+            "loadmap" => maps::loadmap(st, ctx, &args),
+            "savemap" => maps::savemap(st, ctx, &args),
+            "rmmap" => maps::rmmap(st, ctx, &args),
+            "pausemap" => maps::set_flags(ctx, &args, Some(true), false),
+            "unpausemap" => maps::set_flags(ctx, &args, Some(false), false),
+            "querymappaused" => maps::querymappaused(ctx, &args),
+            "mapinit" => maps::set_flags(ctx, &args, None, true),
             "endround" => Self::cmd_endround(st),
             _ => Err(format!("Команда «{}» не реализована.", spec.name)),
         };
@@ -231,6 +237,17 @@ impl ConsoleSystem {
                 );
                 Vec3::new(x, here.y, z)
             }
+            [x, z, m] => {
+                let (x, z): (f32, f32) = (
+                    x.parse().map_err(|_| format!("«{x}» — не число."))?,
+                    z.parse().map_err(|_| format!("«{z}» — не число."))?,
+                );
+                let map = maps::parse_map(m)?;
+                if ctx.world.map(map).is_none() {
+                    return Err(format!("Карты {} нет.", map.0));
+                }
+                Vec3::new(x, ::maps::map_base_y(map) + ::maps::FLOOR_TOP_M + 0.05, z)
+            }
             [who] => {
                 let id: u32 = who
                     .parse()
@@ -238,81 +255,10 @@ impl ConsoleSystem {
                 ctx.position_of(NetworkEntityId(id))
                     .ok_or(format!("Нет игрока с номером {id}."))?
             }
-            _ => return Err("Использование: tp <x> <z> | tp <номер игрока>".into()),
+            _ => return Err("Использование: tp <x> <z> [карта] | tp <номер игрока>".into()),
         };
         ctx.teleport(actor, to);
         Ok(format!("Вы в точке ({:.1}, {:.1}).", to.x, to.z))
-    }
-
-    /// Снимок мира в `<папка карт>/<имя>.ron`: то, что лежит на земле, и структура. Предметы в
-    /// руках и сумках не сохраняются — карта описывает станцию, а не экипаж.
-    fn cmd_savemap(st: &State, ctx: &HookContext<'_>, args: &[&str]) -> Result<String, String> {
-        let [name] = args else {
-            return Err("Использование: savemap <имя>".into());
-        };
-        if !admin::valid_map_name(name) {
-            return Err(format!(
-                "Имя «{name}»: латиница, цифры, «_» и «-», до {} символов.",
-                admin::MAP_NAME_MAX
-            ));
-        }
-        let dir = st
-            .map_dir
-            .as_ref()
-            .ok_or("Сохранение карт на этом сервере выключено.")?;
-        let spawn = st.spawn.map_or([0.0; 3], |v| v.to_array());
-        let (map, skipped) =
-            maps::MapFile::from_world(name, spawn, ctx.world, |id| st.ss14_names.get(id).cloned());
-        std::fs::create_dir_all(dir).map_err(|e| format!("{}: {e}", dir.display()))?;
-        let path = dir.join(format!("{name}.ron"));
-        map.save(&path).map_err(|e| e.to_string())?;
-        println!("карта сохранена: {}", path.display());
-        let mut text = format!(
-            "Карта сохранена: {} (элементов {}, предметов {}, зон {}).",
-            path.display(),
-            map.elements.len(),
-            map.items.len(),
-            map.zones.len()
-        );
-        if skipped > 0 {
-            text.push_str(&format!(" Без прототипа пропущено: {skipped}."));
-        }
-        Ok(text)
-    }
-
-    /// Новый раунд сразу на карте из папки карт. Файл читается здесь же, чтобы ошибку увидел
-    /// маппер, а не только журнал сервера.
-    fn cmd_loadmap(st: &State, args: &[&str]) -> Result<String, String> {
-        let [name] = args else {
-            return Err("Использование: loadmap <имя>".into());
-        };
-        if !admin::valid_map_name(name) {
-            return Err(format!("Нет карты «{name}»."));
-        }
-        let dir = st
-            .map_dir
-            .as_ref()
-            .ok_or("Загрузка карт на этом сервере выключена.")?;
-        let path = dir.join(format!("{name}.ron"));
-        maps::MapFile::load(&path).map_err(|e| format!("Карта «{name}» не читается: {e}"))?;
-        let signal = st
-            .round
-            .signal
-            .as_ref()
-            .ok_or("Сервер не умеет перезапускать раунд.")?;
-        signal.request_map(crate::NextMap::File(path));
-        Ok(format!("Загружаю карту «{name}»: новый раунд."))
-    }
-
-    /// Новый раунд сразу на пустой карте (площадка под точкой появления).
-    fn cmd_mapping(st: &State) -> Result<String, String> {
-        let signal = st
-            .round
-            .signal
-            .as_ref()
-            .ok_or("Сервер не умеет перезапускать раунд.")?;
-        signal.request_map(crate::NextMap::Empty);
-        Ok("Пустая карта для маппинга: новый раунд.".into())
     }
 
     fn cmd_spawn(

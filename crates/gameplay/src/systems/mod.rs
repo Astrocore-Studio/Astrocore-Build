@@ -10,6 +10,7 @@
 pub mod chat;
 pub mod console;
 pub mod mapping;
+pub mod maps;
 
 use std::any::Any;
 

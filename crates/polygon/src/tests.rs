@@ -3,6 +3,8 @@ use astrocore_math::GridCell;
 use astrocore_spatial::Topology;
 
 use super::*;
+use astrocore_math::glam::Vec3;
+use astrocore_world::FloorId;
 
 fn world_with_items() -> (World, PrototypeRegistry) {
     let registry = load_registry(&content_dir()).unwrap();

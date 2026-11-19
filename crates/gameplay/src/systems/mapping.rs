@@ -17,7 +17,7 @@ use astrocore_core::{NetworkEntityId, ObjectId, PrototypeId};
 use astrocore_math::GridCell;
 use astrocore_math::glam::Vec3;
 use astrocore_world::{
-    AuthoredKind, AuthoredObject, FloorDef, FloorId, Placement, SlotKey, StructureElement,
+    AuthoredKind, AuthoredObject, FloorDef, MapId, Placement, SlotKey, StructureElement,
     StructureKind, WorldCommand,
 };
 use serde::{Deserialize, Serialize};
@@ -108,7 +108,7 @@ impl GameSystem for MappingSystem {
         }
         let result = match kind {
             CMD_SPAWN => self.spawn(st, ctx, data),
-            CMD_TILE => self.tiles(st, ctx, data),
+            CMD_TILE => self.tiles(st, ctx, actor, data),
             _ => Self::delete(ctx, data),
         };
         if let Err(text) = result {
@@ -188,6 +188,7 @@ impl MappingSystem {
         &mut self,
         st: &mut State,
         ctx: &mut HookContext<'_>,
+        actor: NetworkEntityId,
         data: &[u8],
     ) -> Result<(), String> {
         if data.len() > MAX_REQUEST_BYTES {
@@ -213,9 +214,16 @@ impl MappingSystem {
                 "Слишком большой прямоугольник: не больше {MAX_TILE_CELLS} клеток"
             ));
         }
-        let floor = FloorId(r.level);
+        // Уровень — на карте, где стоит маппер (ADR-0012).
+        let map = ctx
+            .position_of(actor)
+            .map_or(MapId(0), crate::systems::maps::map_at);
+        if !(-maps::MAP_FLOOR_STRIDE / 2..maps::MAP_FLOOR_STRIDE / 2).contains(&r.level) {
+            return Err("Нет такого уровня".into());
+        }
+        let floor = maps::floor_id(map, r.level);
         if material.is_some() && ctx.world.floor(floor).is_none() {
-            ctx.request(WorldCommand::DefineFloor(level_def(ctx, r.level)));
+            ctx.request(WorldCommand::DefineFloor(level_def(ctx, map, r.level)));
         }
         for x in x0..=x1 {
             for z in z0..=z1 {
@@ -263,20 +271,21 @@ impl MappingSystem {
     }
 }
 
-/// Неявный уровень (ADR-0003): над нижним, если он есть, под верхним — если есть он, иначе на
-/// высоте номера уровня.
-fn level_def(ctx: &HookContext<'_>, level: i32) -> FloorDef {
-    let base_y = if let Some(below) = ctx.world.floor(FloorId(level - 1)) {
+/// Неявный уровень (ADR-0003) карты `map`: над нижним, если он есть, под верхним — если есть
+/// он, иначе на высоте номера уровня от начала карты.
+fn level_def(ctx: &HookContext<'_>, map: MapId, level: i32) -> FloorDef {
+    let base_y = if let Some(below) = ctx.world.floor(maps::floor_id(map, level - 1)) {
         below.top_y()
-    } else if let Some(above) = ctx.world.floor(FloorId(level + 1)) {
+    } else if let Some(above) = ctx.world.floor(maps::floor_id(map, level + 1)) {
         above.base_y - maps::LEVEL_HEIGHT_M
     } else {
-        level as f32 * maps::LEVEL_HEIGHT_M
+        maps::map_base_y(map) + level as f32 * maps::LEVEL_HEIGHT_M
     };
     FloorDef {
-        id: FloorId(level),
+        id: maps::floor_id(map, level),
         name: format!("Уровень {level}"),
         base_y,
         height: maps::LEVEL_HEIGHT_M,
+        map,
     }
 }
