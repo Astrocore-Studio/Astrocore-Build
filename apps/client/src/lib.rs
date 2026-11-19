@@ -21,6 +21,7 @@ mod lights;
 mod outfit;
 mod players;
 mod power_ui;
+mod showcase;
 mod sounds;
 mod statusfx;
 mod user_token;
@@ -130,7 +131,7 @@ impl Plugin for BuildClientPlugin {
         .init_resource::<fire::FxAssets>()
         .init_resource::<lights::FlashlightOn>()
         .add_systems(Startup, (install_body, install_sounds))
-        .add_systems(Last, alarm_visuals::sync)
+        .add_systems(Last, (alarm_visuals::sync, showcase::camera))
         .add_systems(PostUpdate, airlock_visuals::motions)
         .add_systems(PreUpdate, smoke_inputs.after(bevy::input::InputSystems))
         .add_systems(
@@ -814,6 +815,7 @@ fn autoplay(
             gameplay::chat_data(gameplay::Channel::Say, &text),
         );
     }
+    showcase::commands(state.frame, &mut net, look.as_deref_mut());
     // Отладка: команды консоли через «;» (ASTRO_AUTOPLAY_CONSOLE=whoami;aghost) уходят по одной
     // с кадра 60 с шагом 10 кадров, ASTRO_CONSOLE_OPEN=1 открывает окно консоли.
     if let Ok(list) = std::env::var("ASTRO_AUTOPLAY_CONSOLE") {
