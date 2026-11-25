@@ -1,15 +1,15 @@
 //! Карты мира (ADR-0012 движка) и команды консоли по SS14: `lsmap`, `mapping`, `loadmap`,
 //! `savemap`, `rmmap`, `pausemap`, `unpausemap`, `querymappaused`, `mapinit`.
 //!
-//! Несколько карт живут в одном мире одновременно: карта 0 — станция раунда, остальные
-//! загружаются и создаются на ходу. Карта `k` лежит на высоте `k × 1000` м со своими этажами
-//! (`maps::floor_id`) и идентификаторами (`maps::retag`). Маппинг идёт на замороженной (на паузе)
-//! и неинициализированной карте, как в SS14: в файл ложится чистый авторский контент.
+//! Карта — отдельный мир (ADR-0013 движка): карта 0 — станция раунда, остальные создаются и
+//! загружаются на ходу, у каждой свои координаты; идентификаторы объектов карты — `maps::retag`,
+//! чтобы состояние игры по объектам не путалось между картами. Маппинг идёт на замороженной (на
+//! паузе) и неинициализированной карте, как в SS14: в файл ложится чистый авторский контент.
 
 use astrocore_api::HookContext;
 use astrocore_core::NetworkEntityId;
 use astrocore_math::glam::Vec3;
-use astrocore_world::{MapId, WorldCommand};
+use astrocore_world::{MapId, World, WorldConfig};
 use maps::{MapFile, map_def};
 
 use crate::admin;
@@ -26,11 +26,6 @@ pub fn parse_map(arg: &str) -> Result<MapId, String> {
     }
 }
 
-/// Карта, на которой стоит точка мира.
-pub fn map_at(p: Vec3) -> MapId {
-    maps::map_at_y(p.y)
-}
-
 /// Точка появления на карте: заданная при загрузке или центр клетки (0, 0) над уровнем 0.
 pub fn spawn_of(st: &State, map: MapId) -> Vec3 {
     if map == MapId(0) {
@@ -38,11 +33,10 @@ pub fn spawn_of(st: &State, map: MapId) -> Vec3 {
             .spawn
             .unwrap_or(Vec3::new(0.5, maps::FLOOR_TOP_M + 0.05, 0.5));
     }
-    st.map_spawns.get(&map).copied().unwrap_or(Vec3::new(
-        0.5,
-        maps::map_base_y(map) + maps::FLOOR_TOP_M + 0.05,
-        0.5,
-    ))
+    st.map_spawns
+        .get(&map)
+        .copied()
+        .unwrap_or(Vec3::new(0.5, maps::FLOOR_TOP_M + 0.05, 0.5))
 }
 
 fn read_map(st: &State, name: &str) -> Result<MapFile, String> {
@@ -61,35 +55,29 @@ fn read_map(st: &State, name: &str) -> Result<MapFile, String> {
 }
 
 fn free_map(ctx: &HookContext<'_>, map: MapId) -> Result<(), String> {
-    if ctx.world.map(map).is_some() {
+    if ctx.map_def(map).is_some() {
         return Err(format!("Карта {} уже есть.", map.0));
     }
     Ok(())
 }
 
-/// Положить файл карты картой `map` (команды мира уходят в очередь хука).
-fn place_file(
-    st: &mut State,
-    ctx: &mut HookContext<'_>,
-    map: MapId,
-    file: &MapFile,
-) -> Result<(), String> {
+/// Мир карты `map` из файла (конструкция и предметы); точка появления запоминается.
+fn world_from(st: &mut State, map: MapId, file: &MapFile) -> Result<World, String> {
     let resolve = polygon::item_resolver(&st.registry).map_err(|e| e.to_string())?;
-    let items = file
-        .item_commands(map, resolve)
-        .map_err(|name| format!("В карте предмет «{name}», которого нет в прототипах."))?;
-    for c in file.structure_commands(map).into_iter().chain(items) {
-        ctx.request(c);
-    }
-    let s = file.spawn;
-    st.map_spawns
-        .insert(map, Vec3::new(s[0], s[1] + maps::map_base_y(map), s[2]));
-    Ok(())
+    let world = file
+        .build_map(&format!("map-{}", map.0), map, resolve)
+        .map_err(|e| format!("Карта не строится: {e}"))?;
+    st.map_spawns.insert(map, Vec3::from_array(file.spawn));
+    Ok(world)
+}
+
+/// Пустой мир новой карты: уровни появятся сами с первой плиткой.
+fn empty_world(map: MapId) -> Result<World, String> {
+    World::new(format!("map-{}", map.0), WorldConfig::default()).map_err(|e| e.to_string())
 }
 
 pub fn lsmap(ctx: &HookContext<'_>) -> String {
-    ctx.world
-        .maps()
+    ctx.maps()
         .iter()
         .map(|m| {
             format!(
@@ -128,15 +116,16 @@ pub fn mapping(
     free_map(ctx, map)?;
     let file = name.map(|n| read_map(st, n)).transpose()?;
     let title = name.unwrap_or("новая карта");
-    ctx.request(WorldCommand::DefineMap(map_def(map, title, true, false)));
-    match &file {
-        Some(f) => place_file(st, ctx, map, f)?,
+    let world = match &file {
+        Some(f) => world_from(st, map, f)?,
         None => {
             st.map_spawns.remove(&map);
+            empty_world(map)?
         }
-    }
+    };
+    ctx.create_map(map_def(map, title, true, false), world);
     become_admin_ghost(st, ctx, actor);
-    ctx.teleport(actor, spawn_of(st, map));
+    ctx.move_to_map(actor, map, spawn_of(st, map));
     Ok(match name {
         Some(n) => format!("Карта {} из «{n}»: на паузе, вы на ней призраком.", map.0),
         None => format!("Пустая карта {}: на паузе, вы на ней призраком.", map.0),
@@ -151,8 +140,8 @@ pub fn loadmap(st: &mut State, ctx: &mut HookContext<'_>, args: &[&str]) -> Resu
     let map = parse_map(m)?;
     free_map(ctx, map)?;
     let file = read_map(st, name)?;
-    ctx.request(WorldCommand::DefineMap(map_def(map, name, false, true)));
-    place_file(st, ctx, map, &file)?;
+    let world = world_from(st, map, &file)?;
+    ctx.create_map(map_def(map, name, false, true), world);
     Ok(format!("Карта «{name}» загружена картой {}.", map.0))
 }
 
@@ -164,7 +153,8 @@ pub fn savemap(st: &State, ctx: &HookContext<'_>, args: &[&str]) -> Result<Strin
         _ => return Err("Использование: savemap <карта> <имя> [force]".into()),
     };
     let map = parse_map(m)?;
-    let def = ctx.world.map(map).ok_or(format!("Карты {} нет.", map.0))?;
+    let def = ctx.map_def(map).ok_or(format!("Карты {} нет.", map.0))?;
+    let world = ctx.world_of(map).ok_or(format!("Карты {} нет.", map.0))?;
     if !admin::valid_map_name(name) {
         return Err(format!(
             "Имя «{name}»: латиница, цифры, «_» и «-», до {} символов.",
@@ -182,9 +172,8 @@ pub fn savemap(st: &State, ctx: &HookContext<'_>, args: &[&str]) -> Result<Strin
         .as_ref()
         .ok_or("Сохранение карт на этом сервере выключено.")?;
     let spawn = spawn_of(st, map).to_array();
-    let (file, skipped) = MapFile::from_map(name, spawn, ctx.world, map, |id| {
-        st.ss14_names.get(id).cloned()
-    });
+    let (file, skipped) =
+        MapFile::from_map(name, spawn, world, map, |id| st.ss14_names.get(id).cloned());
     std::fs::create_dir_all(dir).map_err(|e| format!("{}: {e}", dir.display()))?;
     let path = dir.join(format!("{name}.ron"));
     file.save(&path).map_err(|e| e.to_string())?;
@@ -212,18 +201,11 @@ pub fn rmmap(st: &mut State, ctx: &mut HookContext<'_>, args: &[&str]) -> Result
     if map == MapId(0) {
         return Err("Карту 0 (станцию раунда) удалить нельзя.".into());
     }
-    if ctx.world.map(map).is_none() {
+    if ctx.map_def(map).is_none() {
         return Err(format!("Карты {} нет.", map.0));
     }
-    let home = spawn_of(st, MapId(0));
-    let here: Vec<NetworkEntityId> = ctx
-        .players()
-        .filter(|p| ctx.position_of(*p).is_some_and(|at| map_at(at) == map))
-        .collect();
-    for p in here {
-        ctx.teleport(p, home);
-    }
-    ctx.request(WorldCommand::RemoveMap { id: map });
+    // Игроков с карты движок переносит на карту 0 сам.
+    ctx.remove_map(map);
     st.map_spawns.remove(&map);
     Ok(format!("Карта {} удалена.", map.0))
 }
@@ -239,7 +221,7 @@ pub fn set_flags(
         return Err("Нужен номер карты.".into());
     };
     let map = parse_map(m)?;
-    let mut def = ctx.world.map(map).ok_or(format!("Карты {} нет.", map.0))?;
+    let mut def = ctx.map_def(map).ok_or(format!("Карты {} нет.", map.0))?;
     if let Some(p) = paused {
         def.paused = p;
     }
@@ -261,7 +243,7 @@ pub fn set_flags(
             "не инициализирована"
         }
     );
-    ctx.request(WorldCommand::DefineMap(def));
+    ctx.define_map(def);
     Ok(text)
 }
 
@@ -270,7 +252,7 @@ pub fn querymappaused(ctx: &HookContext<'_>, args: &[&str]) -> Result<String, St
         return Err("Использование: querymappaused <карта>".into());
     };
     let map = parse_map(m)?;
-    let def = ctx.world.map(map).ok_or(format!("Карты {} нет.", map.0))?;
+    let def = ctx.map_def(map).ok_or(format!("Карты {} нет.", map.0))?;
     Ok(if def.paused { "true" } else { "false" }.into())
 }
 

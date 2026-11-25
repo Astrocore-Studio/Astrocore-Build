@@ -148,6 +148,7 @@ impl Plugin for BuildClientPlugin {
                 outfit::sync_outfits,
                 outfit::follow_body_models,
                 mapping_ui::input,
+                mapping_ui::view,
             )
                 .chain(),
         )
@@ -263,6 +264,7 @@ fn cursor_ground(
     cameras: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
     net: Option<NonSend<Net>>,
     look: Option<Res<astrocore_client::Look>>,
+    hud: Res<Hud>,
     mut ground: ResMut<Ground>,
 ) {
     ground.0 = None;
@@ -283,7 +285,18 @@ fn cursor_ground(
         ray
     };
     let feet = net.core.position();
-    ground.0 = ground_point(ray.origin, *ray.direction, feet.y + hud::GROUND_LIFT_M);
+    // В маппинге курсор — на полу выбранного уровня, а не на высоте призрака.
+    let plane = if hud.state.mapping.open {
+        let level = hud.state.mapping.level;
+        net.core
+            .world()
+            .and_then(|w| w.floor(astrocore_world::FloorId(level)))
+            .map_or(level as f32 * maps::LEVEL_HEIGHT_M, |f| f.base_y)
+            + maps::FLOOR_TOP_M
+    } else {
+        feet.y + hud::GROUND_LIFT_M
+    };
+    ground.0 = ground_point(ray.origin, *ray.direction, plane);
     ground.1 = ground.0.map_or(0, |[x, _, z]| {
         // AlignAtmosPipeLayers uses a quarter-tile dead zone, then chooses the
         // secondary or tertiary layer relative to the eye's cardinal axes.
@@ -1277,6 +1290,21 @@ fn ghost_camera(
     let Some(mut look) = look else { return };
     // Маппинг (F5) смотрит сверху так же, как призрак.
     let ghost = loadout.health.as_ref().is_some_and(|h| h.ghost) || hud.state.mapping.open;
+    // Маппинг по флажку смотрит без перспективы (ортографически), как в SS14.
+    let ortho = hud.state.mapping.open && hud.state.mapping.ortho;
+    for mut rig in &mut rigs {
+        let mode = if ortho {
+            astrocore_render::CameraMode::Orthographic
+        } else {
+            astrocore_render::CameraMode::Perspective
+        };
+        if rig.mode != mode {
+            rig.mode = mode;
+        }
+        if ortho {
+            rig.ortho_height = rig.distance.max(4.0);
+        }
+    }
     // Призраки (умершие, наблюдатели и админ-призраки) всегда летают с видом сверху: движок держит
     // наклон и не пускает в первое лицо, пока включён `top_down`.
     look.top_down = ghost;
@@ -1528,11 +1556,22 @@ fn loadout_window(
         loadout.console.as_ref(),
         loadout.admin.as_ref(),
     ));
+    let jobs: Vec<(String, String)> = loadout
+        .jobs
+        .as_ref()
+        .map(|v| {
+            v.jobs
+                .iter()
+                .map(|j| (j.id.clone(), j.title.clone()))
+                .collect()
+        })
+        .unwrap_or_default();
     commands.extend(mapping_ui::panel(
         &ctx,
         &mut state.mapping,
         icons,
         loadout.admin.as_ref(),
+        &jobs,
     ));
     hud::toasts(&ctx, &mut loadout.toasts, time.elapsed_secs());
     commands.extend(hud::dispenser_window(

@@ -171,7 +171,7 @@ impl ConsoleSystem {
     }
 
     fn cmd_list(st: &State, ctx: &HookContext<'_>) -> String {
-        ctx.players()
+        ctx.all_players()
             .map(|p| {
                 let a = st.actors.get(&p);
                 let state = match a {
@@ -243,17 +243,31 @@ impl ConsoleSystem {
                     z.parse().map_err(|_| format!("«{z}» — не число."))?,
                 );
                 let map = maps::parse_map(m)?;
-                if ctx.world.map(map).is_none() {
+                if ctx.map_def(map).is_none() {
                     return Err(format!("Карты {} нет.", map.0));
                 }
-                Vec3::new(x, ::maps::map_base_y(map) + ::maps::FLOOR_TOP_M + 0.05, z)
+                // На другую карту — переносом (клиент загружает её мир), на свою — телепортом.
+                let to = Vec3::new(x, ::maps::FLOOR_TOP_M + 0.05, z);
+                if ctx.map_of(actor) != Some(map) {
+                    ctx.move_to_map(actor, map, to);
+                    return Ok(format!("Вы на карте {} в ({x:.1}, {z:.1}).", map.0));
+                }
+                to
             }
             [who] => {
                 let id: u32 = who
                     .parse()
                     .map_err(|_| format!("«{who}» — не номер игрока."))?;
-                ctx.position_of(NetworkEntityId(id))
-                    .ok_or(format!("Нет игрока с номером {id}."))?
+                let target = NetworkEntityId(id);
+                let at = ctx
+                    .position_of(target)
+                    .ok_or(format!("Нет игрока с номером {id}."))?;
+                // Игрок на другой карте: перенос на его карту.
+                if let Some(map) = ctx.map_of(target).filter(|m| ctx.map_of(actor) != Some(*m)) {
+                    ctx.move_to_map(actor, map, at);
+                    return Ok(format!("Вы у игрока {id} на карте {}.", map.0));
+                }
+                at
             }
             _ => return Err("Использование: tp <x> <z> [карта] | tp <номер игрока>".into()),
         };
@@ -300,7 +314,7 @@ impl ConsoleSystem {
 
     /// Разослать права (когда изменились) и ответы консоли (когда есть новые строки).
     fn publish(&mut self, st: &State, ctx: &mut HookContext<'_>) {
-        let ids: Vec<NetworkEntityId> = ctx.players().collect();
+        let ids: Vec<NetworkEntityId> = ctx.all_players().collect();
         self.admin.log.retain(|p, _| ids.contains(p));
         self.admin.sent.retain(|p, _| ids.contains(p));
         self.admin.last.retain(|p, _| ids.contains(p));

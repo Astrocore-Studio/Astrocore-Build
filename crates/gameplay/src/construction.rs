@@ -21,7 +21,7 @@ pub(super) static WELDERS: LazyLock<BTreeMap<String, WelderSpec>> = LazyLock::ne
     serde_json::from_value(CATALOG["welders"].clone()).expect("welder definitions")
 });
 
-pub(super) fn edges(cell: (i32, i32)) -> impl Iterator<Item = GridEdge> {
+pub(crate) fn edges(cell: (i32, i32)) -> impl Iterator<Item = GridEdge> {
     let here = GridCell::new(cell.0, cell.1);
     [(1, 0), (-1, 0), (0, 1), (0, -1)]
         .into_iter()
@@ -270,7 +270,7 @@ fn girder_prototype(reinforced: bool) -> PrototypeId {
 }
 
 impl State {
-    pub(super) fn build_barrier(
+    pub(crate) fn build_barrier(
         &mut self,
         ctx: &mut HookContext<'_>,
         floor: FloorId,
@@ -281,7 +281,12 @@ impl State {
         let slab = ctx
             .world
             .element_at(floor, SlotKey::FloorSlab(GridCell::new(cell.0, cell.1)));
-        let base = ctx.world.floor(floor).unwrap().base_y + slab.map_or(0.2, |s| s.thickness);
+        // Уровень могли определить этим же тиком (маппинг): тогда его основание — по номеру.
+        let base = ctx
+            .world
+            .floor(floor)
+            .map_or(floor.0 as f32 * maps::LEVEL_HEIGHT_M, |f| f.base_y)
+            + slab.map_or(maps::FLOOR_TOP_M, |s| s.thickness);
         for level in 0..2 {
             self.wall_serial += 1;
             ctx.request(WorldCommand::PlaceElement(StructureElement {
@@ -293,7 +298,8 @@ impl State {
                     z_mm: 500,
                     y_mm: (base * 1000.0).round() as i32 + level * 1000,
                     yaw_cdeg: 0,
-                    half_mm: [500, 1000, 500],
+                    // Куб 1 × 1 × 1 м: высота ящика — две полувысоты.
+                    half_mm: [500, 500, 500],
                 }),
                 floor,
                 material: material.clone(),
@@ -320,7 +326,7 @@ impl State {
     }
 }
 
-pub(super) fn barrier_health(proto: &str) -> crate::explosion::Wall {
+pub(crate) fn barrier_health(proto: &str) -> crate::explosion::Wall {
     let spec = &CATALOG["barriers"][proto];
     crate::explosion::Wall {
         prototype: Some(proto.into()),

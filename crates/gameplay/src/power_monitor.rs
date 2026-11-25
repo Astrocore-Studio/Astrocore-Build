@@ -241,6 +241,20 @@ impl crate::systems::GameSystem for Monitoring {
     fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
         self
     }
+
+    fn per_map(&self) -> bool {
+        true
+    }
+
+    fn fresh(&self) -> Option<Box<dyn crate::systems::GameSystem>> {
+        Some(Box::new(Self {
+            consoles: self.consoles.clone(),
+            specs: self.specs.clone(),
+            sessions: BTreeMap::new(),
+            sent: BTreeMap::new(),
+            station: self.station.clone(),
+        }))
+    }
 }
 
 #[derive(Clone)]

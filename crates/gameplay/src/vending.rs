@@ -317,6 +317,21 @@ impl crate::systems::GameSystem for VendingSystem {
     fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
         self
     }
+
+    fn per_map(&self) -> bool {
+        true
+    }
+
+    fn fresh(&self) -> Option<Box<dyn crate::systems::GameSystem>> {
+        Some(Box::new(Self {
+            specs: self.specs.clone(),
+            machines: Default::default(),
+            open: Default::default(),
+            sent: Default::default(),
+            serial: self.serial,
+            rng: self.rng.clone(),
+        }))
+    }
 }
 
 impl VendingSystem {
@@ -427,8 +442,13 @@ impl VendingSystem {
             // Товар ложится у автомата, на полу перед ним.
             let c = (o.min() + o.max()) * 0.5;
             self.serial += 1;
+            // У каждой карты свой экземпляр системы: идентификатор помечен картой, чтобы товары
+            // разных карт не совпадали (ADR-0013 движка).
             let item = HeldItem {
-                id: ObjectId::from_u128(0xD3AD_0000_0000 + self.serial),
+                id: maps::retag(
+                    ObjectId::from_u128(0xD3AD_0000_0000 + self.serial),
+                    ctx.map(),
+                ),
                 prototype: done,
             };
             st.place(ctx, &item, Vec3::new(c.x, o.min().y, c.z));

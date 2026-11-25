@@ -616,7 +616,6 @@ mod module_level {
             name: "g".into(),
             base_y: 0.0,
             height: 3.0,
-            map: Default::default(),
         }))
         .unwrap();
         for z in 0..6 {
@@ -2922,10 +2921,11 @@ mod disposal_tests {
         ok(console(&mut h, a, "mapping 5"));
         h.ticks(10);
         let five = astrocore_world::MapId(5);
-        let def = h.server.world().map(five).expect("карта 5");
+        let def = h.server.map_def(five).cloned().expect("карта 5");
         assert!(def.paused && !def.initialized);
-        let p = h.client(a).position();
-        assert!((p.y - 5000.0).abs() < 5.0, "маппер на карте 5: {p:?}");
+        // Маппер на карте 5: у его клиента её мир, отдельный от станции (ADR-0013 движка).
+        assert_eq!(h.server.player_map(a), Some(five));
+        assert_eq!(h.client(a).world().unwrap().id(), "map-5");
         let net = h.client(a).net_id().unwrap();
         assert_eq!(
             h.client(a)
@@ -2945,9 +2945,13 @@ mod disposal_tests {
                 ceiling: false,
             },
         );
-        let w = h.server.world();
-        assert_eq!(w.element_count(), station + 6);
-        assert_eq!(w.floor(maps::floor_id(five, 0)).unwrap().map, five);
+        assert_eq!(
+            h.server.world().element_count(),
+            station,
+            "станция не задета"
+        );
+        assert_eq!(h.server.world_of(five).unwrap().element_count(), 6);
+        assert_eq!(h.client(a).world().unwrap().element_count(), 6);
         // Неинициализированную карту можно сохранить без force.
         ok(console(&mut h, a, "savemap 5 room"));
         let file = maps::MapFile::load(&dir.join("room.ron")).unwrap();
@@ -2959,26 +2963,42 @@ mod disposal_tests {
         // Та же карта ещё раз — картой 7, идёт и инициализирована.
         ok(console(&mut h, a, "loadmap 7 room"));
         h.ticks(5);
-        let seven = h.server.world().map(astrocore_world::MapId(7)).unwrap();
+        let seven = h
+            .server
+            .map_def(astrocore_world::MapId(7))
+            .cloned()
+            .unwrap();
         assert!(!seven.paused && seven.initialized);
-        assert_eq!(h.server.world().element_count(), station + 12);
+        assert_eq!(
+            h.server
+                .world_of(astrocore_world::MapId(7))
+                .unwrap()
+                .element_count(),
+            6
+        );
         assert_eq!(ok(console(&mut h, a, "querymappaused 7")), "false");
         ok(console(&mut h, a, "pausemap 7"));
         assert_eq!(ok(console(&mut h, a, "querymappaused 7")), "true");
         ok(console(&mut h, a, "mapinit 5"));
-        let def = h.server.world().map(five).unwrap();
+        let def = h.server.map_def(five).cloned().unwrap();
         assert!(!def.paused && def.initialized);
         assert!(ok(console(&mut h, a, "lsmap")).contains("7 | room"));
         // Телепорт на карту 7.
         ok(console(&mut h, a, "tp 1 1 7"));
         h.ticks(10);
-        assert!((h.client(a).position().y - 7000.0).abs() < 5.0);
+        assert_eq!(h.server.player_map(a), Some(astrocore_world::MapId(7)));
+        let p = h.client(a).position();
+        assert!((p.x - 1.0).abs() < 0.6 && (p.z - 1.0).abs() < 0.6, "{p:?}");
         // Удалить карту 7: её конструкции исчезают, маппер — на станции.
         ok(console(&mut h, a, "rmmap 7"));
         h.ticks(10);
-        assert!(h.server.world().map(astrocore_world::MapId(7)).is_none());
-        assert_eq!(h.server.world().element_count(), station + 6);
-        assert!(h.client(a).position().y < 100.0, "на станции");
+        assert!(h.server.map_def(astrocore_world::MapId(7)).is_none());
+        assert_eq!(
+            h.server.player_map(a),
+            Some(astrocore_world::MapId(0)),
+            "на станции"
+        );
+        assert_eq!(h.client(a).world().unwrap().element_count(), station);
         assert!(console(&mut h, a, "rmmap 0").last().unwrap().error);
         assert!(console(&mut h, a, "loadmap 8 nope").last().unwrap().error);
         let _ = std::fs::remove_dir_all(&dir);
@@ -3011,7 +3031,7 @@ mod disposal_tests {
             },
         );
         // Стены по краю комнаты 7 × 7, кроме одного ребра — дыры.
-        let floor = maps::floor_id(astrocore_world::MapId(6), 0);
+        let floor = FloorId(0);
         let mut edges: Vec<GridEdge> = Vec::new();
         for k in -3..=3 {
             edges.push(GridEdge::along_x(k, -3));
@@ -3023,16 +3043,17 @@ mod disposal_tests {
         }
         for (n, e) in edges.into_iter().enumerate() {
             h.server
-                .apply_world_command(WorldCommand::PlaceElement(
-                    astrocore_world::StructureElement {
+                .apply_world_command_on(
+                    astrocore_world::MapId(6),
+                    WorldCommand::PlaceElement(astrocore_world::StructureElement {
                         id: oid(0x7A11_0000 + n as u128),
                         kind: StructureKind::Wall,
                         placement: Placement::Edge(e),
                         floor,
                         material: astrocore_core::PrototypeId::new("ss14:wall_solid").unwrap(),
                         thickness: 0.1,
-                    },
-                ))
+                    }),
+                )
                 .unwrap();
         }
         console(&mut h, a, "aghost");
@@ -3211,6 +3232,280 @@ mod disposal_tests {
             .collect();
         out.sort_by_key(|(k, c, _)| (*c, matches!(k, StructureKind::Ceiling)));
         out
+    }
+
+    /// Стены и шлюзы — сущности каталога, как в SS14: протяжка ставит линию стен (два куба на
+    /// клетку и рёбра вокруг), шлюз — проём двери на ребре по повороту и зону шлюза.
+    #[test]
+    fn a_mapper_builds_a_wall_line_and_an_airlock() {
+        use crate::systems::mapping::{
+            CMD_STRUCTURE, StructureRequest, line_cells, structure_catalog, structure_data,
+        };
+        let catalog = structure_catalog();
+        assert!(catalog.iter().any(|e| e.proto == "WallSolid" && !e.airlock));
+        assert!(catalog.iter().any(|e| e.proto == "Airlock" && e.airlock));
+        assert_eq!(
+            line_cells([0, 0], [3, 1]),
+            vec![[0, 0], [1, 0], [2, 0], [3, 0]]
+        );
+        assert_eq!(line_cells([0, 0], [-1, -2]), vec![[0, 0], [0, -1], [0, -2]]);
+        let token = "fedcba9876543210fedcba9876543210";
+        let mut h = harness_with(move |m| m.with_admins(admin_roster(token, "Mapper")));
+        let (a, guest) = (h.join("a"), h.join("guest"));
+        h.ticks(10);
+        hello(&mut h, a, token);
+        let build = |h: &mut Harness, who, proto: &str, from, to, rot| {
+            let r = StructureRequest {
+                proto: proto.into(),
+                from,
+                to,
+                rot,
+                level: 0,
+            };
+            command(h, who, CMD_STRUCTURE, structure_data(&r));
+            h.ticks(5);
+        };
+        let blocks = |h: &Harness| {
+            h.server
+                .world()
+                .elements()
+                .filter(|e| {
+                    matches!(e.placement, Placement::Free(p) if p.cell.z == 40 && p.cell.x >= 40)
+                })
+                .count()
+        };
+        build(&mut h, guest, "WallSolid", [40, 40], [44, 40], 0);
+        assert_eq!(blocks(&h), 0, "гостю нельзя");
+        build(&mut h, a, "WallSolid", [40, 40], [44, 41], 0);
+        assert_eq!(blocks(&h), 10, "пять клеток по два куба");
+        let cube = h
+            .server
+            .world()
+            .elements()
+            .find_map(|e| match e.placement {
+                Placement::Free(p) if p.cell.x == 40 && p.cell.z == 40 => Some(p),
+                _ => None,
+            })
+            .unwrap();
+        assert_eq!(cube.half_mm[1], 500, "куб высотой 1 м");
+        // Повтор по тем же клеткам ничего не добавляет.
+        build(&mut h, a, "WallSolid", [40, 40], [44, 40], 0);
+        assert_eq!(blocks(&h), 10);
+        // Шлюз на клетке (50, 50), проём к +X.
+        build(&mut h, a, "Airlock", [50, 50], [50, 50], 1);
+        let w = h.server.world();
+        let edge = astrocore_math::GridEdge::between(
+            astrocore_math::GridCell::new(50, 50),
+            astrocore_math::GridCell::new(51, 50),
+        )
+        .unwrap();
+        let door = w.edge_element(FloorId(0), edge).expect("проём шлюза");
+        assert!(matches!(
+            door.kind,
+            StructureKind::Opening(astrocore_world::OpeningKind::Door)
+        ));
+        let zone = w
+            .authored()
+            .find(|o| o.metadata.get("airlock_proto").map(String::as_str) == Some("Airlock"))
+            .expect("зона шлюза");
+        assert_eq!(
+            zone.metadata.get("door_element"),
+            Some(&format!("{:x}", door.id.as_uuid().as_u128()))
+        );
+        // Неизвестное не строится.
+        build(&mut h, a, "Crowbar", [60, 60], [60, 60], 0);
+        assert!(
+            !h.server
+                .world()
+                .elements()
+                .any(|e| matches!(e.placement, Placement::Free(p) if p.cell.x == 60))
+        );
+    }
+
+    /// Ластик (как `Eraser` SS14): в рамке пропадают стены (их рёбра — если по другую сторону не
+    /// стена), шлюз с зоной и дверью, предметы; пол остаётся.
+    #[test]
+    fn the_eraser_clears_walls_airlocks_and_items_but_keeps_the_floor() {
+        use crate::systems::mapping::{
+            CMD_ERASE, CMD_STRUCTURE, CMD_TILE, EraseRequest, StructureRequest, TileRequest,
+            erase_data, structure_data, tile_data,
+        };
+        let token = "fedcba9876543210fedcba9876543210";
+        let steel = "ss14:tile_floorsteel";
+        let mut h = harness_with(move |m| {
+            m.with_admins(admin_roster(token, "Mapper"))
+                .with_tiles([astrocore_core::PrototypeId::new(steel).unwrap()])
+        });
+        let a = h.join("a");
+        h.ticks(10);
+        hello(&mut h, a, token);
+        let send = |h: &mut Harness, kind: &'static str, data: Vec<u8>| {
+            command(h, a, kind, data);
+            h.ticks(5);
+        };
+        let tile = TileRequest {
+            tile: Some(steel.into()),
+            from: [40, 40],
+            to: [46, 42],
+            level: 0,
+            ceiling: false,
+        };
+        send(&mut h, CMD_TILE, tile_data(&tile));
+        let wall = |proto: &str, from, to, rot| StructureRequest {
+            proto: proto.into(),
+            from,
+            to,
+            rot,
+            level: 0,
+        };
+        send(
+            &mut h,
+            CMD_STRUCTURE,
+            structure_data(&wall("WallSolid", [40, 40], [44, 40], 0)),
+        );
+        send(
+            &mut h,
+            CMD_STRUCTURE,
+            structure_data(&wall("Airlock", [45, 41], [45, 41], 1)),
+        );
+        map_spawn(&mut h, a, "ss14:crowbar", [46.5, 0.25, 41.5], 0);
+        assert_eq!(placements_of(&h, a, "ss14:crowbar").len(), 1);
+        let w = h.server.world();
+        let edge = |x0, z0, x1, z1| {
+            astrocore_math::GridEdge::between(
+                astrocore_math::GridCell::new(x0, z0),
+                astrocore_math::GridCell::new(x1, z1),
+            )
+            .unwrap()
+        };
+        assert!(w.edge_element(FloorId(0), edge(42, 40, 43, 40)).is_some());
+        // Стереть клетки 43…46 × 40…42: стены 43, 44, шлюз и лом.
+        let erase = EraseRequest {
+            from: [43, 40],
+            to: [46, 42],
+            level: 0,
+        };
+        send(&mut h, CMD_ERASE, erase_data(&erase));
+        let w = h.server.world();
+        let blocks: Vec<i32> = w
+            .elements()
+            .filter_map(|e| match e.placement {
+                Placement::Free(p) if p.cell.z == 40 && p.cell.x >= 40 => Some(p.cell.x),
+                _ => None,
+            })
+            .collect();
+        assert!(blocks.iter().all(|x| *x <= 42), "{blocks:?}");
+        assert_eq!(blocks.len(), 6, "три клетки по два куба");
+        // Ребро между оставшейся стеной (42) и стёртой (43) осталось: у стены 42 цела грань.
+        assert!(w.edge_element(FloorId(0), edge(42, 40, 43, 40)).is_some());
+        // Ребро стёртой стены к полу пропало.
+        assert!(w.edge_element(FloorId(0), edge(43, 40, 43, 41)).is_none());
+        assert!(
+            w.edge_element(FloorId(0), edge(45, 41, 46, 41)).is_none(),
+            "дверь шлюза"
+        );
+        assert!(
+            !w.authored()
+                .any(|o| o.metadata.contains_key("airlock_proto"))
+        );
+        assert!(placements_of(&h, a, "ss14:crowbar").is_empty());
+        let floors = w
+            .elements()
+            .filter(|e| {
+                matches!(e.kind, StructureKind::Floor)
+                    && matches!(e.placement, Placement::Cell(c) if c.x >= 40 && c.z >= 40)
+            })
+            .count();
+        assert_eq!(floors, 21, "пол цел");
+    }
+
+    /// Маркеры точек появления — зоны `spawn_job` (как `SpawnPoint*` SS14); лестница — протяжкой
+    /// в сторону подъёма, верхний уровень создаётся сам; ластик убирает и то, и другое.
+    #[test]
+    fn a_mapper_places_spawn_markers_and_stairs() {
+        use crate::systems::mapping::{
+            CMD_ERASE, CMD_MARKER, CMD_STRUCTURE, EraseRequest, LATEJOIN, MarkerRequest, STAIRS,
+            StructureRequest, erase_data, marker_data, structure_data,
+        };
+        let token = "fedcba9876543210fedcba9876543210";
+        let mut h = harness_with(move |m| m.with_admins(admin_roster(token, "Mapper")));
+        let a = h.join("a");
+        h.ticks(10);
+        hello(&mut h, a, token);
+        let send = |h: &mut Harness, kind: &'static str, data: Vec<u8>| {
+            command(h, a, kind, data);
+            h.ticks(5);
+        };
+        let marker = |job: &str, at| MarkerRequest {
+            job: job.into(),
+            at,
+            level: 0,
+        };
+        // Должность — из списка, который сервер присылает игроку.
+        let net = h.client(a).net_id().unwrap();
+        let job = h
+            .client(a)
+            .component(net, crate::JOBS_COMPONENT)
+            .and_then(crate::decode_jobs)
+            .and_then(|v| v.jobs.first().map(|j| j.id.clone()))
+            .expect("есть должности");
+        send(&mut h, CMD_MARKER, marker_data(&marker(&job, [45, 45])));
+        send(&mut h, CMD_MARKER, marker_data(&marker(&job, [45, 45])));
+        send(&mut h, CMD_MARKER, marker_data(&marker(LATEJOIN, [46, 45])));
+        send(
+            &mut h,
+            CMD_MARKER,
+            marker_data(&marker("NoSuchJob", [47, 45])),
+        );
+        let markers = |h: &Harness| -> Vec<String> {
+            h.server
+                .world()
+                .authored()
+                .filter_map(|o| o.metadata.get("spawn_job").cloned())
+                .filter(|j| j == &job || j == LATEJOIN || j == "NoSuchJob")
+                .collect()
+        };
+        let before = markers(&h).len();
+        assert!(before >= 2, "{:?}", markers(&h));
+        assert!(!markers(&h).contains(&"NoSuchJob".to_string()));
+        // Лестница на 3 клетки на восток — на уровень 1, который появляется сам.
+        let r = StructureRequest {
+            proto: STAIRS.into(),
+            from: [40, 45],
+            to: [42, 45],
+            rot: 0,
+            level: 0,
+        };
+        send(&mut h, CMD_STRUCTURE, structure_data(&r));
+        let w = h.server.world();
+        let stair = w
+            .elements()
+            .find(|e| matches!(e.kind, StructureKind::Stair { .. }) && matches!(e.placement, Placement::Run { start, .. } if start.x == 40 && start.z == 45))
+            .expect("лестница");
+        assert!(matches!(stair.kind, StructureKind::Stair { to } if to == FloorId(1)));
+        assert!(matches!(
+            stair.placement,
+            Placement::Run {
+                dir: astrocore_math::Facing::East,
+                length: 3,
+                ..
+            }
+        ));
+        assert!(w.floor(FloorId(1)).is_some(), "уровень 1 создан");
+        // Ластик по клеткам маркеров и середине лестницы.
+        let erase = EraseRequest {
+            from: [41, 45],
+            to: [46, 45],
+            level: 0,
+        };
+        send(&mut h, CMD_ERASE, erase_data(&erase));
+        let w = h.server.world();
+        assert!(
+            !w.elements()
+                .any(|e| matches!(e.kind, StructureKind::Stair { .. })
+                    && matches!(e.placement, Placement::Run { start, .. } if start.x == 40))
+        );
+        assert_eq!(markers(&h).len(), before - 2);
     }
 
     #[test]
