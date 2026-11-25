@@ -2,13 +2,15 @@
 $AstroBuildRoot = Split-Path -Parent $PSScriptRoot
 $AstroLocalRoot = Join-Path $AstroBuildRoot '.local'
 $AstroCargoBin = Join-Path $AstroLocalRoot 'cargo\bin'
-if (Test-Path -LiteralPath (Join-Path $AstroCargoBin 'cargo.exe')) {
-    if (-not $env:CARGO_HOME) { $env:CARGO_HOME = Join-Path $AstroLocalRoot 'cargo' }
+$AstroMingwBin = Join-Path $AstroLocalRoot 'toolchain\mingw64\bin'
+$AstroHasMingw = Test-Path -LiteralPath (Join-Path $AstroMingwBin 'gcc.exe')
+if (-not $env:CARGO_HOME) { $env:CARGO_HOME = Join-Path $AstroLocalRoot 'cargo' }
+if ((Test-Path -LiteralPath (Join-Path $AstroCargoBin 'cargo.exe')) -and
+    ($AstroHasMingw -or -not (Get-Command cargo -ErrorAction SilentlyContinue))) {
     if (-not $env:RUSTUP_HOME) { $env:RUSTUP_HOME = Join-Path $AstroLocalRoot 'rustup' }
     $env:PATH = "$AstroCargoBin;$env:PATH"
 }
-$AstroMingwBin = Join-Path $AstroLocalRoot 'toolchain\mingw64\bin'
-if (Test-Path -LiteralPath (Join-Path $AstroMingwBin 'gcc.exe')) {
+if ($AstroHasMingw) {
     $env:PATH = "$AstroMingwBin;$env:PATH"
 }
 if (-not $env:CARGO_TARGET_DIR) { $env:CARGO_TARGET_DIR = Join-Path $AstroLocalRoot 'target' }

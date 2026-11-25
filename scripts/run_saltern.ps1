@@ -10,11 +10,14 @@ param(
     [string]$Map = 'saltern.yml',
     [switch]$Autoplay,
     [switch]$NoBuild,
+    [switch]$Release,
     [switch]$Reimport,
     [switch]$RefreshGeneratedMap,
     [ValidateSet('Auto', 'Vulkan', 'Dx12')]
     [string]$GraphicsBackend = 'Auto',
     [switch]$LocalEngine,
+    [ValidateSet('Host', 'Administrator', 'Mapper', 'Moderator')]
+    [string]$AdminAll,
     [switch]$TraceTicks,
     [string]$EngineRoot,
     [ValidatePattern('^[a-zA-Z0-9_-]+$')]
@@ -35,8 +38,15 @@ $MapPath = [IO.Path]::GetFullPath($MapPath)
 $AstroLogRoot = Join-Path $AstroLocalRoot 'logs'
 New-Item -ItemType Directory -Force -Path (Split-Path -Parent $MapPath),$AstroLogRoot | Out-Null
 
+$AstroProfileArgs = @()
+$AstroProfile = 'debug'
+if ($Release) {
+    $AstroProfile = 'release'
+    $AstroProfileArgs = @('--release')
+}
+
 function Invoke-AstroCargo {
-    & cargo @args
+    & cargo @args @AstroProfileArgs
     if ($LASTEXITCODE -ne 0) { throw "Cargo exited with code $LASTEXITCODE" }
 }
 
@@ -57,17 +67,17 @@ if (-not $NoBuild) {
         Invoke-AstroCargo build --locked -p tools --bin import-map -p server -p client
     }
 }
-$AstroDebugRoot = Join-Path $env:CARGO_TARGET_DIR 'debug'
+$AstroBinRoot = Join-Path $env:CARGO_TARGET_DIR $AstroProfile
 $AstroMapSource = Join-Path $SourceRoot (Join-Path 'Resources\Maps' $Map)
 if ($RefreshGeneratedMap -and (Test-Path -LiteralPath $MapPath)) {
     $mapTime = (Get-Item -LiteralPath $MapPath).LastWriteTimeUtc
-    foreach ($inputFile in @($AstroMapSource, (Join-Path $AstroDebugRoot 'import-map.exe'))) {
+    foreach ($inputFile in @($AstroMapSource, (Join-Path $AstroBinRoot 'import-map.exe'))) {
         if ((Test-Path -LiteralPath $inputFile) -and (Get-Item -LiteralPath $inputFile).LastWriteTimeUtc -gt $mapTime) { $Reimport = $true }
     }
 }
 if ($Mode -ne 'Client' -and ($Mode -eq 'Import' -or $Reimport -or -not (Test-Path -LiteralPath $MapPath))) {
     # Должности станции берутся из прототипа карты (`gameMap`) в Resources\Prototypes\Maps.
-    & (Join-Path $AstroDebugRoot 'import-map.exe') $AstroMapSource $MapPath $AstroMapStem --proto-root (Join-Path $SourceRoot 'Resources\Prototypes')
+    & (Join-Path $AstroBinRoot 'import-map.exe') $AstroMapSource $MapPath $AstroMapStem --proto-root (Join-Path $SourceRoot 'Resources\Prototypes')
     if ($LASTEXITCODE -ne 0) { throw "Import of $Map failed: $LASTEXITCODE" }
 }
 if (-not (Test-Path -LiteralPath $MapPath)) { throw "Map not found: $MapPath" }
@@ -77,8 +87,9 @@ $AstroAddress = if ($env:ASTRO_ADDR) { $env:ASTRO_ADDR } else { '127.0.0.1:7779'
 $AstroKeyFile = Join-Path $AstroBuildRoot '.astro-key'
 if ($env:ASTRO_KEY) {
     $AstroKey = $env:ASTRO_KEY
-} elseif (Test-Path -LiteralPath $AstroKeyFile) {
-    $AstroKey = (Get-Content -LiteralPath $AstroKeyFile -Raw).Trim()
+} elseif ((Test-Path -LiteralPath $AstroKeyFile -PathType Leaf) -and
+    (Get-Item -LiteralPath $AstroKeyFile).Length -gt 0) {
+    $AstroKey = ([string](Get-Content -LiteralPath $AstroKeyFile -Raw)).Trim()
 } else {
     $AstroKeyBytes = New-Object byte[] 32
     $AstroRng = [Security.Cryptography.RandomNumberGenerator]::Create()
@@ -87,9 +98,10 @@ if ($env:ASTRO_KEY) {
     [IO.File]::WriteAllText($AstroKeyFile, $AstroKey)
 }
 if ($AstroKey -notmatch '^[0-9a-fA-F]{64}$') { throw 'ASTRO_KEY must contain 64 hexadecimal characters.' }
-$AstroServerExe = Join-Path $AstroDebugRoot 'server.exe'
+$AstroServerExe = Join-Path $AstroBinRoot 'server.exe'
 $AstroServerArgs = @('--listen', $AstroAddress, '--key', $AstroKey, '--map', $MapPath)
 if ($TraceTicks) { $AstroServerArgs += '--trace-ticks' }
+if ($AdminAll) { $AstroServerArgs += @('--admin-all', $AdminAll) }
 if ($Mode -eq 'Server') {
     & $AstroServerExe @AstroServerArgs
     exit $LASTEXITCODE
@@ -117,6 +129,7 @@ try {
         # Start-Process joins arguments; quote the map path to support spaces.
         $AstroSpawnArgs = @('--listen', $AstroAddress, '--key', $AstroKey, '--map', ('"' + $MapPath + '"'))
         if ($Mode -eq 'Smoke') { $AstroSpawnArgs += @('--lobby', '0') }
+        if ($AdminAll) { $AstroSpawnArgs += @('--admin-all', $AdminAll) }
         if ($TraceTicks) { $AstroSpawnArgs += '--trace-ticks' }
         $AstroServerProcess = Start-Process -FilePath $AstroServerExe -ArgumentList $AstroSpawnArgs `
             -WorkingDirectory $AstroBuildRoot -WindowStyle Hidden -PassThru `
@@ -136,7 +149,7 @@ try {
     $AstroQuotedClientArgs = @($AstroClientArgs | Where-Object { $null -ne $_ } | ForEach-Object {
         '"' + $_.Replace('"', '\"') + '"'
     })
-    $AstroClientProcess = Start-Process -FilePath (Join-Path $AstroDebugRoot 'client.exe') `
+    $AstroClientProcess = Start-Process -FilePath (Join-Path $AstroBinRoot 'client.exe') `
         -ArgumentList $AstroQuotedClientArgs -WorkingDirectory $AstroBuildRoot `
         -WindowStyle Normal -PassThru -Wait `
         -RedirectStandardOutput (Join-Path $AstroLogRoot "$LogName-client.stdout.log") `
