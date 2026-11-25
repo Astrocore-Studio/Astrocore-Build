@@ -26,7 +26,7 @@ Astrocore Build — многопользовательская игра про �
 - [docs/FEATURES.md](docs/FEATURES.md) — что уже сделано: механики, форматы, инструменты, управление.
 - [docs/SYSTEMS.md](docs/SYSTEMS.md) — как устроены игровые системы и как добавить свою.
 - [docs/VOXEL_MODELS.md](docs/VOXEL_MODELS.md) — как нарисовать модель в MagicaVoxel и добавить в игру.
-- [docs/ADR](docs/ADR) — архитектурные решения: [отделение от SS14](docs/ADR/0001-separation-from-ss14-and-workflow.md), [воксельная графика](docs/ADR/0002-voxel-graphics.md), [уровни и маппинг](docs/ADR/0003-levels-and-mapping.md).
+- [docs/ADR](docs/ADR) — архитектурные решения: [отделение от SS14](docs/ADR/0001-separation-from-ss14-and-workflow.md), [воксельная графика](docs/ADR/0002-voxel-graphics.md), [уровни и маппинг](docs/ADR/0003-levels-and-mapping.md) (отменён), [воксельный 3D-мир и разрушение](docs/ADR/0004-voxel-world.md).
 - [Документация движка](https://github.com/Astrocore-Studio/Astrocore-Engine/tree/main/docs) — мир, сеть, рендер, редактор.
 
 Масштаб мира: 1 тайл = 1 м, куб стены 1 × 1 × 1 м, этаж — два тайла стены, персонаж ростом в тайл.
