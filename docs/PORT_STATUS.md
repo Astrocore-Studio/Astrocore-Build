@@ -27,7 +27,7 @@
 | `ITileDefinitionManager` | `astrocore-map::TileDefinitions` | готово | Игровые свойства тайла хранит прототип `tile` в Build (задача 4.1). |
 | `Robust.Shared/Containers` | `astrocore-map::ContainerManager` | готово | Контейнеры и слоты, события попытки и результата. |
 | `IConfigurationManager` (CVar) | `astrocore-console::Config` | частично | Значения, TOML, события. Нет репликации `REPLICATED` клиентам — задача 2.3. |
-| `IConsoleHost` | `astrocore-console::Console` | частично | Команды, права, подсказки. Нет Toolshed и передачи команд по сети — задачи 2.3 и 6.6. |
+| `IConsoleHost`, `ServerConsoleHost`, `ClientConsoleHost` | `astrocore-console::Console`, `astrocore-net` (`RemoteCommand`) | частично | Команды, права, подсказки, выполнение команд игрока на сервере. Нет Toolshed (6.6). |
 | `Robust.Server/GameStates`, `Robust.Client/GameStates` | `astrocore-net` | частично | Состояния компонентов от подтверждённого тика, сессии, `Actor`, сетевые события, связь с Lightyear, сжатие больших состояний (LZ4). Отложено: передача настроек сервера клиенту (6.3). |
 | `PvsSystem`, `PvsOverrideSystem`, `VisibilityComponent`, `EyeComponent.VisibilityMask` | `astrocore-net` (PVS, `Visibility`, `Eye`) | частично | Клетки 8×8 тайлов по этажам, бюджет новых сущностей, принудительная видимость, слои видимости и маска глаза. Отложено: видимость соседних этажей через проёмы, несколько глаз у сессии. |
 | `EntityLookupSystem`, лучи `SharedPhysicsSystem` | `astrocore-physics` (`entities_intersecting`, `RayWorldExt`, `DistanceWorldExt`) | частично | Поиск тел в прямоугольнике, лучи с маской, расстояние до фигур. Нет поиска по радиусу с флагами `LookupFlags`. |
@@ -43,7 +43,9 @@
 | `Robust.Shared/Audio`, `AudioSystem` | `astrocore-audio`, `astrocore-client` (`audio`) | частично | Звуки по пути и из коллекций, рассылка по слышимости, затухание, фоновые `AmbientSound`. Нет стереопанорамы и эффектов (эхо). |
 | `SharedUserInterfaceSystem`, `BoundUserInterface` | `astrocore-ui` | готово | Открытие окна игроку, состояние, сообщения, закрытие по расстоянию. |
 | `Robust.Client/UserInterface` (окна, элементы) | `astrocore-client` (`windows`) на `bevy_ui` | частично | Рамка окна, перетаскивание, закрытие, кнопки и текст. Остальные элементы (списки, поля ввода, вкладки) добавляются с окнами игры. |
-| `MapLoaderSystem`, `EntityDeserializer` | `astrocore-map::MapLoadWorldExt` | частично | Карты SS14 форматов 6–7: тайлы, сущности, иерархия, переименования из `migration.yml`. Нет сохранения мира в файл. |
+| `MapLoaderSystem`, `EntityDeserializer`, `EntitySerializer` | `astrocore-map::MapLoadWorldExt`, `MapSaveWorldExt` | готово | Карты SS14 форматов 6–7: загрузка под заданным номером, сохранение неинициализированной карты в формат 7 отличиями от прототипов; непонятые компоненты и поля сохраняются как были, номера сущностей и тайлов из файла сохраняются. Saltern пересохраняется без потерь. |
+| `PlacementManager` (сервер и клиент) | `game/src/placement.rs`, `mapping_ui.rs` | частично | Размещение сущностей, тайлов, декалей, ластик, привязка к клеткам, линии и прямоугольники, поворот, копирование. Нет режимов выравнивания `AlignWall`/`AlignSimilar`. |
+| Края тайлов (`EdgeSprites`, `Clyde.GridRendering`) | `astrocore-map::TileDefinitions`, `astrocore-client` | частично | Края на клетках существующих чанков. |
 | `Robust.Shared/Localization` | `astrocore-loc` | частично | Fluent, запасной язык, названия и описания сущностей из `ent-ID` с наследованием от родителей. Грамматические функции SS14 (`THE`, `GENDER`, …) — в игре (`game/src/grammar.rs`); 13 сообщений en-US с расширением синтаксиса Linguini не разбираются. |
 | `Robust.Shared/ContentPack` (ресурсы), RSI | `astrocore-resources` | частично | Каталоги контента с приоритетом, описания RSI. Нет архивов и перезагрузки на лету. |
 
@@ -80,9 +82,11 @@
 | `SharedActionsSystem` | `game/src/actions.rs`, `action_bar.rs` | частично | Действия без цели, на сущность и на точку, перезарядка, горячая панель. Нет действий с задержкой (`DoAfterArgs`), повышения уровня действий, перетаскивания по ячейкам. |
 | `SharedCombatModeSystem`, `SharedMeleeWeaponSystem` | `game/src/combat.rs` | частично | Режим боя действием, лёгкий удар оружием, перчатками или кулаком. Остальное — 7.3. |
 | `BodySystem`, `InitialBodySystem`, `HandOrganSystem`, `VisualBodySystem` | `game/src/body.rs`, `body_visuals.rs` | частично | Тело из органов, руки от кистей, цвет кожи вида. Нет меток внешности и профиля (6.2). |
-| Урон и лечение (Relay Two) | `2d/src/medical.rs` | заменено | В игре на ядре — системы урона и лечения выше; Relay Two доживает до 4.5. |
+| Команды карт (`MapCommands`, `MapPausingCommands`, `TeleportCommands`, `MappingCommand`, `AGhostCommand`) | `game/src/map_commands.rs`, `dev_console.rs` | частично | `mapping`, `loadmap`, `savemap`, `addmap`, `rmmap`, `lsmap`, пауза, `mapinit`, `tp`, `tpto`, `tpgrid`, `aghost`; консоль на «~». Права — только игрок с машины сервера до 6.6. |
+| `Decal`, `DecalChunkComponent`, `DecalGridComponent`, `DecalOverlay` | `game/src/decals.rs`, `decal_visuals.rs` | частично | Чтение обоих форматов, отрисовка, размещение и удаление, сохранение в формат SS14 (ADR-0006). Нет выбора цвета и очистки декалей (`cleanable`). |
+| Урон и лечение (Relay Two) | `2d/src/medical.rs` | заменено | В игре на ядре — системы урона и лечения выше; Relay Two не переносится (решение владельца, 4.5). |
 | Инвентарь, рюкзаки, перетаскивание (Relay Two) | `2d/src/inventory.rs`, `pulling.rs` | заменено | В игре на ядре — системы выше. |
-| Остальные системы `Content.*` | — | нет | Фазы 4–7. |
+| Остальные системы `Content.*` | — | нет | Фазы 5–7. |
 
 ## Данные SS14
 
