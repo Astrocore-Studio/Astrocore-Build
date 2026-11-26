@@ -12,7 +12,9 @@
 //! инструменты, открывает его окно и ближайший шкаф, `--hurt` (только с `--host`) через секунду
 //! наносит игроку смертельный урон, `--dress` (только с `--host`) надевает на игрока
 //! комбинезон, ботинки и рюкзак, `--console "<команда>"` (можно несколько раз) после входа
-//! открывает консоль и выполняет команды на сервере.
+//! открывает консоль и выполняет команды на сервере, `--palette entities:<поиск>` или
+//! `tiles:<поиск>` открывает палитру маппинга и берёт первую найденную строку, курсор при
+//! этом стоит на две клетки правее игрока.
 
 use std::process::ExitCode;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -38,6 +40,7 @@ struct Options {
     hurt: bool,
     dress: bool,
     console: Vec<String>,
+    palette: Option<String>,
 }
 
 fn options() -> Result<Options, String> {
@@ -53,6 +56,7 @@ fn options() -> Result<Options, String> {
         hurt: false,
         dress: false,
         console: Vec::new(),
+        palette: None,
     };
     let mut args = std::env::args().skip(1);
     while let Some(arg) = args.next() {
@@ -69,6 +73,7 @@ fn options() -> Result<Options, String> {
             "--name" => options.name = value("имя игрока")?,
             "--capture" => options.capture = Some(value("файл кадра")?),
             "--console" => options.console.push(value("строка команды")?),
+            "--palette" => options.palette = Some(value("палитра:поиск")?),
             other => {
                 return Err(format!(
                     "неизвестный параметр {other}. Параметры: --host, --connect <адрес>, --name <имя>, --capture <файл>, --walk"
@@ -365,6 +370,17 @@ fn run_startup_commands(
     }
 }
 
+/// Тайлы игры по идентификаторам.
+fn game_world_tiles(app: &App) -> Vec<String> {
+    app.world()
+        .resource::<Game>()
+        .0
+        .resource::<astrocore_map::TileDefinitions>()
+        .iter()
+        .map(|definition| definition.id.clone())
+        .collect()
+}
+
 fn hold_right(mut game: ResMut<Game>) {
     if let Some(mut input) = game.0.get_resource_mut::<LocalInput>() {
         input.buttons = MoveButtons::RIGHT;
@@ -444,7 +460,8 @@ fn run() -> Result<(), String> {
     .add_plugins(astrocore_game::inventory_hud::InventoryHudPlugin)
     .add_plugins(astrocore_game::storage_hud::StorageHudPlugin)
     .add_plugins(astrocore_game::action_bar::ActionBarPlugin)
-    .add_plugins(astrocore_game::dev_console::DevConsolePlugin);
+    .add_plugins(astrocore_game::dev_console::DevConsolePlugin)
+    .add_plugins(astrocore_game::mapping_ui::MappingUiPlugin);
     if options.walk {
         app.add_systems(Update, hold_right);
     }
@@ -453,6 +470,36 @@ fn run() -> Result<(), String> {
     }
     if options.examine_nearest {
         app.add_systems(Update, (examine_nearest, popup_before_capture));
+    }
+    if let Some(palette) = &options.palette {
+        use astrocore_game::mapping_ui::{DemoCursor, MappingTools, Palette, Tool};
+        let (kind, search) = palette.split_once(':').unwrap_or((palette, ""));
+        let tiles = kind == "tiles";
+        let first = if tiles {
+            let definitions = game_world_tiles(&app);
+            definitions
+                .into_iter()
+                .find(|id| id.to_lowercase().contains(&search.to_lowercase()))
+                .map(Tool::Tile)
+        } else {
+            Some(Tool::Entity(search.to_owned()))
+        };
+        let tools = MappingTools {
+            palette: Some(if tiles {
+                Palette::Tiles
+            } else {
+                Palette::Entities
+            }),
+            search: search.to_owned(),
+            tool: first.unwrap_or_default(),
+            version: 1,
+            ..MappingTools::default()
+        };
+        app.world_mut()
+            .resource_mut::<Game>()
+            .0
+            .insert_resource(tools);
+        app.insert_resource(DemoCursor(Vec2::new(2.0, 0.0)));
     }
     if !options.console.is_empty() {
         app.insert_resource(StartupCommands(options.console.clone()));

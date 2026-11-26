@@ -56,7 +56,7 @@ pub struct AdminGhost {
 }
 
 /// Права игрока: хост на своей машине может всё.
-fn permission(world: &World, shell: &ConsoleShell, _command: &str) -> bool {
+pub(crate) fn permission(world: &World, shell: &ConsoleShell, _command: &str) -> bool {
     if !world.resource::<Config>().get(&LOGIN_LOCAL) {
         return false;
     }

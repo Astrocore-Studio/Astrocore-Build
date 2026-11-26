@@ -28,6 +28,7 @@ pub mod item;
 pub mod map_commands;
 pub mod mobs;
 pub mod ordered;
+pub mod placement;
 pub mod popups;
 pub mod pulling;
 pub mod server;
@@ -60,6 +61,8 @@ pub mod hands_hud;
 pub mod inhands;
 #[cfg(feature = "client")]
 pub mod inventory_hud;
+#[cfg(feature = "client")]
+pub mod mapping_ui;
 #[cfg(feature = "client")]
 pub mod mob_visuals;
 #[cfg(feature = "client")]
@@ -121,6 +124,7 @@ pub fn install_content(world: &mut World, side: Side) {
     body::install(world, side);
     damage_other_on_hit::install(world, side);
     map_commands::install(world, side);
+    placement::install(world, side);
 }
 
 /// Адрес сервера по умолчанию.

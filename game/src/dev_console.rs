@@ -67,6 +67,7 @@ fn type_into(
     mut focus: ResMut<KeyboardFocus>,
     mut game: ResMut<Game>,
 ) {
+    let was_open = console.open;
     for event in events.read() {
         if event.state != ButtonState::Pressed {
             continue;
@@ -96,7 +97,8 @@ fn type_into(
             _ => {}
         }
     }
-    if focus.0 != console.open {
+    // Фокус меняется только при открытии и закрытии: поле поиска маппинга тоже его берёт.
+    if console.open != was_open {
         focus.0 = console.open;
     }
 }
