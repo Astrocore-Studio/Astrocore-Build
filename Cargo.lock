@@ -459,6 +459,7 @@ dependencies = [
 name = "astrocore-build-2d"
 version = "0.1.0"
 dependencies = [
+ "astrocore-core",
  "astrocore-grid2d",
  "astrocore-network",
  "atmos",

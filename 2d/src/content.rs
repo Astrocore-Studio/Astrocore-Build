@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 use crate::environment::coordinates;
 use crate::medical::Damage;
 use crate::piping::{PipeDirection, PipePiece, PipeShape};
+use crate::prototypes::parse_catalog;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Layout {
@@ -175,8 +176,7 @@ impl Content {
 
     fn parse(map: &str, prototypes: &str) -> Result<Self, String> {
         let data: MapData = ron::from_str(map).map_err(|error| format!("station.ron: {error}"))?;
-        let prototypes: BTreeMap<String, Prototype> =
-            ron::from_str(prototypes).map_err(|error| format!("prototypes.ron: {error}"))?;
+        let prototypes = parse_catalog(prototypes)?;
         Self::from_data(data, prototypes)
     }
 

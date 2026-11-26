@@ -9,6 +9,7 @@ license = "AGPL-3.0-or-later"
 client = ["dep:bevy", "dep:getrandom", "dep:tempfile"]
 
 [dependencies]
+astrocore-core = { path = "../../Astrocore-Engine/crates/astrocore-core" }
 astrocore-grid2d = { path = "../../Astrocore-Engine/crates/astrocore-grid2d" }
 astrocore-network = { path = "../../Astrocore-Engine/crates/astrocore-network" }
 atmos = { path = "../crates/atmos" }

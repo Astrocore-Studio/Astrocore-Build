@@ -17,7 +17,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: Astrocore-Studio/Astrocore-Engine
-          ref: 9629e1119e084b2e584a77841655f6401af083d2
+          ref: 7caf04e8592b3f27fe4d4772644fff6a14b9085f
           path: Astrocore-Engine
       - uses: dtolnay/rust-toolchain@stable
         with:

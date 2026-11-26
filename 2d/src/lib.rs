@@ -5,6 +5,7 @@ mod inventory;
 mod jobs;
 mod medical;
 mod piping;
+mod prototypes;
 mod pulling;
 mod replication;
 pub mod server;
