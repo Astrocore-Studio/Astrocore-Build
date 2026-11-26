@@ -21,22 +21,8 @@ fn apply(world: &mut World, organ: Entity) {
     let Some(visual) = world.get::<VisualOrgan>(organ).cloned() else {
         return;
     };
-    // Поле `data` в SS14 наследуется слиянием с родителем (`AlwaysPushInheritance`);
-    // загрузчик прототипов его заменяет, поэтому недостающие набор и состояние берутся из
-    // спрайта самого органа, где они те же.
-    let own = world
-        .get::<Sprite>(organ)
-        .map(|s| (s.sprite.clone(), s.state.clone()));
-    let rsi = visual
-        .data
-        .sprite
-        .clone()
-        .or_else(|| own.as_ref().and_then(|o| o.0.clone()));
-    let state = visual
-        .data
-        .state
-        .clone()
-        .or_else(|| own.as_ref().and_then(|o| o.1.clone()));
+    let rsi = visual.data.sprite.clone();
+    let state = visual.data.state.clone();
     let Some(sprite) = world.get::<Sprite>(container.owner) else {
         return;
     };

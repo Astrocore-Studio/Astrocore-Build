@@ -283,6 +283,10 @@ pub(crate) fn install(world: &mut World, side: crate::Side) {
     world.register_data_component::<InitialBody>();
     world.register_data_component::<HandOrgan>();
     world.register_data_component::<VisualOrgan>();
+    // `data` складывается с родительским (`[AlwaysPushInheritance]` в `VisualOrganComponent`).
+    world
+        .resource_mut::<astrocore_ecs::ComponentRegistry>()
+        .set_inheritance("VisualOrgan", &["data"], &[]);
     world.register_data_component::<VisualBody>();
     world.register_data_component::<HumanoidProfile>();
     world.register_net_serde::<VisualOrgan>();

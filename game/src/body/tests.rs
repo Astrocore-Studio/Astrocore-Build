@@ -122,3 +122,38 @@ fn organs_give_hands_and_skin_from_the_species() {
     assert_eq!(world.hands_in_order(human), vec!["right".to_owned()]);
     assert_eq!(world.get::<Organ>(hand).unwrap().body, None);
 }
+
+#[test]
+fn visual_organ_data_merges_with_the_parent() {
+    let world = world_with(
+        r#"
+- type: entity
+  id: OrganBase
+  abstract: true
+  components:
+  - type: VisualOrgan
+    layer: enum.HumanoidVisualLayers.Chest
+    data:
+      sprite: Mobs/Species/Human/parts.rsi
+- type: entity
+  parent: OrganBase
+  id: OrganTorso
+  components:
+  - type: VisualOrgan
+    data:
+      state: torso_m
+"#,
+    );
+    let prototypes = world.resource::<astrocore_prototypes::Prototypes>();
+    let component = prototypes
+        .entity("OrganTorso")
+        .unwrap()
+        .component("VisualOrgan")
+        .unwrap();
+    let data = component.node.get("data").unwrap();
+    assert_eq!(
+        data.get("sprite").and_then(|n| n.as_str()),
+        Some("Mobs/Species/Human/parts.rsi")
+    );
+    assert_eq!(data.get("state").and_then(|n| n.as_str()), Some("torso_m"));
+}

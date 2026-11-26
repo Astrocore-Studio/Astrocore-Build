@@ -25,6 +25,7 @@ pub mod input_contexts;
 pub mod interaction;
 pub mod inventory;
 pub mod item;
+pub mod map_commands;
 pub mod mobs;
 pub mod ordered;
 pub mod popups;
@@ -51,6 +52,8 @@ pub mod body_visuals;
 pub mod client;
 #[cfg(feature = "client")]
 pub mod clothing_visuals;
+#[cfg(feature = "client")]
+pub mod dev_console;
 #[cfg(feature = "client")]
 pub mod hands_hud;
 #[cfg(feature = "client")]
@@ -117,6 +120,7 @@ pub fn install_content(world: &mut World, side: Side) {
     combat::install(world, side);
     body::install(world, side);
     damage_other_on_hit::install(world, side);
+    map_commands::install(world, side);
 }
 
 /// Адрес сервера по умолчанию.

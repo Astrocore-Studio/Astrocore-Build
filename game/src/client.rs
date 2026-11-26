@@ -63,6 +63,17 @@ pub struct LocalHost {
 
 const LOCAL: ConnId = ConnId(1);
 
+impl LocalHost {
+    /// Сервер в процессе: игрок сидит за той же машиной и получает права хоста.
+    pub fn new(mut server: World) -> Self {
+        server
+            .resource_mut::<ServerNet>()
+            .addresses
+            .insert(LOCAL, std::net::SocketAddr::from(([127, 0, 0, 1], 0)));
+        Self { server }
+    }
+}
+
 impl ClientTransport for LocalHost {
     fn receive(&mut self, client: &mut World) {
         let packets = std::mem::take(&mut self.server.resource_mut::<ServerNet>().outgoing);

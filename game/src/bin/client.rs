@@ -11,7 +11,8 @@
 //! `--storage-nearest` (только с `--host`) ставит игрока у ящика с инструментами, кладёт в него
 //! инструменты, открывает его окно и ближайший шкаф, `--hurt` (только с `--host`) через секунду
 //! наносит игроку смертельный урон, `--dress` (только с `--host`) надевает на игрока
-//! комбинезон, ботинки и рюкзак.
+//! комбинезон, ботинки и рюкзак, `--console "<команда>"` (можно несколько раз) после входа
+//! открывает консоль и выполняет команды на сервере.
 
 use std::process::ExitCode;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -36,6 +37,7 @@ struct Options {
     storage_nearest: bool,
     hurt: bool,
     dress: bool,
+    console: Vec<String>,
 }
 
 fn options() -> Result<Options, String> {
@@ -50,6 +52,7 @@ fn options() -> Result<Options, String> {
         storage_nearest: false,
         hurt: false,
         dress: false,
+        console: Vec::new(),
     };
     let mut args = std::env::args().skip(1);
     while let Some(arg) = args.next() {
@@ -65,6 +68,7 @@ fn options() -> Result<Options, String> {
             "--connect" => options.connect = Some(value("адрес сервера")?),
             "--name" => options.name = value("имя игрока")?,
             "--capture" => options.capture = Some(value("файл кадра")?),
+            "--console" => options.console.push(value("строка команды")?),
             other => {
                 return Err(format!(
                     "неизвестный параметр {other}. Параметры: --host, --connect <адрес>, --name <имя>, --capture <файл>, --walk"
@@ -331,6 +335,36 @@ fn dress_player(world: &mut bevy_ecs::world::World, mut ticks: Local<u32>) {
     }
 }
 
+/// Команды консоли для проверки без человека: выполняются через полсекунды после входа.
+#[derive(Resource)]
+struct StartupCommands(Vec<String>);
+
+fn run_startup_commands(
+    mut game: ResMut<Game>,
+    mut console: ResMut<astrocore_game::dev_console::DevConsole>,
+    mut commands: ResMut<StartupCommands>,
+    mut frames: Local<u32>,
+) {
+    if commands.0.is_empty()
+        || game
+            .0
+            .resource::<astrocore_net::ClientNet>()
+            .attached
+            .is_none()
+    {
+        return;
+    }
+    *frames += 1;
+    if *frames < 30 {
+        return;
+    }
+    console.open = true;
+    for line in std::mem::take(&mut commands.0) {
+        console.history.push(line.clone());
+        astrocore_net::RemoteConsoleWorldExt::execute_remote_command(&mut game.0, &line);
+    }
+}
+
 fn hold_right(mut game: ResMut<Game>) {
     if let Some(mut input) = game.0.get_resource_mut::<LocalInput>() {
         input.buttons = MoveButtons::RIGHT;
@@ -363,9 +397,7 @@ fn run() -> Result<(), String> {
             "Игра в одиночку: сущностей на карте {}.",
             start.map.entities
         );
-        Box::new(LocalHost {
-            server: start.world,
-        })
+        Box::new(LocalHost::new(start.world))
     } else {
         let address = match &options.connect {
             Some(text) => text
@@ -411,7 +443,8 @@ fn run() -> Result<(), String> {
     .add_plugins(astrocore_game::overlays::OverlaysPlugin)
     .add_plugins(astrocore_game::inventory_hud::InventoryHudPlugin)
     .add_plugins(astrocore_game::storage_hud::StorageHudPlugin)
-    .add_plugins(astrocore_game::action_bar::ActionBarPlugin);
+    .add_plugins(astrocore_game::action_bar::ActionBarPlugin)
+    .add_plugins(astrocore_game::dev_console::DevConsolePlugin);
     if options.walk {
         app.add_systems(Update, hold_right);
     }
@@ -420,6 +453,10 @@ fn run() -> Result<(), String> {
     }
     if options.examine_nearest {
         app.add_systems(Update, (examine_nearest, popup_before_capture));
+    }
+    if !options.console.is_empty() {
+        app.insert_resource(StartupCommands(options.console.clone()));
+        app.add_systems(Update, run_startup_commands);
     }
     if let Some(path) = options.capture {
         app.insert_resource(Capture {
