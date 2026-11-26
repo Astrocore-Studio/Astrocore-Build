@@ -171,3 +171,22 @@ fn paused_entities_take_no_part_in_the_grid() {
     }
     assert!(!is_powered(&world, lamp));
 }
+
+#[test]
+fn apc_window_shows_charge_and_toggles_the_breaker() {
+    let mut world = world_with(PROTOTYPES);
+    let (apc, lamp) = station_grid(&mut world);
+    for _ in 0..300 {
+        world.run_tick();
+    }
+    let state = apc_ui_state(&world, apc).unwrap();
+    assert!(state.main_breaker);
+    assert_ne!(state.external, ApcExternalPower::None);
+    assert!(state.charge > 0.0 && state.charge <= 1.0);
+    assert!(state.power >= 60, "{state:?}");
+
+    toggle_apc_breaker(&mut world, apc);
+    world.run_tick();
+    assert!(!apc_ui_state(&world, apc).unwrap().main_breaker);
+    assert!(!is_powered(&world, lamp));
+}

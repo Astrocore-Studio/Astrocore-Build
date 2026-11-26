@@ -231,6 +231,32 @@ pub struct ExtensionCableReceiver {
     pub reception_range: i32,
 }
 
+/// Ключ окна АПЦ.
+pub const APC_UI_KEY: &str = "enum.ApcUiKey.Key";
+
+/// Внешнее питание АПЦ (`ApcExternalPowerState`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum ApcExternalPower {
+    None,
+    Low,
+    Good,
+}
+
+/// Состояние окна АПЦ (`ApcBoundInterfaceState`).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ApcUiState {
+    pub main_breaker: bool,
+    /// Отдаёт устройствам, Вт.
+    pub power: i32,
+    pub external: ApcExternalPower,
+    /// Заряд от 0 до 1 с шагом 5 %.
+    pub charge: f32,
+}
+
+/// Переключить главный выключатель (`ApcToggleMainBreakerMessage`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ApcToggleMainBreaker;
+
 /// Питание устройства изменилось (`PowerChangedEvent`). Поднимается на устройстве.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct PowerChanged {
@@ -571,6 +597,72 @@ fn close_to_percent(a: f32, b: f32) -> bool {
     (a - b).abs() <= epsilon
 }
 
+/// Состояние окна АПЦ (`UpdateUIState`, `CalcExtPowerState`).
+pub fn apc_ui_state(world: &World, apc: Entity) -> Option<ApcUiState> {
+    let component = world.get::<Apc>(apc)?;
+    let battery = world.get::<PowerNetworkBattery>(apc)?;
+    let charge = world.get::<Battery>(apc)?;
+    let fraction = if charge.max_charge > 0.0 {
+        charge.last_charge / charge.max_charge
+    } else {
+        0.0
+    };
+    let delta = battery.current_supply - battery.current_receiving;
+    let external = if battery.current_receiving == 0.0 && (fraction - 1.0).abs() > 1e-5 {
+        ApcExternalPower::None
+    } else if delta < -0.1 {
+        // `!CloseToPercent(delta, 0, 0.1) && delta < 0`: АПЦ принимает больше, чем отдаёт.
+        ApcExternalPower::Low
+    } else {
+        ApcExternalPower::Good
+    };
+    Some(ApcUiState {
+        main_breaker: component.enabled,
+        power: battery.current_supply.ceil() as i32,
+        external,
+        charge: (fraction * 20.0).round() / 20.0,
+    })
+}
+
+/// Переключает главный выключатель (`ApcToggleBreaker`).
+pub fn toggle_apc_breaker(world: &mut World, apc: Entity) {
+    let Some(mut component) = world.get_mut::<Apc>(apc) else {
+        return;
+    };
+    component.enabled = !component.enabled;
+    let enabled = component.enabled;
+    if let Some(mut battery) = world.get_mut::<PowerNetworkBattery>(apc) {
+        battery.can_discharge = enabled;
+    }
+    let mut sound = astrocore_audio::SoundSpecifier::path("/Audio/Machines/machine_switch.ogg");
+    if let astrocore_audio::SoundSpecifier::Path { params, .. } = &mut sound {
+        params.volume -= 2.0;
+    }
+    astrocore_audio::AudioWorldExt::play_entity(world, &sound, apc, None);
+    if let Some(state) = apc_ui_state(world, apc) {
+        astrocore_ui::UiWorldExt::set_ui_state(world, apc, APC_UI_KEY, &state);
+    }
+}
+
+/// Раз в секунду состояние окон АПЦ.
+fn update_apc_ui(world: &mut World, mut last: bevy_ecs::system::Local<f64>) {
+    let now = world.resource::<GameTime>().cur_time().as_secs_f64();
+    if now - *last < 1.0 {
+        return;
+    }
+    *last = now;
+    let apcs: Vec<Entity> = world
+        .query::<(Entity, &Apc)>()
+        .iter(world)
+        .map(|(e, _)| e)
+        .collect();
+    for apc in apcs {
+        if let Some(state) = apc_ui_state(world, apc) {
+            astrocore_ui::UiWorldExt::set_ui_state(world, apc, APC_UI_KEY, &state);
+        }
+    }
+}
+
 /// Питается ли устройство.
 pub fn is_powered(world: &World, entity: Entity) -> bool {
     match world.get::<ApcPowerReceiver>(entity) {
@@ -593,9 +685,15 @@ pub fn install(world: &mut World, side: Side) {
     world.register_data_component::<ExtensionCableProvider>();
     world.register_data_component::<ExtensionCableReceiver>();
     world.register_net_serde::<ApcPowered>();
+    astrocore_ui::UiWorldExt::register_ui_message::<ApcToggleMainBreaker>(world);
     if !side.is_server() {
         return;
     }
+    // Доступ к выключателю (`AccessReader`) — вместе с доступом (5.2).
+    world.subscribe::<Apc, astrocore_ui::BoundUiMessage<ApcToggleMainBreaker>>(|world, apc, _| {
+        toggle_apc_breaker(world, apc);
+    });
+    world.add_game_systems(Update, update_apc_ui);
     world.init_resource::<ApcLinks>();
     // Заряд на старте (`SharedBatterySystem.OnMapInit`).
     world.subscribe::<Battery, MapInit>(|world, entity, _| {

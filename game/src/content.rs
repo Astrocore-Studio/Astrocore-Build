@@ -177,7 +177,15 @@ pub fn load_content(world: &mut World, resources: &Resources, ss14: &Path) -> Lo
             prototypes.resolve(world.resource::<ComponentRegistry>(), &mut report);
         });
     }
-    type TileRow = (String, Option<String>, u8, f32, [Option<String>; 8], i32);
+    type TileRow = (
+        String,
+        Option<String>,
+        u8,
+        f32,
+        [Option<String>; 8],
+        i32,
+        (bool, bool),
+    );
     let tiles: Vec<TileRow> = {
         let prototypes = world.resource::<Prototypes>();
         prototypes
@@ -199,17 +207,34 @@ pub fn load_content(world: &mut World, resources: &Resources, ss14: &Path) -> Lo
                     .and_then(|v| v.parse().ok())
                     .unwrap_or(1.0);
                 let (edges, priority) = tile_edges(node);
-                Some((id.to_owned(), sprite, variants, friction, edges, priority))
+                let flag = |key: &str, default: bool| {
+                    node.get(key)
+                        .and_then(|n| n.as_str())
+                        .map_or(default, |v| v.eq_ignore_ascii_case("true"))
+                };
+                let flags = (flag("isSubfloor", false), flag("sturdy", true));
+                Some((
+                    id.to_owned(),
+                    sprite,
+                    variants,
+                    friction,
+                    edges,
+                    priority,
+                    flags,
+                ))
             })
             .collect()
     };
     let mut frictions = crate::friction::TileFrictions::default();
-    for (id, _, _, friction, _, _) in &tiles {
+    let mut properties = crate::cables::TileProperties::default();
+    for (id, _, _, friction, _, _, (subfloor, sturdy)) in &tiles {
         frictions.set(id, *friction);
+        properties.set(id, *subfloor, *sturdy);
     }
     world.insert_resource(frictions);
+    world.insert_resource(properties);
     let mut definitions = world.get_resource_or_insert_with(TileDefinitions::default);
-    for (id, sprite, variants, _, edges, priority) in tiles {
+    for (id, sprite, variants, _, edges, priority, _) in tiles {
         let type_id = definitions.register(&id, sprite, variants);
         definitions.set_edges(type_id, edges, priority);
     }

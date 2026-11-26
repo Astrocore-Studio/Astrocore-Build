@@ -8,7 +8,9 @@
 pub mod action_blocker;
 pub mod actions;
 pub mod activatable_ui;
+pub mod ame;
 pub mod body;
+pub mod cables;
 pub mod combat;
 pub mod container_fill;
 pub mod content;
@@ -19,6 +21,7 @@ pub mod do_after;
 pub mod entity_storage;
 pub mod examine;
 pub mod fixed_point;
+pub mod flatpack;
 pub mod friction;
 pub mod grammar;
 pub mod hands;
@@ -27,6 +30,7 @@ pub mod input_contexts;
 pub mod interaction;
 pub mod inventory;
 pub mod item;
+pub mod item_slots;
 pub mod map_commands;
 pub mod mobs;
 pub mod node_container;
@@ -55,6 +59,8 @@ pub mod action_bar;
 #[cfg(feature = "client")]
 pub mod body_visuals;
 #[cfg(feature = "client")]
+pub mod cable_visuals;
+#[cfg(feature = "client")]
 pub mod client;
 #[cfg(feature = "client")]
 pub mod clothing_visuals;
@@ -74,6 +80,8 @@ pub mod mapping_ui;
 pub mod mob_visuals;
 #[cfg(feature = "client")]
 pub mod overlays;
+#[cfg(feature = "client")]
+pub mod power_ui;
 #[cfg(feature = "client")]
 pub mod smooth;
 #[cfg(feature = "client")]
@@ -136,6 +144,10 @@ pub fn install_content(world: &mut World, side: Side) {
     node_container::install(world, side);
     power::install(world, side);
     container_fill::install(world, side);
+    item_slots::install(world, side);
+    flatpack::install(world, side);
+    ame::install(world, side);
+    cables::install(world, side);
 }
 
 /// Адрес сервера по умолчанию.
