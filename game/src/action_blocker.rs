@@ -1,0 +1,130 @@
+//! Можно ли сущности действовать: взаимодействовать, пользоваться предметом в руке,
+//! выполнять сложные действия. Образец — `Content.Shared/ActionBlocker/ActionBlockerSystem.cs`
+//! SS14 @ 2f4a2aad: системы запрещают действие, отменяя событие попытки.
+
+use astrocore_ecs::{EventWorldExt, RegistryWorldExt};
+use astrocore_net::NetRegistryWorldExt;
+use bevy_ecs::component::Component;
+use bevy_ecs::entity::Entity;
+use bevy_ecs::world::World;
+use serde::{Deserialize, Serialize};
+
+/// Сущность умеет сложные действия: пользоваться предметами и устройствами, а не только
+/// трогать. В данных — компонент `ComplexInteraction`.
+#[derive(Component, Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ComplexInteraction {}
+
+/// Может ли сущность действовать сознательно (`ConsciousAttemptEvent`): мёртвые и
+/// без сознания — нет. Поднимается на сущности.
+#[derive(Debug, Clone, Copy)]
+pub struct ConsciousAttempt {
+    pub user: Entity,
+    pub cancelled: bool,
+}
+
+/// Попытка взаимодействия (`InteractionAttemptEvent`). Поднимается на действующем.
+#[derive(Debug, Clone, Copy)]
+pub struct InteractionAttempt {
+    pub user: Entity,
+    pub target: Option<Entity>,
+    pub cancelled: bool,
+}
+
+/// С сущностью пытаются взаимодействовать (`GettingInteractedWithAttemptEvent`).
+/// Поднимается на цели.
+#[derive(Debug, Clone, Copy)]
+pub struct GettingInteractedWithAttempt {
+    pub user: Entity,
+    pub target: Entity,
+    pub cancelled: bool,
+}
+
+/// Попытка воспользоваться предметом в руке (`UseAttemptEvent`). Поднимается на действующем.
+#[derive(Debug, Clone, Copy)]
+pub struct UseAttempt {
+    pub user: Entity,
+    pub used: Entity,
+    pub cancelled: bool,
+}
+
+/// Предметом пытаются воспользоваться (`GettingUsedAttemptEvent`). Поднимается на предмете.
+#[derive(Debug, Clone, Copy)]
+pub struct GettingUsedAttempt {
+    pub user: Entity,
+    pub cancelled: bool,
+}
+
+/// Проверки действий на `World`.
+pub trait ActionBlockerWorldExt {
+    fn can_consciously_perform_action(&mut self, user: Entity) -> bool;
+
+    /// Может ли сущность взаимодействовать с целью (или вообще, без цели).
+    fn can_interact(&mut self, user: Entity, target: Option<Entity>) -> bool;
+
+    fn can_use_held_entity(&mut self, user: Entity, used: Entity) -> bool;
+
+    fn can_complex_interact(&self, user: Entity) -> bool;
+}
+
+impl ActionBlockerWorldExt for World {
+    fn can_consciously_perform_action(&mut self, user: Entity) -> bool {
+        let mut event = ConsciousAttempt {
+            user,
+            cancelled: false,
+        };
+        self.raise(user, &mut event);
+        !event.cancelled
+    }
+
+    fn can_interact(&mut self, user: Entity, target: Option<Entity>) -> bool {
+        if !self.can_consciously_perform_action(user) {
+            return false;
+        }
+        let mut event = InteractionAttempt {
+            user,
+            target,
+            cancelled: false,
+        };
+        self.raise(user, &mut event);
+        if event.cancelled {
+            return false;
+        }
+        let Some(target) = target.filter(|target| *target != user) else {
+            return true;
+        };
+        let mut event = GettingInteractedWithAttempt {
+            user,
+            target,
+            cancelled: false,
+        };
+        self.raise(target, &mut event);
+        !event.cancelled
+    }
+
+    fn can_use_held_entity(&mut self, user: Entity, used: Entity) -> bool {
+        let mut event = UseAttempt {
+            user,
+            used,
+            cancelled: false,
+        };
+        self.raise(user, &mut event);
+        if event.cancelled {
+            return false;
+        }
+        let mut event = GettingUsedAttempt {
+            user,
+            cancelled: false,
+        };
+        self.raise(used, &mut event);
+        !event.cancelled
+    }
+
+    fn can_complex_interact(&self, user: Entity) -> bool {
+        self.get::<ComplexInteraction>(user).is_some()
+    }
+}
+
+pub(crate) fn install(world: &mut World) {
+    world.register_data_component::<ComplexInteraction>();
+    world.register_net_serde::<ComplexInteraction>();
+}

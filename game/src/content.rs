@@ -53,16 +53,23 @@ pub fn mount_resources() -> Result<(Resources, PathBuf), String> {
 }
 
 /// Группы столкновений SS14 (`Content.Shared/Physics/CollisionGroup.cs` @ 2f4a2aad).
+/// Биты групп столкновений SS14 (`Content.Shared/Physics/CollisionGroup.cs` @ 2f4a2aad).
+pub mod groups {
+    pub const OPAQUE: i32 = 1 << 0;
+    pub const IMPASSABLE: i32 = 1 << 1;
+    pub const MID: i32 = 1 << 2;
+    pub const HIGH: i32 = 1 << 3;
+    pub const LOW: i32 = 1 << 4;
+    pub const GHOST: i32 = 1 << 5;
+    pub const BULLET: i32 = 1 << 6;
+    pub const INTERACT: i32 = 1 << 7;
+    pub const DOOR: i32 = 1 << 8;
+    /// Маска луча досягаемости (`SharedInteractionSystem.InRangeUnobstructedMask`).
+    pub const IN_RANGE_UNOBSTRUCTED: i32 = IMPASSABLE | INTERACT;
+}
+
 pub fn register_collision_groups() {
-    const OPAQUE: i32 = 1 << 0;
-    const IMPASSABLE: i32 = 1 << 1;
-    const MID: i32 = 1 << 2;
-    const HIGH: i32 = 1 << 3;
-    const LOW: i32 = 1 << 4;
-    const GHOST: i32 = 1 << 5;
-    const BULLET: i32 = 1 << 6;
-    const INTERACT: i32 = 1 << 7;
-    const DOOR: i32 = 1 << 8;
+    use groups::*;
     for (name, bits) in [
         ("None", 0),
         ("Opaque", OPAQUE),

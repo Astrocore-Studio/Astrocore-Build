@@ -5,6 +5,8 @@
 //! сюда по плану `docs/ROADMAP.md` (фазы 3–7); сценарий Relay Two на первой 2D-основе живёт
 //! в каталоге `2d/` до конца переезда.
 
+pub mod action_blocker;
+pub mod activatable_ui;
 pub mod content;
 pub mod input_contexts;
 pub mod interaction;
@@ -43,7 +45,9 @@ impl Side {
 pub fn install_content(world: &mut World, side: Side) {
     tag::install(world);
     item::install(world);
+    action_blocker::install(world);
     interaction::install(world, side);
+    activatable_ui::install(world, side);
 }
 
 /// Адрес сервера по умолчанию.

@@ -60,7 +60,7 @@ fn options() -> Result<Options, String> {
 
 /// Проверка без человека: точка появления переносится к первому устройству с интерфейсом.
 fn stand_by_device(server: &mut bevy_ecs::world::World) {
-    use astrocore_game::interaction::ActivatableUi;
+    use astrocore_game::activatable_ui::ActivatableUi;
     use astrocore_map::{MapCoordinates, TransformWorldExt};
     let mut devices = server.query_filtered::<bevy_ecs::entity::Entity, (
         With<ActivatableUi>,
@@ -83,7 +83,8 @@ fn stand_by_device(server: &mut bevy_ecs::world::World) {
 /// Проверка без человека: через секунду после появления игрок нажимает «использовать в
 /// мире» на ближайшем устройстве с интерфейсом.
 fn use_nearest(mut game: ResMut<Game>, mut frames: Local<u32>) {
-    use astrocore_game::interaction::{ACTIVATE_IN_WORLD, ActivatableUi};
+    use astrocore_game::activatable_ui::ActivatableUi;
+    use astrocore_game::interaction::functions::ACTIVATE_IN_WORLD;
     use astrocore_input::{BoundKeyState, InputWorldExt};
     use astrocore_map::TransformWorldExt;
     let world = &mut game.0;
@@ -111,7 +112,8 @@ fn use_nearest(mut game: ResMut<Game>, mut frames: Local<u32>) {
         })
         .min_by(|a, b| a.0.total_cmp(&b.0));
     if let Some((_, device)) = nearest {
-        world.send_input(ACTIVATE_IN_WORLD, BoundKeyState::Down, None, Some(device));
+        let at = world.map_coordinates(device).map(|at| at.position);
+        world.send_input(ACTIVATE_IN_WORLD, BoundKeyState::Down, at, Some(device));
     }
 }
 
