@@ -26,5 +26,5 @@ jobs:
         with:
           workspaces: Astrocore-Build
       - run: cargo fmt --all --check
-      - run: cargo clippy --locked --workspace --all-targets --features client -- -D warnings
-      - run: cargo test --locked --workspace --features client
+      - run: cargo clippy --locked --workspace --all-targets --features client,prototype-import -- -D warnings
+      - run: cargo test --locked --workspace --features client,prototype-import

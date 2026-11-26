@@ -4,6 +4,7 @@ mod ss14;
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 
+use astrocore_core::inheritance::MAX_INHERITANCE_DEPTH;
 use serde::Deserialize;
 
 pub use data::Data;
@@ -12,7 +13,7 @@ pub use ss14::{Ss14Report, parse_ss14_yaml};
 /// Предел размера файла прототипов: файлы с диска и из сети недоверенные.
 pub const MAX_FILE_BYTES: u64 = 4 * 1024 * 1024;
 /// Предел глубины наследования.
-pub const MAX_DEPTH: usize = 32;
+pub const MAX_DEPTH: usize = MAX_INHERITANCE_DEPTH;
 
 #[derive(Debug, thiserror::Error)]
 pub enum ProtoError {
@@ -160,8 +161,11 @@ impl PrototypeRegistry {
     ) -> Result<Ss14Report, ProtoError> {
         let (defs, report) =
             parse_ss14_yaml(source).map_err(|e| ProtoError::Parse(origin.to_string(), e))?;
-        for d in defs {
-            self.insert(d)?;
+        for mut definition in defs {
+            // В YAML SS14 отсутствующее поле заполняется первым родителем.
+            // Реестр накладывает определения по порядку, поэтому загружаем родителей в обратном порядке.
+            definition.parents.reverse();
+            self.insert(definition)?;
         }
         Ok(report)
     }
@@ -225,15 +229,17 @@ impl PrototypeRegistry {
 
     /// Проверить все ссылки и цепочки наследования (вызывать после загрузки).
     pub fn validate(&self) -> Result<(), ProtoError> {
+        let mut resolved = BTreeMap::new();
         for id in self.defs.keys() {
-            self.resolve_inner(id, &mut Vec::new())?;
+            self.resolve_inner(id, &mut Vec::new(), &mut resolved)?;
         }
         Ok(())
     }
 
     /// Разрешённый прототип. Абстрактные разрешаются тоже (для проверки), но `spawnable` их отвергает.
     pub fn resolve(&self, id: &str) -> Result<Resolved, ProtoError> {
-        self.resolve_inner(id, &mut Vec::new())
+        self.resolve_inner(id, &mut Vec::new(), &mut BTreeMap::new())
+            .map(|(prototype, _)| prototype)
     }
 
     /// Разрешённый прототип для создания сущности: абстрактные запрещены.
@@ -248,7 +254,18 @@ impl PrototypeRegistry {
         self.resolve(id)
     }
 
-    fn resolve_inner(&self, id: &str, path: &mut Vec<String>) -> Result<Resolved, ProtoError> {
+    fn resolve_inner(
+        &self,
+        id: &str,
+        path: &mut Vec<String>,
+        resolved: &mut BTreeMap<String, (Resolved, usize)>,
+    ) -> Result<(Resolved, usize), ProtoError> {
+        if let Some((prototype, depth)) = resolved.get(id) {
+            if path.len() + depth > MAX_DEPTH {
+                return Err(ProtoError::TooDeep(id.to_owned()));
+            }
+            return Ok((prototype.clone(), *depth));
+        }
         let def = self
             .defs
             .get(id)
@@ -265,6 +282,7 @@ impl PrototypeRegistry {
         let mut description = None;
         let mut categories: BTreeSet<String> = BTreeSet::new();
         let mut seen = BTreeSet::new();
+        let mut depth = 1;
         for parent in &def.parents {
             if !seen.insert(parent.as_str()) {
                 continue;
@@ -272,7 +290,8 @@ impl PrototypeRegistry {
             if !self.defs.contains_key(parent) {
                 return Err(ProtoError::UnknownParent(id.to_string(), parent.clone()));
             }
-            let p = self.resolve_inner(parent, path)?;
+            let (p, parent_depth) = self.resolve_inner(parent, path, resolved)?;
+            depth = depth.max(parent_depth + 1);
             name = p.name.or(name);
             description = p.description.or(description);
             categories.extend(p.categories);
@@ -290,7 +309,7 @@ impl PrototypeRegistry {
                 None => components.insert(k.clone(), v.clone()),
             };
         }
-        Ok(Resolved {
+        let prototype = Resolved {
             id: id.to_string(),
             name: def.name.clone().or(name),
             description: def.description.clone().or(description),
@@ -301,7 +320,9 @@ impl PrototypeRegistry {
                 .into_iter()
                 .collect(),
             components,
-        })
+        };
+        resolved.insert(id.to_owned(), (prototype.clone(), depth));
+        Ok((prototype, depth))
     }
 }
 

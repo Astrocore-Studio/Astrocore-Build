@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 use astrocore_grid2d::{Cell, Grid, Tile};
 
 use crate::content::{Content, LevelLink, MapData, Placement, Prototype, parse_grid};
-use crate::prototypes::parse_catalog;
+use crate::prototypes::load_catalog;
 use crate::{Kind, PipeDirection};
 
 const UNDO_LIMIT: usize = 32;
@@ -36,7 +36,7 @@ impl Document {
             std::fs::read_to_string(path).map_err(|error| format!("{}: {error}", path.display()))
         };
         let path = directory.join("station.ron");
-        let prototypes = parse_catalog(&read(&directory.join("prototypes.ron"))?)?;
+        let prototypes = load_catalog(Some(directory))?;
         let draft: MapData = match path.try_exists().map_err(|error| error.to_string())? {
             true => {
                 ron::from_str(&read(&path)?).map_err(|error| format!("station.ron: {error}"))?

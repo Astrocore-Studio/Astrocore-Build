@@ -92,16 +92,25 @@ impl Station {
         tool: u16,
         kind: Kind,
     ) {
-        let (procedure, delay) = match kind {
+        let second = TICK_HZ as u16;
+        let (procedure, ticks) = match kind {
             Kind::Item {
                 healing: healing @ 1..,
                 ..
-            } => (Procedure::FirstAid(healing), 1),
+            } => (Procedure::FirstAid(healing), second),
             Kind::Medicine {
                 restores,
                 delay_seconds,
-            } => (Procedure::Restore(restores), delay_seconds),
-            Kind::HealthAnalyzer => (Procedure::Scan, 1),
+            } => (
+                Procedure::Restore(restores),
+                u16::from(delay_seconds) * second,
+            ),
+            Kind::MedicalStack {
+                restores,
+                use_ticks,
+                ..
+            } => (Procedure::Restore(restores), use_ticks),
+            Kind::HealthAnalyzer => (Procedure::Scan, second),
             _ => return,
         };
         if self.pending_medical.contains_key(&player) {
@@ -153,7 +162,7 @@ impl Station {
         actor.medical_reading = None;
         actor.medical_progress = Some(MedicalProgress {
             scanning,
-            ticks_left: u16::from(delay) * self_penalty * TICK_HZ as u16,
+            ticks_left: ticks * self_penalty,
         });
         self.pending_medical.insert(player, task);
     }
@@ -201,8 +210,17 @@ impl Station {
                 if matches!(task.procedure, Procedure::Scan) {
                     actor.medical_reading = Some(damage);
                 } else {
-                    actor.hands[hand] = None;
-                    self.state.items.remove(&task.tool);
+                    let medicine = self
+                        .state
+                        .items
+                        .get_mut(&task.tool)
+                        .expect("предмет в активной руке существует");
+                    if matches!(task.procedure, Procedure::Restore(_)) && medicine.materials > 1 {
+                        medicine.materials -= 1;
+                    } else {
+                        actor.hands[hand] = None;
+                        self.state.items.remove(&task.tool);
+                    }
                     self.state
                         .players
                         .get_mut(&task.patient)

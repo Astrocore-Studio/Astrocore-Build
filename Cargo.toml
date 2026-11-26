@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["2d", "crates/atmos", "crates/power"]
+members = ["2d", "crates/atmos", "crates/power", "crates/prototypes"]
 default-members = ["2d"]
 
 [workspace.package]
@@ -8,6 +8,14 @@ version = "0.1.0"
 edition = "2024"
 publish = false
 license = "AGPL-3.0-or-later"
+
+[workspace.dependencies]
+astrocore-core = { path = "../Astrocore-Engine/crates/astrocore-core" }
+ron = "0.10"
+serde = { version = "1", features = ["derive"] }
+serde_yaml = "0.9"
+tempfile = "3"
+thiserror = "2"
 
 [workspace.lints.rust]
 unsafe_code = "forbid"

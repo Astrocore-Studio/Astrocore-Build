@@ -1,13 +1,24 @@
+#[cfg(feature = "prototype-import")]
+mod ss14;
+
 use std::collections::BTreeMap;
 use std::fmt;
+use std::fs;
+use std::path::{Path, PathBuf};
 
 use astrocore_core::inheritance::parent_order;
+use include_dir::{Dir, include_dir};
 use ron::extensions::Extensions;
 use serde::de::{self, MapAccess, Visitor};
 use serde::{Deserialize, Deserializer};
 
 use crate::Kind;
 use crate::content::Prototype;
+
+#[cfg(feature = "prototype-import")]
+pub use ss14::convert_ss14_catalog;
+
+static BUILTIN: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/content/prototypes");
 
 #[derive(Deserialize)]
 struct Definition {
@@ -29,13 +40,68 @@ struct Properties {
     color: Option<(u8, u8, u8)>,
 }
 
-pub(crate) fn parse_catalog(source: &str) -> Result<BTreeMap<String, Prototype>, String> {
-    let Catalog(definitions) = ron::Options::default()
-        .with_default_extension(Extensions::IMPLICIT_SOME)
-        .from_str(source)
-        .map_err(|error| format!("prototypes.ron: {error}"))?;
-    let ordered = parent_order(&definitions, |definition| &definition.parents)
-        .map_err(|error| format!("prototypes.ron: {error}"))?;
+pub(crate) fn load_catalog(
+    directory: Option<&Path>,
+) -> Result<BTreeMap<String, Prototype>, String> {
+    let mut catalog = Catalog(BTreeMap::new());
+    if let Some(directory) = directory {
+        let mut files = Vec::new();
+        let legacy = directory.join("prototypes.ron");
+        if exists(&legacy)? {
+            files.push(legacy);
+        }
+        let prototypes = directory.join("prototypes");
+        if exists(&prototypes)? {
+            collect_files(&prototypes, &mut files)?;
+        }
+        if files.is_empty() {
+            return Err(format!(
+                "{}: нет RON-файлов прототипов",
+                directory.display()
+            ));
+        }
+        files.sort();
+        for path in files {
+            let source = fs::read_to_string(&path)
+                .map_err(|error| format!("{}: {error}", path.display()))?;
+            catalog.add(&path.display().to_string(), &source)?;
+        }
+    } else {
+        catalog.add_embedded(&BUILTIN)?;
+    }
+    resolve_catalog(&catalog)
+}
+
+fn exists(path: &Path) -> Result<bool, String> {
+    path.try_exists()
+        .map_err(|error| format!("{}: {error}", path.display()))
+}
+
+fn is_ron(path: &Path) -> bool {
+    path.extension().is_some_and(|extension| extension == "ron")
+}
+
+fn collect_files(directory: &Path, files: &mut Vec<PathBuf>) -> Result<(), String> {
+    let entries =
+        fs::read_dir(directory).map_err(|error| format!("{}: {error}", directory.display()))?;
+    for entry in entries {
+        let entry = entry.map_err(|error| format!("{}: {error}", directory.display()))?;
+        let path = entry.path();
+        let file_type = entry
+            .file_type()
+            .map_err(|error| format!("{}: {error}", path.display()))?;
+        if file_type.is_dir() {
+            collect_files(&path, files)?;
+        } else if file_type.is_file() && is_ron(&path) {
+            files.push(path);
+        }
+    }
+    Ok(())
+}
+
+fn resolve_catalog(Catalog(definitions): &Catalog) -> Result<BTreeMap<String, Prototype>, String> {
+    let ordered = parent_order(definitions, |definition| &definition.parents)
+        .map_err(|error| format!("каталог прототипов: {error}"))?;
     let mut resolved = BTreeMap::<&str, Properties>::new();
     let mut concrete = BTreeMap::new();
     for id in ordered {
@@ -56,7 +122,7 @@ pub(crate) fn parse_catalog(source: &str) -> Result<BTreeMap<String, Prototype>,
                 (properties.name.clone(), properties.kind, properties.color)
             else {
                 return Err(format!(
-                    "prototypes.ron: прототип {id:?} требует name, kind и color"
+                    "каталог прототипов: прототип {id:?} требует name, kind и color"
                 ));
             };
             concrete.insert(id.to_owned(), Prototype { name, kind, color });
@@ -67,6 +133,43 @@ pub(crate) fn parse_catalog(source: &str) -> Result<BTreeMap<String, Prototype>,
 }
 
 struct Catalog(BTreeMap<String, Definition>);
+
+impl Catalog {
+    fn add_embedded(&mut self, directory: &Dir<'_>) -> Result<(), String> {
+        for file in directory.files().filter(|file| is_ron(file.path())) {
+            let path = file.path().display().to_string();
+            let source = file
+                .contents_utf8()
+                .ok_or_else(|| format!("{path}: ожидался UTF-8"))?;
+            self.add(&path, source)?;
+        }
+        for child in directory.dirs() {
+            self.add_embedded(child)?;
+        }
+        Ok(())
+    }
+
+    fn add(&mut self, path: &str, source: &str) -> Result<(), String> {
+        let Catalog(definitions) = ron::Options::default()
+            .with_default_extension(Extensions::IMPLICIT_SOME)
+            .from_str(source)
+            .map_err(|error| format!("{path}: {error}"))?;
+        for (id, definition) in definitions {
+            match self.0.entry(id) {
+                std::collections::btree_map::Entry::Vacant(entry) => {
+                    entry.insert(definition);
+                }
+                std::collections::btree_map::Entry::Occupied(entry) => {
+                    return Err(format!(
+                        "{path}: прототип {:?} объявлен дважды",
+                        entry.key()
+                    ));
+                }
+            }
+        }
+        Ok(())
+    }
+}
 
 impl<'de> Deserialize<'de> for Catalog {
     fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {

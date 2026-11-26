@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use crate::environment::coordinates;
 use crate::medical::Damage;
 use crate::piping::{PipeDirection, PipePiece, PipeShape};
-use crate::prototypes::parse_catalog;
+use crate::prototypes::load_catalog;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Layout {
@@ -69,6 +69,11 @@ pub enum Kind {
         restores: Damage,
         delay_seconds: u8,
     },
+    MedicalStack {
+        restores: Damage,
+        use_ticks: u16,
+        uses: u8,
+    },
     HealthAnalyzer,
     CableCoil {
         segments: u8,
@@ -82,6 +87,7 @@ impl Kind {
         match self {
             Self::Item { materials, .. } => Some(materials),
             Self::CableCoil { segments } => Some(segments),
+            Self::MedicalStack { uses, .. } => Some(uses),
             Self::Backpack { .. }
             | Self::Medicine { .. }
             | Self::HealthAnalyzer
@@ -158,26 +164,17 @@ pub(crate) struct Content {
 
 impl Content {
     pub fn load(directory: Option<&Path>) -> Result<Self, String> {
-        match directory {
+        let map = match directory {
             Some(directory) => {
-                let read = |file: &str| {
-                    let path = directory.join(file);
-                    std::fs::read_to_string(&path)
-                        .map_err(|error| format!("{}: {error}", path.display()))
-                };
-                Self::parse(&read("station.ron")?, &read("prototypes.ron")?)
+                let path = directory.join("station.ron");
+                std::fs::read_to_string(&path)
+                    .map_err(|error| format!("{}: {error}", path.display()))?
+                    .into()
             }
-            None => Self::parse(
-                include_str!("../content/station.ron"),
-                include_str!("../content/prototypes.ron"),
-            ),
-        }
-    }
-
-    fn parse(map: &str, prototypes: &str) -> Result<Self, String> {
-        let data: MapData = ron::from_str(map).map_err(|error| format!("station.ron: {error}"))?;
-        let prototypes = parse_catalog(prototypes)?;
-        Self::from_data(data, prototypes)
+            None => std::borrow::Cow::Borrowed(include_str!("../content/station.ron")),
+        };
+        let data: MapData = ron::from_str(&map).map_err(|error| format!("station.ron: {error}"))?;
+        Self::from_data(data, load_catalog(directory)?)
     }
 
     pub fn from_data(
@@ -203,6 +200,8 @@ impl Content {
                     if !(1..=MAX_BACKPACK_SLOTS).contains(&slots))
                 || matches!(prototype.kind, Kind::Medicine { restores, delay_seconds }
                     if restores.total() == 0 || !(1..=15).contains(&delay_seconds))
+                || matches!(prototype.kind, Kind::MedicalStack { restores, use_ticks, uses }
+                    if restores.total() == 0 || use_ticks == 0 || use_ticks > 15 * astrocore_grid2d::session::TICK_HZ as u16 || uses == 0)
                 || matches!(prototype.kind, Kind::CableCoil { segments: 0 })
                 || matches!(prototype.kind, Kind::Piping(shape) if !shape.valid())
             {

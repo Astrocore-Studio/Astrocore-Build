@@ -766,7 +766,9 @@ fn draw(
                 let stock = if prototype.is_some_and(|item| {
                     matches!(
                         item.kind,
-                        Kind::Item { materials: 1.., .. } | Kind::CableCoil { .. }
+                        Kind::Item { materials: 1.., .. }
+                            | Kind::CableCoil { .. }
+                            | Kind::MedicalStack { .. }
                     )
                 }) {
                     item.map_or_else(String::new, |item| format!(" ({})", item.materials))

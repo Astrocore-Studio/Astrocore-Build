@@ -7,6 +7,7 @@ license = "AGPL-3.0-or-later"
 
 [features]
 client = ["dep:bevy", "dep:getrandom", "dep:tempfile"]
+prototype-import = ["dep:prototypes"]
 
 [dependencies]
 astrocore-core = { path = "../../Astrocore-Engine/crates/astrocore-core" }
@@ -14,6 +15,8 @@ astrocore-grid2d = { path = "../../Astrocore-Engine/crates/astrocore-grid2d" }
 astrocore-network = { path = "../../Astrocore-Engine/crates/astrocore-network" }
 atmos = { path = "../crates/atmos" }
 power = { path = "../crates/power" }
+prototypes = { path = "../crates/prototypes", optional = true }
+include_dir = "0.7"
 rayon = "1.11"
 serde = { version = "1", features = ["derive"] }
 ron = "0.10"
@@ -36,6 +39,11 @@ required-features = ["client"]
 name = "astrocore-2d-editor"
 path = "src/bin/editor.rs"
 required-features = ["client"]
+
+[[bin]]
+name = "astrocore-2d-import-prototypes"
+path = "src/bin/import_prototypes.rs"
+required-features = ["prototype-import"]
 
 [lints.rust]
 unsafe_code = "forbid"

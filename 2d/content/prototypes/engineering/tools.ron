@@ -1,0 +1,5 @@
+{
+    "service_kit": (name: "Service kit", kind: Item(healing: 0, materials: 8), color: (244, 202, 114)),
+    "cable_coil": (name: "Cable coil", kind: CableCoil(segments: 5), color: (114, 189, 208)),
+    "wirecutters": (name: "Wirecutters", kind: Wirecutters, color: (114, 139, 208)),
+}

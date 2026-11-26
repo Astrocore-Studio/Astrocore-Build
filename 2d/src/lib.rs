@@ -15,6 +15,8 @@ pub use content::{Job, Kind, Layout, LevelLink, MAX_BACKPACK_SLOTS};
 pub use jobs::Participation;
 pub use medical::{Damage, MedicalProgress, MobState};
 pub use piping::{PipeDirection, PipeMachine, PipePiece, PipeSample, PipeShape};
+#[cfg(feature = "prototype-import")]
+pub use prototypes::convert_ss14_catalog;
 
 #[cfg(feature = "client")]
 pub mod editor;
@@ -37,7 +39,7 @@ use wiring::PendingCut;
 
 const DEBRIEF_TICKS: u32 = 10 * TICK_HZ;
 const MAX_ROUND_ITEMS: usize = 512;
-pub const WIRE_VERSION: u16 = 13;
+pub const WIRE_VERSION: u16 = 14;
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub enum Action {
@@ -271,6 +273,7 @@ impl Station {
                 kind @ (Kind::Item { .. }
                 | Kind::Backpack { .. }
                 | Kind::Medicine { .. }
+                | Kind::MedicalStack { .. }
                 | Kind::HealthAnalyzer
                 | Kind::CableCoil { .. }
                 | Kind::Wirecutters) => {
