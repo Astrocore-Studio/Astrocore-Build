@@ -16,6 +16,11 @@ const PROTOTYPES: &str = r#"
     bodyType: KinematicController
 - type: entity
   id: Crate
+- type: decal
+  id: Bot
+  sprite:
+    sprite: Decals/markings.rsi
+    state: bot
 "#;
 
 fn mapper(world: &mut World, address: &str) -> (Entity, Entity) {
@@ -173,4 +178,43 @@ fn strangers_may_not_place() {
     );
     assert!(crates(&mut world).is_empty());
     let _ = MapId(0);
+}
+
+#[test]
+fn decals_are_placed_on_the_grid_and_erased() {
+    let mut world = world_with(PROTOTYPES);
+    let (session, grid) = mapper(&mut world, "127.0.0.1:1");
+    let map = world.map_coordinates(grid).unwrap().map;
+    let place = |id: &str| PlacementRequest::Decal {
+        id: id.into(),
+        map: map.0,
+        corner: Vec2::new(3.0, 4.0),
+        rotation: 0.0,
+        color: Some("#FF0000FF".into()),
+    };
+    handle(&mut world, session, &place("Bot"));
+    // Неизвестная декаль не ставится.
+    handle(&mut world, session, &place("NoSuchDecal"));
+    let decals = world.get::<crate::decals::GridDecals>(grid).unwrap();
+    assert_eq!(decals.decals.len(), 1);
+    let decal = decals.decals.values().next().unwrap();
+    assert_eq!(decal.coordinates, Vec2::new(3.0, 4.0));
+    assert_eq!(decal.color.as_deref(), Some("#FF0000FF"));
+
+    handle(
+        &mut world,
+        session,
+        &PlacementRequest::EraseDecals {
+            map: map.0,
+            min: Vec2::new(2.5, 3.5),
+            max: Vec2::new(3.5, 4.5),
+        },
+    );
+    assert!(
+        world
+            .get::<crate::decals::GridDecals>(grid)
+            .unwrap()
+            .decals
+            .is_empty()
+    );
 }

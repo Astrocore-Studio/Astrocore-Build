@@ -13,6 +13,7 @@ pub mod combat;
 pub mod content;
 pub mod damage;
 pub mod damage_other_on_hit;
+pub mod decals;
 pub mod do_after;
 pub mod entity_storage;
 pub mod examine;
@@ -53,6 +54,8 @@ pub mod body_visuals;
 pub mod client;
 #[cfg(feature = "client")]
 pub mod clothing_visuals;
+#[cfg(feature = "client")]
+pub mod decal_visuals;
 #[cfg(feature = "client")]
 pub mod dev_console;
 #[cfg(feature = "client")]
@@ -125,6 +128,7 @@ pub fn install_content(world: &mut World, side: Side) {
     damage_other_on_hit::install(world, side);
     map_commands::install(world, side);
     placement::install(world, side);
+    decals::install(world, side);
 }
 
 /// Адрес сервера по умолчанию.

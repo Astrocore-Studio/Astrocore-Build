@@ -1,4 +1,4 @@
-//! Маппинг в игре на клиенте: палитры сущностей (F5) и тайлов (F6) с поиском, призрак
+//! Маппинг в игре на клиенте: палитры сущностей (F5), тайлов (F6) и декалей (F8) с поиском, призрак
 //! размещаемого под курсором, привязка к клеткам, поворот (средняя кнопка), заливка линией
 //! (Shift) и прямоугольником (Ctrl), ластик (сущность под курсором или прямоугольник с Shift),
 //! копирование сущности под курсором (P), отмена — правая кнопка. Запросы уходят серверу
@@ -39,6 +39,7 @@ pub enum Tool {
     None,
     Entity(String),
     Tile(String),
+    Decal(String),
     Erase,
 }
 
@@ -47,6 +48,7 @@ pub enum Tool {
 pub enum Palette {
     Entities,
     Tiles,
+    Decals,
 }
 
 /// Инструменты маппинга. Ресурс мира клиента: кнопки окна меняют его через `UiAction`.
@@ -183,6 +185,27 @@ fn cursor_point(
 struct Catalog {
     entities: Vec<(String, String)>,
     tiles: Vec<(String, String)>,
+    decals: Vec<(String, String)>,
+}
+
+/// Декали для палитры: без скрытых из меню (`showMenu: false`).
+fn decal_ids(prototypes: &Prototypes) -> Vec<(String, String)> {
+    let mut ids: Vec<(String, String)> = prototypes
+        .ids("decal")
+        .filter(|id| {
+            prototypes
+                .resolved_node("decal", id)
+                .and_then(|node| {
+                    node.get("showMenu")
+                        .and_then(astrocore_data::DataNode::as_str)
+                        .map(str::to_owned)
+                })
+                .is_none_or(|show| !show.eq_ignore_ascii_case("false"))
+        })
+        .map(|id| (id.to_owned(), String::new()))
+        .collect();
+    ids.sort();
+    ids
 }
 
 /// Клавиши маппинга: палитры, поиск, копирование, отмена.
@@ -223,6 +246,7 @@ fn keys(
         match event.key_code {
             KeyCode::F5 => toggle(&mut tools, Palette::Entities),
             KeyCode::F6 => toggle(&mut tools, Palette::Tiles),
+            KeyCode::F8 => toggle(&mut tools, Palette::Decals),
             KeyCode::Escape if tools.tool != Tool::None || tools.palette.is_some() => {
                 tools.tool = Tool::None;
                 tools.palette = None;
@@ -294,7 +318,7 @@ fn pointer(
     };
     let shift = keys.any_pressed([KeyCode::ShiftLeft, KeyCode::ShiftRight]);
     let ctrl = keys.any_pressed([KeyCode::ControlLeft, KeyCode::ControlRight]);
-    let at = if current.free && matches!(current.tool, Tool::Entity(_)) {
+    let at = if current.free && matches!(current.tool, Tool::Entity(_) | Tool::Decal(_)) {
         point
     } else {
         snap_to_cell(world, map, point)
@@ -307,12 +331,19 @@ fn pointer(
         }
         match &current.tool {
             Tool::Erase => {
-                if let Some(net) = hovered
+                match hovered
                     .entities
                     .first()
                     .and_then(|entity| world.get::<NetEntity>(*entity).copied())
                 {
-                    world.send_net_event_to_server(&PlacementRequest::EraseEntity { entity: net });
+                    Some(net) => world
+                        .send_net_event_to_server(&PlacementRequest::EraseEntity { entity: net }),
+                    // Под курсором нет сущности: стираются декали клетки.
+                    None => world.send_net_event_to_server(&PlacementRequest::EraseDecals {
+                        map: map.0,
+                        min: astrocore_math::Vec2::new(at.x - 0.5, at.y - 0.5),
+                        max: astrocore_math::Vec2::new(at.x + 0.5, at.y + 0.5),
+                    }),
                 }
             }
             tool => send_place(world, tool, map, at, current.rotation),
@@ -349,6 +380,14 @@ fn send_place(world: &mut bevy_ecs::world::World, tool: &Tool, map: MapId, at: V
             tile: tile.clone(),
             map: map.0,
             position,
+        },
+        // Точка — центр декали; сервер ждёт её угол.
+        Tool::Decal(id) => PlacementRequest::Decal {
+            id: id.clone(),
+            map: map.0,
+            corner: position - astrocore_math::Vec2::splat(0.5),
+            rotation: f32::from(rotation) * std::f32::consts::FRAC_PI_2,
+            color: None,
         },
         Tool::None | Tool::Erase => return,
     };
@@ -413,6 +452,19 @@ fn ghost(
         }
         Tool::Tile(tile) => tile_image(world, tile, &resources, &mut textures, &mut images)
             .map(|sprite| (sprite, cell)),
+        Tool::Decal(id) => {
+            let at = if current.free { point } else { cell };
+            crate::decal_visuals::decal_image(
+                world,
+                id,
+                None,
+                &resources,
+                &mut textures,
+                &mut images,
+                &mut layouts,
+            )
+            .map(|sprite| (sprite, at))
+        }
     };
     if let Some((mut sprite, at)) = image {
         sprite.color = GHOST;
@@ -518,6 +570,10 @@ fn palette(
             .get_resource::<TileDefinitions>()
             .map(|d| d.iter().map(|t| (t.id.clone(), String::new())).collect())
             .unwrap_or_default(),
+        decals: world
+            .get_resource::<Prototypes>()
+            .map(decal_ids)
+            .unwrap_or_default(),
     });
     let panel = commands
         .spawn((
@@ -540,6 +596,7 @@ fn palette(
     let title = match kind {
         Palette::Entities => "Сущности (F5)",
         Palette::Tiles => "Тайлы (F6)",
+        Palette::Decals => "Декали (F8)",
     };
     commands.spawn((ChildOf(panel), style.text(title, 16.0)));
     let cursor = if current.typing { "_" } else { "" };
@@ -614,11 +671,13 @@ fn palette(
     let items = match kind {
         Palette::Entities => &catalog.entities,
         Palette::Tiles => &catalog.tiles,
+        Palette::Decals => &catalog.decals,
     };
     for (id, name) in matching(items, &current.search) {
         let tool = match kind {
             Palette::Entities => Tool::Entity(id.clone()),
             Palette::Tiles => Tool::Tile(id.clone()),
+            Palette::Decals => Tool::Decal(id.clone()),
         };
         let label = if name.is_empty() {
             id.clone()

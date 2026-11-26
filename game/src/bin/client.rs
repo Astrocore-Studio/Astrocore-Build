@@ -461,7 +461,8 @@ fn run() -> Result<(), String> {
     .add_plugins(astrocore_game::storage_hud::StorageHudPlugin)
     .add_plugins(astrocore_game::action_bar::ActionBarPlugin)
     .add_plugins(astrocore_game::dev_console::DevConsolePlugin)
-    .add_plugins(astrocore_game::mapping_ui::MappingUiPlugin);
+    .add_plugins(astrocore_game::mapping_ui::MappingUiPlugin)
+    .add_plugins(astrocore_game::decal_visuals::DecalVisualsPlugin);
     if options.walk {
         app.add_systems(Update, hold_right);
     }
@@ -475,7 +476,10 @@ fn run() -> Result<(), String> {
         use astrocore_game::mapping_ui::{DemoCursor, MappingTools, Palette, Tool};
         let (kind, search) = palette.split_once(':').unwrap_or((palette, ""));
         let tiles = kind == "tiles";
-        let first = if tiles {
+        let decals = kind == "decals";
+        let first = if decals {
+            Some(Tool::Decal(search.to_owned()))
+        } else if tiles {
             let definitions = game_world_tiles(&app);
             definitions
                 .into_iter()
@@ -485,7 +489,9 @@ fn run() -> Result<(), String> {
             Some(Tool::Entity(search.to_owned()))
         };
         let tools = MappingTools {
-            palette: Some(if tiles {
+            palette: Some(if decals {
+                Palette::Decals
+            } else if tiles {
                 Palette::Tiles
             } else {
                 Palette::Entities

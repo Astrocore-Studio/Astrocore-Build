@@ -37,8 +37,19 @@ pub enum PlacementRequest {
     },
     /// Удалить сущность (`RequestEntRemove`).
     EraseEntity { entity: NetEntity },
-    /// Удалить всё в прямоугольнике карты, кроме гридов и игроков (`RequestRectRemove`).
+    /// Удалить всё в прямоугольнике карты, кроме гридов и игроков (`RequestRectRemove`), и
+    /// декали в нём.
     EraseRect { map: u32, min: Vec2, max: Vec2 },
+    /// Декаль прототипа: левый нижний угол в точке карты (`RequestDecalPlacementEvent`).
+    Decal {
+        id: String,
+        map: u32,
+        corner: Vec2,
+        rotation: f32,
+        color: Option<String>,
+    },
+    /// Удалить декали в прямоугольнике карты (`RequestDecalRemovalEvent`).
+    EraseDecals { map: u32, min: Vec2, max: Vec2 },
 }
 
 /// Может ли сессия мапить: те же права, что у консольной команды `mapping`.
@@ -127,6 +138,26 @@ pub fn erase_rect(world: &mut World, map: MapId, min: Vec2, max: Vec2) -> usize 
     erased
 }
 
+/// Удаляет декали гридов карты в прямоугольнике карты.
+pub fn erase_decals(world: &mut World, map: MapId, min: Vec2, max: Vec2) -> usize {
+    let Some(grids) = world
+        .map_entity(map)
+        .and_then(|map| world.get::<Map>(map))
+        .map(|m| m.grids().to_vec())
+    else {
+        return 0;
+    };
+    let mut removed = 0;
+    for grid in grids {
+        let Some(transform) = world.world_transform(grid) else {
+            continue;
+        };
+        let (a, b) = (transform.to_local(min), transform.to_local(max));
+        removed += crate::decals::remove_in(world, grid, a.min(b), a.max(b));
+    }
+    removed
+}
+
 /// Выполняет запрос от имени сессии.
 pub fn handle(world: &mut World, session: Entity, request: &PlacementRequest) {
     if !can_place(world, session) {
@@ -169,7 +200,48 @@ pub fn handle(world: &mut World, session: Entity, request: &PlacementRequest) {
         PlacementRequest::EraseRect { map, min, max } => {
             if min.is_finite() && max.is_finite() {
                 erase_rect(world, MapId(*map), min.min(*max), min.max(*max));
+                erase_decals(world, MapId(*map), min.min(*max), min.max(*max));
             }
+        }
+        PlacementRequest::EraseDecals { map, min, max } => {
+            if min.is_finite() && max.is_finite() {
+                erase_decals(world, MapId(*map), min.min(*max), min.max(*max));
+            }
+        }
+        PlacementRequest::Decal {
+            id,
+            map,
+            corner,
+            rotation,
+            color,
+        } => {
+            let known = world
+                .get_resource::<astrocore_prototypes::Prototypes>()
+                .is_some_and(|p| p.resolved_node("decal", id).is_some());
+            if !known || !corner.is_finite() || !rotation.is_finite() {
+                return;
+            }
+            // Угол декали — в клетке под её центром.
+            let center = *corner + Vec2::splat(0.5);
+            let Some(grid) = world.find_grid_at(MapCoordinates::new(MapId(*map), center)) else {
+                return;
+            };
+            let local = world
+                .world_transform(grid)
+                .map_or(*corner, |transform| transform.to_local(*corner));
+            crate::decals::place(
+                world,
+                grid,
+                local,
+                crate::decals::Decal {
+                    coordinates: local,
+                    id: id.clone(),
+                    color: color.clone(),
+                    angle: *rotation,
+                    z_index: 0,
+                    cleanable: false,
+                },
+            );
         }
     }
 }

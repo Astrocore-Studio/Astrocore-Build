@@ -133,7 +133,8 @@ fn draw(
                 position_type: PositionType::Absolute,
                 top: Val::Px(0.0),
                 left: Val::Px(0.0),
-                width: Val::Percent(100.0),
+                // Справа остаётся место палитрам маппинга.
+                width: Val::Percent(68.0),
                 flex_direction: FlexDirection::Column,
                 padding: UiRect::all(Val::Px(8.0)),
                 row_gap: Val::Px(2.0),
