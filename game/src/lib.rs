@@ -11,6 +11,7 @@ pub mod actions;
 pub mod activatable_ui;
 pub mod airtight;
 pub mod ame;
+pub mod atmos;
 pub mod body;
 pub mod cables;
 pub mod combat;
@@ -165,6 +166,7 @@ pub fn install_content(world: &mut World, side: Side) {
     lock::install(world, side);
     id_console::install(world, side);
     airtight::install(world, side);
+    atmos::install(world, side);
     weldable::install(world, side);
     status_effects::install(world, side);
     electrocution::install(world, side);

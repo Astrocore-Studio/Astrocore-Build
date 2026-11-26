@@ -284,6 +284,7 @@ fn savemap(world: &mut World, shell: &mut ConsoleShell, args: &[String]) {
         Err(error) => return shell.write_error(error),
     };
     crate::decals::write_for_save(world, map);
+    crate::atmos::write_for_save(world, map);
     let saved = match world.save_map(
         map,
         MapSaveOptions {

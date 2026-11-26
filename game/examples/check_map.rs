@@ -49,6 +49,7 @@ fn round_trip(document: &DataNode) -> Result<(String, usize, usize), String> {
         .map(|grid| grid.tile_count() as usize)
         .sum();
     astrocore_game::decals::write_for_save(&mut world, map);
+    astrocore_game::atmos::write_for_save(&mut world, map);
     let saved = world
         .save_map(map, MapSaveOptions::default())
         .map_err(|error| error.to_string())?;
