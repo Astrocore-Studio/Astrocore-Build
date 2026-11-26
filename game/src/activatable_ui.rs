@@ -38,6 +38,13 @@ pub struct ActivatableUi {
     /// Только у админов.
     #[serde(default)]
     pub admin_only: bool,
+    /// Подпись глагола: ключ сообщения.
+    #[serde(default = "verb_text")]
+    pub verb_text: String,
+}
+
+fn verb_text() -> String {
+    "ui-verb-toggle-open".to_owned()
 }
 
 /// Открывает интерфейс игроку или закрывает открытый (`InteractUI`).
@@ -81,6 +88,29 @@ pub(crate) fn install(world: &mut World, side: crate::Side) {
             return;
         }
         event.handled = toggle_ui(world, event.user, entity);
+    });
+    // Глагол «Открыть» (`ActivatableUISystem.AddVerb`).
+    world.subscribe::<ActivatableUi, crate::verbs::GetVerbs>(|world, entity, event| {
+        let Some(activatable) = world.get::<ActivatableUi>(entity).cloned() else {
+            return;
+        };
+        if event.kind != crate::verbs::VerbKind::Activation
+            || !event.can_access
+            || !event.can_interact
+            || activatable.in_hands_only
+            || (activatable.requires_complex && !event.can_complex_interact)
+        {
+            return;
+        }
+        let user = event.user;
+        let text = crate::examine::loc(world, &activatable.verb_text, &[]);
+        event.verbs.push(crate::verbs::Verb::new(
+            crate::verbs::VerbKind::Activation,
+            text,
+            move |world| {
+                toggle_ui(world, user, entity);
+            },
+        ));
     });
     world.subscribe::<ActivatableUi, UseInHand>(|world, entity, event| {
         let Some(activatable) = world.get::<ActivatableUi>(entity).cloned() else {

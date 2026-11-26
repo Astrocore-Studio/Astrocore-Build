@@ -761,8 +761,15 @@ fn handle_request(world: &mut World, event: &mut NetEvent<HandsRequest>) {
         HandsRequest::MoveItemToActive(hand) => {
             move_to_active(world, user, &hand);
         }
-        HandsRequest::AltInteractInHand(_) => {
-            // Альтернативные действия — глаголы (задача 3.5).
+        HandsRequest::AltInteractInHand(hand) => {
+            let hand = if world.held_item(user, &hand).is_some() {
+                Some(hand)
+            } else {
+                world.active_hand(user)
+            };
+            if let Some(item) = hand.and_then(|hand| world.held_item(user, &hand)) {
+                crate::verbs::alt_interact(world, user, item);
+            }
         }
     }
 }
@@ -819,6 +826,15 @@ fn bind_inputs(world: &mut World) {
             && let Some(hand) = world.active_hand(user)
         {
             world.try_drop(user, &hand, args.coordinates, true);
+        }
+        false
+    });
+    world.bind_input(functions::ALT_USE_ITEM_IN_HAND, |world, args| {
+        if args.state == BoundKeyState::Down
+            && let Some(user) = args.player
+            && let Some(item) = world.active_item(user)
+        {
+            crate::verbs::alt_interact(world, user, item);
         }
         false
     });
@@ -915,6 +931,38 @@ pub(crate) fn install(world: &mut World, side: crate::Side) {
             );
             world.raise(user, &mut DidUnequipHand { user, item, hand });
         }
+    });
+    // Глагол «Взять» (`SharedItemSystem.AddPickupVerb`).
+    world.subscribe::<Item, crate::verbs::GetVerbs>(|world, item, event| {
+        if event.kind != crate::verbs::VerbKind::Interaction
+            || event.using.is_some()
+            || !event.can_access
+            || !event.can_interact
+        {
+            return;
+        }
+        let user = event.user;
+        let Some(hand) = world.empty_hand(user) else {
+            return;
+        };
+        if !world.can_pickup_to_hand(user, item, &hand, false) {
+            return;
+        }
+        let in_own_container = world
+            .containing_container(item)
+            .is_some_and(|container| container.owner == user);
+        let key = if in_own_container {
+            "pick-up-verb-get-data-text-inventory"
+        } else {
+            "pick-up-verb-get-data-text"
+        };
+        let text = crate::examine::loc(world, key, &[]);
+        let mut verb =
+            crate::verbs::Verb::new(crate::verbs::VerbKind::Interaction, text, move |world| {
+                world.try_pickup_any_hand(user, item, false);
+            });
+        verb.icon = Some("/Textures/Interface/VerbIcons/pickup.svg.192dpi.png".into());
+        event.verbs.push(verb);
     });
     world.subscribe_net_event::<HandsRequest>(handle_request);
     bind_inputs(world);

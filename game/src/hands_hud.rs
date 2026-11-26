@@ -23,6 +23,10 @@ const BORDER: Color = Color::srgb(0.30, 0.33, 0.42);
 #[derive(Component)]
 struct HandsPanel;
 
+/// Ячейка руки: имя руки.
+#[derive(Component)]
+pub struct HandSlot(pub String);
+
 /// Предмет в ячейке: сущность и описание её первого слоя (значок меняется вместе с ним).
 type ShownItem = (bevy_ecs::entity::Entity, Option<String>);
 
@@ -163,6 +167,7 @@ fn sync_panel(
                 BackgroundColor(if *active { ACTIVE_COLOR } else { SLOT_COLOR }),
                 BorderColor::all(BORDER),
                 Interaction::default(),
+                HandSlot(name.clone()),
                 UiAction::new(move |world| click_hand(world, &hand)),
             ))
             .id();

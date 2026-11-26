@@ -432,7 +432,7 @@ impl InteractionWorldExt for World {
         if alt {
             // Альтернативное действие — первый альтернативный глагол цели (`AltInteract`).
             if let Some(target) = target {
-                alt_interact(self, user, target);
+                crate::verbs::alt_interact(self, user, target);
             }
             return;
         }
@@ -648,12 +648,6 @@ pub struct AccessViaContainer {
     pub target: Entity,
     pub container: String,
     pub accessible: bool,
-}
-
-/// Альтернативное действие (Alt+клик): первый альтернативный глагол цели (`AltInteract`).
-/// Глаголы — задача 3.5; пока альтернативных действий нет.
-fn alt_interact(_world: &mut World, _user: Entity, _target: Entity) -> bool {
-    false
 }
 
 /// Поворот к точке клика, если сущность не идёт (`ValidateInteractAndFace`).

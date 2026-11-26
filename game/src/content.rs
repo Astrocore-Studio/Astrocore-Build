@@ -228,6 +228,7 @@ pub const DEFAULT_CULTURE: &str = "en-US";
 pub fn load_locale(world: &mut World, resources: &Resources) {
     let wanted = std::env::var("ASTRO_LANG").unwrap_or_else(|_| DEFAULT_CULTURE.to_owned());
     let mut loc = Loc::default();
+    crate::grammar::install(&mut loc);
     let mut cultures = vec![wanted.as_str()];
     if wanted != DEFAULT_CULTURE {
         cultures.push(DEFAULT_CULTURE);

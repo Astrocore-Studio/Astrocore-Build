@@ -6,7 +6,8 @@
 //!
 //! Для проверки без человека: `--capture кадр.png` снимает кадр и завершает программу,
 //! `--walk` ведёт персонажа вправо, `--use-nearest` (только с `--host`) ставит игрока рядом
-//! с устройством, у которого есть интерфейс, и нажимает на нём «использовать в мире».
+//! с устройством, у которого есть интерфейс, и нажимает на нём «использовать в мире»,
+//! `--examine-nearest` осматривает ближайшую сущность и показывает всплывающее сообщение.
 
 use std::process::ExitCode;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -27,6 +28,7 @@ struct Options {
     capture: Option<String>,
     walk: bool,
     use_nearest: bool,
+    examine_nearest: bool,
 }
 
 fn options() -> Result<Options, String> {
@@ -37,6 +39,7 @@ fn options() -> Result<Options, String> {
         capture: None,
         walk: false,
         use_nearest: false,
+        examine_nearest: false,
     };
     let mut args = std::env::args().skip(1);
     while let Some(arg) = args.next() {
@@ -45,6 +48,7 @@ fn options() -> Result<Options, String> {
             "--host" => options.host = true,
             "--walk" => options.walk = true,
             "--use-nearest" => options.use_nearest = true,
+            "--examine-nearest" => options.examine_nearest = true,
             "--connect" => options.connect = Some(value("адрес сервера")?),
             "--name" => options.name = value("имя игрока")?,
             "--capture" => options.capture = Some(value("файл кадра")?),
@@ -117,6 +121,61 @@ fn use_nearest(mut game: ResMut<Game>, mut frames: Local<u32>) {
     }
 }
 
+/// Проверка без человека: осмотр ближайшей сущности и всплывающее сообщение над игроком.
+fn examine_nearest(mut game: ResMut<Game>, mut frames: Local<u32>) {
+    use astrocore_game::examine::ExamineMessage;
+    use astrocore_map::TransformWorldExt;
+    use astrocore_net::{NetEntity, NetEventWorldExt};
+    let world = &mut game.0;
+    let Some(player) = world.resource::<astrocore_net::ClientNet>().attached else {
+        return;
+    };
+    *frames += 1;
+    if *frames != 45 {
+        return;
+    }
+    let Some(here) = world.map_coordinates(player) else {
+        return;
+    };
+    let mut candidates = world
+        .query_filtered::<(bevy_ecs::entity::Entity, &NetEntity), With<astrocore_input::Clickable>>(
+        );
+    let nearest = candidates
+        .iter(world)
+        .filter(|(entity, _)| *entity != player)
+        .filter_map(|(entity, net)| {
+            Some((
+                world
+                    .map_coordinates(entity)?
+                    .position
+                    .distance(here.position),
+                *net,
+            ))
+        })
+        .min_by(|a, b| a.0.total_cmp(&b.0));
+    if let Some((_, net)) = nearest {
+        world.send_net_event_to_server(&ExamineMessage::Request(net));
+    }
+}
+
+/// Проверка без человека: всплывающее сообщение над игроком перед снимком.
+fn popup_before_capture(mut game: ResMut<Game>, mut frames: Local<u32>) {
+    use astrocore_game::popups::{Popup, PopupPlace, PopupQueue, PopupType};
+    let world = &mut game.0;
+    let Some(player) = world.resource::<astrocore_net::ClientNet>().attached else {
+        return;
+    };
+    *frames += 1;
+    if *frames != 80 {
+        return;
+    }
+    world.resource_mut::<PopupQueue>().0.push(Popup {
+        message: "Проверка всплывающего сообщения".into(),
+        kind: PopupType::Medium,
+        place: PopupPlace::Entity(player),
+    });
+}
+
 fn hold_right(mut game: ResMut<Game>) {
     if let Some(mut input) = game.0.get_resource_mut::<LocalInput>() {
         input.buttons = MoveButtons::RIGHT;
@@ -178,12 +237,16 @@ fn run() -> Result<(), String> {
     .insert_resource(GameResources(resources))
     .insert_non_send(Link(transport))
     .add_plugins(ClientPlugin)
-    .add_plugins(astrocore_game::hands_hud::HandsHudPlugin);
+    .add_plugins(astrocore_game::hands_hud::HandsHudPlugin)
+    .add_plugins(astrocore_game::overlays::OverlaysPlugin);
     if options.walk {
         app.add_systems(Update, hold_right);
     }
     if options.use_nearest {
         app.add_systems(Update, use_nearest);
+    }
+    if options.examine_nearest {
+        app.add_systems(Update, (examine_nearest, popup_before_capture));
     }
     if let Some(path) = options.capture {
         app.insert_resource(Capture {

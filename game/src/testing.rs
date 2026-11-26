@@ -21,6 +21,8 @@ pub fn world_with(prototypes: &str) -> World {
     world.add_plugin(NetServerPlugin);
     world.add_plugin(PhysicsPlugin::SERVER);
     world.add_plugin(MovementServerPlugin);
+    world.add_plugin(astrocore_audio::AudioPlugin);
+    world.add_plugin(astrocore_light::LightPlugin);
     install_content(&mut world, Side::Server);
     let mut loaded = Prototypes::default();
     let mut report = LoadReport::default();
@@ -32,6 +34,7 @@ pub fn world_with(prototypes: &str) -> World {
         report.errors
     );
     world.insert_resource(loaded);
+    astrocore_loc::EntityNameWorldExt::build_entity_names(&mut world);
     world
 }
 
