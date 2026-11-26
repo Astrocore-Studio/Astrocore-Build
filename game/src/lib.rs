@@ -25,6 +25,7 @@ pub mod item;
 pub mod mobs;
 pub mod ordered;
 pub mod popups;
+pub mod pulling;
 pub mod server;
 pub mod stack;
 pub mod standing;
@@ -33,6 +34,7 @@ pub mod tag;
 pub mod throwing;
 pub mod tools;
 pub mod verbs;
+pub mod virtual_item;
 pub mod whitelist;
 
 #[cfg(test)]
@@ -102,6 +104,8 @@ pub fn install_content(world: &mut World, side: Side) {
     healing::install(world, side);
     stack::install(world, side);
     tools::install(world, side);
+    virtual_item::install(world, side);
+    pulling::install(world, side);
     damage_other_on_hit::install(world, side);
 }
 
