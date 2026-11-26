@@ -35,10 +35,18 @@ const ENTITIES: &str = r#"
       0: Alive
       100: Critical
       200: Dead
+- type: stack
+  id: Gauze
+  name: stack-gauze
+  spawn: Gauze
+  maxCount: 10
 - type: entity
   id: Gauze
   components:
   - type: Item
+  - type: Stack
+    stackType: Gauze
+    count: 1
   - type: Physics
     bodyType: Dynamic
   - type: Fixtures
@@ -59,6 +67,9 @@ const ENTITIES: &str = r#"
   id: Brick
   parent: Gauze
   components:
+  - type: Stack
+    stackType: Gauze
+    count: 1
   - type: DamageOtherOnHit
     damage:
       types:
@@ -104,6 +115,22 @@ fn gauze_heals_another_after_a_delay_and_is_used_up() {
     assert_eq!(damage.types["Blunt"], FixedPoint2::new(5));
     assert_eq!(damage.types["Heat"], FixedPoint2::new(5));
     assert!(!astrocore_ecs::LifecycleWorldExt::is_alive(&world, gauze));
+}
+
+#[test]
+fn a_stack_of_gauze_keeps_healing_while_there_is_damage() {
+    let (mut world, grid, medic, patient) = scene();
+    let hurt = DamageSpecifier::new([("Blunt", FixedPoint2::new(25))]);
+    world.change_damage(patient, &hurt, true, true, None);
+    let gauze = spawn_at(&mut world, "Gauze", grid, 2, 2);
+    crate::stack::StackWorldExt::set_stack_count(&mut world, gauze, 5);
+    world.run_tick();
+    assert!(world.try_pickup_any_hand(medic, gauze, true));
+    assert!(try_heal(&mut world, gauze, patient, medic));
+    // Три раза по секунде: 25 → 15 → 5 → 0, бинтов осталось два.
+    run_seconds(&mut world, 3.3);
+    assert_eq!(world.total_damage(patient), FixedPoint2::ZERO);
+    assert_eq!(crate::stack::StackWorldExt::stack_count(&world, gauze), 2);
 }
 
 #[test]

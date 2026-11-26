@@ -157,6 +157,15 @@ pub trait PopupWorldExt {
 
     /// В точке карты для всех, кто её видит.
     fn popup_coordinates(&mut self, message: &str, at: MapCoordinates, kind: PopupType);
+
+    /// В точке карты для одного игрока.
+    fn popup_coordinates_for(
+        &mut self,
+        message: &str,
+        at: MapCoordinates,
+        recipient: Entity,
+        kind: PopupType,
+    );
 }
 
 impl PopupWorldExt for World {
@@ -259,6 +268,31 @@ impl PopupWorldExt for World {
             return;
         }
         for session in sessions_seeing(self, at) {
+            send(
+                self,
+                NetTarget::Session(session),
+                message,
+                kind,
+                WirePlace::Coordinates {
+                    map: at.map,
+                    position: at.position,
+                    z: at.z,
+                },
+            );
+        }
+    }
+
+    fn popup_coordinates_for(
+        &mut self,
+        message: &str,
+        at: MapCoordinates,
+        recipient: Entity,
+        kind: PopupType,
+    ) {
+        if message.trim().is_empty() {
+            return;
+        }
+        if let Some(session) = session_of(self, recipient) {
             send(
                 self,
                 NetTarget::Session(session),

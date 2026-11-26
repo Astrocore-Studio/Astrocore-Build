@@ -1,8 +1,7 @@
 //! Лечение предметами: бинты, мази, аптечки. Действие с задержкой, себя лечить дольше при
 //! сильных ранах, предмет повторяет лечение, пока есть что лечить. Образец —
 //! `Content.Shared/Medical/Healing` SS14 @ 2f4a2aad (`HealingComponent`, `HealingSystem`).
-//! Кровотечения и крови ещё нет (фаза 7.1); стопки (`Stack`) — задача 3.7: пока предмет
-//! тратится целиком.
+//! Кровотечения и крови ещё нет (фаза 7.1).
 
 use astrocore_audio::{AudioWorldExt, SoundSpecifier};
 use astrocore_ecs::{EventWorldExt, LifecycleWorldExt, RegistryWorldExt};
@@ -20,6 +19,7 @@ use crate::fixed_point::FixedPoint2;
 use crate::interaction::{AfterInteract, INTERACTION_RANGE, InteractionWorldExt, UseInHand};
 use crate::mobs::{MobState, MobStateWorldExt};
 use crate::popups::{PopupType, PopupWorldExt};
+use crate::stack::{Stack, StackWorldExt};
 
 fn three() -> f64 {
     3.0
@@ -105,6 +105,12 @@ pub fn try_heal(world: &mut World, item: Entity, target: Entity, user: Entity) -
     if user != target && !world.in_range_unobstructed(user, target, INTERACTION_RANGE) {
         return false;
     }
+    if world
+        .get::<Stack>(item)
+        .is_some_and(|stack| stack.count < 1)
+    {
+        return false;
+    }
     if !has_damage(world, &healing, target) {
         let name = world.entity_name(item);
         let text = loc(
@@ -167,14 +173,34 @@ fn on_do_after(world: &mut World, target: Entity, event: &mut DoAfterDone<Healin
     if healed.is_empty() && healing.bloodloss_modifier != 0.0 {
         return;
     }
-    // Предмет без стопки тратится целиком.
-    world.queue_delete(item);
+    // Из стопки уходит один предмет; без стопки предмет тратится целиком.
+    let mut dont_repeat = false;
+    if world.get::<Stack>(item).is_some() {
+        world.reduce_stack(item, 1);
+        if world.stack_count(item) <= 0 {
+            dont_repeat = true;
+        }
+    } else {
+        world.queue_delete(item);
+        dont_repeat = true;
+    }
     if let Some(sound) = &healing.healing_end_sound {
         world.play_entity(sound, target, None);
     }
+    event.repeat = has_damage(world, &healing, target) && !dont_repeat;
     event.handled = true;
-    // Предмет израсходован: повторять нечем.
-    event.repeat = false;
+    if !event.repeat {
+        return;
+    }
+    // Себя лечить тем быстрее, чем меньше осталось ран.
+    if event.user == target {
+        event.delay = healing.delay
+            * f64::from(scaled_healing_penalty(
+                world,
+                target,
+                healing.self_heal_penalty_multiplier,
+            ));
+    }
 }
 
 pub(crate) fn install(world: &mut World, side: crate::Side) {

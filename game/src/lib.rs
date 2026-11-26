@@ -26,10 +26,12 @@ pub mod mobs;
 pub mod ordered;
 pub mod popups;
 pub mod server;
+pub mod stack;
 pub mod standing;
 pub mod storage;
 pub mod tag;
 pub mod throwing;
+pub mod tools;
 pub mod verbs;
 pub mod whitelist;
 
@@ -52,6 +54,8 @@ pub mod mob_visuals;
 pub mod overlays;
 #[cfg(feature = "client")]
 pub mod smooth;
+#[cfg(feature = "client")]
+pub mod stack_visuals;
 #[cfg(feature = "client")]
 pub mod storage_hud;
 #[cfg(feature = "client")]
@@ -96,6 +100,8 @@ pub fn install_content(world: &mut World, side: Side) {
     standing::install(world, side);
     mobs::install(world, side);
     healing::install(world, side);
+    stack::install(world, side);
+    tools::install(world, side);
     damage_other_on_hit::install(world, side);
 }
 
