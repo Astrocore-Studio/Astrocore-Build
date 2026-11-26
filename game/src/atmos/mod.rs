@@ -993,8 +993,32 @@ fn step(
             )
         }
         ProcessingState::Superconductivity => (true, ProcessingState::PipeNet),
-        ProcessingState::PipeNet => (true, ProcessingState::AtmosDevices),
-        ProcessingState::AtmosDevices => (true, ProcessingState::Revalidate),
+        ProcessingState::PipeNet => {
+            // `PipeNet.Update`: реакции в воздухе труб грида.
+            for net in crate::pipes::nets_on(world, grid_entity) {
+                let mut nets = world.resource_mut::<crate::pipes::PipeNets>();
+                if let Some(pipe) = nets.nets.get_mut(&net) {
+                    let mut exposures = Vec::new();
+                    fire::react(gas_data, reactions, &mut pipe.air, &mut exposures);
+                }
+            }
+            (true, ProcessingState::AtmosDevices)
+        }
+        ProcessingState::AtmosDevices => {
+            // Устройства работают с воздухом клеток: атмосфера грида на время шага
+            // возвращается в мир.
+            let dt = real_atmos_time(config);
+            if let Some(mut slot) = world.get_mut::<GridAtmosphere>(grid_entity) {
+                std::mem::swap(&mut *slot, grid);
+            }
+            for device in crate::atmos_devices::devices_on(world, grid_entity) {
+                crate::atmos_devices::update_device(world, device, dt);
+            }
+            if let Some(mut slot) = world.get_mut::<GridAtmosphere>(grid_entity) {
+                std::mem::swap(&mut *slot, grid);
+            }
+            (true, ProcessingState::Revalidate)
+        }
     };
     if !done {
         grid.processing_paused = true;
@@ -1009,6 +1033,22 @@ fn step(
     } else {
         Completion::Continue
     }
+}
+
+/// Время между шагами устройств (`RealAtmosTime`): число включённых шагов × шаг.
+pub fn real_atmos_time(config: &AtmosConfig) -> f32 {
+    let mut states = 10;
+    for enabled in [
+        config.monstermos_equalization,
+        config.excited_groups,
+        config.delta_pressure_damage,
+        config.superconduction,
+    ] {
+        if !enabled {
+            states -= 1;
+        }
+    }
+    states as f32 / config.tick_rate
 }
 
 /// Такт атмосферы (`UpdateProcessing`).
