@@ -1,9 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Markers/Spawners/Random/Decals/dirt.yml. Создано scripts/gen_items.py.
-[
-    (id: "DecalSpawnerBurns", parents: ["DecalSpawnerDirtMonospace"]),
-    (id: "DecalSpawnerDirtBase", parents: ["DecalSpawnerBase"], abstract: true),
-    (id: "DecalSpawnerDirtMonospace", parents: ["DecalSpawnerDirtBase"]),
-    (id: "DecalSpawnerDirtNear", parents: ["DecalSpawnerDirtBase"]),
-    (id: "DecalSpawnerDirtSingle", parents: ["DecalSpawnerDirtBase"]),
-    (id: "DecalSpawnerDirtWide", parents: ["DecalSpawnerDirtBase"]),
-]

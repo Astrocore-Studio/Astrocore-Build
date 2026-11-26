@@ -1,4 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Markers/Spawners/Random/soap.yml. Создано scripts/gen_items.py.
-[
-    (id: "RandomSlip100", parents: ["MarkerBase"], name: Some("random slip spawner")),
-]

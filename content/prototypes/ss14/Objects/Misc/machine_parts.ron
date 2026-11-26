@@ -1,5 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Misc/machine_parts.yml. Создано scripts/gen_items.py.
-[
-    (id: "BaseStockPart", parents: ["BaseItem"], abstract: true, name: Some("stock part"), description: Some("What?")),
-    (id: "MicroManipulatorStockPart", parents: ["BaseStockPart"], name: Some("modular machine part"), description: Some("A basic machine part used in the construction of a variety of devices."), components: {"Sprite": (sprite: "Objects/Misc/stock_parts.rsi", state: "micro_mani"), "Item": (size: "Tiny"), "Tag": (tags: ["ConstructionMaterial"])}),
-]

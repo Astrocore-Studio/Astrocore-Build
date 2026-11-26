@@ -1,6 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/soil.yml. Создано scripts/gen_items.py.
-[
-    (id: "BaseHydroponicsSoil", parents: ["SolutionLarge"], abstract: true),
-    (id: "FungalSoil", parents: ["HydroponicsSoil"], name: Some("fungal soil"), description: Some("A mix of organic matter and fungal root creating a soil to grow your plant in space. Seems to be dry.")),
-    (id: "HydroponicsSoil", parents: ["BaseHydroponicsSoil", "StructureHealthContainer"], name: Some("soil"), description: Some("A mix of organic matter and minerals creating a soil to grow your plant in space. Seems to be dry.")),
-]

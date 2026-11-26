@@ -1,5 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Weapons/Guns/HMGs/hmgs.yml. Создано scripts/gen_items.py.
-[
-    (id: "BaseWeaponHeavyMachineGun", parents: ["BaseItem"], abstract: true, name: Some("BaseWeaponHeavyMachineGun"), description: Some("Spray and pray.")),
-    (id: "WeaponMinigun", parents: ["BaseWeaponHeavyMachineGun", "BaseMajorContraband"], name: Some("minigun"), description: Some("Vzzzzzt! Rahrahrahrah! Vrrrrr! Uses .10 rifle ammo.")),
-]

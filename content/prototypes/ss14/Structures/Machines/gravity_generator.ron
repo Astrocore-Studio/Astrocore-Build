@@ -1,7 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/Machines/gravity_generator.yml. Создано scripts/gen_items.py.
-[
-    (id: "BaseGravityGenerator", parents: ["BaseMachinePowered"], abstract: true),
-    (id: "GravityGenerator", parents: ["BaseGravityGenerator"], name: Some("gravity generator"), description: Some("It's what keeps you to the floor.")),
-    (id: "GravityGeneratorMini", parents: ["BaseGravityGenerator", "ConstructibleMachine", "BaseConstructibleMachineDestructible"], name: Some("mini gravity generator"), description: Some("It's what keeps you to the floor, now in fun size.")),
-    (id: "GravityGeneratorMiniUncharged", parents: ["GravityGeneratorMini"]),
-]

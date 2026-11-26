@@ -1,7 +1,10 @@
 .astro-key
 /target
 /.local
-/scripts/__pycache__/
+
 
 # База настроек игроков (профили персонажей), создаётся сервером
 /data/
+
+# Локальные кэши Python
+__pycache__/

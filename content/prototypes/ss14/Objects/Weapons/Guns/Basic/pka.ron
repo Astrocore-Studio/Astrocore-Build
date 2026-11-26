@@ -1,4 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Weapons/Guns/Basic/pka.yml. Создано scripts/gen_items.py.
-[
-    (id: "WeaponProtoKineticAccelerator", parents: ["WeaponProtoKineticAcceleratorBase", "BaseCargoContraband"], name: Some("proto-kinetic accelerator"), description: Some("Fires low-damage kinetic bolts at a short range."), components: {"Sprite": (sprite: "Objects/Weapons/Guns/Basic/kinetic_accelerator.rsi", state: "icon"), "Item": (size: "Large"), "Clothing": (slots: ["suitstorage", "belt"]), "Gun": (fireRate: 0.5, minAngle: 44.0, maxAngle: 45.0, sound: "Weapons/Guns/Gunshots/kinetic_accel.ogg", magazine: "", cartridge: "", capacity: 0, auto: false, shot: "", fireCost: 0.0, charge: 0.0, angleIncrease: 0.5, angleDecay: 45.0, projectileSpeed: 25.0)}),
-]

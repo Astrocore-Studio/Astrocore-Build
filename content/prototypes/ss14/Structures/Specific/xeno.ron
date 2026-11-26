@@ -1,7 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/Specific/xeno.yml. Создано scripts/gen_items.py.
-[
-    (id: "CarpStatue", parents: ["XenoWardingTower"], name: Some("carp statue"), description: Some("A statue of one of the brave carp that got us where we are today. Made with real teeth!")),
-    (id: "CarpStatueEmpty", parents: ["CarpStatue"], description: Some("A lump of precious metals, soon to be a brilliant carp statue.")),
-    (id: "CarpStatueEyes", parents: ["CarpStatue"], description: Some("A statue of one of the brave carp that got us where we are today. This one needs a dentist...")),
-    (id: "XenoWardingTower", parents: ["BaseStatue"], name: Some("xeno warding tower")),
-]

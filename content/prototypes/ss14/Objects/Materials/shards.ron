@@ -1,9 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Materials/shards.yml. Создано scripts/gen_items.py.
-[
-    (id: "ShardBase", parents: ["SolutionCryo", "SolutionCompositeNormalStackable", "BaseItem", "BaseItemDestructible"], abstract: true, description: Some("It's a shard of some unknown material.")),
-    (id: "ShardGlass", parents: ["ShardBase"], name: Some("glass shard"), description: Some("A small piece of glass."), components: {"Sprite": (sprite: "Objects/Materials/Shards/shard.rsi", state: "shard1"), "Item": (size: "Tiny"), "Tool": (qualities: ["Slicing"]), "Solution": (maxVol: 5.0, canReact: false, reagents: (Silicon: 5.0)), "MeleeWeapon": (damage: (Slash: 3.5), attackRate: 1.0, bluntStaminaDamageFactor: 0.5), "Tag": (tags: ["GlassShard", "Trash"])}),
-    (id: "ShardGlassClockwork", parents: ["ShardBase"], name: Some("clockwork glass shard"), description: Some("A small piece of brass-infused glass.")),
-    (id: "ShardGlassPlasma", parents: ["ShardBase"], name: Some("plasma glass shard"), description: Some("A small piece of plasma glass."), components: {"Sprite": (sprite: "Objects/Materials/Shards/shard.rsi", state: "shard1"), "Item": (size: "Tiny"), "Tool": (qualities: ["Slicing"]), "Solution": (maxVol: 10.0, canReact: false, reagents: (Plasma: 5.0, Silicon: 5.0)), "MeleeWeapon": (damage: (Slash: 5.5), attackRate: 1.0, bluntStaminaDamageFactor: 0.5), "Tag": (tags: ["PlasmaGlassShard", "Trash"])}),
-    (id: "ShardGlassReinforced", parents: ["ShardBase"], name: Some("reinforced glass shard"), description: Some("A small piece of reinforced glass.")),
-    (id: "ShardGlassUranium", parents: ["ShardBase"], name: Some("uranium glass shard"), description: Some("A small piece of uranium glass.")),
-]

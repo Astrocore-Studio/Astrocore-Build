@@ -1,5 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Markers/Spawners/Random/vending.yml. Создано scripts/gen_items.py.
-[
-    (id: "RandomVending", parents: ["MarkerBase"], name: Some("random vending machine spawner")),
-    (id: "RandomVendingClothing", parents: ["MarkerBase"], name: Some("random vending machine spawner")),
-]

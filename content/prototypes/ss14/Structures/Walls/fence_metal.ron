@@ -1,9 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/Walls/fence_metal.yml. Создано scripts/gen_items.py.
-[
-    (id: "BaseFenceMetal", parents: ["BaseStructure", "StructureHealthBarrier"], abstract: true, name: Some("chain link fence"), description: Some("A metal piece of fencing cordoning off something likely very important.")),
-    (id: "FenceMetalBroken", parents: ["BaseFenceMetal"], name: Some("broken chain link fence"), description: Some("Someone got real mad at an inanimate object.")),
-    (id: "FenceMetalCorner", parents: ["BaseFenceMetal"]),
-    (id: "FenceMetalEnd", parents: ["BaseFenceMetal"]),
-    (id: "FenceMetalGate", parents: ["BaseFenceMetal"], name: Some("chain link fence gate"), description: Some("You could use the door instead of vaulting over--if you're a COWARD, that is.")),
-    (id: "FenceMetalStraight", parents: ["BaseFenceMetal"]),
-]

@@ -1,7 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Specific/Medical/morgue.yml. Создано scripts/gen_items.py.
-[
-    (id: "Ash", parents: ["SolutionFood", "SolutionTiny", "BaseItem"], name: Some("ash"), description: Some("This used to be something, but now it's not."), components: {"Sprite": (sprite: "Objects/Materials/materials.rsi", state: "ash"), "Item": (size: "Tiny"), "Solution": (maxVol: 30.0, canReact: true, reagents: (Ash: 15.0)), "Tag": (tags: ["Burnt", "Trash"])}),
-    (id: "BodyBag", parents: ["BaseDeployFoldable", "BasePaperLabelableVisualized"], name: Some("body bag"), description: Some("A plastic bag designed for the storage and transportation of cadavers to stop body decomposition.")),
-    (id: "BodyBagFolded", parents: ["BodyBag"], name: Some("body bag"), description: Some("A plastic bag designed for the storage and transportation of cadavers to stop body decomposition.")),
-    (id: "Ectoplasm", parents: ["Ash"], name: Some("ectoplasm"), description: Some("Much less deadly in this form.")),
-]

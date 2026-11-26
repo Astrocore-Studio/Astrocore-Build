@@ -1,4 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Tools/bucket.yml. Создано scripts/gen_items.py.
-[
-    (id: "BorgBucket", parents: ["SolutionHuge", "Bucket"], name: Some("internal tank"), description: Some("The internal reservoir of a cyborg, twice the normal size of a bucket.")),
-]

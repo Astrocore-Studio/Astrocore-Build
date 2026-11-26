@@ -1,8 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/Furniture/sink.yml. Создано scripts/gen_items.py.
-[
-    (id: "Sink", parents: ["SinkEmpty"]),
-    (id: "SinkEmpty", parents: ["SolutionTank", "SolutionHuge", "StructureHealthFurnitureStrong"], name: Some("sink"), description: Some("The faucets have been tightened to the maximum possible torque but are still known to drip.")),
-    (id: "SinkStemless", parents: ["SinkEmpty"], name: Some("sink")),
-    (id: "SinkStemlessWater", parents: ["SinkStemless"], name: Some("sink")),
-    (id: "SinkWide", parents: ["Sink"], name: Some("wide sink")),
-]

@@ -1,5 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Mobs/NPCs/Farm/cow.yml. Создано scripts/gen_items.py.
-[
-    (id: "MobCow", parents: ["BaseMobRuminant", "SimpleMobBase", "BaseSlicingRefinableButchering", "BaseMobDestructible", "BaseExaminableHunger"], name: Some("cow"), description: Some("Moo.")),
-    (id: "SolutionUdder", parents: ["SolutionLarge"], categories: ["HideSpawnMenu"]),
-]

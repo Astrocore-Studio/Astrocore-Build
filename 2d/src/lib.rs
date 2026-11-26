@@ -913,7 +913,7 @@ pub fn bind_address(default_port: u16) -> Result<SocketAddr, String> {
 
 pub fn configured_key() -> Result<Option<[u8; 32]>, String> {
     match std::env::var("ASTRO_2D_KEY") {
-        Ok(value) => astrocore_network::secure::parse_hex32(&value)
+        Ok(value) => astrocore_transport::parse_hex32(&value)
             .map(Some)
             .ok_or("ASTRO_2D_KEY должен содержать 64 шестнадцатеричных символа".into()),
         Err(std::env::VarError::NotPresent) => Ok(None),

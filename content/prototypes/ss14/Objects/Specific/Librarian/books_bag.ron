@@ -1,4 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Specific/Librarian/books_bag.yml. Создано scripts/gen_items.py.
-[
-    (id: "BooksBag", parents: ["BaseStorageItem"], name: Some("books bag"), description: Some("A refined bag to carry your own library."), components: {"Sprite": (sprite: "Objects/Specific/Library/Equipment/books_bag.rsi", state: "icon"), "Item": (size: "Ginormous"), "Clothing": (slots: ["belt"]), "Storage": (grid: ["0,0,7,3"], whitelist: (tags: ["Book", "Dice", "Document", "Figurine", "TabletopBoard", "Write"], components: []))}),
-]

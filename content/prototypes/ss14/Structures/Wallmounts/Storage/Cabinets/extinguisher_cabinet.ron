@@ -1,7 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/Wallmounts/Storage/Cabinets/extinguisher_cabinet.yml. Создано scripts/gen_items.py.
-[
-    (id: "ExtinguisherCabinet", parents: ["BaseWallmountCabinet", "StructureHealthContainerWeak"], name: Some("extinguisher cabinet"), description: Some("A small wall mounted cabinet designed to hold a fire extinguisher.")),
-    (id: "ExtinguisherCabinetFilled", parents: ["ExtinguisherCabinet"]),
-    (id: "ExtinguisherCabinetFilledOpen", parents: ["ExtinguisherCabinetFilled", "ExtinguisherCabinetOpen"]),
-    (id: "ExtinguisherCabinetOpen", parents: ["ExtinguisherCabinet"]),
-]

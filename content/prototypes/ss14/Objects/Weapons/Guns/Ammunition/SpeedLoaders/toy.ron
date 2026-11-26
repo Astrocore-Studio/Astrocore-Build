@@ -1,5 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Weapons/Guns/Ammunition/SpeedLoaders/toy.yml. Создано scripts/gen_items.py.
-[
-    (id: "BaseSpeedLoaderCap", parents: ["BaseItem"], abstract: true, name: Some("cap gun loader")),
-    (id: "SpeedLoaderCap", parents: ["BaseSpeedLoaderCap"], name: Some("cap gun loader"), description: Some("Designed to quickly load up to six cartridges into an empty cap gun."), components: {"Sprite": (sprite: "Objects/Fun/caps.rsi", state: "base"), "Item": (size: "Small"), "Magazine": (cartridge: "CartridgeCap", capacity: 6), "Tag": (tags: ["SpeedLoaderCap"]), "BallisticAmmoProvider": ()}),
-]

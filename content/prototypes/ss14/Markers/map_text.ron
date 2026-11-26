@@ -1,4 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Markers/map_text.yml. Создано scripts/gen_items.py.
-[
-    (id: "MapText", parents: ["MarkerBase"], name: Some("map text")),
-]

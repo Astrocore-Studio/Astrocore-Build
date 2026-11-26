@@ -1,4 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Markers/Spawners/Random/altars.yml. Создано scripts/gen_items.py.
-[
-    (id: "ConvertAltarSpawner", parents: ["MarkerBase"], name: Some("random convert-altar spawner")),
-]

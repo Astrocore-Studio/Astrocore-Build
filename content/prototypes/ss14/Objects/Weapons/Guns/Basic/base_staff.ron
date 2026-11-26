@@ -1,4 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Weapons/Guns/Basic/base_staff.yml. Создано scripts/gen_items.py.
-[
-    (id: "WeaponStaffBase", parents: ["BaseItem", "BaseMagicalContraband"], abstract: true),
-]

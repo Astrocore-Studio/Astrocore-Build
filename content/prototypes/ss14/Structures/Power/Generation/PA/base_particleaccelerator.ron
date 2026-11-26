@@ -1,6 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/Power/Generation/PA/base_particleaccelerator.yml. Создано scripts/gen_items.py.
-[
-    (id: "ParticleAcceleratorBase", parents: ["StructureHealthMachineStrong"], abstract: true),
-    (id: "ParticleAcceleratorFinishedPart", parents: ["ParticleAcceleratorBase"], abstract: true),
-    (id: "ParticleAcceleratorUnfinishedBase", parents: ["ParticleAcceleratorBase"], abstract: true),
-]

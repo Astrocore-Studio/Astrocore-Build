@@ -1,4 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/spawn_spells.yml. Создано scripts/gen_items.py.
-[
-    (id: "ActionSpawnMagicarpSpell", parents: ["BaseAction"], name: Some("Summon Magicarp"), description: Some("This spell summons three Magi-Carp to your aid! May or may not turn on user.")),
-]

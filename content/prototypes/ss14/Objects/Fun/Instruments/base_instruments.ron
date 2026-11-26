@@ -1,6 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Fun/Instruments/base_instruments.yml. Создано scripts/gen_items.py.
-[
-    (id: "BaseHandheldInstrument", parents: ["BaseItem"], abstract: true, description: Some("That's an instrument.")),
-    (id: "BasePlaceableInstrument", parents: ["BaseStructureDynamic", "StructureHealthFurnitureStrong"], abstract: true, name: Some("baseinstrument")),
-    (id: "BasePlaceableInstrumentRotatable", parents: ["BasePlaceableInstrument"], abstract: true, name: Some("baseinstrumentrotatable")),
-]

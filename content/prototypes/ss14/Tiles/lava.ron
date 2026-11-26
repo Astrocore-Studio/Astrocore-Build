@@ -1,4 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Tiles/lava.yml. Создано scripts/gen_items.py.
-[
-    (id: "FloorLavaEntity", name: Some("lava"), description: Some("Don't jump in. It's not worth it, no matter how funny it is.")),
-]

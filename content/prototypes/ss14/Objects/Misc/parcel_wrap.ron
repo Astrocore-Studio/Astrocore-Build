@@ -1,9 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Misc/parcel_wrap.yml. Создано scripts/gen_items.py.
-[
-    (id: "BaseWrappedParcel", parents: ["BasePaperLabelable"], abstract: true),
-    (id: "ParcelWrap", parents: ["BaseItem"], name: Some("parcel wrap"), description: Some("Paper used contain items for transport.")),
-    (id: "ParcelWrapAdmeme", parents: ["ParcelWrap"], name: Some("bluespace wrap"), description: Some("Paper used contain items for transport. This one seems to be able to store an unusual amount of space within it.")),
-    (id: "ParcelWrapTrash", parents: ["BaseItem"], name: Some("parcel wrap"), description: Some("The disappointing remnants of an unwrapped parcel."), categories: ["HideSpawnMenu"]),
-    (id: "WrappedParcel", parents: ["BaseItem", "BaseWrappedParcel"], name: Some("wrapped parcel"), description: Some("Something wrapped up in paper. I wonder what's inside...")),
-    (id: "WrappedParcelHumanoid", parents: ["BaseWrappedParcel"], name: Some("wrapped parcel"), description: Some("Something wrapped up in paper. It's suspiciously human-shaped.")),
-]

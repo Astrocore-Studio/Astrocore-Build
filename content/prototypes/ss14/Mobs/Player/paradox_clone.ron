@@ -1,6 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Mobs/Player/paradox_clone.yml. Создано scripts/gen_items.py.
-[
-    (id: "MobParadox", parents: ["BaseMob"], name: Some("space-time paradox"), description: Some("A big ball of wibbly wobbly, timey wimey stuff.")),
-    (id: "MobParadoxTimed", parents: ["MobParadox"]),
-    (id: "ParadoxCloneDummy", name: Some("Paradox Clone"), categories: ["HideSpawnMenu"]),
-]

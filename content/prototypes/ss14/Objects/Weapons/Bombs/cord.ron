@@ -1,6 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Weapons/Bombs/cord.yml. Создано scripts/gen_items.py.
-[
-    (id: "CableDetStack", parents: ["CableStack", "BaseSecurityContraband"], name: Some("explosive cord"), description: Some("Explosive cord for removing whatever is in your way.")),
-    (id: "CableDetStack1", parents: ["CableDetStack"]),
-    (id: "CableDetStack10", parents: ["CableDetStack"]),
-]

@@ -1,9 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Weapons/Guns/Turrets/turrets_ballistic.yml. Создано scripts/gen_items.py.
-[
-    (id: "WeaponTurretAllHostile", parents: ["BaseWeaponBallisticTurret"]),
-    (id: "WeaponTurretHostile", parents: ["BaseWeaponBallisticTurret"]),
-    (id: "WeaponTurretNanoTrasen", parents: ["BaseWeaponBallisticTurret"]),
-    (id: "WeaponTurretSyndicate", parents: ["BaseWeaponBallisticTurret", "BaseSyndicateContraband"]),
-    (id: "WeaponTurretSyndicateDisposable", parents: ["BaseWeaponBallisticTurretIndestructible", "StructureHealthMachineWeak"], name: Some("disposable ballistic turret")),
-    (id: "WeaponTurretXeno", parents: ["BaseWeaponBallisticTurretIndestructible", "StructureHealthMachine"], name: Some("xeno turret"), description: Some("Shoots 9mm acid projectiles.")),
-]

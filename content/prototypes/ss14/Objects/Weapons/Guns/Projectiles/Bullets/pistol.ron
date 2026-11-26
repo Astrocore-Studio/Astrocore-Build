@@ -1,5 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Weapons/Guns/Projectiles/Bullets/pistol.yml. Создано scripts/gen_items.py.
-[
-    (id: "BulletPistolIncendiary", parents: ["BaseBulletIncendiary"], name: Some("bullet (.35 auto incendiary)"), categories: ["HideSpawnMenu"]),
-    (id: "BulletPistolUranium", parents: ["BaseBulletUranium"], name: Some("bullet (.35 auto uranium)"), categories: ["HideSpawnMenu"]),
-]

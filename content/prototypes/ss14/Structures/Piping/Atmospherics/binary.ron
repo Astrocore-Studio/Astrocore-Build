@@ -1,6 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/Piping/Atmospherics/binary.yml. Создано scripts/gen_items.py.
-[
-    (id: "GasBinaryBase", parents: ["GasPipeBase"], abstract: true),
-    (id: "HeatExchanger", parents: ["GasBinaryBase"], name: Some("radiator"), description: Some("Transfers heat between the pipe and its surroundings."), components: {"Sprite": (sprite: "Structures/Piping/Atmospherics/pipe.rsi", state: "pipeStraight"), "Item": (size: "Normal"), "Tag": (tags: ["Unstackable"])}),
-    (id: "HeatExchangerBend", parents: ["HeatExchanger"]),
-]

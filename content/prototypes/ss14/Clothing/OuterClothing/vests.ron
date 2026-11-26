@@ -1,7 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Clothing/OuterClothing/vests.yml. Создано scripts/gen_items.py.
-[
-    (id: "ClothingOuterVest", parents: ["ClothingOuterBase"], name: Some("vest"), description: Some("A thick vest with a rubbery, water-resistant shell."), components: {"Sprite": (sprite: "Clothing/OuterClothing/Vests/vest.rsi", state: "icon"), "Item": (size: "Normal"), "Clothing": (slots: ["outerclothing"]), "Tag": (tags: ["WhitelistChameleon"])}),
-    (id: "ClothingOuterVestHazard", parents: ["ClothingOuterStorageBase"], name: Some("hi-viz vest"), description: Some("A high-visibility vest used in work zones."), components: {"Sprite": (sprite: "Clothing/OuterClothing/Vests/hazard.rsi", state: "icon"), "Item": (size: "Normal"), "Clothing": (slots: ["outerclothing"]), "Storage": (grid: ["0,0,2,1"], maxItemSize: "Small"), "Tag": (tags: ["HiViz", "WhitelistChameleon"])}),
-    (id: "ClothingOuterVestPress", parents: ["ClothingOuterBase", "AllowSuitStorageClothingGasTanks"], name: Some("press vest"), description: Some("A cloth vest for the fearless reporter in the field. Go land an interview with that space dragon!")),
-    (id: "ClothingOuterVestTank", parents: ["ClothingOuterBase", "AllowSuitStorageClothingGasTanks"], name: Some("tank harness"), description: Some("A simple harness that can hold a gas tank.")),
-]

@@ -1,4 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Specific/Cargo/mail_bag.yml. Создано scripts/gen_items.py.
-[
-    (id: "MailBag", parents: ["BaseStorageItem"], name: Some("mail bag"), description: Some("A bag for carrying mail around the station. Made from tanned space bear hide."), components: {"Sprite": (sprite: "Objects/Specific/Cargo/mail_bag.rsi", state: "icon"), "Item": (size: "Ginormous"), "Clothing": (slots: ["belt", "back"]), "Storage": (grid: ["0,0,4,3"], maxItemSize: "Normal", whitelist: (tags: ["Document", "Paper"], components: ["Paper", "Delivery"])), "Tag": (tags: ["ScurretWearable", "CorgiWearable"])}),
-]

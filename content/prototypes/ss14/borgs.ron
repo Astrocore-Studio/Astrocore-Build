@@ -1,5 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/borgs.yml. Создано scripts/gen_items.py.
-[
-    (id: "ActionSelectBorgType", parents: ["BaseAction"], name: Some("Select Cyborg Type")),
-    (id: "ActionViewLaws", parents: ["BaseMentalAction"], name: Some("View Laws"), description: Some("View the laws that you must follow.")),
-]

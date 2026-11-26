@@ -1,5 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Devices/mousetrap.yml. Создано scripts/gen_items.py.
-[
-    (id: "Mousetrap", parents: ["BaseItem"], name: Some("mousetrap"), description: Some("Useful for catching rodents sneaking into your kitchen."), components: {"Sprite": (sprite: "Objects/Devices/mousetrap.rsi", state: "mousetrap"), "Item": (size: "Small"), "Mousetrap": ()}),
-    (id: "MousetrapArmed", parents: ["Mousetrap"], name: Some("mousetrap"), description: Some("Useful for catching rodents sneaking into your kitchen.")),
-]

@@ -1,6 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/plastic_flaps.yml. Создано scripts/gen_items.py.
-[
-    (id: "PlasticFlapsBase", parents: ["BaseStructureDynamic", "StructureHealthBarrier"], abstract: true),
-    (id: "PlasticFlapsClear", parents: ["PlasticFlapsBase"], name: Some("plastic flaps"), description: Some("Heavy duty, plastic flaps. Definitely can't get past those. No way.")),
-    (id: "PlasticFlapsOpaque", parents: ["PlasticFlapsBase"], name: Some("plastic flaps"), description: Some("Heavy duty, plastic flaps. Definitely can't get past those. No way.")),
-]

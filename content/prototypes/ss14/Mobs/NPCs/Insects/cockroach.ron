@@ -1,6 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Mobs/NPCs/Insects/cockroach.yml. Создано scripts/gen_items.py.
-[
-    (id: "BaseCockroach", parents: ["SolutionFood", "SolutionTiny", "SimpleMobBase", "BaseSlicingRefinableButchering", "MobNightVision"], abstract: true),
-    (id: "MobCockroach", parents: ["BaseCockroach"], name: Some("cockroach"), description: Some("This station is just crawling with bugs.")),
-    (id: "MobGlockroach", parents: ["MobCockroach"], name: Some("glockroach"), description: Some("This station is just crawling with bu- OH GOD THAT COCKROACH HAS A GUN!!!")),
-]

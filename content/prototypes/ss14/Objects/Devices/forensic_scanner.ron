@@ -1,6 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Devices/forensic_scanner.yml. Создано scripts/gen_items.py.
-[
-    (id: "ForensicReportPaper", parents: ["Paper"], name: Some("forensic scanner report"), description: Some("Circumstantial evidence, at best.")),
-    (id: "ForensicScanner", parents: ["BaseItem", "BaseSecurityContraband"], name: Some("forensic scanner"), description: Some("A handheld device that can scan objects for fingerprints and fibers."), components: {"Sprite": (sprite: "Objects/Devices/forensic_scanner.rsi", state: "icon"), "Item": (size: "Small"), "Clothing": (slots: ["belt"])}),
-    (id: "PaperAccessLogs", parents: ["ForensicReportPaper"], name: Some("access logs"), description: Some("A printout from the detective's trusty LogProbe.")),
-]

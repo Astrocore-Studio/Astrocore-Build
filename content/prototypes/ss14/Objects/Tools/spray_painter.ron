@@ -1,8 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Tools/spray_painter.yml. Создано scripts/gen_items.py.
-[
-    (id: "SprayPainter", parents: ["SprayPainterRecharging"], components: {"Sprite": (sprite: "Objects/Tools/spray_painter.rsi", state: "spray_painter"), "Item": (size: "Small"), "SprayPainter": ()}),
-    (id: "SprayPainterAmmo", parents: ["BaseItem"], name: Some("compressed paint"), description: Some("A cartridge of highly compressed paint, commonly used in spray painters."), components: {"Sprite": (sprite: "Objects/Tools/spray_painter.rsi", state: "ammo"), "Item": (size: "Small"), "SprayPainterAmmo": ()}),
-    (id: "SprayPainterBorg", parents: ["SprayPainter"], name: Some("experimental spray painter"), description: Some("An experimental recharging spray painter that can infinitely replicate compressed paint.")),
-    (id: "SprayPainterEmpty", parents: ["SprayPainter"]),
-    (id: "SprayPainterRecharging", parents: ["BaseItem"], name: Some("spray painter"), description: Some("A spray painter for painting airlocks, pipes, and other items.")),
-]

@@ -1,7 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/Wallmounts/WallmountMachines/station_map.yml. Создано scripts/gen_items.py.
-[
-    (id: "BaseStationMap", parents: ["BaseWallmountMetallic"], abstract: true),
-    (id: "StationMap", parents: ["BaseStationMap", "BaseWallmountMachine", "StructureHealthMachineWeak"], name: Some("station map"), description: Some("A virtual map of the surrounding station.")),
-    (id: "StationMapAssembly", parents: ["BaseStationMap", "StructureHealthMachineFlimsy"], name: Some("station map assembly"), description: Some("A station map assembly.")),
-    (id: "StationMapBroken", parents: ["BaseStationMap", "StructureHealthMachineFlimsy"], name: Some("station map"), description: Some("A former map of the surrounding station.")),
-]

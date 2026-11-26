@@ -1,4 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Devices/teleporters_chips.yml. Создано scripts/gen_items.py.
-[
-    (id: "TeleporterChipBlank", parents: ["BaseItem"], name: Some("teleporter chip"), description: Some("A chip that can store teleporter coordinates. Insert it into the teleporter control console to be able to control the linked portal.")),
-]

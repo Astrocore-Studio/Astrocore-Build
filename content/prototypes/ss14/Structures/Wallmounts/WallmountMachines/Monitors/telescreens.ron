@@ -1,5 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/Wallmounts/WallmountMachines/Monitors/telescreens.yml. Создано scripts/gen_items.py.
-[
-    (id: "WallmountTelescreen", parents: ["BaseWallmountMachine", "StructureHealthMachineWeak"], name: Some("camera monitor"), description: Some("A wallmounted surveillance camera monitor. You're watching them. Maybe.")),
-    (id: "WallmountTelescreenFrame", parents: ["BaseWallmountMetallic", "StructureHealthMachineFlimsy"], name: Some("camera monitor frame"), description: Some("A frame for a wallmounted surveillance camera monitor.")),
-]

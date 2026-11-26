@@ -1,5 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Weapons/Guns/Projectiles/Bullets/heavy_rifle.yml. Создано scripts/gen_items.py.
-[
-    (id: "BulletHeavyRifle", parents: ["BaseBullet"], name: Some("bullet (.10 rifle)"), categories: ["HideSpawnMenu"]),
-    (id: "BulletMinigun", parents: ["BulletHeavyRifle"], name: Some("minigun bullet (.10 rifle)"), categories: ["HideSpawnMenu"]),
-]

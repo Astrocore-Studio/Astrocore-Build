@@ -1,7 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Weapons/Guns/Projectiles/Energy/lasers.yml. Создано scripts/gen_items.py.
-[
-    (id: "BulletLaser", parents: ["BaseBullet"], name: Some("laser bolt"), categories: ["HideSpawnMenu"]),
-    (id: "BulletLaserSpread", parents: ["BulletLaser"], name: Some("wide laser barrage"), categories: ["HideSpawnMenu"]),
-    (id: "BulletLaserSpreadNarrow", parents: ["BulletLaser"], name: Some("lethal laser barrage"), categories: ["HideSpawnMenu"]),
-    (id: "BulletLaserWindowPiercingMagnum", parents: ["BulletLaser"], name: Some("magnum window-piercing bolt"), categories: ["HideSpawnMenu"]),
-]

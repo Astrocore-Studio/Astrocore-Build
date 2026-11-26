@@ -1,4 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Clothing/Neck/specific.yml. Создано scripts/gen_items.py.
-[
-    (id: "ClothingNeckChameleon", parents: ["ClothingNeckBase", "BaseChameleon"], name: Some("striped red scarf"), description: Some("A stylish striped red scarf. The perfect winter accessory for those with a keen fashion sense, and those who just can't handle a cold breeze on their necks.")),
-]

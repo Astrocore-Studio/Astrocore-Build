@@ -1,4 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Debugging/options_visualizer.yml. Создано scripts/gen_items.py.
-[
-    (id: "OptionsVisualizerTest", name: Some("OptionsVisualizerTest")),
-]

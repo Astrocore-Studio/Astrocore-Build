@@ -1,8 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Markers/Spawners/bots.yml. Создано scripts/gen_items.py.
-[
-    (id: "SpawnMobCleanBot", parents: ["MarkerBase"], name: Some("cleanbot spawner")),
-    (id: "SpawnMobFireBot", parents: ["MarkerBase"], name: Some("firebot spawner")),
-    (id: "SpawnMobHonkBot", parents: ["MarkerBase"], name: Some("honkbot spawner")),
-    (id: "SpawnMobMedibot", parents: ["MarkerBase"], name: Some("medibot spawner")),
-    (id: "SpawnMobSupplyBot", parents: ["MarkerBase"], name: Some("supplybot spawner")),
-]

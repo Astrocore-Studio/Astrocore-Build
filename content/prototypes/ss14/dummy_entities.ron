@@ -1,4 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/dummy_entities.yml. Создано scripts/gen_items.py.
-[
-    (id: "LoadoutDummyCandles", name: Some("three candles"), description: Some("A set of three colorful candles for secret rituals!"), categories: ["HideSpawnMenu"]),
-]

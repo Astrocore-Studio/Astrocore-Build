@@ -1,5 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/Wallmounts/Misc/mirror.yml. Создано scripts/gen_items.py.
-[
-    (id: "Mirror", parents: ["BaseWallmountGlass", "StructureHealthFurnitureWeak"], name: Some("mirror"), description: Some("Mirror mirror on the wall , who's the most robust of them all?")),
-    (id: "MirrorModern", parents: ["Mirror"]),
-]

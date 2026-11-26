@@ -1,4 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Weapons/Guns/Ammunition/SpeedLoaders/rifle_light.yml. Создано scripts/gen_items.py.
-[
-    (id: "SpeedLoaderLightRifle", parents: ["BaseItem", "BaseSecurityContraband"], name: Some("speed loader (.30 rifle)"), description: Some("5-round 'stripper clip' for quickly reloading the Kardashev-Mosin. Intended to hold general-purpose kinetic ammunition.")),
-]

@@ -1,7 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Materials/parts.yml. Создано scripts/gen_items.py.
-[
-    (id: "PartBase", parents: ["MaterialBase"], abstract: true),
-    (id: "PartRodMetal", parents: ["PartBase"], name: Some("metal rod"), components: {"Sprite": (sprite: "Objects/Materials/parts.rsi", state: "rods_5"), "Item": (size: "Normal"), "Solution": (maxVol: 10.0, canReact: false, reagents: (Carbon: 0.5, Iron: 4.5)), "Tag": (tags: ["ConstructionMaterial"]), "FloorTile": ()}),
-    (id: "PartRodMetal1", parents: ["PartRodMetal"], name: Some("metal rod"), components: {"Sprite": (sprite: "Objects/Materials/parts.rsi", state: "rods_5"), "Item": (size: "Normal"), "Solution": (maxVol: 10.0, canReact: false, reagents: (Carbon: 0.5, Iron: 4.5)), "Tag": (tags: ["ConstructionMaterial"]), "FloorTile": ()}),
-    (id: "PartRodMetal10", parents: ["PartRodMetal"], name: Some("metal rod"), components: {"Sprite": (sprite: "Objects/Materials/parts.rsi", state: "rods_5"), "Item": (size: "Normal"), "Solution": (maxVol: 10.0, canReact: false, reagents: (Carbon: 0.5, Iron: 4.5)), "Tag": (tags: ["ConstructionMaterial"]), "FloorTile": ()}),
-]

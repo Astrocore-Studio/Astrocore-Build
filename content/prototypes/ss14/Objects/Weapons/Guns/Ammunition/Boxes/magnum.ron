@@ -1,9 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Weapons/Guns/Ammunition/Boxes/magnum.yml. Создано scripts/gen_items.py.
-[
-    (id: "BaseMagazineBoxMagnum", parents: ["BaseItem"], abstract: true),
-    (id: "MagazineBoxMagnum", parents: ["BaseMagazineBoxMagnum"], name: Some("ammunition box (.45 magnum)"), description: Some("A cardboard box of .45 magnum rounds. Intended to hold general-purpose kinetic ammunition."), components: {"Sprite": (sprite: "Objects/Weapons/Guns/Ammunition/Boxes/magnum.rsi", state: "base"), "Item": (size: "Small"), "Magazine": (cartridge: "CartridgeMagnum", capacity: 12), "BallisticAmmoProvider": ()}),
-    (id: "MagazineBoxMagnumAP", parents: ["BaseMagazineBoxMagnum"], name: Some("ammunition box (.45 magnum armor-piercing)"), description: Some("A cardboard box of .45 magnum rounds. Intended to hold specialized armor-piercing ammunition.")),
-    (id: "MagazineBoxMagnumIncendiary", parents: ["BaseMagazineBoxMagnum"], name: Some("ammunition box (.45 magnum incendiary)"), description: Some("A cardboard box of .45 magnum rounds. Intended to hold self-igniting incendiary ammunition.")),
-    (id: "MagazineBoxMagnumPractice", parents: ["BaseMagazineBoxMagnum"], name: Some("ammunition box (.45 magnum practice)"), description: Some("A cardboard box of .45 magnum rounds. Intended to hold harmless practice ammunition."), components: {"Sprite": (sprite: "Objects/Weapons/Guns/Ammunition/Boxes/magnum.rsi", state: "base"), "Item": (size: "Small"), "Magazine": (cartridge: "CartridgeMagnumPractice", capacity: 12), "BallisticAmmoProvider": ()}),
-    (id: "MagazineBoxMagnumUranium", parents: ["BaseMagazineBoxMagnum"], name: Some("ammunition box (.45 magnum uranium)"), description: Some("A cardboard box of .45 magnum rounds. Intended to hold exotic uranium-core ammunition.")),
-]

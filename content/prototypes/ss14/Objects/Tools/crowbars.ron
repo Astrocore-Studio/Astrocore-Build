@@ -1,8 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Tools/crowbars.yml. Создано scripts/gen_items.py.
-[
-    (id: "BaseCrowbar", parents: ["BaseItem"], abstract: true, name: Some("crowbar"), description: Some("A multipurpose tool used for many tasks, such as prying doors or bludgeoning interdimensional invaders.")),
-    (id: "CrowbarGreen", parents: ["BaseCrowbar"]),
-    (id: "CrowbarOrange", parents: ["BaseCrowbar"]),
-    (id: "CrowbarRed", parents: ["BaseCrowbar"], components: {"Sprite": (sprite: "Objects/Tools/crowbar.rsi", state: "icon"), "Item": (size: "Small"), "Clothing": (slots: ["belt"]), "Tool": (qualities: ["Prying"]), "MeleeWeapon": (damage: (Blunt: 8.0), attackRate: 1.0, bluntStaminaDamageFactor: 0.5), "Tag": (tags: ["Crowbar", "CrowbarRed"]), "Prying": ()}),
-    (id: "CrowbarYellow", parents: ["BaseCrowbar"], components: {"Sprite": (sprite: "Objects/Tools/crowbar.rsi", state: "icon"), "Item": (size: "Small"), "Clothing": (slots: ["belt"]), "Tool": (qualities: ["Prying"]), "MeleeWeapon": (damage: (Blunt: 8.0), attackRate: 1.0, bluntStaminaDamageFactor: 0.5), "Tag": (tags: ["Crowbar"]), "Prying": ()}),
-]

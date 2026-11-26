@@ -1,4 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/Machines/cloning_machine.yml. Создано scripts/gen_items.py.
-[
-    (id: "CloningPod", parents: ["BaseMachinePowered", "BaseConstructibleMachineDestructible"], name: Some("cloning pod"), description: Some("A Cloning Pod. 50% reliable.")),
-]

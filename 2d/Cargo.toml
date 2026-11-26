@@ -12,7 +12,7 @@ prototype-import = ["dep:prototypes"]
 [dependencies]
 astrocore-core = { path = "../../Astrocore-Engine/crates/astrocore-core" }
 astrocore-grid2d = { path = "../../Astrocore-Engine/crates/astrocore-grid2d" }
-astrocore-network = { path = "../../Astrocore-Engine/crates/astrocore-network" }
+astrocore-transport = { path = "../../Astrocore-Engine/crates/astrocore-transport" }
 atmos = { path = "../crates/atmos" }
 power = { path = "../crates/power" }
 prototypes = { path = "../crates/prototypes", optional = true }

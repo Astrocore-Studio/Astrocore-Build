@@ -1,5 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Markers/Spawners/vending_machine_restock.yml. Создано scripts/gen_items.py.
-[
-    (id: "SpawnVendingMachineRestockDrink", parents: ["MarkerBase"], name: Some("Vending Machine Restock")),
-    (id: "SpawnVendingMachineRestockFood", parents: ["MarkerBase"], name: Some("Vending Machine Restock")),
-]

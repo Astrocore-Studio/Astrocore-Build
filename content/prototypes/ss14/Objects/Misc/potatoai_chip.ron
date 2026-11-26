@@ -1,4 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Misc/potatoai_chip.yml. Создано scripts/gen_items.py.
-[
-    (id: "PotatoAIChip", parents: ["BaseItem"], name: Some("makeshift microcontroller"), description: Some("A soldered together stripboard hosting enough computing power to run basic processes and primitive AI's. Requires exactly 1.1V to function correctly.")),
-]

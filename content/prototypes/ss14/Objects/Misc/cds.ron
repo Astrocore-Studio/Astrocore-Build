@@ -1,4 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Misc/cds.yml. Создано scripts/gen_items.py.
-[
-    (id: "CoordinatesDisk", parents: ["BaseItem"], name: Some("coordinates disk"), description: Some("A disk containing the coordinates to a location in space. Necessary for any FTL-traversing vessel to reach their destination. Fits inside shuttle consoles.")),
-]

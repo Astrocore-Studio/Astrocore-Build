@@ -1,7 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Tools/inflatable_wall.yml. Создано scripts/gen_items.py.
-[
-    (id: "InflatableDoorStack", parents: ["BaseItem"], name: Some("inflatable door"), description: Some("A folded membrane which rapidly expands into a large cubical shape on activation."), components: {"Sprite": (sprite: "Objects/Misc/inflatable_door.rsi", state: "item_door"), "Item": (size: "Small"), "Tag": (tags: ["Inflatable"])}),
-    (id: "InflatableDoorStack1", parents: ["InflatableDoorStack"], components: {"Sprite": (sprite: "Objects/Misc/inflatable_door.rsi", state: "item_door"), "Item": (size: "Small"), "Tag": (tags: ["Inflatable"])}),
-    (id: "InflatableWallStack", parents: ["BaseItem"], name: Some("inflatable barricade"), description: Some("A folded membrane which rapidly expands into a large cubical shape on activation."), components: {"Sprite": (sprite: "Objects/Misc/inflatable_wall.rsi", state: "item_wall"), "Item": (size: "Small"), "Tag": (tags: ["Inflatable"])}),
-    (id: "InflatableWallStack5", parents: ["InflatableWallStack"], components: {"Sprite": (sprite: "Objects/Misc/inflatable_wall.rsi", state: "item_wall"), "Item": (size: "Small"), "Tag": (tags: ["Inflatable"])}),
-]

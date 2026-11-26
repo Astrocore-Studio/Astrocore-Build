@@ -1,6 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/paradoxClone.yml. Создано scripts/gen_items.py.
-[
-    (id: "BaseParadoxCloneObjective", parents: ["BaseObjective"], abstract: true),
-    (id: "ParadoxCloneKillObjective", parents: ["BaseParadoxCloneObjective", "BaseKillObjective"], name: Some("Fix the space-time paradox."), description: Some("Replace your original to fix the paradox. Remember, your mission is to blend in, do not kill anyone else unless you have to!")),
-    (id: "ParadoxCloneLivingObjective", parents: ["BaseParadoxCloneObjective", "BaseLivingObjective"], name: Some("Escape to CentComm alive and unrestrained via the escape shuttle."), description: Some("Return to your old life.")),
-]

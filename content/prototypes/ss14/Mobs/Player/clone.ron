@@ -1,4 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Mobs/Player/clone.yml. Создано scripts/gen_items.py.
-[
-    (id: "RandomCloneSpawner", name: Some("Random Clone")),
-]

@@ -1,4 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Mobs/NPCs/Ancestors/base.yml. Создано scripts/gen_items.py.
-[
-    (id: "MobBaseAncestor", parents: ["BaseMobAnimal", "SimpleMobBase", "StripableInventoryBase", "BaseMobDestructible"], abstract: true, name: Some("genetic ancestor"), description: Some("The genetic bipedal ancestor of... Uh... Something. Yeah, there's definitely something on the station that descended from whatever this is.")),
-]

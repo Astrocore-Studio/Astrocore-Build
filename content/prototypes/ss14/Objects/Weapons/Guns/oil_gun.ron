@@ -1,4 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Weapons/Guns/oil_gun.yml. Создано scripts/gen_items.py.
-[
-    (id: "WeaponOilGun", parents: ["BaseItem", "BaseXenoborgContraband"], name: Some("oil gun"), description: Some("This gun launches ampoules of xenoborg oil to make organics slip or become flammable if hit with a direct hit. It comes with a tiny flame to light them on fire!")),
-]

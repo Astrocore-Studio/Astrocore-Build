@@ -1,5 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Weapons/Bombs/pen.yml. Создано scripts/gen_items.py.
-[
-    (id: "PenExploding", parents: ["Pen"], components: {"Sprite": (sprite: "Objects/Misc/pens.rsi", state: "pen"), "Item": (size: "Tiny"), "Explosive": (explosionType: "Default", totalIntensity: 20.0, intensitySlope: 5.0, maxIntensity: 8.0), "TimerTrigger": (delay: 4.0), "Tag": (tags: ["Write", "Pen"])}),
-    (id: "PenExplodingBox", parents: ["BaseItem", "BaseSyndicateContraband"], name: Some("exploding pen box"), description: Some("A small box containing an exploding pen. Packaging disintegrates when opened, leaving no evidence behind.")),
-]

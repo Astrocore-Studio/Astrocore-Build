@@ -1,4 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Effects/ambient_sounds.yml. Создано scripts/gen_items.py.
-[
-    (id: "AmbientSoundSourceFlies", categories: ["HideSpawnMenu"]),
-]

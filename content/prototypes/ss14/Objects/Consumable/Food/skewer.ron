@@ -1,4 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Consumable/Food/skewer.yml. Создано scripts/gen_items.py.
-[
-    (id: "FoodKebabSkewer", parents: ["BaseItem"], name: Some("skewer"), description: Some("A thin rod of metal used to skewer just about anything and cook it."), components: {"Sprite": (sprite: "Objects/Consumable/Food/skewer.rsi", state: "skewer"), "Item": (size: "Small"), "Solution": (maxVol: 30.0, canReact: true, reagents: ()), "Edible": (transferAmount: 5.0, delay: 1.0, forceFeedDelay: 3.0, destroyOnEmpty: true), "MeleeWeapon": (damage: (Piercing: 8.0), attackRate: 1.0, bluntStaminaDamageFactor: 0.5), "Tag": (tags: ["Cookware", "Skewer", "Trash"])}),
-]

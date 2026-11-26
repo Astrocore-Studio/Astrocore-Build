@@ -2,41 +2,56 @@
 <img alt="Astrocore Build" width="880" height="300" src="docs/img/logo.svg">
 </div>
 
-Astrocore Build — многопользовательская 2D-станционная песочница на Rust на
-[Astrocore Engine](https://github.com/Astrocore-Studio/Astrocore-Engine).
-Устройство игровых систем и сценарии NightCity служат референсом при
-переносе механик на движок Astrocore.
+Astrocore Build — Space Station 14 на Rust: многопользовательская игра про космическую станцию на
+[Astrocore Engine](https://github.com/Astrocore-Studio/Astrocore-Engine). Механики, прототипы,
+карты, спрайты и звуки переносятся из
+[Space Station 14](https://github.com/space-wizards/space-station-14); сервер рассчитан на 160+
+игроков.
+
+Сейчас играбелен сценарий Relay Two на первой 2D-основе. Идёт перенос на ядро сущностей и
+компонентов по образцу Robust Toolbox.
+
+## Документация
+
+- [docs/ROADMAP.md](docs/ROADMAP.md) — план работ от текущего состояния до финала.
+- [docs/REFERENCE.md](docs/REFERENCE.md) — ревизии SS14 и RobustToolbox, с которых идёт перенос.
+- [2d/README.md](2d/README.md) — запуск, управление и редактор карт Relay Two.
+- [docs/ADR](docs/ADR) — решения Build; решения движка — в
+  [Astrocore Engine](https://github.com/Astrocore-Studio/Astrocore-Engine/tree/main/docs/ADR).
+- [THIRD_PARTY.md](THIRD_PARTY.md) — лицензии и авторство перенесённого кода и ассетов.
 
 ## Запуск
 
-Установите Rust stable и откройте чекауты Build и Engine в соседних каталогах
-`Astrocore-Build` и `Astrocore-Engine`. Выполните из корня Build:
+Установите Rust stable. Build подключает Engine из соседнего каталога `../Astrocore-Engine`;
+нужную ревизию (файл `engine.rev`) туда кладёт скрипт:
+
+```bash
+scripts/fetch_engine.sh
+```
+
+Затем из корня Build:
 
 ```bash
 cargo play
 ```
 
-Команда собирает 2D-клиент и запускает локальный сервер, который завершится
-вместе с клиентом. На Windows из этого же каталога доступен `play.cmd`.
+Команда собирает 2D-клиент и запускает локальный сервер, который завершится вместе с клиентом.
+На Windows доступен `play.cmd`. Отдельный сервер, второй клиент и редактор карт —
+`cargo serve2d`, `cargo client2d` и `cargo editor2d`.
 
-Для отдельного сервера, подключения второго клиента и редактирования карт
-есть команды `cargo serve2d`, `cargo client2d` и `cargo editor2d`.
-[Параметры запуска, управление и сценарий Relay Two](2d/README.md)
-
-## Сборка и проверка
+## Проверка перед коммитом
 
 ```bash
-cargo build --locked --bin astrocore-2d-server
-cargo build --locked --features client
 cargo fmt --all -- --check
-cargo clippy --locked --workspace --all-targets --features client -- -D warnings
-cargo test --locked --workspace --features client
 ```
 
-В корневом workspace находятся 2D-сервер, клиент и редактор, а также
-библиотеки атмосферы и питания. Старые документы в `docs/` фиксируют
-историю 3D-этапа и переноса механик. Актуальные команды и формат карт
-описаны в документации Relay Two.
+```bash
+cargo clippy --locked --workspace --all-targets --features client,prototype-import -- -D warnings
+```
+
+```bash
+cargo test --locked --workspace --features client,prototype-import
+```
 
 ## Лицензии
 

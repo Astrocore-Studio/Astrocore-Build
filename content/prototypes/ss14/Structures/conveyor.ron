@@ -1,4 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/conveyor.yml. Создано scripts/gen_items.py.
-[
-    (id: "ConveyorBeltAssembly", parents: ["BaseItem"], name: Some("conveyor belt assembly"), description: Some("A conveyor belt assembly. Used to construct a conveyor belt.")),
-]

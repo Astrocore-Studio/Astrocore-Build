@@ -1,5 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Markers/Spawners/human.yml. Создано scripts/gen_items.py.
-[
-    (id: "SpawnMobSyndicateFootSoldier", parents: ["MarkerBase"], name: Some("syndicate footsoldier spawner")),
-    (id: "SpawnMobSyndicateFootsoldierPilot", parents: ["SpawnMobSyndicateFootSoldier"], name: Some("syndicate shuttle pilot spawner")),
-]

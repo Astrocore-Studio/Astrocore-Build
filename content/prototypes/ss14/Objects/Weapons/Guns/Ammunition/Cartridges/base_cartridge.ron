@@ -1,4 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Weapons/Guns/Ammunition/Cartridges/base_cartridge.yml. Создано scripts/gen_items.py.
-[
-    (id: "BaseCartridge", parents: ["BaseItem", "BaseItemDestructible"], abstract: true),
-]

@@ -1,6 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Weapons/Guns/Ammunition/Boxes/toy.yml. Создано scripts/gen_items.py.
-[
-    (id: "BoxCartridgeCap", parents: ["BaseMagazineBoxMagnum"], name: Some("cap gun cartridge box"), description: Some("A cardboard box of cap gun cartridges."), components: {"Sprite": (sprite: "Objects/Weapons/Guns/Ammunition/Boxes/magnum.rsi", state: "base"), "Item": (size: "Small"), "Magazine": (cartridge: "CartridgeCap", capacity: 20), "BallisticAmmoProvider": ()}),
-    (id: "BoxDonkSoftBase", parents: ["BaseItem"], abstract: true, name: Some("toy ammunition box")),
-    (id: "BoxDonkSoftBox", parents: ["BoxDonkSoftBase"], name: Some("foam dart box"), description: Some("A cardboard box of foam darts."), components: {"Sprite": (sprite: "Objects/Storage/boxes.rsi", state: "boxwidetoy"), "Item": (size: "Small"), "Magazine": (cartridge: "BulletFoam", capacity: 40), "BallisticAmmoProvider": ()}),
-]

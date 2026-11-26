@@ -1,5 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/StatusEffects/damage.yml. Создано scripts/gen_items.py.
-[
-    (id: "StatusEffectDamageModifierBase", parents: ["StatusEffectBase"], abstract: true, description: Some("Status effect for modifying incoming sources of damage. You shouldn't be seeing this.")),
-    (id: "StatusEffectDamageModifierDebuffBase", parents: ["StatusEffectDamageModifierBase"], abstract: true),
-]

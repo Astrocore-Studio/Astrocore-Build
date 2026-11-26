@@ -1,4 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/mindswap_spell.yml. Создано scripts/gen_items.py.
-[
-    (id: "ActionMindSwap", parents: ["BaseEntitySpellAction"], name: Some("Mind Swap"), description: Some("Exchange bodies with another person!")),
-]

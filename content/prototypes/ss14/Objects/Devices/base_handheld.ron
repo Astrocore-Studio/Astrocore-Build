@@ -1,4 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Devices/base_handheld.yml. Создано scripts/gen_items.py.
-[
-    (id: "BaseHandheldComputer", parents: ["BaseItem", "PowerCellSlotSmallItem"], abstract: true),
-]

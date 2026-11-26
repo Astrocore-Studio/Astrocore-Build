@@ -1,4 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Specific/Xenoarchaeology/artifact_equipment.yml. Создано scripts/gen_items.py.
-[
-    (id: "HandheldArtifactContainer", parents: ["BaseStorageItem", "StructureHealthContainerWeak"], name: Some("handheld artifact container"), description: Some("A handheld case used to safely contain and move small artifacts."), components: {"Sprite": (sprite: "Objects/Storage/artifact_container.rsi", state: "icon"), "Item": (size: "Huge"), "Storage": (grid: ["0,0,1,1"], maxItemSize: "Normal", whitelist: (tags: [], components: ["XenoArtifact"])), "MeleeWeapon": (damage: (Blunt: 12.0), attackRate: 1.0, bluntStaminaDamageFactor: 0.5)}),
-]

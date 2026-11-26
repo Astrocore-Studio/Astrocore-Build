@@ -1,7 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/chemistry.yml. Создано scripts/gen_items.py.
-[
-    (id: "CrateChemistryD", parents: ["CrateChemistrySecure"], name: Some("chemicals crate (D)"), description: Some("Contains chemicals from the D-Block of elements. Requires Chemistry access to open.")),
-    (id: "CrateChemistryP", parents: ["CrateChemistrySecure"], name: Some("chemicals crate (P)"), description: Some("Contains chemicals from the P-Block of elements. Requires Chemistry access to open.")),
-    (id: "CrateChemistryS", parents: ["CrateChemistrySecure"], name: Some("chemicals crate (S)"), description: Some("Contains chemicals from the S-Block of elements. Requires Chemistry access to open.")),
-    (id: "CratePlantBGone", parents: ["CrateGenericSteel"], name: Some("bulk Plant-B-Gone crate"), description: Some("From Monstano. \"Unwanted Weeds, Meet Your Celestial Roundup!\"")),
-]

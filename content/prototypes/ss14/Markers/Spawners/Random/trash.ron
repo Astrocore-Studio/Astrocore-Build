@@ -1,5 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Markers/Spawners/Random/trash.yml. Создано scripts/gen_items.py.
-[
-    (id: "RandomBananaPeel90", parents: ["MarkerBase"], name: Some("random banana peel spawner")),
-    (id: "RandomSpawner100", parents: ["RandomSpawner"]),
-]

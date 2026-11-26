@@ -1,9 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/Wallmounts/Signs/flags.yml. Создано scripts/gen_items.py.
-[
-    (id: "BaseFlag", parents: ["BaseSignWeak"], abstract: true),
-    (id: "BlankFlag", parents: ["BaseFlag"], name: Some("blank flag"), description: Some("Some piece of white cloth. Definitely not the flag of France.")),
-    (id: "LGBTQFlag", parents: ["BaseFlag"], name: Some("LGBTQ flag"), description: Some("\"Be gay do crime\" flag.")),
-    (id: "NTFlag", parents: ["BaseFlag"], name: Some("Nanotrasen flag"), description: Some("Glory to NT! Wait, they really made a flag for a corporation?")),
-    (id: "PirateFlag", parents: ["BaseFlag"], name: Some("pirate flag"), description: Some("Raise the jolly roger, scallywags!")),
-    (id: "SyndieFlag", parents: ["BaseFlag"], name: Some("syndicate flag"), description: Some("Smells bloody. Death to NT!")),
-]

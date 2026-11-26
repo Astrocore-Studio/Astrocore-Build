@@ -1,4 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/Machines/anomaly_sync.yml. Создано scripts/gen_items.py.
-[
-    (id: "MachineAnomalySynchronizer", parents: ["BaseMachinePowered", "ConstructibleMachine", "BaseConstructibleMachineDestructible"], name: Some("anomaly synchronizer"), description: Some("A sophisticated device that reads changes in anomalous waves, and converts them into energy signals.")),
-]

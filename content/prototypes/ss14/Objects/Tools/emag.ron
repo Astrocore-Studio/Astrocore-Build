@@ -1,5 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Tools/emag.yml. Создано scripts/gen_items.py.
-[
-    (id: "Emag", parents: ["EmagUnlimited"]),
-    (id: "EmagUnlimited", parents: ["BaseItem", "BaseSyndicateContraband"], name: Some("cryptographic sequencer"), description: Some("The all-in-one hacking solution. Friend of any syndicate. The iconic EMAG.")),
-]

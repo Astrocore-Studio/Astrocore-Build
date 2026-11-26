@@ -1,8 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/Lighting/strobe_lighting.yml. Создано scripts/gen_items.py.
-[
-    (id: "AlwaysPoweredStrobeLight", parents: ["BaseLightHousingDestructible"], name: Some("strobe"), description: Some("UH?! Sorry, all I can hear is WEE-OOO-WEE-OOO!")),
-    (id: "PoweredStrobeLightEmpty", parents: ["AlwaysPoweredStrobeLight"], name: Some("strobe"), description: Some("UH?! Sorry, all I can hear is WEE-OOO-WEE-OOO!")),
-    (id: "PoweredStrobeLightEpsilon", parents: ["PoweredStrobeLightEmpty"]),
-    (id: "PoweredStrobeLightPolice", parents: ["PoweredStrobeLightEmpty"]),
-    (id: "PoweredStrobeLightSiren", parents: ["PoweredStrobeLightEmpty"]),
-]

@@ -1,8 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Weapons/Bombs/funny.yml. Создано scripts/gen_items.py.
-[
-    (id: "HotPotato", parents: ["BaseItem", "BaseSyndicateContraband"], name: Some("hot potato"), description: Some("Once activated, you can't drop this time bomb - hit someone else with it to save yourself! Don't burn your hands!"), components: {"Sprite": (sprite: "Objects/Weapons/Bombs/hot_potato.rsi", state: "icon"), "Item": (size: "Small"), "Explosive": (explosionType: "Default", totalIntensity: 100.0, intensitySlope: 25.0, maxIntensity: 50.0), "TimerTrigger": (delay: 120.0), "MeleeWeapon": (damage: (Blunt: 5.0), attackRate: 1.0, bluntStaminaDamageFactor: 0.5)}),
-    (id: "HotPotatoEffect", categories: ["HideSpawnMenu"]),
-    (id: "SnapPopExplosive", parents: ["SnapPop"]),
-    (id: "TrashBananaPeelExplosive", parents: ["TrashBananaPeel"], components: {"Sprite": (sprite: "Objects/Specific/Hydroponics/banana.rsi", state: "peel"), "Item": (size: "Small"), "Clothing": (slots: ["head"]), "Solution": (maxVol: 7.5, canReact: true, reagents: (PulpedBananaPeel: 4.0)), "Edible": (transferAmount: 5.0, delay: 1.0, forceFeedDelay: 3.0, destroyOnEmpty: true), "Explosive": (explosionType: "Default", totalIntensity: 20.0, intensitySlope: 3.0, maxIntensity: 3.4), "Volatile": (start: -1.0, explode: 10.0), "Tag": (tags: ["Recyclable", "Trash", "BananaPeel"])}),
-    (id: "TrashBananaPeelExplosiveUnarmed", parents: ["BaseItem"], name: Some("banana"), description: Some("There's something unusual about this banana.")),
-]

@@ -1,6 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Weapons/Bombs/firebomb.yml. Создано scripts/gen_items.py.
-[
-    (id: "FireBomb", parents: ["BaseItem", "BaseItemDestructible", "BaseMinorContraband"], name: Some("fire bomb"), description: Some("A weak, improvised incendiary device."), components: {"Sprite": (sprite: "Objects/Weapons/Bombs/ied.rsi", state: "base"), "Item": (size: "Small"), "Explosive": (explosionType: "FireBomb", totalIntensity: 25.0, intensitySlope: 5.0, maxIntensity: 3.0), "TimerTrigger": (delay: 5.0)}),
-    (id: "FireBombEmpty", parents: ["DrinkColaCanEmpty", "BaseMinorContraband"], name: Some("fire bomb"), description: Some("A weak, improvised incendiary device. This one has no fuel.")),
-    (id: "FireBombFuel", parents: ["FireBombEmpty"], description: Some("A weak, improvised incendiary device. This one is missing wires.")),
-]

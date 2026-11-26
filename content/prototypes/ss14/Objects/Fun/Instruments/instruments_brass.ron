@@ -1,8 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Fun/Instruments/instruments_brass.yml. Создано scripts/gen_items.py.
-[
-    (id: "BaseBrassInstrument", parents: ["BaseHandheldInstrument"], abstract: true),
-    (id: "EuphoniumInstrument", parents: ["BaseBrassInstrument"], name: Some("euphonium"), description: Some("A baby tuba? A Baritone? Whatever it is, it's a pretty cool mess of pipes."), components: {"Sprite": (sprite: "Objects/Fun/Instruments/euphonium.rsi", state: "icon"), "Item": (size: "Normal"), "Tag": (tags: ["BrassInstrument"])}),
-    (id: "FrenchHornInstrument", parents: ["BaseBrassInstrument"], name: Some("french horn"), description: Some("The fact that holding it involves using your hand to muffle it may suggest something about its sound."), components: {"Sprite": (sprite: "Objects/Fun/Instruments/frenchhorn.rsi", state: "icon"), "Item": (size: "Normal"), "Tag": (tags: ["BrassInstrument"])}),
-    (id: "TromboneInstrument", parents: ["BaseBrassInstrument"], name: Some("trombone"), description: Some("Everyone's favorite sliding brass instrument."), components: {"Sprite": (sprite: "Objects/Fun/Instruments/trombone.rsi", state: "icon"), "Item": (size: "Normal"), "Tag": (tags: ["BrassInstrument"])}),
-    (id: "TrumpetInstrument", parents: ["BaseBrassInstrument"], name: Some("trumpet"), description: Some("The favorite instrument of jazz musicians and egotistical middle schoolers."), components: {"Sprite": (sprite: "Objects/Fun/Instruments/trumpet.rsi", state: "icon"), "Item": (size: "Normal"), "Tag": (tags: ["BrassInstrument"])}),
-]

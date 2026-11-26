@@ -1,6 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Consumable/Food/breakfast.yml. Создано scripts/gen_items.py.
-[
-    (id: "FoodBreakfastAmerican", parents: ["FoodBreakfastBase"], name: Some("full american breakfast"), description: Some("A huge plate of protein and carbs, more likely to put you back in bed than get you out of it. Oh, what fresh hell is this?")),
-    (id: "FoodBreakfastBase", parents: ["FoodInjectableBase"], abstract: true, description: Some("A full breakfast, rise and shine!")),
-    (id: "FoodBreakfastEnglish", parents: ["FoodBreakfastBase"], name: Some("full english breakfast"), description: Some("A huge plate of protein and carbs, more likely to put you back in bed than get you out of it. Don't mention the war!")),
-]

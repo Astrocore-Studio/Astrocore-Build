@@ -1,5 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/Power/Generation/PA/particles.yml. Создано scripts/gen_items.py.
-[
-    (id: "AntiParticlesProjectile", parents: ["ParticlesProjectile"], name: Some("anti particles"), description: Some("Accelerated negative particles."), categories: ["HideSpawnMenu"]),
-    (id: "ParticlesProjectile", parents: ["BaseBullet"], name: Some("particles"), description: Some("Accelerated particles."), categories: ["HideSpawnMenu"]),
-]

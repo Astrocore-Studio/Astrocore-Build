@@ -1,4 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/base.yml. Создано scripts/gen_items.py.
-[
-    (id: "BaseHungerThirstSlowdown", abstract: true),
-]

@@ -1,5 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/Storage/base_cabinet.yml. Создано scripts/gen_items.py.
-[
-    (id: "BaseItemCabinet", abstract: true),
-    (id: "BaseItemCabinetGlass", parents: ["BaseItemCabinet"], abstract: true),
-]

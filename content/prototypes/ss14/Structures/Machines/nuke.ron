@@ -1,6 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/Machines/nuke.yml. Создано scripts/gen_items.py.
-[
-    (id: "NuclearBomb", parents: ["BaseStructure", "StructureWheeled", "BaseMajorContraband"], name: Some("nuclear fission explosive"), description: Some("You probably shouldn't stick around to see if this is armed.")),
-    (id: "NuclearBombKeg", parents: ["StorageTankBig"], name: Some("nuclear fission explosive"), description: Some("You probably shouldn't stick around to see if this is armed. It has a tap on the side.")),
-    (id: "NuclearBombUnanchored", parents: ["NuclearBomb"]),
-]

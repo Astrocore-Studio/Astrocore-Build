@@ -1,5 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Weapons/Guns/Ammunition/Cartridges/heavy_rifle.yml. Создано scripts/gen_items.py.
-[
-    (id: "BaseCartridgeHeavyRifle", parents: ["BaseCartridge", "BaseSecurityContraband"], abstract: true, name: Some("cartridge (.10 rifle)")),
-    (id: "CartridgeMinigun", parents: ["BaseCartridgeHeavyRifle"], name: Some("cartridge (.10 rifle)")),
-]

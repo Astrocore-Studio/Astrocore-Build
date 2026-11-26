@@ -1,4 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Specific/Service/barber.yml. Создано scripts/gen_items.py.
-[
-    (id: "BarberScissors", parents: ["BaseItem"], name: Some("barber scissors"), description: Some("Is able to reshape the hairstyle of any crew cut to your liking."), components: {"Sprite": (sprite: "Objects/Tools/scissors.rsi", state: "icon"), "Item": (size: "Small"), "Tool": (qualities: ["Shearing"]), "MeleeWeapon": (damage: (Piercing: 6.0), attackRate: 1.0, bluntStaminaDamageFactor: 0.5)}),
-]

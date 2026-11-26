@@ -1,7 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Consumable/Food/egg.yml. Создано scripts/gen_items.py.
-[
-    (id: "Eggshells", parents: ["BaseItem"], name: Some("eggshells"), description: Some("You're walkin' on 'em bud.")),
-    (id: "FoodEgg", parents: ["FoodEggBase"], name: Some("egg")),
-    (id: "FoodEggBase", parents: ["SolutionVeryTiny", "FoodInjectableBase", "ItemHeftyBase"], abstract: true, description: Some("An egg!")),
-    (id: "FoodEggBoiled", parents: ["FoodEggBase"], name: Some("boiled egg"), description: Some("A delicious hardboiled egg.")),
-]

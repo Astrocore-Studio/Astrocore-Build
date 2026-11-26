@@ -1,4 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/knock_spell.yml. Создано scripts/gen_items.py.
-[
-    (id: "ActionKnock", parents: ["BaseAction"], name: Some("Knock"), description: Some("This spell opens nearby doors.")),
-]

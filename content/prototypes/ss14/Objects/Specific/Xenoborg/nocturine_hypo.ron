@@ -1,4 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Specific/Xenoborg/nocturine_hypo.yml. Создано scripts/gen_items.py.
-[
-    (id: "NocturineHypo", parents: ["BorgHypo", "BaseXenoborgContraband"], name: Some("nocturine hypo"), description: Some("A self-refilling injector for rapid administration of nocturine to victms.")),
-]

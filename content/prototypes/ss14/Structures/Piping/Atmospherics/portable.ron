@@ -1,7 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/Piping/Atmospherics/portable.yml. Создано scripts/gen_items.py.
-[
-    (id: "PortableScrubber", parents: ["BaseMachinePowered", "SmallConstructibleMachine", "StructureWheeled", "BaseSmallConstructibleMachineDestructible"], name: Some("portable scrubber"), description: Some("It scrubs, portably!")),
-    (id: "SpaceHeater", parents: ["BaseMachinePowered", "ConstructibleMachine", "BaseConstructibleMachineDestructible"], name: Some("space heater"), description: Some("A bluespace technology device that alters local temperature. Commonly referred to as a \"Space Heater\".")),
-    (id: "SpaceHeaterAnchored", parents: ["SpaceHeater"]),
-    (id: "SpaceHeaterEnabled", parents: ["SpaceHeaterAnchored"]),
-]

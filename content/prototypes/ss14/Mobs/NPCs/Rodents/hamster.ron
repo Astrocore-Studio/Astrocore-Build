@@ -1,4 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Mobs/NPCs/Rodents/hamster.yml. Создано scripts/gen_items.py.
-[
-    (id: "MobHamster", parents: ["SimpleMobBase", "MobCombat", "StripableInventoryBase", "BaseSlicingRefinableButchering", "MobNightVision"], name: Some("hamster"), description: Some("A cute, fluffy, robust hamster.")),
-]

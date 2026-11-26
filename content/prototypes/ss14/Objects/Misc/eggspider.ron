@@ -1,4 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Misc/eggspider.yml. Создано scripts/gen_items.py.
-[
-    (id: "EggSpider", parents: ["BaseItem"], name: Some("egg spider"), description: Some("Is it a gemstone? Is it an egg? It looks expensive.")),
-]

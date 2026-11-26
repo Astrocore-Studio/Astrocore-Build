@@ -1,6 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Devices/Electronics/timer.yml. Создано scripts/gen_items.py.
-[
-    (id: "BrigTimerElectronics", parents: ["SignalTimerElectronics"], name: Some("brig timer electronics")),
-    (id: "ScreenTimerElectronics", parents: ["SignalTimerElectronics"], name: Some("screen timer electronics")),
-    (id: "SignalTimerElectronics", parents: ["BaseElectronics"], name: Some("signal timer electronics"), description: Some("An electronics board used in timer circuitry. Looks like you could use a screwdriver to change the board type."), components: {"Sprite": (sprite: "Objects/Misc/module.rsi", state: "charger_APC"), "Item": (size: "Small"), "Tag": (tags: ["TimerSignalElectronics"]), "Circuitboard": ()}),
-]

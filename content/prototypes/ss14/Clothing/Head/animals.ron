@@ -1,8 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Clothing/Head/animals.yml. Создано scripts/gen_items.py.
-[
-    (id: "ClothingHeadHatAnimalCat", parents: ["ClothingHeadBase"], name: Some("grey cat hat"), description: Some("A cute and fluffy head of a grey cat.")),
-    (id: "ClothingHeadHatAnimalCatBlack", parents: ["ClothingHeadBase"], name: Some("black cat hat"), description: Some("A cute and fluffy head of a black cat."), components: {"Sprite": (sprite: "Clothing/Head/Animals/cat3.rsi", state: "icon"), "Item": (size: "Small"), "Clothing": (slots: ["head"]), "Solution": (maxVol: 30.0, canReact: true, reagents: (Fiber: 15.0)), "Edible": (transferAmount: 5.0, delay: 1.0, forceFeedDelay: 3.0, destroyOnEmpty: true), "Tag": (tags: ["ClothMade", "WhitelistChameleon"])}),
-    (id: "ClothingHeadHatAnimalCatBrown", parents: ["ClothingHeadBase"], name: Some("brown cat hat"), description: Some("A cute and fluffy head of a brown cat.")),
-    (id: "ClothingHeadHatAnimalHeadslime", parents: ["ClothingHeadBase"], name: Some("headslime hat"), description: Some("A green, sticky headslime, you put it on your head."), components: {"Sprite": (sprite: "Clothing/Head/Animals/headslime.rsi", state: "icon"), "Item": (size: "Small"), "Clothing": (slots: ["head"]), "Solution": (maxVol: 30.0, canReact: true, reagents: (Fiber: 15.0)), "Edible": (transferAmount: 5.0, delay: 1.0, forceFeedDelay: 3.0, destroyOnEmpty: true), "Tag": (tags: ["ClothMade", "WhitelistChameleon"])}),
-    (id: "ClothingHeadHatAnimalMonkey", parents: ["ClothingHeadBase"], name: Some("monkey hat"), description: Some("That's a monkey head. It has a hole on a mouth to eat bananas.")),
-]

@@ -1,8 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/revenant.yml. Создано scripts/gen_items.py.
-[
-    (id: "ActionRevenantDefile", parents: ["BaseAction"], name: Some("Defile"), description: Some("Costs 30 Essence.")),
-    (id: "ActionRevenantMalfunction", parents: ["BaseAction"], name: Some("Malfunction"), description: Some("Costs 60 Essence.")),
-    (id: "ActionRevenantOverloadLights", parents: ["BaseAction"], name: Some("Overload Lights"), description: Some("Costs 40 Essence.")),
-    (id: "ActionRevenantShop", parents: ["ActionIntrinsicStore"], name: Some("Shop"), description: Some("Opens the ability shop.")),
-    (id: "AlertEssenceSpriteView", categories: ["HideSpawnMenu"]),
-]

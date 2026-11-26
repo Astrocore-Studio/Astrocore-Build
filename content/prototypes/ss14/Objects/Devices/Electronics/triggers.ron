@@ -1,6 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Devices/Electronics/triggers.yml. Создано scripts/gen_items.py.
-[
-    (id: "SignalTrigger", parents: ["TimerTrigger"], name: Some("signal trigger"), description: Some("Adds a machine link that is triggered by signals.")),
-    (id: "TimerTrigger", parents: ["BaseItem"], name: Some("timer trigger"), description: Some("A configurable timer.")),
-    (id: "VoiceTrigger", parents: ["BaseItem"], name: Some("voice trigger"), description: Some("Adds a machine link that is triggered by vocal keywords.")),
-]

@@ -1,8 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Weapons/Throwable/base_grenades.yml. Создано scripts/gen_items.py.
-[
-    (id: "FragileGrenadeBase", abstract: true),
-    (id: "GrenadeBase", parents: ["BaseItem"], abstract: true),
-    (id: "ImpactGrenadeBase", parents: ["GrenadeBase", "VolatileGrenadeBase"], abstract: true),
-    (id: "TimerGrenadeBase", parents: ["GrenadeBase"], abstract: true),
-    (id: "VolatileGrenadeBase", abstract: true),
-]

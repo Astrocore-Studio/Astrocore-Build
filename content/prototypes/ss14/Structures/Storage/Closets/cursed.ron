@@ -1,4 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/Storage/Closets/cursed.yml. Создано scripts/gen_items.py.
-[
-    (id: "ClosetCursed", parents: ["ClosetSteelBase"], name: Some("closet"), description: Some("A standard-issue Nanotrasen storage unit.")),
-]

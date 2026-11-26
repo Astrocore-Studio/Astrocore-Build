@@ -1,6 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Weapons/Guns/Projectiles/Misc/mobs.yml. Создано scripts/gen_items.py.
-[
-    (id: "BasiliskRay", parents: ["BaseBullet"], name: Some("basilisk ray"), categories: ["HideSpawnMenu"]),
-    (id: "WatcherBolt", parents: ["BaseBullet"], name: Some("watcher bolt"), categories: ["HideSpawnMenu"]),
-    (id: "WatcherBoltMagmawing", parents: ["WatcherBolt"], name: Some("magmawing watcher bolt"), categories: ["HideSpawnMenu"]),
-]

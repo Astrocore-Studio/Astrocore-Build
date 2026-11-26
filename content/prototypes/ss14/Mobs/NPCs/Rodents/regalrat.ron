@@ -1,6 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Mobs/NPCs/Rodents/regalrat.yml. Создано scripts/gen_items.py.
-[
-    (id: "MobRatKing", parents: ["BaseMobRat", "SimpleMobBase", "MobCombat", "BaseSlicingRefinableButchering", "MobNightVision", "BaseMobDestructible", "BaseThirstSlowdown"], name: Some("rat king"), description: Some("He's da rat. He make da roolz.")),
-    (id: "MobRatKingBuff", parents: ["MobRatKing"]),
-    (id: "MobRatServant", parents: ["BaseMobRat", "SimpleMobBase", "MobCombat", "BaseSlicingRefinableButchering", "BaseThirstSlowdown"], name: Some("rat servant"), description: Some("He's da mini rat. He don't make da roolz."), categories: ["HideSpawnMenu"]),
-]

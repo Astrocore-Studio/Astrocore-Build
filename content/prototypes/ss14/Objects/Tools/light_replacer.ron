@@ -1,7 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Tools/light_replacer.yml. Создано scripts/gen_items.py.
-[
-    (id: "EjectBulbs", categories: ["HideSpawnMenu"]),
-    (id: "EjectTubes", categories: ["HideSpawnMenu"]),
-    (id: "LightReplacer", parents: ["BaseItem"], name: Some("light replacer"), description: Some("An item which uses magnets to easily replace broken lights. Refill by adding more lights into the replacer.")),
-    (id: "LightReplacerFilled", parents: ["LightReplacer"], components: {"Sprite": (sprite: "Objects/Specific/Janitorial/light_replacer.rsi", state: "icon"), "Item": (size: "Small"), "Tag": (tags: ["LightReplacer"])}),
-]

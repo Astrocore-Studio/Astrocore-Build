@@ -1,4 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Weapons/Melee/white_cane.yml. Создано scripts/gen_items.py.
-[
-    (id: "WhiteCane", parents: ["BaseItem"], name: Some("white cane"), description: Some("This isn't for you. It's for the people who can't figure out you're blind when you ask if cargo is the bar.")),
-]

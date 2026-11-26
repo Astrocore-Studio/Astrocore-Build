@@ -1,9 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/StatusEffects/traits.yml. Создано scripts/gen_items.py.
-[
-    (id: "ChangelingStatusEffectBase", abstract: true),
-    (id: "TraitStatusEffectBase", parents: ["StatusEffectBase"], abstract: true),
-    (id: "TraitStatusEffectBlinkDyspraxia", parents: ["MobStatusEffectBase", "TraitStatusEffectBase", "ChangelingStatusEffectBase"], name: Some("blink dyspraxia")),
-    (id: "TraitStatusEffectHemophilia", parents: ["BloodstreamStatusEffectBase", "TraitStatusEffectBase", "ChangelingStatusEffectBase"]),
-    (id: "TraitStatusEffectMuted", parents: ["MutedStatusEffectBase", "TraitStatusEffectBase", "ChangelingStatusEffectBase"]),
-    (id: "TraitStatusEffectPainNumbness", parents: ["PainNumbnessStatusEffectBase", "TraitStatusEffectBase"], name: Some("pain numbness")),
-]

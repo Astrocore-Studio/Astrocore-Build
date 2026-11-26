@@ -1,8 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Mobs/NPCs/lavaland.yml. Создано scripts/gen_items.py.
-[
-    (id: "MobWatcherBase", parents: ["SimpleSpaceMobBase", "FlyingMobBase", "BaseSlicingRefinableButchering", "BaseMobDestructible"], abstract: true, name: Some("watcher"), description: Some("It's like it's staring right through you.")),
-    (id: "MobWatcherIcewing", parents: ["MobWatcherBase"], name: Some("icewing watcher")),
-    (id: "MobWatcherLavaland", parents: ["MobWatcherBase"]),
-    (id: "MobWatcherMagmawing", parents: ["MobWatcherBase"], name: Some("magmawing watcher")),
-    (id: "MobWatcherPride", parents: ["MobWatcherBase"], name: Some("pride watcher"), description: Some("This rare subspecies only appears in June.")),
-]

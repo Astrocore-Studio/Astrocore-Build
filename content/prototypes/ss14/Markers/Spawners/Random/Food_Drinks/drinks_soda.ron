@@ -1,4 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Markers/Spawners/Random/Food_Drinks/drinks_soda.yml. Создано scripts/gen_items.py.
-[
-    (id: "RandomDrinkSoda", parents: ["MarkerBase"], name: Some("random soda spawner")),
-]

@@ -1,4 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Weapons/Melee/stunprod.yml. Создано scripts/gen_items.py.
-[
-    (id: "Stunprod", parents: ["BaseItem", "BaseMinorContraband"], name: Some("stun prod"), description: Some("A stun prod for illegal incapacitation.")),
-]

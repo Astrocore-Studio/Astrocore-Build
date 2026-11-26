@@ -1,4 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Interface/admin_tools.yml. Создано scripts/gen_items.py.
-[
-    (id: "AdminCamera", name: Some("admin camera"), description: Some("We are watching you."), categories: ["HideSpawnMenu"]),
-]

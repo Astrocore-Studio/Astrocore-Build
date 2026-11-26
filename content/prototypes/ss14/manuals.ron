@@ -1,8 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/manuals.yml. Создано scripts/gen_items.py.
-[
-    (id: "HoloparasiteInfo", parents: ["BaseItem"], name: Some("holoparasite terms and conditions"), description: Some("A tiny volumetric display for documents, makes one wonder if Cybersun's legal budget is way too high.")),
-    (id: "PaperAgrichemManual", parents: ["Paper"], name: Some("NT \"AgriChem Is Fun\" manual"), description: Some("The single sheet of instructions that came in the kit.")),
-    (id: "PaperWrittenAMEScribbles", parents: ["Paper"]),
-    (id: "PaperWrittenCombatBakeryKit", parents: ["Paper"], name: Some("combat bakery kit instructions"), description: Some("Eat note after reading.")),
-    (id: "PaperWrittenSyndicateInstructions", parents: ["Paper"], name: Some("covert operations reinforcement manual"), description: Some("A shorthand manual that details the essentials of your latest mission. Destroy after reading.")),
-]

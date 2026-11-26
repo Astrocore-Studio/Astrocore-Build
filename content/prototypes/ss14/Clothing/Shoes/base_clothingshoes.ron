@@ -1,8 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Clothing/Shoes/base_clothingshoes.yml. Создано scripts/gen_items.py.
-[
-    (id: "ClothingShoesBase", parents: ["SolutionFood", "SolutionToolNormal", "Clothing"], abstract: true),
-    (id: "ClothingShoesBaseButcherable", parents: ["ClothingShoesBase", "BaseSlicingRefinable"], abstract: true),
-    (id: "ClothingShoesBaseWinterBoots", parents: ["ClothingShoesBaseButcherable", "TemperatureProtectionMinimal"], abstract: true, description: Some("Fluffy boots to help survive even the coldest of winters.")),
-    (id: "ClothingShoesBootsSecFilled", abstract: true),
-    (id: "ClothingShoesMilitaryBase", parents: ["ClothingShoesBase", "ClothingSlotBase"], abstract: true),
-]

@@ -1,6 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Specific/Robotics/mmi.yml. Создано scripts/gen_items.py.
-[
-    (id: "MMI", parents: ["BaseItem"], name: Some("man-machine interface"), description: Some("A machine able to facilitate communication between a biological brain and electronics, enabling crew to continue to provide value after work-related incidents.")),
-    (id: "MMIFilled", parents: ["MMI"]),
-    (id: "PositronicBrain", parents: ["BaseItem"], name: Some("positronic brain"), description: Some("An artificial brain capable of spontaneous neural activity.")),
-]

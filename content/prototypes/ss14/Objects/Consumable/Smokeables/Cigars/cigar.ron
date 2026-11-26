@@ -1,7 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Consumable/Smokeables/Cigars/cigar.yml. Создано scripts/gen_items.py.
-[
-    (id: "Cigar", parents: ["BaseCigar"], name: Some("cigar"), description: Some("A brown roll of tobacco and... well, you're not quite sure.")),
-    (id: "CigarGold", parents: ["Cigar"], name: Some("premium Havanian cigar"), description: Some("A cigar fit for only the best of the best."), components: {"Sprite": (sprite: "Objects/Consumable/Smokeables/Cigars/cigar-gold.rsi", state: "unlit-icon"), "Item": (size: "Tiny"), "Clothing": (slots: ["mask"]), "Solution": (maxVol: 30.0, canReact: true, reagents: (Nicotine: 10.0)), "Tag": (tags: ["Cigar", "Trash"]), "Smokable": ()}),
-    (id: "CigarGoldSpent", parents: ["CigarGold"]),
-    (id: "CigarSpent", parents: ["Cigar"]),
-]

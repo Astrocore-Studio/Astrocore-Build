@@ -1,4 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Devices/Circuitboards/Machine/holopad.yml. Создано scripts/gen_items.py.
-[
-    (id: "HolopadMachineCircuitboard", parents: ["BaseMachineCircuitboard"], name: Some("holopad machine board"), description: Some("A machine printed circuit board for a holopad.")),
-]

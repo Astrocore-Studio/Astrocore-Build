@@ -1,4 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/test.yml. Создано scripts/gen_items.py.
-[
-    (id: "MobPathfindDummy", parents: ["MobXenoRouny"], name: Some("pathfind dummy")),
-]

@@ -1,9 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Markers/Spawners/nuke_ops_spawners.yml. Создано scripts/gen_items.py.
-[
-    (id: "NukeOpsAmmoSpawner", parents: ["MarkerBase"], name: Some("nuke ops ammo spawner")),
-    (id: "NukeOpsGrenadeSpawner", parents: ["MarkerBase"], name: Some("nuke ops grenade spawner")),
-    (id: "NukeOpsLootSpawner", parents: ["MarkerBase"], name: Some("nuke ops loot spawner")),
-    (id: "NukeOpsMedkitBruteSpawner", parents: ["MarkerBase"], name: Some("nuke ops brute medkit spawner")),
-    (id: "NukeOpsMedkitSpawner", parents: ["MarkerBase"], name: Some("nuke ops general medkit spawner")),
-    (id: "NukeOpsWeaponSpawner", parents: ["MarkerBase"], name: Some("nuke ops weapon spawner")),
-]

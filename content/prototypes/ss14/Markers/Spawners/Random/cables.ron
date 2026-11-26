@@ -1,6 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Markers/Spawners/Random/cables.yml. Создано scripts/gen_items.py.
-[
-    (id: "RandomCableApcExtensionSpawner", parents: ["MarkerBase"], name: Some("LV power cable spawner")),
-    (id: "RandomCableHVSpawner", parents: ["MarkerBase"], name: Some("HV power cable spawner")),
-    (id: "RandomCableMVSpawner", parents: ["MarkerBase"], name: Some("MV power cable spawner")),
-]

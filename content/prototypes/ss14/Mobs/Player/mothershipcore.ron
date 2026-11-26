@@ -1,6 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Mobs/Player/mothershipcore.yml. Создано scripts/gen_items.py.
-[
-    (id: "ActionXenoborgCameraMonitor", parents: ["BaseAGhostAction"], name: Some("Xenoborgs Camera Monitor"), description: Some("View the Xenoborgs Camera Monitor")),
-    (id: "ActionXenoborgControlMonitor", parents: ["BaseAGhostAction"], name: Some("Xenoborgs Control Console"), description: Some("View the Xenoborgs Control Console")),
-    (id: "MothershipCore", parents: ["BaseControllable", "BaseStructure", "StructureHealthMachineStrong"], name: Some("mothership core"), description: Some("A sentient machine that can produce Xenoborgs. Without this the Xenoborgs are doomed.")),
-]

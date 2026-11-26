@@ -1,8 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/Wallmounts/Storage/Cabinets/fireaxe_cabinet.yml. Создано scripts/gen_items.py.
-[
-    (id: "FireAxeCabinet", parents: ["FireAxeCabinetConstructed"], name: Some("fire axe cabinet"), description: Some("There is a small label that reads \"For Emergency use only\" along with details for safe use of the axe. As if.")),
-    (id: "FireAxeCabinetConstructed", parents: ["BaseWallmountCabinetGlass", "StructureHealthContainerStrong"], name: Some("fire axe cabinet"), description: Some("There is a small label that reads \"For Emergency use only\" along with details for safe use of the axe. As if.")),
-    (id: "FireAxeCabinetFilled", parents: ["FireAxeCabinet"]),
-    (id: "FireAxeCabinetFilledOpen", parents: ["FireAxeCabinetFilled", "FireAxeCabinetOpen"]),
-    (id: "FireAxeCabinetOpen", parents: ["FireAxeCabinet"]),
-]

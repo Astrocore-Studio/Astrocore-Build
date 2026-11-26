@@ -1,9 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Weapons/Melee/spear.yml. Создано scripts/gen_items.py.
-[
-    (id: "Spear", parents: ["BaseItem", "SolutionDart", "BaseMinorContraband"], name: Some("spear"), description: Some("Definition of a Classic. Keeping murder affordable since 200,000 BCE."), components: {"Sprite": (sprite: "Objects/Weapons/Melee/spear.rsi", state: "spear"), "Item": (size: "Ginormous"), "Clothing": (slots: ["back", "suitstorage"]), "Tool": (qualities: ["Slicing"]), "Solution": (maxVol: 2.0, canReact: true, reagents: ()), "SolutionTransfer": (amount: 5.0, max: 2.0), "Refillable": (), "MeleeWeapon": (damage: (Piercing: 12.0), attackRate: 1.0, bluntStaminaDamageFactor: 0.5), "Tag": (tags: ["Spear", "ScurretWearable"])}),
-    (id: "SpearBone", parents: ["Spear"], name: Some("bone spear"), description: Some("A spear made of bones.")),
-    (id: "SpearPlasma", parents: ["Spear"], name: Some("plasma spear"), description: Some("A spear with a plasma shard as a tip.")),
-    (id: "SpearReinforced", parents: ["Spear"], name: Some("reinforced spear"), description: Some("A spear with a reinforced glass shard as a tip.")),
-    (id: "SpearSharkMinnow", parents: ["Spear"], name: Some("sharkminnow tooth spear"), description: Some("A spear with a sharkminnow tooth as a tip.")),
-    (id: "SpearUranium", parents: ["Spear"], name: Some("uranium spear"), description: Some("A spear with a uranium shard as a tip.")),
-]

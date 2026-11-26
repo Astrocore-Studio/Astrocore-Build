@@ -1,6 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/projectile_spells.yml. Создано scripts/gen_items.py.
-[
-    (id: "ActionFireball", parents: ["BaseAction"], name: Some("Fireball"), description: Some("Fires an explosive fireball towards the clicked location.")),
-    (id: "ActionFireballII", parents: ["ActionFireball"], name: Some("Fireball II"), description: Some("Fires a fireball, but faster!")),
-    (id: "ActionFireballIII", parents: ["ActionFireball"], name: Some("Fireball III"), description: Some("The fastest fireball in the west!")),
-]

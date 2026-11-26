@@ -1,4 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Weapons/Guns/Projectiles/Energy/special.yml. Создано scripts/gen_items.py.
-[
-    (id: "EmitterBolt", parents: ["BaseBullet"], name: Some("emitter bolt"), categories: ["HideSpawnMenu"]),
-]

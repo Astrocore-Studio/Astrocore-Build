@@ -1,7 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Weapons/Guns/Projectiles/Explosives/grenade.yml. Создано scripts/gen_items.py.
-[
-    (id: "PelletClusterIncendiary", parents: ["BaseBulletIncendiary"], name: Some("pellet (ball, incendiary)"), categories: ["HideSpawnMenu"]),
-    (id: "PelletClusterLessLethal", parents: ["BaseBullet"], name: Some("pellet (ball, less lethal)"), categories: ["HideSpawnMenu"]),
-    (id: "PelletClusterLethal", parents: ["BaseBullet"], name: Some("pellet (ball, lethal)"), categories: ["HideSpawnMenu"]),
-    (id: "PelletClusterRubber", parents: ["BaseBullet"], name: Some("pellet (ball, rubber)"), categories: ["HideSpawnMenu"]),
-]

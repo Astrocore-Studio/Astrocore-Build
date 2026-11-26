@@ -1,7 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Markers/Spawners/Mobs/carp.yml. Создано scripts/gen_items.py.
-[
-    (id: "SpawnMobCarp", parents: ["MarkerBase"], name: Some("Space Carp Spawner")),
-    (id: "SpawnMobCarpHolo", parents: ["MarkerBase"], name: Some("Holocarp Spawner")),
-    (id: "SpawnMobCarpMagic", parents: ["MarkerBase"], name: Some("Magicarp Spawner")),
-    (id: "SpawnMobShark", parents: ["MarkerBase"], name: Some("Space Sharkminnow Spawner")),
-]

@@ -1,4 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Specific/Medical/randompill.yml. Создано scripts/gen_items.py.
-[
-    (id: "StrangePill", parents: ["Pill"], name: Some("strange pill"), description: Some("This unusual pill bears no markings. There's no telling what it contains."), components: {"Sprite": (sprite: "Objects/Specific/Chemistry/pills.rsi", state: "pill"), "Item": (size: "Tiny"), "Solution": (maxVol: 20.0, canReact: false, reagents: ()), "Edible": (transferAmount: 1000.0, delay: 0.6, forceFeedDelay: 2.0, destroyOnEmpty: true), "Pill": (), "Tag": (tags: ["Pill"])}),
-]

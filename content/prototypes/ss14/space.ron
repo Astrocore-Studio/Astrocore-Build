@@ -1,9 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/space.yml. Создано scripts/gen_items.py.
-[
-    (id: "CrateEvaKit", parents: ["CrateEVASecure"], name: Some("EVA kit"), description: Some("A set consisting of two prestigious EVA suits and helmets. Requires Command or External access to open.")),
-    (id: "CrateSpaceGyroscope", parents: ["CrateEngineering"], name: Some("gyroscope crate"), description: Some("Contains a gyroscope flatpack.")),
-    (id: "CrateSpaceJetpack", parents: ["CrateGenericSteel"], name: Some("jetpack crate"), description: Some("Two jetpacks for those who don't know how to use fire extinguishers.")),
-    (id: "CrateSpaceMiniJetpack", parents: ["CrateGenericSteel"], name: Some("mini jetpack crate"), description: Some("Two mini jetpacks for those who want an extra challenge.")),
-    (id: "CrateSpaceShuttlePower", parents: ["CrateEngineeringSecure"], name: Some("shuttle powering crate"), description: Some("A crate containing all needs for shuttle powering.")),
-    (id: "CrateSpaceThruster", parents: ["CrateEngineering"], name: Some("thruster crate"), description: Some("Contains a thruster flatpack.")),
-]

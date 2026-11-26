@@ -1,6 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Mobs/NPCs/Spiders/base.yml. Создано scripts/gen_items.py.
-[
-    (id: "MobSpiderAngryBase", abstract: true),
-    (id: "MobSpiderBase", parents: ["SimpleMobBase", "BaseMobHemocyanin", "MobCombat", "BaseSlicingRefinableButchering", "MobNightVision", "BaseMobDestructible"], abstract: true),
-    (id: "SolutionVenomSpider", parents: ["SolutionWeapon", "SolutionTiny"], categories: ["HideSpawnMenu"]),
-]

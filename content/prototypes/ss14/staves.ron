@@ -1,6 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/staves.yml. Создано scripts/gen_items.py.
-[
-    (id: "ActionRgbLight", parents: ["BaseAction"]),
-    (id: "AnimationStaff", parents: ["BaseItem", "BaseMagicalContraband"], name: Some("staff of animation"), description: Some("Brings inanimate objects to life!")),
-    (id: "RGBStaff", parents: ["BaseItem"], name: Some("RGB staff"), description: Some("Helps fix the underabundance of RGB gear on the station.")),
-]

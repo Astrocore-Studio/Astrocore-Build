@@ -1,5 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Mobs/NPCs/miscellaneous.yml. Создано scripts/gen_items.py.
-[
-    (id: "MobLaserRaptor", parents: ["SimpleMobBase", "BaseSlicingRefinableButchering", "BaseMobDestructible"], name: Some("laser raptor"), description: Some("From the Viking age.")),
-    (id: "MobTomatoKiller", parents: ["BaseSimpleMob", "MobDamageable", "MobPolymorphable", "MobBloodstream", "MobFlammable", "MobCombat"], name: Some("tomato killer"), description: Some("Looks like it's not you eating tomatoes today, it's the tomatoes eating you.")),
-]

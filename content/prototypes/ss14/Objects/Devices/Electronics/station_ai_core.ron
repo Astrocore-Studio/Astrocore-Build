@@ -1,4 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Devices/Electronics/station_ai_core.yml. Создано scripts/gen_items.py.
-[
-    (id: "StationAiCoreElectronics", parents: ["BaseElectronics"], name: Some("station AI core electronics"), description: Some("An electronics board used in station AI cores.")),
-]

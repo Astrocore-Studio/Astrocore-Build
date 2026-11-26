@@ -1,4 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Markers/Spawners/Random/crystal.yml. Создано scripts/gen_items.py.
-[
-    (id: "CrystalSpawner", parents: ["MarkerBase"], name: Some("Crystal Spawner")),
-]

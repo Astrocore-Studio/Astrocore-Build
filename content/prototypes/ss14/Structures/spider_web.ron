@@ -1,6 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/spider_web.yml. Создано scripts/gen_items.py.
-[
-    (id: "SpiderWeb", parents: ["SpiderWebBase"], name: Some("spider web"), description: Some("It's stringy and sticky.")),
-    (id: "SpiderWebBase", abstract: true),
-    (id: "SpiderWebClown", parents: ["SolutionFood", "SolutionVeryTiny", "SpiderWebBase"], name: Some("clown spider web"), description: Some("It's stringy and slippy.")),
-]

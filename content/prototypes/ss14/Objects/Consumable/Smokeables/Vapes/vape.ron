@@ -1,4 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Consumable/Smokeables/Vapes/vape.yml. Создано scripts/gen_items.py.
-[
-    (id: "Vape", parents: ["BaseVape"], name: Some("vape"), description: Some("Like a cigar, but for tough teens. (WARNING:Pour only water into the vape)"), components: {"Sprite": (sprite: "Objects/Consumable/Smokeables/Vapes/vape-standard.rsi", state: "icon"), "Item": (size: "Small"), "Solution": (maxVol: 30.0, canReact: true, reagents: ()), "Refillable": ()}),
-]

@@ -1,4 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Devices/swapper.yml. Создано scripts/gen_items.py.
-[
-    (id: "DeviceQuantumSpinInverter", parents: ["BaseItem"], name: Some("quantum spin inverter"), description: Some("An experimental device that is able to swap the locations of two entities by switching their particles' spin values. Must be linked to another device to function.")),
-]

@@ -1,5 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Markers/Spawners/Random/Mobs/xenos.yml. Создано scripts/gen_items.py.
-[
-    (id: "SpawnMobXenoEasy", parents: ["MarkerBase"], name: Some("Xeno Spawner")),
-    (id: "SpawnMobXenoHard", parents: ["MarkerBase"], name: Some("Xeno Spawner")),
-]

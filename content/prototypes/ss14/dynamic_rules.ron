@@ -1,4 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/dynamic_rules.yml. Создано scripts/gen_items.py.
-[
-    (id: "DynamicRule", parents: ["BaseGameRule"]),
-]

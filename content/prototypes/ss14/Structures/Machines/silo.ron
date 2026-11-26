@@ -1,4 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/Machines/silo.yml. Создано scripts/gen_items.py.
-[
-    (id: "MachineMaterialSilo", parents: ["BaseMachinePowered", "ConstructibleMachine", "StructureHealthMachineStrong"], name: Some("material silo"), description: Some("An advanced machine, capable of using bluespace technology to transmit materials to nearby machines.")),
-]

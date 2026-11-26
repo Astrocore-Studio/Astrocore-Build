@@ -1,4 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Effects/acidifier.yml. Создано scripts/gen_items.py.
-[
-    (id: "Acidifier", name: Some("acid"), description: Some("Melts you into a puddle of yuck!")),
-]

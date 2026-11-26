@@ -1,8 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Weapons/Melee/offset_cane.yml. Создано scripts/gen_items.py.
-[
-    (id: "OffsetCane", parents: ["BaseItem"], name: Some("standard offset cane"), description: Some("A standard offset cane, essential for getting around when your legs aren't up to the task. May or may not grant you the wisdom of the elderly.")),
-    (id: "OffsetCaneClown", parents: ["OffsetCane"], name: Some("rainbow offset cane"), description: Some("A rainbow offset cane, perfect for clowns and those who enjoy a splash of color in their lives.")),
-    (id: "OffsetCaneMime", parents: ["OffsetCane"], name: Some("striped offset cane"), description: Some("A black and white striped cane, perfect for silent performances.")),
-    (id: "OffsetCaneNT", parents: ["OffsetCane"], name: Some("nanotrasen offset cane"), description: Some("A nanotrasen standard issue offset cane with the NT logo, favored by those who prefer a more corporate look.")),
-    (id: "OffsetCaneWood", parents: ["OffsetCane"], name: Some("wooden offset cane"), description: Some("A wooden offset cane, a classic choice for those who appreciate natural materials and a sturdy grip.")),
-]

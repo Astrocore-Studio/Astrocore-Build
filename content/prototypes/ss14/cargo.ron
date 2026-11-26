@@ -1,8 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/cargo.yml. Создано scripts/gen_items.py.
-[
-    (id: "CrateCargoGambling", parents: ["CratePrivateSecure"], name: Some("the grand lottery $$$"), description: Some("A box containing treasure beyond your greatest imaginations!")),
-    (id: "CrateCargoLuxuryHardsuit", parents: ["CratePirate"], name: Some("luxury mining hardsuit crate"), description: Some("Finally, a hardsuit Quartermasters could call their own. Centcomm has heard you, now stop asking.")),
-    (id: "CrateCargoParcelWrap", parents: ["CrateGenericSteel"], name: Some("parcel wrap crate"), description: Some("All your parcel wrapping needs in one crate, containing three rolls of parcel wrap.")),
-    (id: "LockerSalvageSpecialistFilled", parents: ["LockerSalvageSpecialist"]),
-    (id: "LockerSalvageSpecialistFilledHardsuitCargoAccess", parents: ["LockerSalvageSpecialistFilledHardsuit"]),
-]

@@ -1,7 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Tools/blueprint.yml. Создано scripts/gen_items.py.
-[
-    (id: "BaseBlueprint", parents: ["BaseItem"], abstract: true, name: Some("blueprint"), description: Some("A blueprint for some machine. It can be inserted into an autolathe.")),
-    (id: "BlueprintDoubleEmergencyTank", parents: ["BaseBlueprint"], name: Some("double emergency tank blueprint"), description: Some("A blueprint with a schematic of a double emergency tank. It can be inserted into an autolathe.")),
-    (id: "BlueprintFulton", parents: ["BaseBlueprint"], name: Some("fulton blueprint"), description: Some("A blueprint with a schematic of a fulton. It can be inserted into an autolathe.")),
-    (id: "BlueprintSeismicCharge", parents: ["BaseBlueprint"], name: Some("seismic charge blueprint"), description: Some("A blueprint with a schematic of a seismic charge. It can be inserted into an autolathe.")),
-]

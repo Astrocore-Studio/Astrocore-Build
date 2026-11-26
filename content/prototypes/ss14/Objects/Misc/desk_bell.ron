@@ -1,8 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Misc/desk_bell.yml. Создано scripts/gen_items.py.
-[
-    (id: "BaseDeskBell", parents: ["BaseItem", "BaseItemDestructible"], abstract: true),
-    (id: "DeskBell", parents: ["BaseDeskBell"], name: Some("desk bell"), description: Some("The cornerstone of any customer service job. You feel an unending urge to ring it."), components: {"Sprite": (sprite: "Objects/Misc/desk_bell.rsi", state: "icon-bell"), "Item": (size: "Small"), "MeleeWeapon": (damage: (Blunt: 4.0), attackRate: 1.0, bluntStaminaDamageFactor: 0.5), "Tag": (tags: ["Payload"])}),
-    (id: "DeskBuzzer", parents: ["BaseDeskBell"], name: Some("desk buzzer"), description: Some("An advanced customer service tool. You feel an unending urge to buzz it.")),
-    (id: "DeskHorn", parents: ["BaseDeskBell"], name: Some("desk horn"), description: Some("The cornerstone of any clown business. You feel an unending urge to honk it.")),
-    (id: "EmptyDeskBell", parents: ["BaseDeskBell"], name: Some("unfinished desk bell"), description: Some("An empty bell missing its noise maker.")),
-]

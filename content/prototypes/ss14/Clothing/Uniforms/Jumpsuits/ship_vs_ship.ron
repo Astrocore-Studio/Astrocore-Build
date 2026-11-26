@@ -1,9 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Clothing/Uniforms/Jumpsuits/ship_vs_ship.yml. Создано scripts/gen_items.py.
-[
-    (id: "ClothingUniformJumpsuitChiefEngineerSyndie", parents: ["ClothingUniformBase", "BaseSyndicateContraband"], name: Some("syndicate chief engineer jumpsuit"), description: Some("An evil-looking jumpsuit with a reflective vest & red undershirt.")),
-    (id: "ClothingUniformJumpsuitParamedicSyndie", parents: ["ClothingUniformBase", "BaseSyndicateContraband"], name: Some("syndicate paramedic jumpsuit"), description: Some("For some reason, wearing this makes you feel like you're awfully close to violating the Geneva Convention.")),
-    (id: "ClothingUniformJumpsuitRecruitNT", parents: ["ClothingUniformBase"], name: Some("recruit jumpsuit"), description: Some("A classy grey jumpsuit with blue trims. Perfect for the dignified helper.")),
-    (id: "ClothingUniformJumpsuitRecruitSyndie", parents: ["ClothingUniformBase", "BaseSyndicateContraband"], name: Some("syndicate recruit jumpsuit"), description: Some("A dubious, dark-grey jumpsuit. As if passengers weren't dubious enough already.")),
-    (id: "ClothingUniformJumpsuitRepairmanNT", parents: ["ClothingUniformBase"], name: Some("repairman jumpsuit"), description: Some("A jumpsuit that reminds you of a certain crew-sector work position. Hopefully, you won't have to do the same job as THOSE freaks.")),
-    (id: "ClothingUniformJumpsuitRepairmanSyndie", parents: ["ClothingUniformBase", "BaseSyndicateContraband"], name: Some("syndicate repairman jumpsuit"), description: Some("Functional, fashionable, and badass. Nanotrasen's engineers wish they could look as good as this.")),
-]

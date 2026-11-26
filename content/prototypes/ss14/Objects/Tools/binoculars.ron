@@ -1,4 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Tools/binoculars.yml. Создано scripts/gen_items.py.
-[
-    (id: "Binoculars", parents: ["BaseItem"], name: Some("binoculars"), description: Some("Used for long-distance surveillance."), components: {"Sprite": (sprite: "Objects/Tools/binoculars.rsi", state: "icon"), "Item": (size: "Normal"), "Clothing": (slots: ["neck"])}),
-]

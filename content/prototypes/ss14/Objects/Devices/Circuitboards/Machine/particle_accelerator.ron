@@ -1,9 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Devices/Circuitboards/Machine/particle_accelerator.yml. Создано scripts/gen_items.py.
-[
-    (id: "MachineParticleAcceleratorEmitterForeCircuitboard", parents: ["BaseMachineCircuitboard"], name: Some("PA fore emitter board"), description: Some("A machine board for a particle accelerator center emitter.")),
-    (id: "MachineParticleAcceleratorEmitterPortCircuitboard", parents: ["BaseMachineCircuitboard"], name: Some("PA port emitter board"), description: Some("A machine board for a particle accelerator right emitter.")),
-    (id: "MachineParticleAcceleratorEmitterStarboardCircuitboard", parents: ["BaseMachineCircuitboard"], name: Some("PA starboard emitter board"), description: Some("A machine board for a particle accelerator left emitter.")),
-    (id: "MachineParticleAcceleratorEndCapCircuitboard", parents: ["BaseMachineCircuitboard"], name: Some("PA end cap board"), description: Some("A machine board for a particle accelerator end cap.")),
-    (id: "MachineParticleAcceleratorFuelChamberCircuitboard", parents: ["BaseMachineCircuitboard"], name: Some("PA fuel chamber board"), description: Some("A machine board for a particle accelerator fuel chamber.")),
-    (id: "MachineParticleAcceleratorPowerBoxCircuitboard", parents: ["BaseMachineCircuitboard"], name: Some("PA power box board"), description: Some("A machine board for a particle accelerator power box.")),
-]

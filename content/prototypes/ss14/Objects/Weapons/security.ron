@@ -1,8 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Weapons/security.yml. Создано scripts/gen_items.py.
-[
-    (id: "Flash", parents: ["BaseItem", "BaseSecurityScienceCommandContraband"], name: Some("flash"), description: Some("An ultrabright flashbulb with a trigger, which causes the victim to be dazed and lose their eyesight for a moment. Useless when burnt out."), components: {"Sprite": (sprite: "Objects/Weapons/Melee/flash.rsi", state: "flash"), "Item": (size: "Small"), "Flash": ()}),
-    (id: "PortableFlasher", parents: ["BaseMachine", "BaseSecurityContraband", "BaseMachineDestructible"], name: Some("portable flasher"), description: Some("An ultrabright flashbulb with a proximity trigger, useful for making an area security-only.")),
-    (id: "SciFlash", parents: ["Flash"], name: Some("flash"), components: {"Sprite": (sprite: "Objects/Weapons/Melee/flash.rsi", state: "flash"), "Item": (size: "Small"), "Flash": ()}),
-    (id: "Stunbaton", parents: ["BaseItem", "BaseSecurityContraband"], name: Some("stun baton"), description: Some("A stun baton for incapacitating people with. Has advanced wrist strap technology to prevent cadets accidentally dropping it.")),
-    (id: "Truncheon", parents: ["BaseItem", "BaseSecurityContraband"], name: Some("truncheon"), description: Some("A rigid, steel-studded baton, meant to harm.")),
-]

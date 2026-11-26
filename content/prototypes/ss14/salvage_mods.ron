@@ -1,4 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/salvage_mods.yml. Создано scripts/gen_items.py.
-[
-    (id: "SalvageShuttleMarker", parents: ["FTLPoint"], name: Some("salvage shuttle marker")),
-]

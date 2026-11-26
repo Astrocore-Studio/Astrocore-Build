@@ -1,9 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Consumable/Smokeables/Cigarettes/rolling_paper.yml. Создано scripts/gen_items.py.
-[
-    (id: "CigaretteFilter", parents: ["BaseItem"], name: Some("cigarette filter"), description: Some("A strip of firm paper used as a filter for handmade cigarettes.")),
-    (id: "CigaretteFilter1", parents: ["CigaretteFilter"]),
-    (id: "PackPaperRolling", parents: ["BaseStorageItem"], name: Some("pack of rolling paper"), description: Some("A pack of thin pieces of paper used to make fine smokeables."), components: {"Sprite": (sprite: "Objects/Consumable/Smokeables/Cigarettes/paper.rsi", state: "cigpapers"), "Item": (size: "Small"), "Storage": (grid: ["0,0,3,1"], whitelist: (tags: ["RollingPaper", "CigFilter"], components: []))}),
-    (id: "PackPaperRollingFilters", parents: ["PackPaperRolling"], name: Some("pack of rolling paper with filters"), description: Some("A pack of filters and thin pieces of paper used to make fine smokeables."), components: {"Sprite": (sprite: "Objects/Consumable/Smokeables/Cigarettes/paper.rsi", state: "cigpapers"), "Item": (size: "Small"), "Storage": (grid: ["0,0,3,1"], whitelist: (tags: ["RollingPaper", "CigFilter"], components: []))}),
-    (id: "PaperRolling", parents: ["BaseItem"], name: Some("rolling paper"), description: Some("A thin piece of paper used to make fine smokeables.")),
-    (id: "PaperRolling1", parents: ["PaperRolling"]),
-]

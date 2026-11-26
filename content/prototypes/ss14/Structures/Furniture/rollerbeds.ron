@@ -1,9 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/Furniture/rollerbeds.yml. Создано scripts/gen_items.py.
-[
-    (id: "CheapRollerBed", parents: ["RollerBed"], name: Some("rollerbed"), description: Some("A run-down rollerbed. Used to carry patients around."), components: {"Sprite": (sprite: "Structures/Furniture/rollerbeds.rsi", state: "cheap_rollerbed"), "Item": (size: "Normal")}),
-    (id: "CheapRollerBedSpawnFolded", parents: ["CheapRollerBed"], components: {"Sprite": (sprite: "Structures/Furniture/rollerbeds.rsi", state: "cheap_rollerbed"), "Item": (size: "Normal")}),
-    (id: "EmergencyRollerBed", parents: ["RollerBed"], name: Some("rollerbed"), description: Some("A robust looking rollerbed used for emergencies."), components: {"Sprite": (sprite: "Structures/Furniture/rollerbeds.rsi", state: "emergency_rollerbed"), "Item": (size: "Normal")}),
-    (id: "EmergencyRollerBedSpawnFolded", parents: ["EmergencyRollerBed"], components: {"Sprite": (sprite: "Structures/Furniture/rollerbeds.rsi", state: "emergency_rollerbed"), "Item": (size: "Normal")}),
-    (id: "RollerBed", parents: ["BaseItem", "BaseDeployFoldable"], name: Some("rollerbed"), description: Some("Used to carry patients around without damaging them."), components: {"Sprite": (sprite: "Structures/Furniture/rollerbeds.rsi", state: "rollerbed"), "Item": (size: "Normal")}),
-    (id: "RollerBedSpawnFolded", parents: ["RollerBed"], components: {"Sprite": (sprite: "Structures/Furniture/rollerbeds.rsi", state: "rollerbed"), "Item": (size: "Normal")}),
-]

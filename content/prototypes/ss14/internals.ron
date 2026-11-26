@@ -1,4 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/internals.yml. Создано scripts/gen_items.py.
-[
-    (id: "ActionToggleInternals", parents: ["BaseAction"], name: Some("Toggle Internals"), description: Some("Breathe from the equipped gas tank. Also requires equipped breath mask.")),
-]

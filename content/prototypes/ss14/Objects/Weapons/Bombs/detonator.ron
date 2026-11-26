@@ -1,5 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Weapons/Bombs/detonator.yml. Создано scripts/gen_items.py.
-[
-    (id: "EmptyDetonator", parents: ["BaseItem", "BaseItemDestructible", "BaseSecurityContraband"], name: Some("detonator cap"), description: Some("A detonator cap. Requires a trigger and wire.")),
-    (id: "WiredDetonator", parents: ["EmptyDetonator"], name: Some("detonator cap"), description: Some("A detonator cap."), categories: ["HideSpawnMenu"]),
-]

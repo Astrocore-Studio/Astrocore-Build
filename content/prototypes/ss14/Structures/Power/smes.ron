@@ -1,7 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/Power/smes.yml. Создано scripts/gen_items.py.
-[
-    (id: "BaseSMES", parents: ["BaseMachine", "ConstructibleMachine", "BaseConstructibleMachineDestructible"], abstract: true, name: Some("SMES"), description: Some("A high-capacity superconducting magnetic energy storage (SMES) unit.")),
-    (id: "SMESAdvanced", parents: ["BaseSMES"], name: Some("advanced SMES"), description: Some("An even-higher-capacity superconducting magnetic energy storage (SMES) unit.")),
-    (id: "SMESAdvancedEmpty", parents: ["SMESAdvanced"]),
-    (id: "SMESBasicEmpty", parents: ["SMESBasic"]),
-]

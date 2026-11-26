@@ -1,5 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Weapons/Guns/Basic/energy_crossbow.yml. Создано scripts/gen_items.py.
-[
-    (id: "WeaponEnergyCrossbow", parents: ["WeaponEnergyCrossbowBase", "BaseSyndicateContraband"], name: Some("mini energy crossbow"), description: Some("Launches renewable toxic arrows capable of flooring targets instantly.")),
-    (id: "WeaponEnergyCrossbowBase", parents: ["BaseWeaponBatterySmallNoAmmoCounter"], abstract: true),
-]

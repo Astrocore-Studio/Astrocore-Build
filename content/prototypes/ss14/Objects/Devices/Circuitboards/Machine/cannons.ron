@@ -1,8 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Devices/Circuitboards/Machine/cannons.yml. Создано scripts/gen_items.py.
-[
-    (id: "ShuttleGunDusterCircuitboard", parents: ["BaseMachineCircuitboard"], name: Some("EXP-2100g \"Duster\" machine board"), description: Some("A machine printed circuit board for an EXP-2100g \"Duster\"."), categories: ["DoNotMap"]),
-    (id: "ShuttleGunFriendshipCircuitboard", parents: ["BaseMachineCircuitboard"], name: Some("EXP-320g \"Friendship\" machine board"), description: Some("A machine printed circuit board for an EXP-320g \"Friendship\"."), categories: ["DoNotMap"]),
-    (id: "ShuttleGunKineticCircuitboard", parents: ["BaseMachineCircuitboard"], name: Some("PTK-800 \"Matter Dematerializer\" machine board"), description: Some("A machine printed circuit board for an PTK-800 \"Matter Dematerializer\"."), categories: ["DoNotMap"]),
-    (id: "ShuttleGunPerforatorCircuitboard", parents: ["BaseMachineCircuitboard"], name: Some("LSE-1200c \"Perforator\" machine board"), description: Some("A machine printed circuit board for an LSE-1200c \"Perforator\"."), categories: ["DoNotMap"]),
-    (id: "ShuttleGunSvalinnMachineGunCircuitboard", parents: ["BaseMachineCircuitboard"], name: Some("LSE-400c \"Svalinn machine gun\" machine board"), description: Some("A machine printed circuit board for an LSE-400c \"Svalinn machine gun\"."), categories: ["DoNotMap"]),
-]

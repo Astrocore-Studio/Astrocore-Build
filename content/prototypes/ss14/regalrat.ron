@@ -1,9 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/regalrat.yml. Создано scripts/gen_items.py.
-[
-    (id: "ActionRatKingDomain", parents: ["BaseAction"], name: Some("Rat King's Domain"), description: Some("Spend some hunger to release a cloud of ammonia into the air.")),
-    (id: "ActionRatKingOrderCheeseEm", parents: ["BaseAction"], name: Some("Cheese 'Em"), description: Some("Command your army to attack whoever you point at.")),
-    (id: "ActionRatKingOrderFollow", parents: ["BaseAction"], name: Some("Follow"), description: Some("Command your army to follow you around.")),
-    (id: "ActionRatKingOrderLoose", parents: ["BaseAction"], name: Some("Loose"), description: Some("Command your army to act at their own will.")),
-    (id: "ActionRatKingOrderStay", parents: ["BaseAction"], name: Some("Stay"), description: Some("Command your army to stand in place.")),
-    (id: "ActionRatKingRaiseArmy", parents: ["BaseAction"], name: Some("Raise Army"), description: Some("Spend some hunger to summon an allied rat to help defend you.")),
-]

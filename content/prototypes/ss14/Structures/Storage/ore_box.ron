@@ -1,4 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/Storage/ore_box.yml. Создано scripts/gen_items.py.
-[
-    (id: "OreBox", parents: ["BaseStructureDynamic", "StructureHealthContainer"], name: Some("ore box"), description: Some("A large storage container for holding unprocessed ores.")),
-]

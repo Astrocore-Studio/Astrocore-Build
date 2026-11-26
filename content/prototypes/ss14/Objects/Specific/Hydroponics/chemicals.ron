@@ -1,4 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Specific/Hydroponics/chemicals.yml. Создано scripts/gen_items.py.
-[
-    (id: "ReagentContainerMutagenicFertilizer", parents: ["ReagentPacket", "ItemHeftyBase"], name: Some("Frank's Funky Fertilizer"), description: Some("A sack of questionably sourced fertilizer. Frank guarantees results, but not which results."), components: {"Sprite": (sprite: "Objects/Specific/Hydroponics/Equipment/franks_fertilizer.rsi", state: "franks-fertilizer"), "Item": (size: "Normal"), "Solution": (maxVol: 60.0, canReact: true, reagents: (MutagenicFertilizer: 60.0)), "Edible": (transferAmount: 5.0, delay: 1.0, forceFeedDelay: 3.0, destroyOnEmpty: false), "SolutionTransfer": (amount: 5.0, max: 1000.0), "Refillable": (), "Drainable": (), "Tag": (tags: ["Ingredient"])}),
-]

@@ -1,4 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Mobs/NPCs/Insects/butterfly.yml. Создано scripts/gen_items.py.
-[
-    (id: "MobButterfly", parents: ["SolutionFood", "SolutionTiny", "SimpleMobBase", "FlyingMobBase", "BaseSlicingRefinableButchering"], name: Some("butterfly"), description: Some("Despite popular misconceptions, it's not actually made of butter.")),
-]

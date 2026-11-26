@@ -1,6 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/cryogenic_sleep_unit.yml. Создано scripts/gen_items.py.
-[
-    (id: "CryogenicSleepUnit", parents: ["BaseStructure"], name: Some("cryogenic sleep unit"), description: Some("A super-cooled container that keeps crewmates safe during space travel.")),
-    (id: "CryogenicSleepUnitSpawner", parents: ["CryogenicSleepUnit"]),
-    (id: "CryogenicSleepUnitSpawnerLateJoin", parents: ["CryogenicSleepUnit"]),
-]

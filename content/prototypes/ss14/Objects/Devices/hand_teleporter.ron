@@ -1,5 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Devices/hand_teleporter.yml. Создано scripts/gen_items.py.
-[
-    (id: "HandTeleporter", parents: ["BaseItem", "BaseGrandTheftContraband"], name: Some("hand teleporter"), description: Some("A Nanotrasen signature item--only the finest bluespace tech. Instructions: Use once to create a portal which teleports at random. Use again to link it to a portal at your current location. Use again to clear all portals."), components: {"Sprite": (sprite: "Objects/Devices/hand_teleporter.rsi", state: "icon"), "Item": (size: "Small"), "Tag": (tags: ["HighRiskItem", "FitInTeleporterConsole"])}),
-    (id: "HandTeleporterAdmeme", parents: ["BaseItem"], name: Some("interdimensional teleporter"), description: Some("Allows you to open stable portal gates that are not limited by distance.")),
-]

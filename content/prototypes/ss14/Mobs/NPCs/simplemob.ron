@@ -1,7 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Mobs/NPCs/simplemob.yml. Создано scripts/gen_items.py.
-[
-    (id: "BaseSimpleMob", parents: ["BaseMob", "MobDamageable", "MobPolymorphable"], abstract: true),
-    (id: "SimpleMobBase", parents: ["MobRespirator", "MobAtmosStandard", "SimpleSpaceMobBase", "BaseHungerThirstSlowdown"], abstract: true),
-    (id: "SimpleSpaceMobBase", parents: ["BaseSimpleMob", "MobAtmosExposed", "MobCombat", "MobBloodstream", "MobFlammable", "BaseMobAnimal", "BaseHungerThirstSlowdown"], abstract: true),
-    (id: "SolutionVermin", parents: ["SolutionFood", "SolutionTiny"], abstract: true),
-]

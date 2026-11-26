@@ -1,4 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Markers/pointing.yml. Создано scripts/gen_items.py.
-[
-    (id: "PointingArrow", name: Some("pointing arrow")),
-]

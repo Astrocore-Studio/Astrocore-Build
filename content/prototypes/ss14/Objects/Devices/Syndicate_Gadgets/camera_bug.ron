@@ -1,4 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Devices/Syndicate_Gadgets/camera_bug.yml. Создано scripts/gen_items.py.
-[
-    (id: "CameraBug", parents: ["BaseItem", "BaseSyndicateContraband"], name: Some("camera bug"), description: Some("An illegal syndicate device that allows you to hack into the station's camera network.")),
-]

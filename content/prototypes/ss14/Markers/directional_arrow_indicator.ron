@@ -1,6 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Markers/directional_arrow_indicator.yml. Создано scripts/gen_items.py.
-[
-    (id: "BlueDirectionalArrowIndicator", categories: ["HideSpawnMenu"]),
-    (id: "RedDirectionPointer", name: Some("red direction pointer"), description: Some("Holographic arrow that points the way")),
-    (id: "RedDirectionalArrowIndicator", categories: ["HideSpawnMenu"]),
-]

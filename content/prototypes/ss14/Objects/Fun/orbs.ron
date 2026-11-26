@@ -1,8 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Fun/orbs.yml. Создано scripts/gen_items.py.
-[
-    (id: "Magic9Ball", parents: ["BaseItem"], name: Some("magic 9 ball"), description: Some("An endless source of wisdom... Now with a speaker included!"), components: {"Sprite": (sprite: "Objects/Fun/Balls/magic9ball.rsi", state: "icon"), "Item": (size: "Tiny"), "Solution": (maxVol: 30.0, canReact: true, reagents: (Ethanol: 30.0))}),
-    (id: "PonderingOrb", parents: ["BaseItem", "BaseMagicalContraband"], name: Some("pondering orb"), description: Some("Ponderous, man... Really ponderous."), components: {"Sprite": (sprite: "Objects/Fun/pondering_orb.rsi", state: "icon"), "Item": (size: "Normal")}),
-    (id: "PonderingOrbWizard", parents: ["PonderingOrb"], name: Some("pondering orb"), description: Some("Ponderous, man... Really ponderous. Magically shows the station's camera network.")),
-    (id: "SingularityToy", parents: ["BaseItem"], name: Some("singuloth-brand toy"), description: Some("Mass-produced by a sadistic corporate conglomerate!"), components: {"Sprite": (sprite: "Objects/Fun/toy_singularity.rsi", state: "icon"), "Item": (size: "Normal")}),
-    (id: "TeslaToy", parents: ["BaseItem"], name: Some("Teddy Tesla"), description: Some("The favorite toy of the great engineer Nikola Tesla."), components: {"Sprite": (sprite: "Structures/Power/Generation/Tesla/energy_miniball.rsi", state: "tesla_projectile"), "Item": (size: "Small")}),
-]

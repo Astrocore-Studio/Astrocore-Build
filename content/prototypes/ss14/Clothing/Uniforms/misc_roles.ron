@@ -1,5 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Clothing/Uniforms/misc_roles.yml. Создано scripts/gen_items.py.
-[
-    (id: "UniformShortsRed", parents: ["ClothingUniformBase"], name: Some("boxing shorts"), description: Some("These are shorts, not boxers.")),
-    (id: "UniformShortsRedWithTop", parents: ["ClothingUniformBase"], name: Some("boxing shorts with top"), description: Some("These are shorts, not boxers.")),
-]

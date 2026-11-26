@@ -1,5 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/Wallmounts/WallmountMachines/screen.yml. Создано scripts/gen_items.py.
-[
-    (id: "ArrivalsShuttleTimer", parents: ["Screen"], name: Some("arrivals screen"), description: Some("Displays time of arrivals shuttle ETA.")),
-    (id: "Screen", parents: ["BaseWallmountMachine", "StructureHealthMachineWeak"], name: Some("screen"), description: Some("Displays text or time.")),
-]

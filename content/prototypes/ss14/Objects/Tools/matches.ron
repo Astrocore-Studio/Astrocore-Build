@@ -1,9 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Tools/matches.yml. Создано scripts/gen_items.py.
-[
-    (id: "GorlexMatchbox", parents: ["Matchbox", "BaseSyndicateContraband"], name: Some("Gorlex match box"), description: Some("A pneumatic match box styled after the Gorlex Marauders' equipment. Contains 24 matches.")),
-    (id: "GorlexMatchstick", parents: ["Matchstick", "BaseSyndicateContraband"], name: Some("match stick"), description: Some("A military grade match stick, used for lighting fine smokables and noncombatants alike.")),
-    (id: "Matchbox", parents: ["SmallboxItem", "BaseBagOpenClose"], name: Some("match box"), description: Some("A small box of Almost But Not Quite Plasma Premium Matches."), components: {"Sprite": (sprite: "Objects/Tools/matches.rsi", state: "matchbox"), "Item": (size: "Small"), "Storage": (grid: ["0,0,2,1"]), "Tag": (tags: ["Trash"])}),
-    (id: "Matchstick", parents: ["BaseItem"], name: Some("match stick"), description: Some("A simple match stick, used for lighting fine smokables.")),
-    (id: "MatchstickSpent", parents: ["Matchstick"]),
-    (id: "SmallboxItem", parents: ["BaseStorageItem"], abstract: true),
-]

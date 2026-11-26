@@ -1,6 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Mobs/NPCs/Spiders/guard.yml. Создано scripts/gen_items.py.
-[
-    (id: "MobGiantSpiderGuard", parents: ["MobSpiderBase"], name: Some("guard spider"), description: Some("A stockier spider that stands its ground and blocks escape routes with webs.")),
-    (id: "MobGiantSpiderGuardAngry", parents: ["MobSpiderAngryBase", "MobGiantSpiderGuard"]),
-    (id: "SolutionVenomSpiderGuard", parents: ["SolutionWeapon", "SolutionTiny"], categories: ["HideSpawnMenu"]),
-]

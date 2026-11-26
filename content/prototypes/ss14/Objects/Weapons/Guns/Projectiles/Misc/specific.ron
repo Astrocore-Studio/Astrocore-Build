@@ -1,8 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Weapons/Guns/Projectiles/Misc/specific.yml. Создано scripts/gen_items.py.
-[
-    (id: "BulletAcid", parents: ["BaseBullet"], name: Some("acid spit"), categories: ["HideSpawnMenu"]),
-    (id: "BulletHivebot", parents: ["BaseBullet"], name: Some("hivebot bullet"), categories: ["HideSpawnMenu"]),
-    (id: "BulletWaterShot", parents: ["SolutionVapor", "SolutionSmall"], name: Some("water"), categories: ["HideSpawnMenu"]),
-    (id: "GrapplingHook", name: Some("grappling hook"), categories: ["HideSpawnMenu"]),
-    (id: "StickyHandPalm", parents: ["GrapplingHook"], name: Some("sticky hand palm"), categories: ["HideSpawnMenu"]),
-]

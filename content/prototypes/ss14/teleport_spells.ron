@@ -1,5 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/teleport_spells.yml. Создано scripts/gen_items.py.
-[
-    (id: "ActionBlink", parents: ["BaseAction"], name: Some("Blink"), description: Some("Teleport to the clicked location.")),
-    (id: "ActionVoidApplause", parents: ["BaseEntitySpellAction"], name: Some("Void Applause"), description: Some("Clap your hands and swap places with the target.")),
-]

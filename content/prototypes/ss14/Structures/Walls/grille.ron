@@ -1,6 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/Walls/grille.yml. Создано scripts/gen_items.py.
-[
-    (id: "Grille", parents: ["BaseStructure", "StructureHealthBarrier"], name: Some("grille"), description: Some("A flimsy framework of iron rods.")),
-    (id: "GrilleBroken", parents: ["BaseStructure", "StructureHealthFurnitureWeak"], name: Some("grille"), description: Some("A flimsy framework of iron rods. It has seen better days.")),
-    (id: "GrilleDiagonal", parents: ["Grille"], name: Some("diagonal grille")),
-]

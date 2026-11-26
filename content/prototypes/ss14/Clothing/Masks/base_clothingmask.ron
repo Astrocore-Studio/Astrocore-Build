@@ -1,7 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Clothing/Masks/base_clothingmask.yml. Создано scripts/gen_items.py.
-[
-    (id: "ActionToggleMask", parents: ["BaseAction"], name: Some("Toggle Mask"), description: Some("Handy, but prevents insertion of pie into your pie hole.")),
-    (id: "ClothingMaskBase", parents: ["Clothing"], abstract: true),
-    (id: "ClothingMaskBaseButcherable", parents: ["SolutionFood", "SolutionToolSmall", "ClothingMaskBase", "BaseSlicingRefinable"], abstract: true),
-    (id: "ClothingMaskPullableBase", parents: ["ClothingMaskBase"], abstract: true),
-]

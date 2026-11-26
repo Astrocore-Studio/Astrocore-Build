@@ -1,5 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/Machines/Computers/frame.yml. Создано scripts/gen_items.py.
-[
-    (id: "BaseStructureComputer", parents: ["BaseStructureComputerIndestructible", "StructureHealthMachineWeak"], abstract: true),
-    (id: "BaseStructureComputerIndestructible", parents: ["BaseStructure"], abstract: true),
-]

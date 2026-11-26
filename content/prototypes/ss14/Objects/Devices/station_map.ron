@@ -1,9 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Devices/station_map.yml. Создано scripts/gen_items.py.
-[
-    (id: "BaseHandheldStationMap", parents: ["BaseItem", "BaseItemDestructible"], abstract: true, name: Some("station map"), description: Some("Displays a readout of the current station.")),
-    (id: "HandheldStationMap", parents: ["BaseHandheldStationMap", "BaseHandheldComputer"], components: {"Sprite": (sprite: "Objects/Devices/tablets.rsi", state: "tablet"), "Item": (size: "Small"), "StationMap": ()}),
-    (id: "HandheldStationMapEmpty", parents: ["HandheldStationMap"]),
-    (id: "HandheldStationMapNukeops", parents: ["HandheldStationMap"], name: Some("target station map"), description: Some("Displays a readout of the target station.")),
-    (id: "HandheldStationMapStatic", parents: ["HandheldStationMap"]),
-    (id: "HandheldStationMapUnpowered", parents: ["BaseHandheldStationMap"]),
-]

@@ -1,8 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Misc/handy_flags.yml. Создано scripts/gen_items.py.
-[
-    (id: "BlankHandyFlag", parents: ["BaseItem"], name: Some("blank handheld flag"), description: Some("Some piece of white cloth wound on a stick.")),
-    (id: "LGBTQHandyFlag", parents: ["BaseItem"], name: Some("LGBTQ handheld flag"), description: Some("The be gay do crime handy flag.")),
-    (id: "NTHandyFlag", parents: ["BaseItem"], name: Some("Nanotrasen handheld flag"), description: Some("Glory to NT! Wait, they really made a handheld flag for a corporation?")),
-    (id: "PirateHandyFlag", parents: ["BaseItem"], name: Some("pirate handheld flag"), description: Some("Holding it in your hands, show these carp that you're not kidding.")),
-    (id: "SyndieHandyFlag", parents: ["BaseItem", "BaseSyndicateContraband"], name: Some("syndicate handheld flag"), description: Some("For truly rebellious patriots. Death to NT!")),
-]

@@ -1,4 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Effects/radiation.yml. Создано scripts/gen_items.py.
-[
-    (id: "RadiationPulse", name: Some("shimmering anomaly"), description: Some("Looking at this anomaly makes you feel strange, like something is pushing at your eyes."), categories: ["HideSpawnMenu"]),
-]

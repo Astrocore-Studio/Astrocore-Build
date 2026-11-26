@@ -1,6 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/Specific/Atmospherics/freezer.yml. Создано scripts/gen_items.py.
-[
-    (id: "AirAlarmFreezer", parents: ["AirAlarm"]),
-    (id: "AirSensorFreezer", parents: ["AirSensorFreezerBase", "AirSensor"]),
-    (id: "AirSensorFreezerBase", parents: ["AirSensorBase"], abstract: true),
-]

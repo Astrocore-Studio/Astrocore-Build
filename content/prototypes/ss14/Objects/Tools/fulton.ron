@@ -1,7 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Tools/fulton.yml. Создано scripts/gen_items.py.
-[
-    (id: "Fulton", parents: ["BaseItem", "BaseItemDestructible"], name: Some("fulton"), description: Some("Used to extract containers, items, or forcibly recruit people into your base of operations.")),
-    (id: "Fulton1", parents: ["Fulton"], name: Some("fulton")),
-    (id: "FultonBeacon", parents: ["BaseFoldable"], name: Some("fulton beacon"), description: Some("Beacon to receive fulton extractions.")),
-    (id: "FultonEffect", name: Some("fulton effect"), categories: ["HideSpawnMenu"]),
-]

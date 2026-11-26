@@ -1,5 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/Doors/Airlocks/external.yml. Создано scripts/gen_items.py.
-[
-    (id: "AirlockExternal", parents: ["AirlockRCDResistant"], name: Some("external airlock"), description: Some("It opens, it closes, it might crush you, and there might be only space behind it.")),
-    (id: "AirlockExternalGlass", parents: ["AirlockExternal"], name: Some("external glass airlock")),
-]

@@ -1,4 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Decoration/ashtray.yml. Создано scripts/gen_items.py.
-[
-    (id: "Ashtray", parents: ["BaseItem"], name: Some("ashtray"), description: Some("Proven by scientists to improve the smoking experience by 37%!")),
-]

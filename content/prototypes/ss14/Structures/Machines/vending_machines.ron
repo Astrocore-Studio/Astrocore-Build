@@ -1,7 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/Machines/vending_machines.yml. Создано scripts/gen_items.py.
-[
-    (id: "BaseVendingMachine", parents: ["BaseMachinePowered", "BaseMachineDestructible"], abstract: true, name: Some("vending machine"), description: Some("Just add capitalism!")),
-    (id: "VendingMachine", parents: ["BaseVendingMachine"], abstract: true),
-    (id: "VendingMachineTankDispenserEVA", parents: ["BaseVendingMachine"], name: Some("gas tank dispenser"), description: Some("A vendor for dispensing gas tanks.")),
-    (id: "VendingMachineWallmount", parents: ["BaseWallmountMachine", "StructureHealthMachineWeak"], abstract: true, name: Some("vending machine")),
-]

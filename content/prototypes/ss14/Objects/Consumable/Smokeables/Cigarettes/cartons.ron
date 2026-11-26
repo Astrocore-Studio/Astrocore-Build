@@ -1,8 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Consumable/Smokeables/Cigarettes/cartons.yml. Создано scripts/gen_items.py.
-[
-    (id: "CigCartonBlack", parents: ["CigCartonGreen"], name: Some("Nomads carton"), description: Some("A carton containing 6 packets of Nomads.")),
-    (id: "CigCartonBlue", parents: ["CigCartonGreen"], name: Some("AcmeCo carton"), description: Some("A carton containing 6 packets of AcmeCo."), components: {"Sprite": (sprite: "Objects/Consumable/Smokeables/Cigarettes/Cartons/blue.rsi", state: "icon"), "Item": (size: "Normal"), "Storage": (grid: ["0,0,4,1"], maxItemSize: "Small"), "Tag": (tags: ["Trash"])}),
-    (id: "CigCartonGreen", parents: ["BoxCardboard", "BaseBagOpenClose"], name: Some("Spessman's Smokes carton"), description: Some("A carton containing 6 packets of Spessman's Smokes.")),
-    (id: "CigCartonMixed", parents: ["CigCartonGreen"], name: Some("Dan's soaked smokes"), description: Some("A carton containg 3 packets of Dan's soaked smokes.")),
-    (id: "CigCartonRed", parents: ["CigCartonGreen"], name: Some("DromedaryCo carton"), description: Some("A carton containing 6 packets of Dromedarycos.")),
-]

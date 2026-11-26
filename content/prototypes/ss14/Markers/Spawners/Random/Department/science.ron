@@ -1,6 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Markers/Spawners/Random/Department/science.yml. Создано scripts/gen_items.py.
-[
-    (id: "LootSpawnerRoboticsBorgModule", parents: ["MarkerBase"], name: Some("robotics board spawner")),
-    (id: "LootSpawnerScienceMajor", parents: ["MarkerBase"], name: Some("science supplies spawner")),
-    (id: "LootSpawnerScienceMinor", parents: ["MarkerBase"], name: Some("science supplies spawner")),
-]

@@ -1,5 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Markers/shuttle.yml. Создано scripts/gen_items.py.
-[
-    (id: "FTLExclusion", parents: ["MarkerBase"], name: Some("FTL exclusion point")),
-    (id: "FTLPoint", parents: ["MarkerBase"], name: Some("FTL point")),
-]

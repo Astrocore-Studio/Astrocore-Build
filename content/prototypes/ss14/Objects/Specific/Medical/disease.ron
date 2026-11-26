@@ -1,6 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Specific/Medical/disease.yml. Создано scripts/gen_items.py.
-[
-    (id: "BoxMouthSwab", parents: ["BaseAmmoProvider"], name: Some("sterile swab dispenser"), description: Some("Dispenses 30 sterile swabs, extremely useful for botany."), components: {"Sprite": (sprite: "Objects/Storage/boxes.rsi", state: "boxwide"), "Item": (size: "Normal"), "Magazine": (cartridge: "DiseaseSwab", capacity: 30), "Tag": (tags: ["BotanyTool"]), "BallisticAmmoProvider": ()}),
-    (id: "DiseaseSwab", parents: ["BaseItem"], name: Some("sterile swab"), description: Some("Used for taking and transferring samples. Sterile until open. Single use only."), components: {"Sprite": (sprite: "Objects/Specific/Medical/mouth_swab.rsi", state: "icon"), "Item": (size: "Tiny"), "Tag": (tags: ["BotanyTool", "Recyclable", "Trash"])}),
-    (id: "Vaccine", parents: ["BaseItem"], name: Some("vaccine"), description: Some("Prevents people who DON'T already have a disease from catching it.")),
-]

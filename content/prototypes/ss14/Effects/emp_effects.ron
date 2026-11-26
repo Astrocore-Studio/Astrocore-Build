@@ -1,5 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Effects/emp_effects.yml. Создано scripts/gen_items.py.
-[
-    (id: "EffectEmpDisabled", categories: ["HideSpawnMenu"]),
-    (id: "EffectEmpPulse", categories: ["HideSpawnMenu"]),
-]

@@ -1,4 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Virtual/tether.yml. Создано scripts/gen_items.py.
-[
-    (id: "TetherEntity", categories: ["HideSpawnMenu"]),
-]

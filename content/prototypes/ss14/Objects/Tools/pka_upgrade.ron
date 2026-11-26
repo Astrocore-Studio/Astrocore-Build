@@ -1,7 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Tools/pka_upgrade.yml. Создано scripts/gen_items.py.
-[
-    (id: "BasePKAUpgrade", parents: ["BaseItem"], abstract: true, name: Some("PKA modkit"), description: Some("A modkit for a proto-kinetic accelerator.")),
-    (id: "PKAUpgradeDamage", parents: ["BasePKAUpgrade"], name: Some("PKA modkit (damage)")),
-    (id: "PKAUpgradeFireRate", parents: ["BasePKAUpgrade"], name: Some("PKA modkit (fire rate)")),
-    (id: "PKAUpgradeRange", parents: ["BasePKAUpgrade"], name: Some("PKA modkit (range)")),
-]

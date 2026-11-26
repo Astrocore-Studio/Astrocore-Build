@@ -1,4 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Debugging/spanisharmyknife.yml. Создано scripts/gen_items.py.
-[
-    (id: "ToolDebug", parents: ["BaseItem"], name: Some("spanish army knife"), description: Some("The pain of using this is almost too great to bear.")),
-]

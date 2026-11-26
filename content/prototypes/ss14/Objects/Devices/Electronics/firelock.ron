@@ -1,4 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Devices/Electronics/firelock.yml. Создано scripts/gen_items.py.
-[
-    (id: "FirelockElectronics", parents: ["BaseElectronics"], name: Some("firelock electronics"), description: Some("An electronics board used to detect differences in pressure, temperature and gas concentrations between the two sides of the door."), components: {"Sprite": (sprite: "Objects/Misc/module.rsi", state: "mainboard"), "Item": (size: "Small"), "Tag": (tags: ["FirelockElectronics"]), "Circuitboard": ()}),
-]

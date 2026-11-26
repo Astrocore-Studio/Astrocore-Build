@@ -1,4 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Power/portable_recharger.yml. Создано scripts/gen_items.py.
-[
-    (id: "PortableRecharger", parents: ["Clothing"], name: Some("portable recharger"), description: Some("High-tech recharger adapted for portability.")),
-]

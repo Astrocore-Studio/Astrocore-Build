@@ -1,4 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Misc/candy_bowl.yml. Создано scripts/gen_items.py.
-[
-    (id: "CandyBowl", parents: ["BaseStorageItem"], name: Some("candy bowl"), description: Some("Grab as much as you can fit in your pockets!"), components: {"Sprite": (sprite: "Objects/Misc/candy_bowl.rsi", state: "candy_bowl0"), "Item": (size: "Small"), "Storage": (grid: ["0,0,4,3"], maxItemSize: "Small", whitelist: (tags: ["FoodSnack"], components: ["Pill"]))}),
-]

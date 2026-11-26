@@ -1,4 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/Wallmounts/WallmountMachines/fire_alarm.yml. Создано scripts/gen_items.py.
-[
-    (id: "FireAlarmAssembly", parents: ["BaseWallmountMetallic", "StructureHealthMachineFlimsy"], name: Some("fire alarm assembly"), description: Some("A fire alarm assembly. Very mild.")),
-]

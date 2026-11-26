@@ -1,4 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Effects/desynchronizer_effecs.yml. Создано scripts/gen_items.py.
-[
-    (id: "EffectDesynchronizer", categories: ["HideSpawnMenu"]),
-]

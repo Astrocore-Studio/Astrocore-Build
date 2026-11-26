@@ -1,6 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Mobs/NPCs/Spiders/clown.yml. Создано scripts/gen_items.py.
-[
-    (id: "MobGiantSpiderClown", parents: ["MobSpiderBase"], name: Some("clown spider"), description: Some("Combines the two most terrifying things in existence, spiders and clowns.")),
-    (id: "MobGiantSpiderClownAngry", parents: ["MobSpiderAngryBase", "MobGiantSpiderClown"]),
-    (id: "SolutionVenomSpiderClown", parents: ["SolutionWeapon", "SolutionTiny"], categories: ["HideSpawnMenu"]),
-]

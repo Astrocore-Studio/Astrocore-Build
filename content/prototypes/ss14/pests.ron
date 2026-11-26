@@ -1,9 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/pests.yml. Создано scripts/gen_items.py.
-[
-    (id: "CockroachMigration", parents: ["BaseStationEventShortDelay"]),
-    (id: "KingRatMigration", parents: ["BaseStationEventShortDelay"]),
-    (id: "MouseMigration", parents: ["BaseStationEventShortDelay"]),
-    (id: "RandomCritterHorde", parents: ["BaseStationEventShortDelay"]),
-    (id: "SnailMigration", parents: ["BaseStationEventShortDelay"]),
-    (id: "SnailMigrationLowPop", parents: ["BaseStationEventShortDelay"]),
-]

@@ -1,5 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/Furniture/Tables/base_structuretables.yml. Создано scripts/gen_items.py.
-[
-    (id: "CounterBase", parents: ["TableBase"], abstract: true, name: Some("counter")),
-    (id: "TableBase", parents: ["BaseStructure"], abstract: true, name: Some("table"), description: Some("A square piece of metal standing on four metal legs.")),
-]

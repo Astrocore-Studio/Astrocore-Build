@@ -1,4 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/Dispensers/booze.yml. Создано scripts/gen_items.py.
-[
-    (id: "BoozeDispenserEmpty", parents: ["ReagentDispenserBase"], name: Some("booze dispenser"), description: Some("A booze dispenser with a single slot for a container to be filled.")),
-]

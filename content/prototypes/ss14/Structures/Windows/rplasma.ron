@@ -1,7 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/Windows/rplasma.yml. Создано scripts/gen_items.py.
-[
-    (id: "PlasmaReinforcedWindowDirectional", parents: ["BaseDeltaPressureReinforcedPlasmaQuarter", "BaseWindowStructureDirectional", "BaseRCDResistant", "StructureHealthBarrier"], name: Some("directional reinforced plasma window")),
-    (id: "PlasmaReinforcedWindowDirectionalCorner", parents: ["PlasmaReinforcedWindowDirectional"]),
-    (id: "ReinforcedPlasmaWindow", parents: ["BaseDeltaPressureReinforcedPlasma", "BaseWindowStructure", "BaseRCDResistant", "StructureHealthBarrierStrong"], name: Some("reinforced plasma window")),
-    (id: "ReinforcedPlasmaWindowDiagonal", parents: ["ReinforcedPlasmaWindow"]),
-]

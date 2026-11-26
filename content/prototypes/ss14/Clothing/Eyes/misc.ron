@@ -1,6 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Clothing/Eyes/misc.yml. Создано scripts/gen_items.py.
-[
-    (id: "ClothingEyesBlindfold", parents: ["ClothingEyesBase"], name: Some("blindfold"), description: Some("The bind leading the blind."), components: {"Sprite": (sprite: "Clothing/Eyes/Misc/blindfold.rsi", state: "icon"), "Item": (size: "Small"), "Clothing": (slots: ["eyes"]), "Tag": (tags: ["WhitelistChameleon"])}),
-    (id: "ClothingEyesEyepatch", parents: ["ClothingHeadEyeBaseFlippable"], name: Some("eyepatch"), description: Some("Yarr."), components: {"Sprite": (sprite: "Clothing/Eyes/Misc/eyepatch.rsi", state: "icon"), "Item": (size: "Small"), "Clothing": (slots: ["eyes"]), "Tag": (tags: ["WhitelistChameleon"])}),
-    (id: "ClothingEyesEyepatchFlipped", parents: ["ClothingEyesEyepatch", "ClothingHeadEyeBaseFlipped"]),
-]

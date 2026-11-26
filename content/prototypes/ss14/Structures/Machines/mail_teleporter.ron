@@ -1,4 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/Machines/mail_teleporter.yml. Создано scripts/gen_items.py.
-[
-    (id: "CargoMailTeleporter", parents: ["BaseMachinePowered", "ConstructibleMachine", "StructureHealthMachineStrong"], name: Some("mail teleporter"), description: Some("Periodically teleports in mail to deliver across the station.")),
-]

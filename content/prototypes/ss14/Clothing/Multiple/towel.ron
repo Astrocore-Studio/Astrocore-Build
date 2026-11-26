@@ -1,8 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Clothing/Multiple/towel.yml. Создано scripts/gen_items.py.
-[
-    (id: "BaseTowel", parents: ["UnsensoredClothingUniformBase", "ClothingHeadBase", "ClothingBeltBase"], abstract: true, name: Some("base towel"), description: Some("If you want to survive out here, you gotta know where your towel is.")),
-    (id: "TowelColorCentcom", parents: ["BaseTowel"], name: Some("centcom towel")),
-    (id: "TowelColorNT", parents: ["BaseTowel"], name: Some("NanoTrasen brand towel")),
-    (id: "TowelColorSyndicate", parents: ["BaseTowel", "BaseSyndicateContraband"], name: Some("syndicate towel")),
-    (id: "TowelColorWhite", parents: ["BaseTowel"], name: Some("white towel")),
-]

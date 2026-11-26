@@ -1,4 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Devices/Circuitboards/Machine/base_machineboard.yml. Создано scripts/gen_items.py.
-[
-    (id: "BaseMachineCircuitboard", parents: ["BaseItem"], abstract: true, name: Some("machine board")),
-]

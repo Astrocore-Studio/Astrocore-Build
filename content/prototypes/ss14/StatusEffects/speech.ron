@@ -1,7 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/StatusEffects/speech.yml. Создано scripts/gen_items.py.
-[
-    (id: "SpeechStatusEffectBase", parents: ["MobStatusEffectDebuff"], abstract: true),
-    (id: "StatusEffectAllCaps", parents: ["SpeechStatusEffectBase"], name: Some("allcapsaccent")),
-    (id: "StatusEffectSlurred", parents: ["SpeechStatusEffectBase"], name: Some("slurred")),
-    (id: "StatusEffectStutter", parents: ["SpeechStatusEffectBase"], name: Some("stutter")),
-]

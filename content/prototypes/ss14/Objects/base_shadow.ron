@@ -1,4 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/base_shadow.yml. Создано scripts/gen_items.py.
-[
-    (id: "BaseShadow", abstract: true),
-]

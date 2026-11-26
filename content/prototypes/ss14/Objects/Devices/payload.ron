@@ -1,7 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Devices/payload.yml. Создано scripts/gen_items.py.
-[
-    (id: "BasePayload", parents: ["BaseItem"], abstract: true),
-    (id: "ChemicalPayload", parents: ["BasePayload", "BaseMedicalScienceContraband"], name: Some("chemical payload"), description: Some("A chemical payload. Has space to store two beakers. In combination with a trigger and a case, this can be used to initiate chemical reactions.")),
-    (id: "ExplosivePayload", parents: ["BasePayload", "BaseSecurityContraband"], name: Some("explosive payload")),
-    (id: "FlashPayload", parents: ["BasePayload", "BaseSecurityScienceCommandContraband"], name: Some("flash payload"), description: Some("A single-use flash payload.")),
-]

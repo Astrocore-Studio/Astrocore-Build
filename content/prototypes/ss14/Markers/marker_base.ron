@@ -1,4 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Markers/marker_base.yml. Создано scripts/gen_items.py.
-[
-    (id: "MarkerBase", abstract: true),
-]

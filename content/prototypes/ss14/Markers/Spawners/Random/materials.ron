@@ -1,9 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Markers/Spawners/Random/materials.yml. Создано scripts/gen_items.py.
-[
-    (id: "LootSpawnerCableCoil", parents: ["MarkerBase"], name: Some("cable coil spawner")),
-    (id: "LootSpawnerMaterials", parents: ["MarkerBase"], name: Some("materials spawner")),
-    (id: "LootSpawnerMaterialsHighValue", parents: ["MarkerBase"], name: Some("high-value materials spawner")),
-    (id: "LootSpawnerMaterialsHighValueConstruction", parents: ["MarkerBase"], name: Some("high-value materials spawner")),
-    (id: "LootSpawnerMaterialsSupplementary", parents: ["MarkerBase"], name: Some("materials spawner")),
-    (id: "LootSpawnerMaterialsSurplus", parents: ["MarkerBase"], name: Some("surplus materials spawner")),
-]

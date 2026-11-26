@@ -1,4 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/Machines/hotplate.yml. Создано scripts/gen_items.py.
-[
-    (id: "BaseHeaterMachine", parents: ["BaseMachinePowered", "SmallConstructibleMachine", "BaseSmallConstructibleMachineDestructible"], abstract: true),
-]

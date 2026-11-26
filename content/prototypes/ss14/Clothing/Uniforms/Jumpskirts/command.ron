@@ -1,7 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Clothing/Uniforms/Jumpskirts/command.yml. Создано scripts/gen_items.py.
-[
-    (id: "ClothingUniformJumpskirtCapFormalDress", parents: ["ClothingUniformSkirtBase"], name: Some("captain's formal dress"), description: Some("A dress for special occasions.")),
-    (id: "ClothingUniformJumpskirtCaptain", parents: ["ClothingUniformSkirtBase", "BaseCommandContraband"], name: Some("captain's jumpskirt"), description: Some("It's a blue jumpskirt with some gold markings denoting the rank of \"Captain\".")),
-    (id: "ClothingUniformJumpskirtCommandGeneric", parents: ["ClothingUniformSkirtBase", "BaseCommandContraband"], name: Some("command jumpskirt"), description: Some("A generic Command-colored jumpsuit not associated with any particular department.")),
-    (id: "ClothingUniformJumpskirtHoP", parents: ["ClothingUniformSkirtBase", "BaseCommandContraband"], name: Some("head of personnel's jumpskirt"), description: Some("Rather bland and inoffensive. Perfect for vanishing off the face of the universe.")),
-]

@@ -1,4 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Specific/Chemistry/chem_bag.yml. Создано scripts/gen_items.py.
-[
-    (id: "ChemBag", parents: ["BaseStorageItem"], name: Some("chemistry bag"), description: Some("A bag for storing chemistry products, such as pills, pill canisters, bottles, and syringes."), components: {"Sprite": (sprite: "Objects/Specific/Chemistry/chem_bag.rsi", state: "icon"), "Item": (size: "Ginormous"), "Clothing": (slots: ["belt"]), "Storage": (grid: ["0,0,4,3"], maxItemSize: "Normal", whitelist: (tags: ["Document", "PillCanister", "Bottle", "Syringe", "Dropper"], components: ["FitsInDispenser", "Pill"]))}),
-]

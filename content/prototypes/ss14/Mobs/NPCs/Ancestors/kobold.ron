@@ -1,8 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Mobs/NPCs/Ancestors/kobold.yml. Создано scripts/gen_items.py.
-[
-    (id: "MobBaseKobold", parents: ["MobBaseAncestor"], abstract: true, name: Some("kobold"), description: Some("Cousins to the sentient race of lizard people, kobolds blend in with their natural habitat and are as nasty as monkeys; ready to pull out your hair and stab you to death.")),
-    (id: "MobBaseSyndicateKobold", parents: ["MobBaseKobold"]),
-    (id: "MobKobold", parents: ["MobBaseKobold"], name: Some("kobold"), description: Some("Cousins to the sentient race of lizard people, kobolds blend in with their natural habitat and are as nasty as monkeys; ready to pull out your hair and stab you to death.")),
-    (id: "MobKoboldSyndicateAgent", parents: ["MobBaseSyndicateKobold"]),
-    (id: "MobKoboldSyndicateAgentNukeops", parents: ["MobBaseSyndicateKobold"]),
-]

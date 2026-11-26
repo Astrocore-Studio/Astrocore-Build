@@ -1,4 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Tiles/liquid_plasma.yml. Создано scripts/gen_items.py.
-[
-    (id: "FloorLiquidPlasmaEntity", name: Some("liquid phoron"), description: Some("Sweet, expensive nectar. Don't consume.")),
-]

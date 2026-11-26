@@ -1,5 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Tools/lantern.yml. Создано scripts/gen_items.py.
-[
-    (id: "Lantern", parents: ["BaseItem"], name: Some("lantern"), description: Some("The holy light guides the way."), components: {"Sprite": (sprite: "Objects/Tools/lantern.rsi", state: "lantern"), "Item": (size: "Small"), "Clothing": (slots: ["belt"]), "Tag": (tags: ["Flashlight"])}),
-    (id: "LanternFlash", parents: ["Lantern"], components: {"Sprite": (sprite: "Objects/Tools/lantern.rsi", state: "lantern"), "Item": (size: "Small"), "Clothing": (slots: ["belt"]), "Tag": (tags: ["Flashlight"]), "Flash": ()}),
-]

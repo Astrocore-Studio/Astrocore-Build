@@ -1,6 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Weapons/Melee/cult.yml. Создано scripts/gen_items.py.
-[
-    (id: "EldritchBlade", parents: ["BaseItem"], name: Some("eldritch blade"), description: Some("A sword humming with unholy energy.")),
-    (id: "RitualDagger", parents: ["BaseItem"], name: Some("ritual dagger"), description: Some("A strange dagger used by sinister groups for rituals and sacrifices.")),
-    (id: "UnholyHalberd", parents: ["BaseItem"], name: Some("unholy halberd"), description: Some("A poleaxe that seems to be linked to its wielder.")),
-]

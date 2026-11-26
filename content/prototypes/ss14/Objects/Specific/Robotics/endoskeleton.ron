@@ -1,4 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Specific/Robotics/endoskeleton.yml. Создано scripts/gen_items.py.
-[
-    (id: "CyborgEndoskeleton", name: Some("cyborg endoskeleton"), description: Some("A frame that cyborgs are built on. Significantly less spooky than expected.")),
-]

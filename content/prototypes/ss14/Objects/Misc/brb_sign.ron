@@ -1,4 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Misc/brb_sign.yml. Создано scripts/gen_items.py.
-[
-    (id: "BrbSign", parents: ["BaseItem"], name: Some("brb sign"), description: Some("Lets others know you are away."), components: {"Sprite": (sprite: "Objects/Misc/brbsign.rsi", state: "icon"), "Item": (size: "Small"), "Clothing": (slots: ["neck"])}),
-]

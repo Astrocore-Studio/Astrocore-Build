@@ -1,6 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Weapons/Throwable/bola.yml. Создано scripts/gen_items.py.
-[
-    (id: "BaseBola", parents: ["BaseItem", "BaseSecurityContraband"], abstract: true, name: Some("bola")),
-    (id: "Bola", parents: ["BaseBola"], name: Some("makeshift bola"), description: Some("A makeshift bola, cobbled together with some spare cuffs and metal. It doesn't look like it's going to stay together for very long."), components: {"Sprite": (sprite: "Objects/Weapons/Throwable/bola.rsi", state: "icon"), "Item": (size: "Normal")}),
-    (id: "SecurityBola", parents: ["BaseBola"], name: Some("tactical bola"), description: Some("A bola, comprised of steel anchors linked together with a wire cable. Reliable and reusable."), components: {"Sprite": (sprite: "Objects/Weapons/Throwable/securitybola.rsi", state: "icon"), "Item": (size: "Normal")}),
-]

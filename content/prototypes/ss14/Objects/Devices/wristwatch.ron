@@ -1,5 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Devices/wristwatch.yml. Создано scripts/gen_items.py.
-[
-    (id: "Wristwatch", parents: ["BaseItem", "BaseItemDestructible"], name: Some("wristwatch"), description: Some("A cheap watch for telling time. How much did you waste playing Space Station 14?"), components: {"Sprite": (sprite: "Objects/Devices/wristwatch.rsi", state: "wristwatch"), "Item": (size: "Small"), "Clothing": (slots: ["gloves"])}),
-    (id: "WristwatchGold", parents: ["Wristwatch"], name: Some("gold watch"), description: Some("A fancy watch worth more than your kidney. It was owned by the notorious Syndicate mobster Vunibaldo \"200 Pound Horse Meat Grinder\" Frediani."), components: {"Sprite": (sprite: "Objects/Devices/goldwatch.rsi", state: "goldwatch"), "Item": (size: "Small"), "Clothing": (slots: ["gloves"])}),
-]

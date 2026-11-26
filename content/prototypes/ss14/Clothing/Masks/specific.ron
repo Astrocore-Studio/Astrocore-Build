@@ -1,6 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Clothing/Masks/specific.yml. Создано scripts/gen_items.py.
-[
-    (id: "ClothingMaskGasChameleon", parents: ["ClothingMaskBase", "BaseChameleon"], name: Some("gas mask"), description: Some("A face-covering mask that can be connected to an air supply.")),
-    (id: "ClothingMaskGasVoiceChameleon", parents: ["ClothingMaskGasChameleon"]),
-    (id: "ClothingMaskGoldenCursed", parents: ["ClothingMaskBase"], name: Some("golden mask"), description: Some("Previously used in strange pantomimes, after one of the actors went mad on stage these masks have avoided use. You swear its face contorts when you're not looking.")),
-]

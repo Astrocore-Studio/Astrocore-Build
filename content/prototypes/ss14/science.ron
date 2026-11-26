@@ -1,7 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/science.yml. Создано scripts/gen_items.py.
-[
-    (id: "BoxBeaker", parents: ["BoxCardboard"], name: Some("beaker box"), description: Some("A box full of beakers."), components: {"Sprite": (sprite: "Objects/Storage/boxes.rsi", state: "box"), "Item": (size: "Large"), "Storage": (grid: ["0,0,3,2"], maxItemSize: "Normal"), "Tag": (tags: ["BoxCardboard"])}),
-    (id: "CrateCrewMonitoring", parents: ["CrateScienceSecure"], name: Some("crew monitoring crate"), description: Some("Contains a flatpack of a crew monitoring server and a few crew monitoring computers. Requires Science access to open.")),
-    (id: "CrateScienceBiosuit", parents: ["CrateScienceSecure"], name: Some("scientist bio suit crate"), description: Some("Contains 2 biohazard suits to ensure that no disease will distract you from doing science. Requires Science access to open.")),
-    (id: "CrateStationAiCore", parents: ["CrateScienceSecure"], name: Some("station AI core crate"), description: Some("Contains the components for constructing a station AI core. Positronic brain not included. Requires Science access to open.")),
-]

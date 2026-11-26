@@ -1,4 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/animate_spell.yml. Создано scripts/gen_items.py.
-[
-    (id: "ActionAnimateSpell", parents: ["BaseEntitySpellAction"], name: Some("Animate"), description: Some("Bring an inanimate object to life!")),
-]

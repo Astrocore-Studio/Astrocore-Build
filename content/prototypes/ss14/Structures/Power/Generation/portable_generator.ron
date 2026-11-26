@@ -1,8 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/Power/Generation/portable_generator.yml. Создано scripts/gen_items.py.
-[
-    (id: "PortableGeneratorBase", parents: ["BaseMachine", "SmallConstructibleMachine", "StructureWheeled", "BaseConstructibleMachineDestructible"], abstract: true),
-    (id: "PortableGeneratorJrPacman", parents: ["SolutionTank", "SolutionSmall", "PortableGeneratorBase"], name: Some("J.R.P.A.C.M.A.N.-type portable generator"), description: Some("A small generator capable of powering individual rooms, in case of emergencies.\nRuns off welding fuel and is rated for up to 8 kW.\nRated ages 3 and up.")),
-    (id: "PortableGeneratorPacman", parents: ["PortableGeneratorSwitchableBase"], name: Some("P.A.C.M.A.N.-type portable generator"), description: Some("A flexible backup generator for powering a variety of equipment.\nRuns off solid plasma sheets and is rated for up to 30 kW.")),
-    (id: "PortableGeneratorSuperPacman", parents: ["PortableGeneratorSwitchableBase"], name: Some("S.U.P.E.R.P.A.C.M.A.N.-type portable generator"), description: Some("An advanced generator for powering departments.\nRuns off uranium sheets and is rated for up to 50 kW.")),
-    (id: "PortableGeneratorSwitchableBase", parents: ["PortableGeneratorBase"], abstract: true),
-]

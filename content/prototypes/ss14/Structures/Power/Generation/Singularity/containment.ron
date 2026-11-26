@@ -1,5 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/Power/Generation/Singularity/containment.yml. Создано scripts/gen_items.py.
-[
-    (id: "ContainmentField", name: Some("containment field"), description: Some("A containment field that repels gravitational singularities.")),
-    (id: "ContainmentFieldGenerator", parents: ["BaseStructure"], name: Some("containment field generator"), description: Some("A machine that generates a containment field when powered by an emitter. Keeps the Singularity docile.")),
-]

@@ -1,4 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/utility_spells.yml. Создано scripts/gen_items.py.
-[
-    (id: "ActionChargeSpell", parents: ["BaseAction"], name: Some("Charge"), description: Some("Adds a charge back to your wand")),
-]

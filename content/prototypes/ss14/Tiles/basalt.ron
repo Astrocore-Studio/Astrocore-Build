@@ -1,9 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Tiles/basalt.yml. Создано scripts/gen_items.py.
-[
-    (id: "BasaltFive", parents: ["BasaltOne"]),
-    (id: "BasaltFour", parents: ["BasaltOne"]),
-    (id: "BasaltOne", name: Some("basalt"), description: Some("Rock.")),
-    (id: "BasaltRandom", parents: ["BasaltOne"]),
-    (id: "BasaltThree", parents: ["BasaltOne"]),
-    (id: "BasaltTwo", parents: ["BasaltOne"]),
-]

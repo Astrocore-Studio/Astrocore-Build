@@ -1,8 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Mobs/Player/guardian.yml. Создано scripts/gen_items.py.
-[
-    (id: "ActionToggleGuardian", parents: ["BaseMentalAction"], name: Some("Toggle Guardian"), description: Some("Either manifests the guardian or recalls it back into your body")),
-    (id: "MobGuardianBase", abstract: true, name: Some("GuardianBase"), description: Some("guardian")),
-    (id: "MobHoloClownGuardian", parents: ["MobGuardianBase", "InventoryBase"], name: Some("HoloClown"), description: Some("A mesmerising whirl of hard-light patterns weaves a blue colored clown of dubious origin.")),
-    (id: "MobHoloparasiteGuardian", parents: ["MobGuardianBase"], name: Some("Holoparasite"), description: Some("A mesmerising whirl of hard-light patterns weaves a marvelous, yet oddly familiar visage. It stands proud, tuning into its owner's life to sustain itself.")),
-    (id: "MobIfritGuardian", parents: ["MobGuardianBase"], name: Some("Ifrit"), description: Some("A corrupted jinn, ripped from fitra to serve the wizard's petty needs. It stands wicked, tuning into its owner's life to sustain itself.")),
-]

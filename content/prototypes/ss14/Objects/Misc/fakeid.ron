@@ -1,6 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Misc/fakeid.yml. Создано scripts/gen_items.py.
-[
-    (id: "FakeIDBase", parents: ["BaseItem"], name: Some("makeshift ID basecard"), description: Some("A set of components placed on a board that needs soldering.")),
-    (id: "FakeIDCard", parents: ["Clothing", "BaseMinorContraband"], name: Some("makeshift ID card"), description: Some("A questionably fashioned fake ID card, capable of fooling security HUDs and access logs. Unfortunately, it can't store access information.")),
-    (id: "FakeIDSoldered", parents: ["BaseItem"], name: Some("soldered makeshift ID basecard"), description: Some("Now you just need to wire up those loose ends.")),
-]

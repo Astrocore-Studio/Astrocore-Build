@@ -1,7 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/presets.yml. Создано scripts/gen_items.py.
-[
-    (id: "StorePresetChangeling", abstract: true),
-    (id: "StorePresetRemoteUplink", parents: ["StorePresetUplink"], categories: ["HideSpawnMenu"]),
-    (id: "StorePresetSpellbook", abstract: true),
-    (id: "StorePresetUplink", abstract: true),
-]

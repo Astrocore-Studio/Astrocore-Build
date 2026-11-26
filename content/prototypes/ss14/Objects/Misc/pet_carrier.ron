@@ -1,4 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Misc/pet_carrier.yml. Создано scripts/gen_items.py.
-[
-    (id: "PetCarrier", parents: ["BaseStructureDynamic"], name: Some("pet carrier"), description: Some("Allows large animals to be carried comfortably. It smells vaguely of toilet water and explosives."), components: {"Sprite": (sprite: "Objects/Storage/petcarrier.rsi", state: "pet_carrier_base"), "Item": (size: "Ginormous"), "Tag": (tags: ["Structure"])}),
-]

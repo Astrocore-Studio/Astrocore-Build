@@ -1,5 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Clothing/Hands/specific.yml. Создано scripts/gen_items.py.
-[
-    (id: "ClothingHandsChameleon", parents: ["ClothingHandsButcherable", "BaseChameleon"], name: Some("black gloves"), description: Some("Regular black gloves that do not keep you from frying.")),
-    (id: "ClothingHandsChameleonThief", parents: ["ClothingHandsChameleon"]),
-]

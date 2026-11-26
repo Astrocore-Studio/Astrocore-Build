@@ -1,7 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Weapons/Guns/Projectiles/Energy/energy_turrets.yml. Создано scripts/gen_items.py.
-[
-    (id: "BulletEnergyTurretBase", parents: ["BaseBullet"], name: Some("energy bolt"), categories: ["HideSpawnMenu"]),
-    (id: "BulletEnergyTurretDisabler", parents: ["BulletEnergyTurretBase"], name: Some("disabler bolt"), categories: ["HideSpawnMenu"]),
-    (id: "BulletEnergyTurretLaser", parents: ["BulletEnergyTurretBase"], name: Some("laser bolt"), categories: ["HideSpawnMenu"]),
-    (id: "TeslaGunBullet", parents: ["BaseBullet"], name: Some("tesla gun lightning"), categories: ["HideSpawnMenu"]),
-]

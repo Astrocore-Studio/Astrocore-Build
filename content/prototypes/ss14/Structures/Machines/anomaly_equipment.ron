@@ -1,7 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/Machines/anomaly_equipment.yml. Создано scripts/gen_items.py.
-[
-    (id: "MachineAPE", parents: ["BaseMachinePowered", "ConstructibleMachine", "BaseConstructibleMachineDestructible"], name: Some("A.P.E."), description: Some("An Anomalous Particle Emitter, capable of shooting out unstable particles which can interface with anomalies.")),
-    (id: "MachineAnomalyGenerator", parents: ["BaseMachinePowered"], name: Some("anomaly generator"), description: Some("The peak of pseudoscientific technology.")),
-    (id: "MachineAnomalyVessel", parents: ["BaseMachinePowered", "ConstructibleMachine", "StructureHealthMachine"], name: Some("anomaly vessel"), description: Some("A container able to harness a scan of an anomaly and turn it into research data.")),
-    (id: "MachineAnomalyVesselExperimental", parents: ["MachineAnomalyVessel"], name: Some("experimental anomaly vessel"), description: Some("An advanced anomaly vessel capable of greater research potential at the cost of increased volatility and low-level radioactive decay into the environment.")),
-]

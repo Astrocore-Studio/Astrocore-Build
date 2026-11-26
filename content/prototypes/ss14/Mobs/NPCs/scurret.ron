@@ -1,7 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Mobs/NPCs/scurret.yml. Создано scripts/gen_items.py.
-[
-    (id: "MobBaseEmotionalSupportScurret", abstract: true, name: Some("Emotional Support Scurret")),
-    (id: "MobBaseScurret", parents: ["MobBaseAncestor"], abstract: true, name: Some("scurret")),
-    (id: "MobEmotionalSupportScurret", parents: ["MobScurret", "MobBaseEmotionalSupportScurret"], name: Some("Emotional Support Scurret"), description: Some("Commonly known as Wawa, from the wetlands of Planet Wawa, these critters make up the bulk of Arnold's Pizza's \"loyal workforce\". This one is here as a temp.")),
-    (id: "MobScurret", parents: ["MobBaseScurret"], name: Some("scurret"), description: Some("Commonly known as Wawa, from the wetlands of Planet Wawa, these critters make up the bulk of Arnolds's Pizza's \"loyal workforce\".")),
-]

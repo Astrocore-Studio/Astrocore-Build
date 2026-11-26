@@ -1,4 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Misc/business_card.yml. Создано scripts/gen_items.py.
-[
-    (id: "SyndicateBusinessCard", parents: ["Paper", "BaseSyndicateContraband"], name: Some("syndicate business card"), description: Some("A black card with the syndicate's logo. There's something written on the back.")),
-]

@@ -1,5 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Objects/Specific/Xenoarchaeology/xenoartifacts.yml. Создано scripts/gen_items.py.
-[
-    (id: "ActionArtifactActivate", parents: ["BaseAction"], name: Some("Activate Artifact"), description: Some("Activate yourself, causing chaos to those near you.")),
-    (id: "BaseXenoArtifact", parents: ["BaseMob"], abstract: true, name: Some("artifact"), description: Some("A strange artifact from time unknown. Looks like a good time.")),
-]

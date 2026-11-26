@@ -1,5 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Markers/Spawners/Random/Department/medical.yml. Создано scripts/gen_items.py.
-[
-    (id: "LootSpawnerMedicalClassy", parents: ["MarkerBase"], name: Some("medical loot spawner")),
-    (id: "LootSpawnerMedicalMinor", parents: ["MarkerBase"], name: Some("healing supplies spawner")),
-]

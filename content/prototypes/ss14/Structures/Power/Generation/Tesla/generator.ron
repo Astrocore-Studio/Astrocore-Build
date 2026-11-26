@@ -1,4 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/Power/Generation/Tesla/generator.yml. Создано scripts/gen_items.py.
-[
-    (id: "TeslaGenerator", parents: ["BaseStructureDynamic"], name: Some("tesla generator"), description: Some("An Odd Device which produces a powerful Tesla ball when set up. Comes with a temporary shutdown containment failsafe.")),
-]

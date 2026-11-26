@@ -1,4 +1,0 @@
-// Прототипы сущностей SS14 из Resources/Prototypes/Entities/Structures/Specific/changeling.yml. Создано scripts/gen_items.py.
-[
-    (id: "ChangelingFleshCocoon", parents: ["BaseStructure"], name: Some("flesh cocoon"), description: Some("An oozing mass of flesh, encasing a victim and harvesting their body for nutrients.")),
-]
