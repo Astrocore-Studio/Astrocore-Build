@@ -9,6 +9,7 @@ pub mod action_blocker;
 pub mod activatable_ui;
 pub mod content;
 pub mod do_after;
+pub mod entity_storage;
 pub mod examine;
 pub mod friction;
 pub mod grammar;
@@ -20,6 +21,7 @@ pub mod item;
 pub mod ordered;
 pub mod popups;
 pub mod server;
+pub mod storage;
 pub mod tag;
 pub mod throwing;
 pub mod verbs;
@@ -42,6 +44,10 @@ pub mod inventory_hud;
 pub mod overlays;
 #[cfg(feature = "client")]
 pub mod smooth;
+#[cfg(feature = "client")]
+pub mod storage_hud;
+#[cfg(feature = "client")]
+pub mod storage_visuals;
 
 use bevy_ecs::world::World;
 
@@ -76,6 +82,8 @@ pub fn install_content(world: &mut World, side: Side) {
     verbs::install(world);
     examine::install(world, side);
     inventory::install(world, side);
+    storage::install(world, side);
+    entity_storage::install(world, side);
 }
 
 /// Адрес сервера по умолчанию.

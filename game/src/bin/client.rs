@@ -7,7 +7,9 @@
 //! Для проверки без человека: `--capture кадр.png` снимает кадр и завершает программу,
 //! `--walk` ведёт персонажа вправо, `--use-nearest` (только с `--host`) ставит игрока рядом
 //! с устройством, у которого есть интерфейс, и нажимает на нём «использовать в мире»,
-//! `--examine-nearest` осматривает ближайшую сущность и показывает всплывающее сообщение.
+//! `--examine-nearest` осматривает ближайшую сущность и показывает всплывающее сообщение,
+//! `--storage-nearest` (только с `--host`) ставит игрока у ящика с инструментами, кладёт в него
+//! инструменты, открывает его окно и ближайший шкаф.
 
 use std::process::ExitCode;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -29,6 +31,7 @@ struct Options {
     walk: bool,
     use_nearest: bool,
     examine_nearest: bool,
+    storage_nearest: bool,
 }
 
 fn options() -> Result<Options, String> {
@@ -40,6 +43,7 @@ fn options() -> Result<Options, String> {
         walk: false,
         use_nearest: false,
         examine_nearest: false,
+        storage_nearest: false,
     };
     let mut args = std::env::args().skip(1);
     while let Some(arg) = args.next() {
@@ -49,6 +53,7 @@ fn options() -> Result<Options, String> {
             "--walk" => options.walk = true,
             "--use-nearest" => options.use_nearest = true,
             "--examine-nearest" => options.examine_nearest = true,
+            "--storage-nearest" => options.storage_nearest = true,
             "--connect" => options.connect = Some(value("адрес сервера")?),
             "--name" => options.name = value("имя игрока")?,
             "--capture" => options.capture = Some(value("файл кадра")?),
@@ -176,6 +181,96 @@ fn popup_before_capture(mut game: ResMut<Game>, mut frames: Local<u32>) {
     });
 }
 
+/// Проверка без человека: игрок появляется у хранилища с окном, лежащего на полу.
+fn stand_by_storage(server: &mut bevy_ecs::world::World) {
+    use astrocore_ecs::GameWorldExt;
+    use astrocore_game::storage::Storage;
+    use astrocore_map::{ContainerWorldExt, MapCoordinates, TransformWorldExt};
+    let mut storages = server.query_filtered::<bevy_ecs::entity::Entity, (
+        With<Storage>,
+        With<astrocore_game::item::Item>,
+        With<astrocore_ui::UserInterface>,
+    )>();
+    let mut found: Vec<_> = storages
+        .iter(server)
+        .filter(|storage| server.containing_container(*storage).is_none())
+        .collect();
+    found.sort_unstable();
+    if let Some(at) = found
+        .first()
+        .and_then(|storage| server.map_coordinates(*storage))
+    {
+        let beside = MapCoordinates {
+            position: at.position + astrocore_math::Vec2::new(0.0, -1.0),
+            ..at
+        };
+        server.insert_resource(server::ArrivalPoint(beside));
+    }
+    server.add_game_systems(astrocore_ecs::Update, open_storage_nearest);
+}
+
+/// Через секунду после появления сервер кладёт инструменты в ближайшее хранилище, открывает
+/// игроку его окно и открывает ближайший шкаф.
+fn open_storage_nearest(world: &mut bevy_ecs::world::World, mut ticks: Local<u32>) {
+    use astrocore_ecs::LifecycleWorldExt;
+    use astrocore_game::entity_storage::{EntityStorage, EntityStorageWorldExt};
+    use astrocore_game::storage::{STORAGE_UI_KEY, Storage, StorageWorldExt};
+    use astrocore_map::{ContainerWorldExt, SpawnWorldExt, TransformWorldExt};
+    use astrocore_ui::UiWorldExt;
+    let Some(player) = world
+        .query_filtered::<bevy_ecs::entity::Entity, With<astrocore_net::Actor>>()
+        .iter(world)
+        .next()
+    else {
+        return;
+    };
+    *ticks += 1;
+    if *ticks != 30 {
+        return;
+    }
+    let Some(here) = world.map_coordinates(player) else {
+        return;
+    };
+    let nearest = |world: &mut bevy_ecs::world::World, entities: Vec<bevy_ecs::entity::Entity>| {
+        entities
+            .into_iter()
+            .filter(|entity| world.containing_container(*entity).is_none())
+            .filter_map(|entity| {
+                let distance = world
+                    .map_coordinates(entity)?
+                    .position
+                    .distance(here.position);
+                Some((distance, entity))
+            })
+            .min_by(|a, b| a.0.total_cmp(&b.0))
+            .map(|(_, entity)| entity)
+    };
+    let storages: Vec<_> = world
+        .query_filtered::<bevy_ecs::entity::Entity, (With<Storage>, With<astrocore_ui::UserInterface>)>()
+        .iter(world)
+        .collect();
+    if let Some(storage) = nearest(world, storages) {
+        for tool in ["Crowbar", "Wrench", "Screwdriver", "Wirecutter", "Welder"] {
+            if let Some(at) = world.coordinates(storage)
+                && let Ok(item) = world.spawn_attached(tool, at)
+                && !world.storage_insert(storage, item, None, false)
+            {
+                world.delete_entity(item);
+            }
+        }
+        if !world.open_ui(storage, STORAGE_UI_KEY, player) {
+            eprintln!("окно хранилища не открылось");
+        }
+    }
+    let lockers: Vec<_> = world
+        .query_filtered::<bevy_ecs::entity::Entity, With<EntityStorage>>()
+        .iter(world)
+        .collect();
+    if let Some(locker) = nearest(world, lockers) {
+        world.open_storage(locker, None);
+    }
+}
+
 fn hold_right(mut game: ResMut<Game>) {
     if let Some(mut input) = game.0.get_resource_mut::<LocalInput>() {
         input.buttons = MoveButtons::RIGHT;
@@ -188,6 +283,9 @@ fn run() -> Result<(), String> {
         let mut start = server::start()?;
         if options.use_nearest {
             stand_by_device(&mut start.world);
+        }
+        if options.storage_nearest {
+            stand_by_storage(&mut start.world);
         }
         println!(
             "Игра в одиночку: сущностей на карте {}.",
@@ -239,7 +337,8 @@ fn run() -> Result<(), String> {
     .add_plugins(ClientPlugin)
     .add_plugins(astrocore_game::hands_hud::HandsHudPlugin)
     .add_plugins(astrocore_game::overlays::OverlaysPlugin)
-    .add_plugins(astrocore_game::inventory_hud::InventoryHudPlugin);
+    .add_plugins(astrocore_game::inventory_hud::InventoryHudPlugin)
+    .add_plugins(astrocore_game::storage_hud::StorageHudPlugin);
     if options.walk {
         app.add_systems(Update, hold_right);
     }

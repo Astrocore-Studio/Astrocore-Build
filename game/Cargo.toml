@@ -29,6 +29,7 @@ astrocore-ui = { path = "../../Astrocore-Engine/crates/astrocore-ui" }
 astrocore-client = { path = "../../Astrocore-Engine/crates/astrocore-client", optional = true }
 bevy = { version = "=0.20.1", default-features = false, optional = true }
 bevy_ecs = { version = "=0.20.1", default-features = false, features = ["std", "multi_threaded", "async_executor"] }
+postcard = { version = "1", features = ["use-std"] }
 serde.workspace = true
 
 [dev-dependencies]

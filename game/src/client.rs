@@ -43,6 +43,7 @@ pub fn start(name: &str) -> Result<(World, Resources), String> {
     crate::install_content(&mut world, crate::Side::Client);
     crate::inhands::install(&mut world);
     crate::clothing_visuals::install(&mut world);
+    crate::storage_visuals::install(&mut world);
     let report = content::load_content(&mut world, &resources, &ss14);
     for error in report.errors.iter().take(20) {
         eprintln!("прототипы: {error}");

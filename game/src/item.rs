@@ -46,6 +46,12 @@ pub struct Item {
     /// Слои в руке по сторонам (`left`, `right`) вместо состояний по умолчанию.
     #[serde(default)]
     pub inhand_visuals: std::collections::BTreeMap<String, Vec<ItemLayer>>,
+    /// Форма в хранилище; без неё — форма размера (`defaultShape`).
+    #[serde(default)]
+    pub shape: Option<Vec<crate::storage::CellBox>>,
+    /// Поворот значка в хранилище, градусы.
+    #[serde(default)]
+    pub stored_rotation: f32,
 }
 
 impl Default for Item {
@@ -55,6 +61,8 @@ impl Default for Item {
             sprite: None,
             held_prefix: None,
             inhand_visuals: std::collections::BTreeMap::new(),
+            shape: None,
+            stored_rotation: 0.0,
         }
     }
 }
