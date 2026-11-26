@@ -108,6 +108,69 @@ pub fn update_can_move(world: &mut World, entity: Entity) -> bool {
     can_move
 }
 
+/// Попытка ударить (`AttackAttemptEvent`). Поднимается на атакующем.
+#[derive(Debug, Clone, Copy)]
+pub struct AttackAttempt {
+    pub user: Entity,
+    pub target: Option<Entity>,
+    pub weapon: Option<Entity>,
+    pub disarm: bool,
+    pub cancelled: bool,
+}
+
+/// Сущность пытаются ударить (`GettingAttackedAttemptEvent`). Поднимается на цели.
+#[derive(Debug, Clone, Copy)]
+pub struct GettingAttackedAttempt {
+    pub attacker: Entity,
+    pub weapon: Option<Entity>,
+    pub disarm: bool,
+    pub cancelled: bool,
+}
+
+/// Можно ли ударить (`CanAttack`): цель не в контейнере, из контейнера — только того, кто
+/// снаружи разрешил, затем события попытки.
+pub fn can_attack(
+    world: &mut World,
+    user: Entity,
+    target: Option<Entity>,
+    weapon: Option<Entity>,
+    disarm: bool,
+) -> bool {
+    use astrocore_map::ContainerWorldExt;
+    if target.is_some_and(|target| world.containing_container(target).is_some()) {
+        return false;
+    }
+    let outer = world.containing_container(user).map(|c| c.owner);
+    if let Some(target) = target
+        && outer.is_some()
+        && Some(target) != outer
+    {
+        return false;
+    }
+    let mut attempt = AttackAttempt {
+        user,
+        target,
+        weapon,
+        disarm,
+        cancelled: false,
+    };
+    world.raise(user, &mut attempt);
+    if attempt.cancelled {
+        return false;
+    }
+    let Some(target) = target else {
+        return true;
+    };
+    let mut getting = GettingAttackedAttempt {
+        attacker: user,
+        weapon,
+        disarm,
+        cancelled: false,
+    };
+    world.raise(target, &mut getting);
+    !getting.cancelled
+}
+
 /// Проверки действий на `World`.
 pub trait ActionBlockerWorldExt {
     fn can_consciously_perform_action(&mut self, user: Entity) -> bool;

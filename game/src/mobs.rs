@@ -307,6 +307,11 @@ pub(crate) fn install(world: &mut World, side: crate::Side) {
     world.subscribe::<MobStateComponent, PickupAttempt>(|world, entity, event| {
         event.cancelled |= event.user == entity && blocks(world, entity);
     });
+    world.subscribe::<MobStateComponent, crate::action_blocker::AttackAttempt>(
+        |world, entity, event| {
+            event.cancelled |= blocks(world, entity);
+        },
+    );
     world.subscribe::<MobStateComponent, UpdateCanMove>(|world, entity, event| {
         event.cancelled |= blocks(world, entity);
     });

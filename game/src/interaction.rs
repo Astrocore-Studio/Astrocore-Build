@@ -421,6 +421,13 @@ impl InteractionWorldExt for World {
         if target.is_some_and(|target| is_deleted(self, target)) {
             return;
         }
+        // В режиме боя клик — удар, кроме взятия предмета пустой рукой.
+        if !alt
+            && crate::combat::CombatWorldExt::is_in_combat_mode(self, user)
+            && !crate::combat::combat_mode_can_hand_interact(self, user, target)
+        {
+            return;
+        }
         // Клик по другой карте не засчитывается; стоящий на месте поворачивается к точке.
         let Some(own) = self.map_coordinates(user) else {
             return;

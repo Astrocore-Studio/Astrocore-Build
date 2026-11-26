@@ -8,6 +8,7 @@
 pub mod action_blocker;
 pub mod actions;
 pub mod activatable_ui;
+pub mod combat;
 pub mod content;
 pub mod damage;
 pub mod damage_other_on_hit;
@@ -110,6 +111,7 @@ pub fn install_content(world: &mut World, side: Side) {
     virtual_item::install(world, side);
     pulling::install(world, side);
     actions::install(world, side);
+    combat::install(world, side);
     damage_other_on_hit::install(world, side);
 }
 
