@@ -1,6 +1,8 @@
+use std::borrow::Cow;
+
 use bevy::prelude::*;
 
-use crate::{Action, Crew, Kind, Layout, MAX_BACKPACK_SLOTS, State};
+use crate::{Action, Crew, Item, Kind, Layout, MAX_BACKPACK_SLOTS, State};
 
 const PANEL_WIDTH: f32 = 468.0;
 const PANEL_HEIGHT: f32 = 378.0;
@@ -8,6 +10,7 @@ const WEAR_Y: f32 = 124.0;
 const STORE_Y: f32 = 88.0;
 const FIRST_ITEM_Y: f32 = 49.0;
 const ROW_HEIGHT: f32 = 25.0;
+const ID_Y: f32 = -155.0;
 
 #[derive(Resource, Default)]
 pub struct InventoryPanel {
@@ -27,6 +30,9 @@ impl InventoryPanel {
         if (y - STORE_Y).abs() <= 14.0 {
             return Some(Action::StoreInBackpack);
         }
+        if (y - ID_Y).abs() <= 14.0 {
+            return Some(Action::ToggleIdCard);
+        }
         let bag = state.items.get(&crew.backpack?)?;
         bag.contents.iter().enumerate().find_map(|(slot, &item)| {
             ((y - item_y(slot)).abs() <= ROW_HEIGHT / 2.0)
@@ -43,6 +49,7 @@ pub enum InventoryLine {
     Heading,
     Wear,
     Store,
+    IdCard,
     Item(u8),
 }
 
@@ -72,6 +79,12 @@ pub fn spawn(commands: &mut Commands) {
         (
             InventoryLine::Store,
             STORE_Y,
+            16.0,
+            Color::srgb_u8(121, 214, 194),
+        ),
+        (
+            InventoryLine::IdCard,
+            ID_Y,
             16.0,
             Color::srgb_u8(121, 214, 194),
         ),
@@ -132,13 +145,19 @@ pub fn sync(
                     String::new()
                 }
             }
+            InventoryLine::IdCard => crew
+                .id_card
+                .and_then(|id| state.items.get(&id))
+                .map_or_else(
+                    || "ID empty   /   Equip held card".into(),
+                    |item| format!("{}   /   Remove", short(&item_label(layout, item))),
+                ),
             InventoryLine::Item(index) if *index < slots => {
                 let name = bag
                     .and_then(|bag| bag.contents.get(usize::from(*index)))
                     .and_then(|item| state.items.get(item))
-                    .and_then(|item| layout.prototypes.get(&item.prototype))
-                    .map_or("Empty", |item| item.name.as_str());
-                format!("{}   {}", index + 1, short(name))
+                    .map_or(Cow::Borrowed("Empty"), |item| item_label(layout, item));
+                format!("{}   {}", index + 1, short(&name))
             }
             InventoryLine::Item(_) => {
                 *visible = Visibility::Hidden;
@@ -149,6 +168,14 @@ pub fn sync(
         if text.0 != next {
             text.0 = next;
         }
+    }
+}
+
+pub fn item_label<'a>(layout: &'a Layout, item: &'a Item) -> Cow<'a, str> {
+    if let Some(card) = &item.identity {
+        Cow::Owned(format!("{} ID", card.assignment))
+    } else {
+        Cow::Borrowed(&layout.prototypes[&item.prototype].name)
     }
 }
 

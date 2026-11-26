@@ -52,6 +52,7 @@ pub fn convert_ss14_catalog(yaml_directory: &Path, selection: &str) -> Result<St
             )
         })?;
         target.insert(Prototype {
+            access_reader: None,
             name,
             kind,
             color: entry.color,

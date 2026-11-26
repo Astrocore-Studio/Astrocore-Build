@@ -19,7 +19,7 @@
         (prototype: "substation", cell: (x: 5, y: 4)),
         (prototype: "apc", cell: (x: 5, y: 6)),
         (prototype: "grid_storage", cell: (x: 6, y: 5)),
-        (prototype: "pressure_hatch", cell: (x: 11, y: 5)),
+        (prototype: "engineering_hatch", cell: (x: 11, y: 5)),
         (prototype: "pressure_hatch", cell: (x: 14, y: 5)),
         (prototype: "air_reserve", cell: (x: 16, y: 5)),
         (prototype: "service_kit", cell: (x: 7, y: 4)),
@@ -67,9 +67,18 @@
     high_cables: [(x: 4, y: 3), (x: 4, y: 4), (x: 5, y: 4)],
     roles: ["Operator", "Engineer", "Medic"],
     jobs: {
-        "Operator": (slots: Some(2)),
-        "Engineer": (slots: Some(1), spawns: [(x: 4, y: 5)]),
-        "Medic": (slots: Some(1), spawns: [(x: 8, y: 5)]),
+        "Operator": (
+            slots: Some(2),
+            credential: Some((prototype: "crew_id", access: ["Atmospherics", "Maintenance"])),
+        ),
+        "Engineer": (
+            slots: Some(1), spawns: [(x: 4, y: 5)],
+            credential: Some((prototype: "crew_id", access: ["Engineering", "Maintenance", "External"])),
+        ),
+        "Medic": (
+            slots: Some(1), spawns: [(x: 8, y: 5)],
+            credential: Some((prototype: "crew_id", access: ["Medical", "Maintenance"])),
+        ),
     },
     loadouts: {
         "Operator": ["analyzer", "backpack"],

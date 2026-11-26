@@ -119,6 +119,7 @@ impl Station {
                 ground: Some(cable.cell),
                 materials: 1,
                 contents: Vec::new(),
+                identity: None,
             },
         );
         self.next_item = next;

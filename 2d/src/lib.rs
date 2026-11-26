@@ -1,3 +1,4 @@
+mod access;
 mod construction;
 mod content;
 mod electricity;
@@ -12,6 +13,7 @@ mod replication;
 pub mod server;
 mod wiring;
 
+pub use access::{AccessReader, DoorFailure, DoorNotice, IdentityCard};
 pub use content::{Job, Kind, Layout, LevelLink, MAX_BACKPACK_SLOTS};
 pub use electricity::{CableSegment, Storage, StoragePorts, StorageSample};
 pub use jobs::Participation;
@@ -47,7 +49,7 @@ use wiring::PendingCut;
 
 const DEBRIEF_TICKS: u32 = 10 * TICK_HZ;
 const MAX_ROUND_ITEMS: usize = 512;
-pub const WIRE_VERSION: u16 = 17;
+pub const WIRE_VERSION: u16 = 18;
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub enum Action {
@@ -73,6 +75,7 @@ pub enum Action {
     ScanPipe { cell: Cell },
     ControlFilter { cell: Cell, control: FilterControl },
     InspectStorage { cell: Cell },
+    ToggleIdCard,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -123,6 +126,7 @@ pub struct Crew {
     pub participation: Participation,
     pub hands: [Option<u16>; 2],
     pub backpack: Option<u16>,
+    pub id_card: Option<u16>,
     pub active_hand: bool,
     pub damage: Damage,
     pub pressure_kpa: u16,
@@ -133,6 +137,7 @@ pub struct Crew {
     pub medical_progress: Option<MedicalProgress>,
     pub pulling: Option<PlayerId>,
     pub cutting_cable: Option<u8>,
+    pub door_notice: Option<DoorNotice>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -151,6 +156,7 @@ impl Crew {
             participation: Participation::Choosing,
             hands: [None; 2],
             backpack: None,
+            id_card: None,
             active_hand: false,
             damage: Damage::default(),
             pressure_kpa: 101,
@@ -161,6 +167,7 @@ impl Crew {
             medical_progress: None,
             pulling: None,
             cutting_cable: None,
+            door_notice: None,
         }
     }
 }
@@ -192,6 +199,7 @@ pub struct Item {
     pub ground: Option<Cell>,
     pub materials: u8,
     pub contents: Vec<u16>,
+    pub identity: Option<IdentityCard>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -300,6 +308,7 @@ impl Station {
                 | Kind::Medicine { .. }
                 | Kind::MedicalStack { .. }
                 | Kind::HealthAnalyzer
+                | Kind::IdCard
                 | Kind::CableCoil { .. }
                 | Kind::Wirecutters) => {
                     items.insert(
@@ -309,6 +318,7 @@ impl Station {
                             ground: Some(placement.cell),
                             materials: kind.item_materials().expect("прототип предмета"),
                             contents: Vec::new(),
+                            identity: None,
                         },
                     );
                 }
@@ -429,17 +439,8 @@ impl Station {
             } else if let Some(machine) = self.state.pipe_machines.get_mut(&target) {
                 machine.enabled = !machine.enabled;
                 self.environment.set_pipe_machine(target, *machine);
-            } else if let Some(door) = self.state.doors.get_mut(&target)
-                && door.powered
-                && (!door.open
-                    || !self
-                        .state
-                        .players
-                        .values()
-                        .filter(|crew| crew.on_duty())
-                        .any(|crew| crew.position.overlaps(target)))
-            {
-                door.open = !door.open;
+            } else if self.state.doors.contains_key(&target) {
+                self.toggle_door(player, target);
             }
         }
     }
@@ -481,6 +482,7 @@ impl Station {
             }
             (Phase::Active, Action::SwapHand) => crew.active_hand = !crew.active_hand,
             (Phase::Active, Action::ToggleBackpack) => self.toggle_backpack(player),
+            (Phase::Active, Action::ToggleIdCard) => self.toggle_id_card(player),
             (Phase::Active, Action::StoreInBackpack) => self.store_in_backpack(player),
             (Phase::Active, Action::TakeFromBackpack { item }) => {
                 self.take_from_backpack(player, item)
@@ -543,11 +545,20 @@ impl Station {
             .players
             .get_mut(&player)
             .expect("игрок существует");
-        let role = &self.layout.roles[usize::from(crew.role)].name;
-        let Some(loadout) = self.loadouts.get(role) else {
-            return;
-        };
-        for (hand, prototype) in crew.hands.iter_mut().zip(loadout) {
+        let job = &self.layout.roles[usize::from(crew.role)];
+        let worn_id = job.credential.as_ref().map(|credential| {
+            let identity = IdentityCard {
+                assignment: job.name.clone(),
+                access: credential.access.clone(),
+            };
+            (&mut crew.id_card, &credential.prototype, Some(identity))
+        });
+        let handheld = crew
+            .hands
+            .iter_mut()
+            .zip(self.loadouts.get(&job.name).into_iter().flatten())
+            .map(|(hand, prototype)| (hand, prototype, None));
+        for (slot, prototype, identity) in worn_id.into_iter().chain(handheld) {
             if self.state.items.len() >= MAX_ROUND_ITEMS {
                 break;
             }
@@ -564,9 +575,10 @@ impl Station {
                     ground: None,
                     materials,
                     contents: Vec::new(),
+                    identity,
                 },
             );
-            *hand = Some(self.next_item);
+            *slot = Some(self.next_item);
             self.next_item = next;
         }
     }
@@ -741,7 +753,13 @@ impl Simulation for Station {
                     other.pulling = None;
                 }
             }
-            for id in crew.hands.into_iter().flatten().chain(crew.backpack) {
+            for id in crew
+                .hands
+                .into_iter()
+                .flatten()
+                .chain(crew.backpack)
+                .chain(crew.id_card)
+            {
                 self.state
                     .items
                     .get_mut(&id)
@@ -781,6 +799,9 @@ impl Simulation for Station {
             self.move_pulled();
         }
         for crew in self.state.players.values_mut() {
+            crew.door_notice = crew
+                .door_notice
+                .and_then(|notice| notice.advance(crew.position.cell()));
             if crew
                 .scan
                 .is_some_and(|sample| sample.cell != crew.position.cell())

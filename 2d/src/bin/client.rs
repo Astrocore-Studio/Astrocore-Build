@@ -7,9 +7,9 @@ use astrocore_build_2d::inventory_view::{self, InventoryBackdrop, InventoryLine,
 use astrocore_build_2d::server::LocalServer;
 use astrocore_build_2d::view::MapView;
 use astrocore_build_2d::{
-    Action, CableGroup, CableSegment, Crew, Kind, Layout, MobState, Outcome, Participation, Phase,
-    PipeSample, PipeShape, State, StorageSample, WIRE_VERSION, bind_address, configured_key,
-    endpoint,
+    Action, CableGroup, CableSegment, Crew, DoorFailure, Kind, Layout, MobState, Outcome,
+    Participation, Phase, PipeSample, PipeShape, State, StorageSample, WIRE_VERSION, bind_address,
+    configured_key, endpoint,
 };
 use astrocore_grid2d::session::{Client, PlayerId, TICK_HZ, TICK_PERIOD};
 use astrocore_grid2d::{Cell, Tile};
@@ -698,6 +698,15 @@ fn draw(
                 "Await the next round".into()
             } else if life == MobState::Critical {
                 "Await medical assistance".into()
+            } else if let Some(notice) = crew.door_notice {
+                let door = &state.doors[&notice.cell];
+                let device = &layout.prototypes[&door.prototype].name;
+                let message = match notice.failure {
+                    DoorFailure::NoPower => "No power",
+                    DoorFailure::AccessDenied => "Access denied",
+                    DoorFailure::Obstructed => "Doorway occupied",
+                };
+                format!("{message}   /   {device}")
             } else if let Some(ticks) = crew.cutting_cable {
                 format!(
                     "Cutting cable {:.1}s   /   Hold still",
@@ -748,6 +757,8 @@ fn draw(
                 "F Sample room   /   P Sample pipe   /   E Interact   /   U Gas filter".into()
             } else if held == Some(Kind::HealthAnalyzer) {
                 "F Scan self   /   G Scan nearby crew   /   X Swap   Q Drop".into()
+            } else if held == Some(Kind::IdCard) {
+                "I Equip ID   /   H Give   /   Q Drop".into()
             } else {
                 let drag = if crew.pulling.is_none() {
                     "  T Drag"
@@ -828,11 +839,11 @@ fn draw(
                 } else {
                     " "
                 };
-                let item_name: String = prototype
-                    .map_or("Empty", |item| item.name.as_str())
-                    .chars()
-                    .take(18)
-                    .collect();
+                let display_name = item.map_or_else(
+                    || std::borrow::Cow::Borrowed("Empty"),
+                    |item| inventory_view::item_label(layout, item),
+                );
+                let item_name: String = display_name.chars().take(18).collect();
                 let stock = if prototype.is_some_and(|item| {
                     matches!(
                         item.kind,

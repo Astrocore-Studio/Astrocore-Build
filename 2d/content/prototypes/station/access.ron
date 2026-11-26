@@ -1,0 +1,8 @@
+{
+    "crew_id": (name: "ID card", kind: IdCard, color: (187, 205, 177)),
+    "engineering_hatch": (
+        parents: ["pressure_hatch"],
+        name: "Engineering hatch",
+        access_reader: (access: [["Engineering"], ["Atmospherics", "Maintenance"]]),
+    ),
+}

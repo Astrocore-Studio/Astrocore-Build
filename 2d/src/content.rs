@@ -4,6 +4,7 @@ use std::path::Path;
 use astrocore_grid2d::{Cell, Grid, GridLevel, Tile};
 use serde::{Deserialize, Serialize};
 
+use crate::access::{AccessReader, JobCredential, valid_tags};
 use crate::electricity::{CableSegment, StoragePorts};
 use crate::environment::coordinates;
 use crate::medical::Damage;
@@ -27,6 +28,7 @@ pub struct Job {
     pub name: String,
     pub slots: Option<u16>,
     pub spawns: Vec<Cell>,
+    pub(crate) credential: Option<JobCredential>,
 }
 
 #[derive(Clone, Default, PartialEq, Eq, Deserialize, Serialize)]
@@ -35,6 +37,8 @@ pub(crate) struct JobSettings {
     slots: Option<u16>,
     #[serde(default)]
     pub(crate) spawns: Vec<Cell>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    credential: Option<JobCredential>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -42,6 +46,8 @@ pub struct Prototype {
     pub name: String,
     pub kind: Kind,
     pub color: (u8, u8, u8),
+    #[serde(default)]
+    pub access_reader: Option<AccessReader>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -94,6 +100,7 @@ pub enum Kind {
         #[serde(default)]
         ports: StoragePorts,
     },
+    IdCard,
 }
 
 impl Kind {
@@ -113,6 +120,7 @@ impl Kind {
             Self::Backpack { .. }
             | Self::Medicine { .. }
             | Self::HealthAnalyzer
+            | Self::IdCard
             | Self::Wirecutters => Some(0),
             _ => None,
         }
@@ -247,6 +255,9 @@ impl Content {
         for (id, prototype) in &prototypes {
             if !valid_name(id)
                 || !valid_name(&prototype.name)
+                || prototype.access_reader.as_ref().is_some_and(|reader| {
+                    !matches!(prototype.kind, Kind::Door { .. }) || !reader.valid()
+                })
                 || matches!(prototype.kind, Kind::Backpack { slots }
                     if !(1..=MAX_BACKPACK_SLOTS).contains(&slots))
                 || matches!(prototype.kind, Kind::Medicine { restores, delay_seconds }
@@ -361,6 +372,12 @@ impl Content {
         for (name, job) in &data.jobs {
             if data.roles.iter().filter(|role| *role == name).count() != 1
                 || job.spawns.len() > 64
+                || job.credential.as_ref().is_some_and(|credential| {
+                    !valid_tags(&credential.access)
+                        || !prototypes
+                            .get(&credential.prototype)
+                            .is_some_and(|prototype| prototype.kind == Kind::IdCard)
+                })
                 || job
                     .spawns
                     .iter()
@@ -378,6 +395,7 @@ impl Content {
                     name,
                     slots: job.slots,
                     spawns: job.spawns,
+                    credential: job.credential,
                 }
             })
             .collect();

@@ -12,8 +12,8 @@ use ron::extensions::Extensions;
 use serde::de::{self, MapAccess, Visitor};
 use serde::{Deserialize, Deserializer};
 
-use crate::Kind;
 use crate::content::Prototype;
+use crate::{AccessReader, Kind};
 
 #[cfg(feature = "prototype-import")]
 pub use ss14::convert_ss14_catalog;
@@ -32,12 +32,15 @@ struct Definition {
     kind: Option<Kind>,
     #[serde(default)]
     color: Option<(u8, u8, u8)>,
+    #[serde(default)]
+    access_reader: Option<AccessReader>,
 }
 
 struct Properties {
     name: Option<String>,
     kind: Option<Kind>,
     color: Option<(u8, u8, u8)>,
+    access_reader: Option<AccessReader>,
 }
 
 pub(crate) fn load_catalog(
@@ -110,12 +113,16 @@ fn resolve_catalog(Catalog(definitions): &Catalog) -> Result<BTreeMap<String, Pr
             name: definition.name.clone(),
             kind: definition.kind,
             color: definition.color,
+            access_reader: definition.access_reader.clone(),
         };
         for parent in &definition.parents {
             let inherited = &resolved[parent.as_str()];
             properties.name = properties.name.or_else(|| inherited.name.clone());
             properties.kind = properties.kind.or(inherited.kind);
             properties.color = properties.color.or(inherited.color);
+            properties.access_reader = properties
+                .access_reader
+                .or_else(|| inherited.access_reader.clone());
         }
         if !definition.is_abstract {
             let (Some(name), Some(kind), Some(color)) =
@@ -125,7 +132,15 @@ fn resolve_catalog(Catalog(definitions): &Catalog) -> Result<BTreeMap<String, Pr
                     "каталог прототипов: прототип {id:?} требует name, kind и color"
                 ));
             };
-            concrete.insert(id.to_owned(), Prototype { name, kind, color });
+            concrete.insert(
+                id.to_owned(),
+                Prototype {
+                    name,
+                    kind,
+                    color,
+                    access_reader: properties.access_reader.clone(),
+                },
+            );
         }
         resolved.insert(id, properties);
     }
