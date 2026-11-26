@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::PathBuf;
 use std::process::ExitCode;
 
@@ -23,6 +23,7 @@ const HAND_LABELS_X: [f32; 2] = [-348.0, 348.0];
 struct Visuals {
     avatars: BTreeMap<PlayerId, Entity>,
     initialized: bool,
+    level: Option<i16>,
     terrain_revision: Option<u32>,
     terrain: BTreeMap<Cell, (Entity, Tile)>,
     doors: BTreeMap<Cell, (Entity, bool, bool)>,
@@ -206,6 +207,8 @@ fn receive(
         (KeyCode::KeyQ, Action::Drop),
         (KeyCode::KeyX, Action::SwapHand),
         (KeyCode::KeyF, Action::Use),
+        (KeyCode::PageUp, Action::ChangeLevel { up: true }),
+        (KeyCode::PageDown, Action::ChangeLevel { up: false }),
         (KeyCode::Digit1, Action::SelectRole(0)),
         (KeyCode::Digit2, Action::SelectRole(1)),
         (KeyCode::Digit3, Action::SelectRole(2)),
@@ -251,7 +254,10 @@ fn receive(
             network.act(Action::ClickHand(hand as u8));
             return;
         }
-        let cell = MapView::new(&session.layout.grid).cell(point);
+        let Some(crew) = session.state.players.get(&session.player) else {
+            return;
+        };
+        let cell = MapView::new(&session.layout.grid, crew.position.z).cell(point);
         if keys.just_pressed(KeyCode::KeyG) {
             network.act(Action::Treat { cell });
         } else if keys.just_pressed(KeyCode::KeyH) {
@@ -303,14 +309,37 @@ fn draw(
     };
     let layout = &session.layout;
     let state = &session.state;
-    let view = MapView::new(&layout.grid);
+    let Some(crew) = state.players.get(&session.player) else {
+        return;
+    };
+    let level = crew.position.z;
+    let view = MapView::new(&layout.grid, level);
     let scale = view.scale;
     if !visuals.initialized {
         visuals.initialized = true;
         println!("Astrocore 2D: connected");
     }
+    if visuals.level != Some(level) {
+        for entity in &map_entities {
+            commands.entity(entity).despawn();
+        }
+        *visuals = Visuals {
+            initialized: true,
+            level: Some(level),
+            ..default()
+        };
+        let markers: BTreeSet<_> = layout
+            .links
+            .iter()
+            .flat_map(|link| [link.lower, link.upper])
+            .filter(|cell| cell.z == level)
+            .collect();
+        for cell in markers {
+            commands.spawn((MapVisual, view.level_marker(cell)));
+        }
+    }
     if visuals.terrain_revision != Some(state.terrain_revision) {
-        for (cell, base) in layout.grid.cells() {
+        for (cell, base) in layout.grid.cells_at(level) {
             let tile = state.terrain.get(&cell).copied().unwrap_or(base);
             if let Some((_, previous)) = visuals.terrain.get(&cell)
                 && *previous == tile
@@ -334,6 +363,9 @@ fn draw(
         visuals.terrain_revision = Some(state.terrain_revision);
     }
     for (&cell, door) in &state.doors {
+        if cell.z != level {
+            continue;
+        }
         let Some(prototype) = layout.prototypes.get(&door.prototype) else {
             continue;
         };
@@ -364,6 +396,9 @@ fn draw(
                 (cell, &device.prototype, device.enabled && device.powered)
             }));
     for (cell, prototype, enabled) in equipment {
+        if cell.z != level {
+            continue;
+        }
         let Some(prototype) = layout.prototypes.get(prototype) else {
             continue;
         };
@@ -394,7 +429,7 @@ fn draw(
         if state
             .items
             .get(id)
-            .is_some_and(|item| item.ground.is_some())
+            .is_some_and(|item| item.ground.is_some_and(|cell| cell.z == level))
         {
             true
         } else {
@@ -403,7 +438,9 @@ fn draw(
         }
     });
     for (&id, item) in &state.items {
-        let Some(cell) = item.ground else { continue };
+        let Some(cell) = item.ground.filter(|cell| cell.z == level) else {
+            continue;
+        };
         let Some(prototype) = layout.prototypes.get(&item.prototype) else {
             continue;
         };
@@ -426,7 +463,11 @@ fn draw(
     }
 
     visuals.avatars.retain(|player, entity| {
-        if state.players.contains_key(player) {
+        if state
+            .players
+            .get(player)
+            .is_some_and(|crew| crew.position.z == level)
+        {
             true
         } else {
             commands.entity(*entity).despawn();
@@ -434,6 +475,9 @@ fn draw(
         }
     });
     for (&player, crew) in &state.players {
+        if crew.position.z != level {
+            continue;
+        }
         let location = view.world(crew.position).extend(1.0);
         let color = if crew.health == 0 {
             Color::srgb_u8(115, 93, 109)
@@ -467,9 +511,6 @@ fn draw(
         }
     }
 
-    let Some(crew) = state.players.get(&session.player) else {
-        return;
-    };
     let role = layout
         .roles
         .get(usize::from(crew.role))
@@ -505,7 +546,16 @@ fn draw(
             let construction = prototype.is_some_and(|prototype| {
                 matches!(prototype.kind, Kind::Item { materials: 1.., .. })
             });
-            let help = if construction {
+            let cell = crew.position.cell();
+            let up = layout.links.iter().any(|link| link.lower == cell);
+            let down = layout.links.iter().any(|link| link.upper == cell);
+            let help = if up && down {
+                "PgUp Upper deck   /   PgDn Lower deck".into()
+            } else if up {
+                "PgUp Upper deck".into()
+            } else if down {
+                "PgDn Lower deck".into()
+            } else if construction {
                 "B Wall   N Floor   V Dismantle   X Swap   Q Drop   I Inventory".into()
             } else if let Some(scan) = crew.scan {
                 format!(
@@ -519,7 +569,7 @@ fn draw(
             (
                 help,
                 format!(
-                    "R{} / {role} / {:02}:{:02} / HP {} / {} kPa",
+                    "R{} / {role} / {:02}:{:02} / Z {level} / HP {} / {} kPa",
                     state.round,
                     state.seconds_left / 60,
                     state.seconds_left % 60,
@@ -547,8 +597,8 @@ fn draw(
     let objective = state.recovery.as_ref().map_or_else(String::new, |goal| {
         if state.phase == Phase::Lobby {
             return format!(
-                "Seal the hull at {},{}   /   Activate the air reserve at {},{}",
-                goal.breach.x, goal.breach.y, goal.vent.x, goal.vent.y
+                "Seal the hull at {},{},{}   /   Activate the air reserve at {},{},{}",
+                goal.breach.x, goal.breach.y, goal.breach.z, goal.vent.x, goal.vent.y, goal.vent.z
             );
         }
         let hull = if goal.sealed { "sealed" } else { "open" };

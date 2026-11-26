@@ -3,15 +3,17 @@ use bevy::prelude::*;
 
 pub struct MapView {
     offset: Vec2,
+    z: i16,
     pub scale: f32,
 }
 
 impl MapView {
-    pub fn new(grid: &Grid) -> Self {
-        let (width, height) = grid.size();
+    pub fn new(grid: &Grid, z: i16) -> Self {
+        let (width, height) = grid.size_at(z).unwrap_or_else(|| grid.size());
         let size = Vec2::new(f32::from(width), f32::from(height));
         Self {
             offset: size / 2.0,
+            z,
             scale: 42.0_f32.min(960.0 / size.x).min(465.0 / size.y),
         }
     }
@@ -25,8 +27,19 @@ impl MapView {
         Position {
             x: point.x,
             y: point.y,
+            z: self.z,
         }
         .cell()
+    }
+
+    pub fn level_marker(&self, cell: Cell) -> impl Bundle {
+        let point = self.world(cell.center()) + Vec2::Y * 0.32 * self.scale;
+        (
+            Text2d::new("↕"),
+            TextFont::from_font_size((self.scale * 0.44).max(11.0)),
+            TextColor(Color::srgb_u8(236, 203, 123)),
+            Transform::from_translation(point.extend(0.8)),
+        )
     }
 
     pub fn tile_sprite(&self, cell: Cell, tile: Tile) -> Option<Sprite> {

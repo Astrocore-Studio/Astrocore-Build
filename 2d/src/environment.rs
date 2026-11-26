@@ -5,7 +5,7 @@ use std::collections::BTreeSet;
 use astrocore_grid2d::session::TICK_HZ;
 use astrocore_grid2d::{Cell, Grid, Tile};
 
-use crate::content::Layout;
+use crate::content::{Layout, LevelLink};
 use crate::{AirSample, Crew, State};
 use power_grid::PowerGrid;
 
@@ -47,7 +47,7 @@ impl Environment {
 
     pub fn reset(&mut self, layout: &Layout, state: &mut State) {
         self.air = atmos::Grid::new();
-        self.hull = hull_layout(&layout.grid);
+        self.hull = hull_layout(&layout.grid, &layout.links);
         self.apply_seals(closed_doors(state));
         self.breathing_ticks = 0;
 
@@ -74,8 +74,8 @@ impl Environment {
         }
     }
 
-    pub fn rebuild_hull(&mut self, grid: &Grid, state: &State) {
-        let next = hull_layout(grid);
+    pub fn rebuild_hull(&mut self, grid: &Grid, links: &[LevelLink], state: &State) {
+        let next = hull_layout(grid, links);
         let added: Vec<_> = next
             .cells
             .keys()
@@ -160,7 +160,7 @@ impl Environment {
     }
 }
 
-fn hull_layout(grid: &Grid) -> atmos::Layout {
+fn hull_layout(grid: &Grid, links: &[LevelLink]) -> atmos::Layout {
     let mut hull = atmos::Layout::default();
     for (cell, tile) in grid.cells() {
         if tile == Tile::Floor {
@@ -174,6 +174,11 @@ fn hull_layout(grid: &Grid) -> atmos::Layout {
             }
         }
     }
+    hull.links.extend(
+        links
+            .iter()
+            .map(|link| (coordinates(link.lower), coordinates(link.upper))),
+    );
     hull
 }
 
@@ -185,12 +190,12 @@ fn closed_doors(state: &State) -> BTreeSet<Cell> {
         .collect()
 }
 
-fn coordinates(cell: Cell) -> (i32, i32) {
-    (cell.x, cell.y)
+pub(crate) fn coordinates(cell: Cell) -> (i32, i32) {
+    atmos::floor_cell(i32::from(cell.z), cell.x, cell.y)
 }
 
 fn neighbors(cell: Cell) -> impl Iterator<Item = Cell> {
     SIDES
         .into_iter()
-        .map(move |(x, y)| Cell::new(cell.x + x, cell.y + y))
+        .map(move |(x, y)| Cell::at(cell.x + x, cell.y + y, cell.z))
 }

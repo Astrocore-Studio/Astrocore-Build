@@ -8,11 +8,11 @@ impl Station {
     pub(crate) fn construct(&mut self, player: PlayerId, cell: Cell, tile: Tile) {
         let crew = &self.state.players[&player];
         let origin = crew.position.cell();
-        let reach = origin
-            .x
-            .abs_diff(cell.x)
-            .saturating_add(origin.y.abs_diff(cell.y));
-        if reach > 1 || !self.terrain.contains(cell) {
+        if origin
+            .distance_on_level(cell)
+            .is_none_or(|distance| distance > 1)
+            || !self.terrain.contains(cell)
+        {
             return;
         }
         let Some(kit) = crew.hands[usize::from(crew.active_hand)] else {
@@ -29,6 +29,7 @@ impl Station {
         if capacity == 0
             || self.cables.contains(&cell)
             || self.layout.spawns.contains(&cell)
+            || self.layout.links.iter().any(|link| link.contains(cell))
             || self.state.doors.contains_key(&cell)
             || self.state.generators.contains_key(&cell)
             || self.state.vents.contains_key(&cell)

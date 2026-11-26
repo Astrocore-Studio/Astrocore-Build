@@ -78,10 +78,8 @@ impl Station {
         let giver = &self.state.players[&player];
         let origin = giver.position.cell();
         if origin
-            .x
-            .abs_diff(cell.x)
-            .saturating_add(origin.y.abs_diff(cell.y))
-            > 1
+            .distance_on_level(cell)
+            .is_none_or(|distance| distance > 1)
             || self.state.doors.get(&cell).is_some_and(|door| !door.open)
         {
             return;

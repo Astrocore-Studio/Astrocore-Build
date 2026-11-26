@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 
 use astrocore_grid2d::{Cell, Grid, Tile};
 
-use crate::content::{Content, MapData, Placement, Prototype, parse_grid};
+use crate::content::{Content, LevelLink, MapData, Placement, Prototype, parse_grid};
 
 const UNDO_LIMIT: usize = 32;
 
@@ -13,6 +13,7 @@ pub enum Brush {
     Tile(Tile),
     Spawn,
     Cable,
+    Link,
     Object(String),
 }
 
@@ -71,6 +72,13 @@ impl Document {
         &self.draft.cables
     }
 
+    pub fn link_cells(&self) -> impl Iterator<Item = Cell> + '_ {
+        self.draft
+            .links
+            .iter()
+            .flat_map(|link| [link.lower, link.upper])
+    }
+
     pub fn prototypes(&self) -> &BTreeMap<String, Prototype> {
         &self.prototypes
     }
@@ -95,17 +103,30 @@ impl Document {
         match brush {
             Brush::Tile(tile) => {
                 let tile = if erase { Tile::Void } else { *tile };
-                let row = self.draft.grid.len() - 1 - cell.y as usize;
+                let rows = if cell.z == 0 {
+                    &mut self.draft.grid
+                } else {
+                    self.draft
+                        .levels
+                        .get_mut(&cell.z)
+                        .expect("этаж находится в документе")
+                };
+                let row = rows.len() - 1 - cell.y as usize;
                 let symbol = match tile {
                     Tile::Void => "~",
                     Tile::Wall => "#",
                     Tile::Floor => ".",
                 };
-                self.draft.grid[row].replace_range(cell.x as usize..cell.x as usize + 1, symbol);
+                rows[row].replace_range(cell.x as usize..cell.x as usize + 1, symbol);
                 self.grid.set_tile(cell, tile);
             }
             Brush::Spawn => mark(&mut self.draft.spawns, cell, erase),
             Brush::Cable => mark(&mut self.draft.cables, cell, erase),
+            Brush::Link => {
+                if erase {
+                    self.draft.links.retain(|link| !link.contains(cell));
+                }
+            }
             Brush::Object(id) => {
                 if erase {
                     self.draft.placements.retain(|object| object.cell != cell);
@@ -124,6 +145,46 @@ impl Document {
                 }
             }
         }
+        self.record_edit(previous)
+    }
+
+    pub fn add_level(&mut self, z: i16) -> bool {
+        if self.grid.size_at(z).is_some() {
+            return false;
+        }
+        let previous = self.draft.clone();
+        let (width, height) = self.grid.size();
+        self.draft
+            .levels
+            .insert(z, vec!["~".repeat(usize::from(width)); usize::from(height)]);
+        self.refresh_grid();
+        self.record_edit(previous)
+    }
+
+    pub fn connect_levels(&mut self, first: Cell, second: Cell) -> bool {
+        let (lower, upper) = if first.z < second.z {
+            (first, second)
+        } else {
+            (second, first)
+        };
+        if lower.z.checked_add(1) != Some(upper.z)
+            || [lower, upper]
+                .into_iter()
+                .any(|cell| self.grid.tile(cell) != Tile::Floor)
+            || self
+                .draft
+                .links
+                .iter()
+                .any(|link| link.lower == lower || link.upper == upper)
+        {
+            return false;
+        }
+        let previous = self.draft.clone();
+        self.draft.links.push(LevelLink { lower, upper });
+        self.record_edit(previous)
+    }
+
+    fn record_edit(&mut self, previous: MapData) -> bool {
         if self.draft == previous {
             return false;
         }
@@ -155,7 +216,7 @@ impl Document {
     }
 
     fn refresh_grid(&mut self) {
-        self.grid = parse_grid(&self.draft.grid).expect("кисти сохраняют размер и символы сетки");
+        self.grid = parse_grid(&self.draft).expect("черновик содержит корректные уровни");
     }
 
     pub fn save(&mut self) -> Result<(), String> {
@@ -194,6 +255,8 @@ fn empty_station() -> MapData {
     MapData {
         name: "Untitled Station".into(),
         grid,
+        levels: BTreeMap::new(),
+        links: Vec::new(),
         spawns: vec![Cell::new(16, 8)],
         placements: Vec::new(),
         roles: vec!["Operator".into(), "Engineer".into(), "Medic".into()],

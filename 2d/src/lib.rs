@@ -5,7 +5,7 @@ mod inventory;
 mod replication;
 pub mod server;
 
-pub use content::{Kind, Layout, MAX_BACKPACK_SLOTS};
+pub use content::{Kind, Layout, LevelLink, MAX_BACKPACK_SLOTS};
 
 #[cfg(feature = "client")]
 pub mod editor;
@@ -26,7 +26,7 @@ use serde::{Deserialize, Serialize};
 
 const DEBRIEF_TICKS: u32 = 10 * TICK_HZ;
 const MAX_ROUND_ITEMS: usize = 512;
-pub const WIRE_VERSION: u16 = 6;
+pub const WIRE_VERSION: u16 = 7;
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub enum Action {
@@ -43,6 +43,7 @@ pub enum Action {
     StoreInBackpack,
     TakeFromBackpack { item: u16 },
     Give { cell: Cell },
+    ChangeLevel { up: bool },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -284,7 +285,6 @@ impl Station {
     fn interact(&mut self, player: PlayerId) {
         let crew = &self.state.players[&player];
         let cell = crew.position.cell();
-        let reach = |target: Cell| cell.x.abs_diff(target.x) + cell.y.abs_diff(target.y);
         let hand = usize::from(crew.active_hand);
 
         let item = self
@@ -293,10 +293,11 @@ impl Station {
             .iter()
             .filter_map(|(&id, item)| {
                 let ground = item.ground?;
+                let distance = cell.distance_on_level(ground)?;
                 (crew.hands[hand].is_none()
-                    && reach(ground) <= 1
+                    && distance <= 1
                     && self.state.doors.get(&ground).is_none_or(|door| door.open))
-                .then_some((reach(ground), id))
+                .then_some((distance, id))
             })
             .min();
         let device = self
@@ -306,7 +307,10 @@ impl Station {
             .chain(self.state.generators.keys())
             .chain(self.state.vents.keys())
             .copied()
-            .map(|target| (reach(target), target))
+            .filter_map(|target| {
+                cell.distance_on_level(target)
+                    .map(|distance| (distance, target))
+            })
             .filter(|&(distance, _)| distance <= 1)
             .min();
 
@@ -372,6 +376,22 @@ impl Station {
                 self.take_from_backpack(player, item)
             }
             (Phase::Active, Action::Give { cell }) => self.give_item(player, cell),
+            (Phase::Active, Action::ChangeLevel { up }) => {
+                let cell = crew.position.cell();
+                let destination = self.layout.links.iter().find_map(|link| {
+                    if up && cell == link.lower {
+                        Some(link.upper)
+                    } else if !up && cell == link.upper {
+                        Some(link.lower)
+                    } else {
+                        None
+                    }
+                });
+                if let Some(destination) = destination {
+                    crew.position = destination.center();
+                    crew.scan = None;
+                }
+            }
             (Phase::Active, Action::ClickHand(hand @ 0..=1)) => {
                 let clicked = usize::from(hand);
                 let active = usize::from(crew.active_hand);
@@ -420,10 +440,8 @@ impl Station {
             None => player,
             Some(cell)
                 if origin
-                    .x
-                    .abs_diff(cell.x)
-                    .saturating_add(origin.y.abs_diff(cell.y))
-                    <= 1
+                    .distance_on_level(cell)
+                    .is_some_and(|distance| distance <= 1)
                     && self.state.doors.get(&cell).is_none_or(|door| door.open) =>
             {
                 let Some((&recipient, _)) = self.state.players.iter().find(|(id, crew)| {
@@ -653,7 +671,8 @@ impl Simulation for Station {
         }
         if self.state.phase == Phase::Active {
             if self.state.terrain_revision != previous_revision {
-                self.environment.rebuild_hull(&self.terrain, &self.state);
+                self.environment
+                    .rebuild_hull(&self.terrain, &self.layout.links, &self.state);
             }
             self.environment.tick(&mut self.state);
         }

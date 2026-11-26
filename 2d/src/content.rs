@@ -1,8 +1,10 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 
-use astrocore_grid2d::{Cell, Grid, Tile};
+use astrocore_grid2d::{Cell, Grid, GridLevel, Tile};
 use serde::{Deserialize, Serialize};
+
+use crate::environment::coordinates;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Layout {
@@ -10,6 +12,7 @@ pub struct Layout {
     pub grid: Grid,
     pub prototypes: BTreeMap<String, Prototype>,
     pub roles: Vec<String>,
+    pub links: Vec<LevelLink>,
     pub(crate) spawns: Vec<Cell>,
 }
 
@@ -57,10 +60,26 @@ impl Kind {
 
 pub const MAX_BACKPACK_SLOTS: u8 = 8;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
+pub struct LevelLink {
+    pub lower: Cell,
+    pub upper: Cell,
+}
+
+impl LevelLink {
+    pub fn contains(self, cell: Cell) -> bool {
+        self.lower == cell || self.upper == cell
+    }
+}
+
 #[derive(Clone, PartialEq, Eq, Deserialize, Serialize)]
 pub(crate) struct MapData {
     pub name: String,
     pub grid: Vec<String>,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub levels: BTreeMap<i16, Vec<String>>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub links: Vec<LevelLink>,
     pub spawns: Vec<Cell>,
     pub placements: Vec<Placement>,
     pub roles: Vec<String>,
@@ -161,7 +180,7 @@ impl Content {
                 return Err(format!("неверное стартовое снаряжение роли {role:?}"));
             }
         }
-        let grid = parse_grid(&data.grid)?;
+        let grid = parse_grid(&data)?;
         let mut occupied = BTreeSet::new();
         for placement in &data.placements {
             let prototype = prototypes
@@ -175,6 +194,19 @@ impl Content {
                     "два устройства на одной клетке: {:?}",
                     placement.cell
                 ));
+            }
+        }
+        let mut stairs_up = BTreeSet::new();
+        let mut stairs_down = BTreeSet::new();
+        for link in &data.links {
+            if link.lower.z.checked_add(1) != Some(link.upper.z)
+                || [link.lower, link.upper]
+                    .into_iter()
+                    .any(|cell| grid.tile(cell) != Tile::Floor || occupied.contains(&cell))
+                || !stairs_up.insert(link.lower)
+                || !stairs_down.insert(link.upper)
+            {
+                return Err(format!("неверный переход между этажами: {link:?}"));
             }
         }
         if let Some(recovery) = &data.recovery
@@ -209,7 +241,6 @@ impl Content {
         }
         if let Some(recovery) = &data.recovery {
             let group = power::CableGroup::Apc;
-            let coordinates = |cell: Cell| (cell.x, cell.y);
             let cables =
                 power::Cables::build(data.cables.iter().map(|&cell| (group, coordinates(cell))));
             let vent_net = cables.net_at(group, coordinates(recovery.vent));
@@ -238,6 +269,7 @@ impl Content {
                 grid,
                 prototypes,
                 roles: data.roles,
+                links: data.links,
                 spawns: data.spawns,
             },
             placements: data.placements,
@@ -249,10 +281,22 @@ impl Content {
     }
 }
 
-pub(crate) fn parse_grid(rows: &[String]) -> Result<Grid, String> {
+pub(crate) fn parse_grid(data: &MapData) -> Result<Grid, String> {
+    let mut levels = BTreeMap::new();
+    for (&z, rows) in &data.levels {
+        if z == 0 {
+            return Err("уровень Z = 0 задаётся полем grid".into());
+        }
+        levels.insert(z, parse_level(rows)?);
+    }
+    levels.insert(0, parse_level(&data.grid)?);
+    Grid::from_levels(levels).map_err(str::to_owned)
+}
+
+fn parse_level(rows: &[String]) -> Result<GridLevel, String> {
     let width = rows.first().map_or(0, String::len);
     if width > 64 || rows.len() > 64 {
-        return Err("максимальный размер карты 64 × 64".into());
+        return Err("максимальный размер этажа 64 × 64".into());
     }
     let mut tiles = Vec::new();
     for row in rows.iter().rev() {
@@ -268,5 +312,5 @@ pub(crate) fn parse_grid(rows: &[String]) -> Result<Grid, String> {
             });
         }
     }
-    Grid::new(width as u16, rows.len() as u16, tiles).map_err(str::to_owned)
+    GridLevel::new(width as u16, rows.len() as u16, tiles).map_err(str::to_owned)
 }
