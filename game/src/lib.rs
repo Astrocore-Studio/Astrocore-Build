@@ -8,11 +8,15 @@
 pub mod action_blocker;
 pub mod activatable_ui;
 pub mod content;
+pub mod friction;
+pub mod hands;
 pub mod input_contexts;
 pub mod interaction;
 pub mod item;
+pub mod ordered;
 pub mod server;
 pub mod tag;
+pub mod throwing;
 pub mod whitelist;
 
 #[cfg(test)]
@@ -20,6 +24,10 @@ pub(crate) mod testing;
 
 #[cfg(feature = "client")]
 pub mod client;
+#[cfg(feature = "client")]
+pub mod hands_hud;
+#[cfg(feature = "client")]
+pub mod inhands;
 #[cfg(feature = "client")]
 pub mod smooth;
 
@@ -48,6 +56,9 @@ pub fn install_content(world: &mut World, side: Side) {
     action_blocker::install(world);
     interaction::install(world, side);
     activatable_ui::install(world, side);
+    hands::install(world, side);
+    throwing::install(world, side);
+    friction::install(world, side);
 }
 
 /// Адрес сервера по умолчанию.

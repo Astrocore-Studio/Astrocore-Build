@@ -13,6 +13,23 @@ fn default_size() -> String {
     "Small".to_owned()
 }
 
+/// Слой спрайта предмета в руке или на одежде (`PrototypeLayerData`): заданные поля
+/// заменяют поля слоя.
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", default)]
+pub struct ItemLayer {
+    pub sprite: Option<String>,
+    pub state: Option<String>,
+    pub texture: Option<String>,
+    pub color: Option<astrocore_math::Color>,
+    pub visible: Option<bool>,
+    pub scale: Option<astrocore_math::Vec2>,
+    pub offset: Option<astrocore_math::Vec2>,
+    pub rotation: Option<astrocore_math::Angle>,
+    pub shader: Option<String>,
+    pub map: Option<Vec<String>>,
+}
+
 /// Предмет. В данных — компонент `Item`.
 #[derive(Component, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -26,6 +43,9 @@ pub struct Item {
     /// Начало имени состояний в руке (`inhand-left`, `<prefix>-inhand-left`).
     #[serde(default)]
     pub held_prefix: Option<String>,
+    /// Слои в руке по сторонам (`left`, `right`) вместо состояний по умолчанию.
+    #[serde(default)]
+    pub inhand_visuals: std::collections::BTreeMap<String, Vec<ItemLayer>>,
 }
 
 impl Default for Item {
@@ -34,6 +54,7 @@ impl Default for Item {
             size: default_size(),
             sprite: None,
             held_prefix: None,
+            inhand_visuals: std::collections::BTreeMap::new(),
         }
     }
 }

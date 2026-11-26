@@ -482,6 +482,7 @@ dependencies = [
  "astrocore-math",
  "astrocore-movement",
  "astrocore-net",
+ "astrocore-prototypes",
  "astrocore-resources",
  "astrocore-ui",
  "bevy",

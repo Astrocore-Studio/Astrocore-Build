@@ -177,7 +177,7 @@ pub fn load_content(world: &mut World, resources: &Resources, ss14: &Path) -> Lo
             prototypes.resolve(world.resource::<ComponentRegistry>(), &mut report);
         });
     }
-    let tiles: Vec<(String, Option<String>, u8)> = {
+    let tiles: Vec<(String, Option<String>, u8, f32)> = {
         let prototypes = world.resource::<Prototypes>();
         prototypes
             .ids("tile")
@@ -192,12 +192,22 @@ pub fn load_content(world: &mut World, resources: &Resources, ss14: &Path) -> Lo
                     .and_then(|n| n.as_str())
                     .and_then(|v| v.parse().ok())
                     .unwrap_or(1);
-                Some((id.to_owned(), sprite, variants))
+                let friction = node
+                    .get("friction")
+                    .and_then(|n| n.as_str())
+                    .and_then(|v| v.parse().ok())
+                    .unwrap_or(1.0);
+                Some((id.to_owned(), sprite, variants, friction))
             })
             .collect()
     };
+    let mut frictions = crate::friction::TileFrictions::default();
+    for (id, _, _, friction) in &tiles {
+        frictions.set(id, *friction);
+    }
+    world.insert_resource(frictions);
     let mut definitions = world.get_resource_or_insert_with(TileDefinitions::default);
-    for (id, sprite, variants) in tiles {
+    for (id, sprite, variants, _) in tiles {
         definitions.register(&id, sprite, variants);
     }
     load_locale(world, resources);

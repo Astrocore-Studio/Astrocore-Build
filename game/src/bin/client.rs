@@ -177,7 +177,8 @@ fn run() -> Result<(), String> {
     .insert_resource(bindings)
     .insert_resource(GameResources(resources))
     .insert_non_send(Link(transport))
-    .add_plugins(ClientPlugin);
+    .add_plugins(ClientPlugin)
+    .add_plugins(astrocore_game::hands_hud::HandsHudPlugin);
     if options.walk {
         app.add_systems(Update, hold_right);
     }

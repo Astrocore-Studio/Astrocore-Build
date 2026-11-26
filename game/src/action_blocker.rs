@@ -54,6 +54,31 @@ pub struct GettingUsedAttempt {
     pub cancelled: bool,
 }
 
+/// Попытка поднять предмет (`PickupAttemptEvent`). Поднимается на действующем, затем
+/// (`GettingPickedUpAttemptEvent`) на предмете.
+#[derive(Debug, Clone, Copy)]
+pub struct PickupAttempt {
+    pub user: Entity,
+    pub item: Entity,
+    pub cancelled: bool,
+}
+
+/// Попытка выпустить предмет из рук (`DropAttemptEvent`). Поднимается на действующем.
+#[derive(Debug, Clone, Copy)]
+pub struct DropAttempt {
+    pub user: Entity,
+    pub cancelled: bool,
+}
+
+/// Попытка бросить (`ThrowAttemptEvent`). Поднимается на действующем, затем
+/// (`ThrowItemAttemptEvent`) на предмете.
+#[derive(Debug, Clone, Copy)]
+pub struct ThrowAttempt {
+    pub user: Entity,
+    pub item: Entity,
+    pub cancelled: bool,
+}
+
 /// Проверки действий на `World`.
 pub trait ActionBlockerWorldExt {
     fn can_consciously_perform_action(&mut self, user: Entity) -> bool;
@@ -64,6 +89,28 @@ pub trait ActionBlockerWorldExt {
     fn can_use_held_entity(&mut self, user: Entity, used: Entity) -> bool;
 
     fn can_complex_interact(&self, user: Entity) -> bool;
+
+    fn can_pickup(&mut self, user: Entity, item: Entity) -> bool;
+
+    fn can_drop(&mut self, user: Entity) -> bool;
+
+    fn can_throw(&mut self, user: Entity, item: Entity) -> bool;
+}
+
+/// Поднимает отменяемое событие на действующем и, если нужно, на предмете.
+fn attempt<E: Copy + 'static>(
+    world: &mut World,
+    targets: &[Entity],
+    mut event: E,
+    cancelled: fn(&E) -> bool,
+) -> bool {
+    for target in targets {
+        world.raise(*target, &mut event);
+        if cancelled(&event) {
+            return false;
+        }
+    }
+    true
 }
 
 impl ActionBlockerWorldExt for World {
@@ -121,6 +168,32 @@ impl ActionBlockerWorldExt for World {
 
     fn can_complex_interact(&self, user: Entity) -> bool {
         self.get::<ComplexInteraction>(user).is_some()
+    }
+
+    fn can_pickup(&mut self, user: Entity, item: Entity) -> bool {
+        let event = PickupAttempt {
+            user,
+            item,
+            cancelled: false,
+        };
+        attempt(self, &[user, item], event, |e| e.cancelled)
+    }
+
+    fn can_drop(&mut self, user: Entity) -> bool {
+        let event = DropAttempt {
+            user,
+            cancelled: false,
+        };
+        attempt(self, &[user], event, |e| e.cancelled)
+    }
+
+    fn can_throw(&mut self, user: Entity, item: Entity) -> bool {
+        let event = ThrowAttempt {
+            user,
+            item,
+            cancelled: false,
+        };
+        attempt(self, &[user, item], event, |e| e.cancelled)
     }
 }
 
