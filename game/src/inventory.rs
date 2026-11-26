@@ -19,6 +19,8 @@ use bevy_ecs::world::World;
 use serde::de::{self, SeqAccess, Visitor};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
+use astrocore_audio::{AudioWorldExt, SoundSpecifier};
+
 use crate::do_after::{DoAfterArgs, DoAfterDone, DoAfterWorldExt};
 use crate::examine::loc;
 use crate::hands::{HandDeselected, HandsWorldExt};
@@ -234,6 +236,10 @@ pub struct Clothing {
     /// Слот, в котором вещь сейчас.
     #[serde(default)]
     pub in_slot: Option<String>,
+    #[serde(default)]
+    pub equip_sound: Option<SoundSpecifier>,
+    #[serde(default)]
+    pub unequip_sound: Option<SoundSpecifier>,
 }
 
 impl Default for Clothing {
@@ -249,6 +255,8 @@ impl Default for Clothing {
             unequip_delay: 0.0,
             equip_while_moving: false,
             in_slot: None,
+            equip_sound: None,
+            unequip_sound: None,
         }
     }
 }
@@ -523,6 +531,13 @@ impl InventoryWorldExt for World {
             }
             return EquipResult::Refused;
         }
+        if !silent
+            && let Some(sound) = self
+                .get::<Clothing>(item)
+                .and_then(|c| c.equip_sound.clone())
+        {
+            self.play_entity(&sound, target, None);
+        }
         EquipResult::Done
     }
 
@@ -638,6 +653,13 @@ impl InventoryWorldExt for World {
             {
                 dropped += 1;
             }
+        }
+        if !silent
+            && let Some(sound) = self
+                .get::<Clothing>(item)
+                .and_then(|c| c.unequip_sound.clone())
+        {
+            self.play_entity(&sound, target, None);
         }
         if !silent && dropped > 0 {
             let text = loc(
