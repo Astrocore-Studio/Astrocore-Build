@@ -23,9 +23,9 @@ pub const MAP: CVarDef<&str> = CVarDef::new(
 /// Прототип сущности, которую получает вошедший игрок.
 pub const PLAYER_PROTOTYPE: CVarDef<&str> = CVarDef::new(
     "game.player_prototype",
-    "MobCorgi",
+    "MobHuman",
     CVarFlags::SERVERONLY.union(CVarFlags::ARCHIVE),
-    "Прототип сущности игрока. Человек появится с переносом внешности гуманоидов (задача 3.10).",
+    "Прототип сущности игрока.",
 );
 
 /// Каталог `Resources` Space Station 14 по умолчанию: референс рядом с чекаутом Build

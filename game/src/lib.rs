@@ -8,6 +8,7 @@
 pub mod action_blocker;
 pub mod actions;
 pub mod activatable_ui;
+pub mod body;
 pub mod combat;
 pub mod content;
 pub mod damage;
@@ -44,6 +45,8 @@ pub(crate) mod testing;
 
 #[cfg(feature = "client")]
 pub mod action_bar;
+#[cfg(feature = "client")]
+pub mod body_visuals;
 #[cfg(feature = "client")]
 pub mod client;
 #[cfg(feature = "client")]
@@ -112,6 +115,7 @@ pub fn install_content(world: &mut World, side: Side) {
     pulling::install(world, side);
     actions::install(world, side);
     combat::install(world, side);
+    body::install(world, side);
     damage_other_on_hit::install(world, side);
 }
 

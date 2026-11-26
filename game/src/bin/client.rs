@@ -10,7 +10,8 @@
 //! `--examine-nearest` осматривает ближайшую сущность и показывает всплывающее сообщение,
 //! `--storage-nearest` (только с `--host`) ставит игрока у ящика с инструментами, кладёт в него
 //! инструменты, открывает его окно и ближайший шкаф, `--hurt` (только с `--host`) через секунду
-//! наносит игроку смертельный урон.
+//! наносит игроку смертельный урон, `--dress` (только с `--host`) надевает на игрока
+//! комбинезон, ботинки и рюкзак.
 
 use std::process::ExitCode;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -34,6 +35,7 @@ struct Options {
     examine_nearest: bool,
     storage_nearest: bool,
     hurt: bool,
+    dress: bool,
 }
 
 fn options() -> Result<Options, String> {
@@ -47,6 +49,7 @@ fn options() -> Result<Options, String> {
         examine_nearest: false,
         storage_nearest: false,
         hurt: false,
+        dress: false,
     };
     let mut args = std::env::args().skip(1);
     while let Some(arg) = args.next() {
@@ -58,6 +61,7 @@ fn options() -> Result<Options, String> {
             "--examine-nearest" => options.examine_nearest = true,
             "--storage-nearest" => options.storage_nearest = true,
             "--hurt" => options.hurt = true,
+            "--dress" => options.dress = true,
             "--connect" => options.connect = Some(value("адрес сервера")?),
             "--name" => options.name = value("имя игрока")?,
             "--capture" => options.capture = Some(value("файл кадра")?),
@@ -293,6 +297,40 @@ fn hurt_player(world: &mut bevy_ecs::world::World, mut ticks: Local<u32>) {
     }
 }
 
+/// Проверка без человека: через секунду игрок одет.
+fn dress_player(world: &mut bevy_ecs::world::World, mut ticks: Local<u32>) {
+    use astrocore_game::inventory::{EquipOptions, InventoryWorldExt};
+    use astrocore_map::{SpawnWorldExt, TransformWorldExt};
+    let Some(player) = world
+        .query_filtered::<bevy_ecs::entity::Entity, With<astrocore_net::Actor>>()
+        .iter(world)
+        .next()
+    else {
+        return;
+    };
+    *ticks += 1;
+    if *ticks != 30 {
+        return;
+    }
+    for (prototype, slot) in [
+        ("ClothingUniformJumpsuitColorGrey", "jumpsuit"),
+        ("ClothingShoesColorBlack", "shoes"),
+        ("ClothingBackpack", "back"),
+    ] {
+        let Some(at) = world.coordinates(player) else {
+            return;
+        };
+        if let Ok(item) = world.spawn_attached(prototype, at) {
+            let options = EquipOptions {
+                silent: true,
+                force: true,
+                delay: false,
+            };
+            world.try_equip(player, player, item, slot, options);
+        }
+    }
+}
+
 fn hold_right(mut game: ResMut<Game>) {
     if let Some(mut input) = game.0.get_resource_mut::<LocalInput>() {
         input.buttons = MoveButtons::RIGHT;
@@ -308,6 +346,12 @@ fn run() -> Result<(), String> {
         }
         if options.storage_nearest {
             stand_by_storage(&mut start.world);
+        }
+        if options.dress {
+            use astrocore_ecs::GameWorldExt;
+            start
+                .world
+                .add_game_systems(astrocore_ecs::Update, dress_player);
         }
         if options.hurt {
             use astrocore_ecs::GameWorldExt;

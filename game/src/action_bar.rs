@@ -95,7 +95,8 @@ fn sync_panel(
         .spawn((
             Node {
                 position_type: PositionType::Absolute,
-                bottom: Val::Px(12.0),
+                // Над панелью рук.
+                bottom: Val::Px(84.0),
                 left: Val::Percent(50.0),
                 margin: UiRect::left(Val::Px(-width / 2.0)),
                 width: Val::Px(width),
