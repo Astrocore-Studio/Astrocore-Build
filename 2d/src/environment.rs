@@ -24,11 +24,7 @@ pub(crate) struct Environment {
 }
 
 impl Environment {
-    pub fn new(
-        layout: &Layout,
-        cables: &BTreeSet<Cell>,
-        state: &mut State,
-    ) -> Result<Self, String> {
+    pub fn new(layout: &Layout, state: &mut State) -> Result<Self, String> {
         let workers = rayon::ThreadPoolBuilder::new()
             .thread_name(|index| format!("astrocore-sim-{index}"))
             .build()
@@ -38,7 +34,7 @@ impl Environment {
             air: atmos::Grid::new(),
             hull: atmos::Layout::default(),
             closed: BTreeSet::new(),
-            power: PowerGrid::new(cables),
+            power: PowerGrid::default(),
             breathing_ticks: 0,
         };
         result.reset(layout, state);
@@ -51,7 +47,13 @@ impl Environment {
         self.apply_seals(closed_doors(state));
         self.breathing_ticks = 0;
 
-        self.power.reset(layout, state);
+        self.power = PowerGrid::default();
+        self.rewire(layout, state);
+        self.power.step(state);
+    }
+
+    pub fn rewire(&mut self, layout: &Layout, state: &State) {
+        self.power.rewire(layout, state);
     }
 
     pub fn tick(&mut self, state: &mut State) {

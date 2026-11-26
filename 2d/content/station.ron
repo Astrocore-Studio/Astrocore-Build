@@ -23,6 +23,8 @@
         (prototype: "backpack", cell: (x: 8, y: 4)),
         (prototype: "field_dressing", cell: (x: 7, y: 3)),
         (prototype: "health_analyzer", cell: (x: 6, y: 5)),
+        (prototype: "cable_coil", cell: (x: 4, y: 4)),
+        (prototype: "wirecutters", cell: (x: 5, y: 4)),
         (prototype: "analyzer", cell: (x: 17, y: 6)),
     ],
     cables: [

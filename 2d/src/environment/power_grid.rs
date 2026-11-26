@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeMap;
 
 use astrocore_grid2d::Cell;
 use power::{CableGroup, Cables, Load, PowerState, Supply};
@@ -6,64 +6,59 @@ use power::{CableGroup, Cables, Load, PowerState, Supply};
 use super::{DT, coordinates};
 use crate::{Kind, Layout, State};
 
+#[derive(Default)]
 pub(super) struct PowerGrid {
     solver: PowerState,
-    cables: Cables,
     generators: BTreeMap<Cell, usize>,
     doors: BTreeMap<Cell, usize>,
     vents: BTreeMap<Cell, (usize, u16)>,
 }
 
 impl PowerGrid {
-    pub(super) fn new(cables: &BTreeSet<Cell>) -> Self {
-        Self {
-            solver: PowerState::default(),
-            cables: Cables::build(
-                cables
-                    .iter()
-                    .map(|&cell| (CableGroup::Apc, coordinates(cell))),
-            ),
-            generators: BTreeMap::new(),
-            doors: BTreeMap::new(),
-            vents: BTreeMap::new(),
-        }
-    }
-
-    pub(super) fn reset(&mut self, layout: &Layout, state: &mut State) {
-        self.solver = PowerState::default();
-        self.generators.clear();
+    pub(super) fn rewire(&mut self, layout: &Layout, state: &State) {
+        let cables = Cables::build(
+            state
+                .cables
+                .keys()
+                .map(|&cell| (CableGroup::Apc, coordinates(cell))),
+        );
+        let mut solver = PowerState::default();
+        let previous_generators = std::mem::take(&mut self.generators);
         self.doors.clear();
         self.vents.clear();
-        for _ in 0..self.cables.net_count() {
-            self.solver.add_network();
+        for _ in 0..cables.net_count() {
+            solver.add_network();
         }
         for (&cell, generator) in &state.generators {
-            if let Some(net) = self.cables.net_at(CableGroup::Apc, coordinates(cell))
+            if let Some(net) = cables.net_at(CableGroup::Apc, coordinates(cell))
                 && let Kind::Generator { watts } = layout.prototypes[&generator.prototype].kind
             {
-                let supply = self.solver.add_supply(net, Supply::new(f32::from(watts)));
-                self.generators.insert(cell, supply);
+                let supply = previous_generators.get(&cell).map_or_else(
+                    || Supply::new(f32::from(watts)),
+                    |&id| self.solver.supplies[id].clone(),
+                );
+                self.generators.insert(cell, solver.add_supply(net, supply));
             }
         }
         for (&cell, door) in &state.doors {
-            if let Some(net) = self.cables.net_at(CableGroup::Apc, coordinates(cell))
+            if let Some(net) = cables.net_at(CableGroup::Apc, coordinates(cell))
                 && let Kind::Door { watts } = layout.prototypes[&door.prototype].kind
             {
-                let load = self.solver.add_load(net, Load::new(f32::from(watts)));
+                let load = solver.add_load(net, Load::new(f32::from(watts)));
                 self.doors.insert(cell, load);
             }
         }
         for (&cell, vent) in &state.vents {
-            if let Some(net) = self.cables.net_at(CableGroup::Apc, coordinates(cell))
+            if let Some(net) = cables.net_at(CableGroup::Apc, coordinates(cell))
                 && let Kind::Vent {
                     watts, flow_moles, ..
                 } = layout.prototypes[&vent.prototype].kind
             {
-                let load = self.solver.add_load(net, Load::new(f32::from(watts)));
+                let load = solver.add_load(net, Load::new(f32::from(watts)));
                 self.vents.insert(cell, (load, flow_moles));
             }
         }
-        self.step(state);
+        self.solver = solver;
     }
 
     pub(super) fn step(&mut self, state: &mut State) {

@@ -52,19 +52,28 @@ pub enum Kind {
         delay_seconds: u8,
     },
     HealthAnalyzer,
+    CableCoil {
+        segments: u8,
+    },
+    Wirecutters,
 }
 
 impl Kind {
     pub(crate) fn item_materials(self) -> Option<u8> {
         match self {
             Self::Item { materials, .. } => Some(materials),
-            Self::Backpack { .. } | Self::Medicine { .. } | Self::HealthAnalyzer => Some(0),
+            Self::CableCoil { segments } => Some(segments),
+            Self::Backpack { .. }
+            | Self::Medicine { .. }
+            | Self::HealthAnalyzer
+            | Self::Wirecutters => Some(0),
             _ => None,
         }
     }
 }
 
 pub const MAX_BACKPACK_SLOTS: u8 = 8;
+pub(crate) const MAX_CABLES: usize = 4096;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
 pub struct LevelLink {
@@ -172,6 +181,7 @@ impl Content {
                     if !(1..=MAX_BACKPACK_SLOTS).contains(&slots))
                 || matches!(prototype.kind, Kind::Medicine { restores, delay_seconds }
                     if restores.total() == 0 || !(1..=15).contains(&delay_seconds))
+                || matches!(prototype.kind, Kind::CableCoil { segments: 0 })
             {
                 return Err(format!("неверные параметры прототипа {id:?}"));
             }
@@ -239,7 +249,7 @@ impl Content {
                 "цель восстановления требует пробоины, точки измерения и вентиляции".into(),
             );
         }
-        if data.cables.len() > 4096
+        if data.cables.len() > MAX_CABLES
             || data
                 .cables
                 .iter()

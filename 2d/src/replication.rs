@@ -13,6 +13,7 @@ pub struct StateDelta {
     generators: MapDelta<Cell, Generator>,
     vents: MapDelta<Cell, Vent>,
     items: MapDelta<u16, Item>,
+    cables: MapDelta<Cell, u32>,
     terrain: MapDelta<Cell, Tile>,
     terrain_revision: u32,
     phase: Phase,
@@ -61,6 +62,7 @@ impl ReplicatedState for State {
             generators: MapDelta::diff(&self.generators, &baseline.generators),
             vents: MapDelta::diff(&self.vents, &baseline.vents),
             items: MapDelta::diff(&self.items, &baseline.items),
+            cables: MapDelta::diff(&self.cables, &baseline.cables),
             terrain: MapDelta::diff(&self.terrain, &baseline.terrain),
             terrain_revision: self.terrain_revision,
             phase: self.phase,
@@ -77,6 +79,7 @@ impl ReplicatedState for State {
         delta.generators.apply(&mut self.generators);
         delta.vents.apply(&mut self.vents);
         delta.items.apply(&mut self.items);
+        delta.cables.apply(&mut self.cables);
         delta.terrain.apply(&mut self.terrain);
         self.terrain_revision = delta.terrain_revision;
         self.phase = delta.phase;

@@ -26,6 +26,7 @@ struct Visuals {
     level: Option<i16>,
     terrain_revision: Option<u32>,
     terrain: BTreeMap<Cell, (Entity, Tile)>,
+    cables: BTreeMap<Cell, Entity>,
     doors: BTreeMap<Cell, (Entity, bool, bool)>,
     generators: BTreeMap<Cell, (Entity, bool)>,
     items: BTreeMap<u16, (Entity, Cell)>,
@@ -276,6 +277,10 @@ fn receive(
             network.act(Action::Give { cell });
         } else if keys.just_pressed(KeyCode::KeyT) {
             network.act(Action::Pull { cell });
+        } else if keys.just_pressed(KeyCode::KeyC) {
+            network.act(Action::LayCable { cell });
+        } else if keys.just_pressed(KeyCode::KeyR) {
+            network.act(Action::CutCable { cell });
         } else if let Some((_, tile)) = brush.into_iter().find(|(key, _)| keys.just_pressed(*key)) {
             network.act(Action::Construct { cell, tile });
         }
@@ -327,6 +332,10 @@ fn draw(
         return;
     };
     let level = crew.position.z;
+    let held = crew.hands[usize::from(crew.active_hand)]
+        .and_then(|id| state.items.get(&id))
+        .and_then(|item| layout.prototypes.get(&item.prototype))
+        .map(|prototype| prototype.kind);
     let view = MapView::new(&layout.grid, level);
     let scale = view.scale;
     if !visuals.initialized {
@@ -375,6 +384,28 @@ fn draw(
             }
         }
         visuals.terrain_revision = Some(state.terrain_revision);
+    }
+    let show_cables = matches!(held, Some(Kind::CableCoil { .. } | Kind::Wirecutters));
+    visuals.cables.retain(|cell, entity| {
+        if show_cables && state.cables.contains_key(cell) {
+            true
+        } else {
+            commands.entity(*entity).despawn();
+            false
+        }
+    });
+    if show_cables {
+        for &cell in state.cables.keys().filter(|cell| cell.z == level) {
+            visuals.cables.entry(cell).or_insert_with(|| {
+                commands
+                    .spawn((
+                        MapVisual,
+                        view.cable_sprite(),
+                        Transform::from_translation(view.world(cell.center()).extend(0.2)),
+                    ))
+                    .id()
+            });
+        }
     }
     for (&cell, door) in &state.doors {
         if cell.z != level {
@@ -553,12 +584,7 @@ fn draw(
             )
         }
         Phase::Active => {
-            let hand = usize::from(crew.active_hand);
-            let item = crew.hands[hand].and_then(|id| state.items.get(&id));
-            let prototype = item.and_then(|item| layout.prototypes.get(&item.prototype));
-            let construction = prototype.is_some_and(|prototype| {
-                matches!(prototype.kind, Kind::Item { materials: 1.., .. })
-            });
+            let construction = matches!(held, Some(Kind::Item { materials: 1.., .. }));
             let cell = crew.position.cell();
             let up = layout.links.iter().any(|link| link.lower == cell);
             let down = layout.links.iter().any(|link| link.upper == cell);
@@ -567,6 +593,11 @@ fn draw(
                 "Await the next round".into()
             } else if life == MobState::Critical {
                 "Await medical assistance".into()
+            } else if let Some(ticks) = crew.cutting_cable {
+                format!(
+                    "Cutting cable {:.1}s   /   Hold still",
+                    f32::from(ticks) / TICK_HZ as f32
+                )
             } else if let Some(progress) = crew.medical_progress {
                 let verb = if progress.scanning {
                     "Scanning"
@@ -588,6 +619,10 @@ fn draw(
                 "PgUp Upper deck".into()
             } else if down {
                 "PgDn Lower deck".into()
+            } else if matches!(held, Some(Kind::CableCoil { .. })) {
+                "C Lay cable   /   X Swap   Q Drop".into()
+            } else if held == Some(Kind::Wirecutters) {
+                "R Cut cable   /   X Swap   Q Drop".into()
             } else if construction {
                 "B Wall   N Floor   V Dismantle   X Swap   Q Drop   I Inventory".into()
             } else if let Some(scan) = crew.scan {
@@ -595,7 +630,7 @@ fn draw(
                     "Scan {} kPa   /   O2 {}%   /   {} K",
                     scan.pressure_kpa, scan.oxygen_percent, scan.temperature_k
                 )
-            } else if prototype.is_some_and(|item| matches!(item.kind, Kind::HealthAnalyzer)) {
+            } else if held == Some(Kind::HealthAnalyzer) {
                 "F Scan self   /   G Scan nearby crew   /   X Swap   Q Drop".into()
             } else {
                 let drag = if crew.pulling.is_none() {
@@ -682,9 +717,12 @@ fn draw(
                     .chars()
                     .take(18)
                     .collect();
-                let stock = if prototype
-                    .is_some_and(|item| matches!(item.kind, Kind::Item { materials: 1.., .. }))
-                {
+                let stock = if prototype.is_some_and(|item| {
+                    matches!(
+                        item.kind,
+                        Kind::Item { materials: 1.., .. } | Kind::CableCoil { .. }
+                    )
+                }) {
                     item.map_or_else(String::new, |item| format!(" ({})", item.materials))
                 } else {
                     String::new()

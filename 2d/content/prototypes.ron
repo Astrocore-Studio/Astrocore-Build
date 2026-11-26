@@ -8,4 +8,6 @@
     "health_analyzer": (name: "Health analyzer", kind: HealthAnalyzer, color: (163, 198, 115)),
     "analyzer": (name: "Gas analyzer", kind: Item(healing: 0, analyzer: true), color: (130, 203, 245)),
     "backpack": (name: "Utility backpack", kind: Backpack(slots: 4), color: (162, 175, 106)),
+    "cable_coil": (name: "Cable coil", kind: CableCoil(segments: 5), color: (114, 189, 208)),
+    "wirecutters": (name: "Wirecutters", kind: Wirecutters, color: (114, 139, 208)),
 }

@@ -6,6 +6,7 @@ mod medical;
 mod pulling;
 mod replication;
 pub mod server;
+mod wiring;
 
 pub use content::{Kind, Layout, LevelLink, MAX_BACKPACK_SLOTS};
 pub use medical::{Damage, MedicalProgress, MobState};
@@ -17,7 +18,7 @@ pub mod inventory_view;
 #[cfg(feature = "client")]
 pub mod view;
 
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeMap;
 use std::net::SocketAddr;
 use std::path::Path;
 
@@ -27,10 +28,11 @@ use content::{Content, RecoverySpec};
 use environment::Environment;
 use medical::PendingMedical;
 use serde::{Deserialize, Serialize};
+use wiring::PendingCut;
 
 const DEBRIEF_TICKS: u32 = 10 * TICK_HZ;
 const MAX_ROUND_ITEMS: usize = 512;
-pub const WIRE_VERSION: u16 = 9;
+pub const WIRE_VERSION: u16 = 10;
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub enum Action {
@@ -50,6 +52,8 @@ pub enum Action {
     ChangeLevel { up: bool },
     Pull { cell: Cell },
     ReleasePull,
+    LayCable { cell: Cell },
+    CutCable { cell: Cell },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -107,6 +111,7 @@ pub struct Crew {
     pub medical_reading: Option<Damage>,
     pub medical_progress: Option<MedicalProgress>,
     pub pulling: Option<PlayerId>,
+    pub cutting_cable: Option<u8>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -132,6 +137,7 @@ impl Crew {
             medical_reading: None,
             medical_progress: None,
             pulling: None,
+            cutting_cable: None,
         }
     }
 }
@@ -172,6 +178,7 @@ pub struct State {
     pub generators: BTreeMap<Cell, Generator>,
     pub vents: BTreeMap<Cell, Vent>,
     pub items: BTreeMap<u16, Item>,
+    pub cables: BTreeMap<Cell, u32>,
     pub terrain: BTreeMap<Cell, Tile>,
     pub terrain_revision: u32,
     pub phase: Phase,
@@ -184,13 +191,15 @@ pub struct State {
 pub struct Station {
     layout: Layout,
     terrain: Grid,
-    cables: BTreeSet<Cell>,
+    initial_cables: BTreeMap<Cell, u32>,
+    cable_revision: u32,
     state: State,
     initial_doors: BTreeMap<Cell, Door>,
     initial_generators: BTreeMap<Cell, Generator>,
     initial_vents: BTreeMap<Cell, Vent>,
     environment: Environment,
     pending_medical: BTreeMap<PlayerId, PendingMedical>,
+    pending_cuts: BTreeMap<PlayerId, PendingCut>,
     initial_items: BTreeMap<u16, Item>,
     loadouts: BTreeMap<String, Vec<String>>,
     next_item: u16,
@@ -250,7 +259,9 @@ impl Station {
                 kind @ (Kind::Item { .. }
                 | Kind::Backpack { .. }
                 | Kind::Medicine { .. }
-                | Kind::HealthAnalyzer) => {
+                | Kind::HealthAnalyzer
+                | Kind::CableCoil { .. }
+                | Kind::Wirecutters) => {
                     items.insert(
                         id as u16,
                         Item {
@@ -269,6 +280,7 @@ impl Station {
             generators: generators.clone(),
             vents: vents.clone(),
             items: items.clone(),
+            cables: cables.into_iter().map(|cell| (cell, 0)).collect(),
             terrain: BTreeMap::new(),
             terrain_revision: 0,
             phase: Phase::Lobby,
@@ -277,18 +289,19 @@ impl Station {
             recovery: recovery.as_ref().map(Recovery::from),
             outcome: None,
         };
-        let cables: BTreeSet<_> = cables.into_iter().collect();
-        let environment = Environment::new(&layout, &cables, &mut state)?;
+        let environment = Environment::new(&layout, &mut state)?;
         Ok(Self {
             terrain: layout.grid.clone(),
             layout,
-            cables,
+            initial_cables: state.cables.clone(),
+            cable_revision: 0,
             state,
             initial_doors: doors,
             initial_generators: generators,
             initial_vents: vents,
             environment,
             pending_medical: BTreeMap::new(),
+            pending_cuts: BTreeMap::new(),
             initial_items: items,
             loadouts,
             next_item,
@@ -395,6 +408,8 @@ impl Station {
             (Phase::Active, Action::Give { cell }) => self.give_item(player, cell),
             (Phase::Active, Action::Pull { cell }) => self.start_pull(player, cell),
             (Phase::Active, Action::ReleasePull) => crew.pulling = None,
+            (Phase::Active, Action::LayCable { cell }) => self.lay_cable(player, cell),
+            (Phase::Active, Action::CutCable { cell }) => self.start_cut(player, cell),
             (Phase::Active, Action::ChangeLevel { up }) => self.change_deck(player, up),
             (Phase::Active, Action::ClickHand(hand @ 0..=1)) => {
                 let clicked = usize::from(hand);
@@ -523,9 +538,11 @@ impl Station {
                 };
                 if self.state.outcome.is_some() {
                     self.pending_medical.clear();
+                    self.pending_cuts.clear();
                     for crew in self.state.players.values_mut() {
                         crew.medical_progress = None;
                         crew.pulling = None;
+                        crew.cutting_cable = None;
                     }
                     self.state.phase = Phase::Debrief;
                     self.phase_ticks = DEBRIEF_TICKS;
@@ -540,6 +557,8 @@ impl Station {
                     self.state.generators.clone_from(&self.initial_generators);
                     self.state.vents.clone_from(&self.initial_vents);
                     self.state.items.clone_from(&self.initial_items);
+                    self.state.cables.clone_from(&self.initial_cables);
+                    self.cable_revision = 0;
                     self.next_item = self
                         .initial_items
                         .last_key_value()
@@ -604,6 +623,7 @@ impl Simulation for Station {
 
     fn left(&mut self, player: PlayerId) {
         self.pending_medical.remove(&player);
+        self.pending_cuts.remove(&player);
         if let Some(crew) = self.state.players.remove(&player) {
             for other in self.state.players.values_mut() {
                 if other.pulling == Some(player) {
@@ -655,12 +675,17 @@ impl Simulation for Station {
             }
         }
         let previous_revision = self.state.terrain_revision;
+        let previous_cable_revision = self.cable_revision;
         for (&player, input) in inputs {
             if let Some(action) = input.action {
                 self.action(player, action);
             }
         }
         if self.state.phase == Phase::Active {
+            self.advance_cable_cuts();
+            if previous_cable_revision != self.cable_revision {
+                self.environment.rewire(&self.layout, &self.state);
+            }
             if self.state.terrain_revision != previous_revision {
                 self.environment
                     .rebuild_hull(&self.terrain, &self.layout.links, &self.state);

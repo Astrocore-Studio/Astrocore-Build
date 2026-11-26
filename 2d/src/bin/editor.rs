@@ -298,14 +298,7 @@ fn draw(
         shape(cell, sprite, 0.0);
     }
     for &cell in document.cables().iter().filter(|cell| cell.z == level) {
-        shape(
-            cell,
-            Sprite::from_color(
-                Color::srgb_u8(114, 189, 208),
-                Vec2::new(0.75, 0.09) * view.scale,
-            ),
-            0.2,
-        );
+        shape(cell, view.cable_sprite(), 0.2);
     }
     for &cell in document.spawns().iter().filter(|cell| cell.z == level) {
         shape(

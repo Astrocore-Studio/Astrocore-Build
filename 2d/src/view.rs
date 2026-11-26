@@ -42,6 +42,13 @@ impl MapView {
         )
     }
 
+    pub fn cable_sprite(&self) -> Sprite {
+        Sprite::from_color(
+            Color::srgb_u8(114, 189, 208),
+            Vec2::new(0.75, 0.09) * self.scale,
+        )
+    }
+
     pub fn tile_sprite(&self, cell: Cell, tile: Tile) -> Option<Sprite> {
         let color = match tile {
             Tile::Void => return None,
