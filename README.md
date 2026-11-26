@@ -9,7 +9,8 @@ Astrocore Build — Space Station 14 на Rust: многопользовател
 игроков.
 
 Сейчас играбелен сценарий Relay Two на первой 2D-основе. Идёт перенос на ядро сущностей и
-компонентов по образцу Robust Toolbox.
+компонентов по образцу Robust Toolbox: новая игра уже загружает станции SS14, пускает игроков по
+сети и даёт ходить по станции.
 
 ## Документация
 
@@ -18,6 +19,7 @@ Astrocore Build — Space Station 14 на Rust: многопользовател
 - [docs/PORT_STATUS.md](docs/PORT_STATUS.md) — что из Robust Toolbox и SS14 уже перенесено.
 - [docs/PERF.md](docs/PERF.md) — замеры производительности.
 - [2d/README.md](2d/README.md) — запуск, управление и редактор карт Relay Two.
+- [game/README.md](game/README.md) — игра на ядре сущностей с контентом SS14.
 - [docs/ADR](docs/ADR) — решения Build; решения движка — в
   [Astrocore Engine](https://github.com/Astrocore-Studio/Astrocore-Engine/tree/main/docs/ADR).
 - [THIRD_PARTY.md](THIRD_PARTY.md) — лицензии и авторство перенесённого кода и ассетов.
@@ -40,6 +42,10 @@ cargo play
 Команда собирает 2D-клиент и запускает локальный сервер, который завершится вместе с клиентом.
 На Windows доступен `play.cmd`. Отдельный сервер, второй клиент и редактор карт —
 `cargo serve2d`, `cargo client2d` и `cargo editor2d`.
+
+Игра на ядре сущностей читает контент SS14 из референса (`scripts/fetch_reference.sh`) и
+запускается командой `cargo station`; отдельные сервер и клиент — `cargo serve` и `cargo client`.
+Подробности — в [game/README.md](game/README.md).
 
 ## Проверка перед коммитом
 

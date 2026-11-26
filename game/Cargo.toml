@@ -1,0 +1,39 @@
+[package]
+name = "astrocore-game"
+description = "Игра Astrocore на ядре сущностей: сервер и клиент, читающие контент Space Station 14"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+license.workspace = true
+
+[features]
+client = ["dep:astrocore-client", "dep:bevy"]
+
+[dependencies]
+astrocore-console = { path = "../../Astrocore-Engine/crates/astrocore-console" }
+astrocore-data = { path = "../../Astrocore-Engine/crates/astrocore-data" }
+astrocore-ecs = { path = "../../Astrocore-Engine/crates/astrocore-ecs" }
+astrocore-map = { path = "../../Astrocore-Engine/crates/astrocore-map" }
+astrocore-math = { path = "../../Astrocore-Engine/crates/astrocore-math" }
+astrocore-movement = { path = "../../Astrocore-Engine/crates/astrocore-movement" }
+astrocore-net = { path = "../../Astrocore-Engine/crates/astrocore-net" }
+astrocore-physics = { path = "../../Astrocore-Engine/crates/astrocore-physics" }
+astrocore-prototypes = { path = "../../Astrocore-Engine/crates/astrocore-prototypes" }
+astrocore-resources = { path = "../../Astrocore-Engine/crates/astrocore-resources" }
+astrocore-transport = { path = "../../Astrocore-Engine/crates/astrocore-transport" }
+astrocore-client = { path = "../../Astrocore-Engine/crates/astrocore-client", optional = true }
+bevy = { version = "=0.20.1", default-features = false, optional = true }
+bevy_ecs = { version = "=0.20.1", default-features = false, features = ["std", "multi_threaded", "async_executor"] }
+serde.workspace = true
+
+[[bin]]
+name = "astrocore-server"
+path = "src/bin/server.rs"
+
+[[bin]]
+name = "astrocore-client"
+path = "src/bin/client.rs"
+required-features = ["client"]
+
+[lints]
+workspace = true

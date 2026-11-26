@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["2d", "crates/atmos", "crates/power", "crates/prototypes"]
+members = ["2d", "game", "crates/atmos", "crates/power", "crates/prototypes"]
 default-members = ["2d"]
 
 [workspace.package]

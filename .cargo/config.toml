@@ -2,7 +2,12 @@
 git-fetch-with-cli = true
 
 [alias]
+# Сценарий Relay Two на первой 2D-основе (каталог 2d/).
 play = "run --locked --features client --bin astrocore-2d-client -- --host"
 serve2d = "run --locked --bin astrocore-2d-server"
 client2d = "run --locked --features client --bin astrocore-2d-client --"
 editor2d = "run --locked --features client --bin astrocore-2d-editor --"
+# Игра на ядре сущностей с контентом Space Station 14 (каталог game/).
+station = "run --locked --release -p astrocore-game --features client --bin astrocore-client -- --host"
+serve = "run --locked --release -p astrocore-game --bin astrocore-server"
+client = "run --locked --release -p astrocore-game --features client --bin astrocore-client --"
