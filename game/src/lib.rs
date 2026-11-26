@@ -30,6 +30,7 @@ pub mod entity_storage;
 pub mod examine;
 pub mod fixed_point;
 pub mod flatpack;
+pub mod floor_tile;
 pub mod friction;
 pub mod grammar;
 pub mod hands;
@@ -78,6 +79,8 @@ pub mod cable_visuals;
 pub mod client;
 #[cfg(feature = "client")]
 pub mod clothing_visuals;
+#[cfg(feature = "client")]
+pub mod construction_ui;
 #[cfg(feature = "client")]
 pub mod decal_visuals;
 #[cfg(feature = "client")]
@@ -182,6 +185,7 @@ pub fn install_content(world: &mut World, side: Side) {
     doors::install(world, side);
     wires::install(world, side);
     construction::install(world, side);
+    floor_tile::install(world, side);
 }
 
 /// Адрес сервера по умолчанию.

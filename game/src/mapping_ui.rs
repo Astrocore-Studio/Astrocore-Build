@@ -83,7 +83,7 @@ fn tools_of(world: &mut bevy_ecs::world::World) -> bevy_ecs::world::Mut<'_, Mapp
 }
 
 /// Карта игрока.
-fn player_map(world: &bevy_ecs::world::World) -> Option<MapId> {
+pub(crate) fn player_map(world: &bevy_ecs::world::World) -> Option<MapId> {
     let player = world.resource::<ClientNet>().attached?;
     world.map_coordinates(player).map(|at| at.map)
 }
@@ -169,7 +169,7 @@ pub fn matching<'a>(items: &'a [(String, String)], search: &str) -> Vec<&'a (Str
 #[derive(Resource, Debug, Clone, Copy)]
 pub struct DemoCursor(pub Vec2);
 
-fn cursor_point(
+pub(crate) fn cursor_point(
     world: &bevy_ecs::world::World,
     cursor: &Cursor,
     demo: Option<&DemoCursor>,
@@ -296,8 +296,9 @@ fn pointer(
     let world = &mut game.0;
     let current = tools_of(world).clone();
     let active = current.tool != Tool::None;
-    if capture.0 != active {
-        capture.0 = active;
+    let wanted = active || crate::construction_ui::placing(world);
+    if capture.0 != wanted {
+        capture.0 = wanted;
     }
     if !active {
         drag.0 = None;
@@ -477,7 +478,7 @@ fn ghost(
 }
 
 /// Картинка прототипа: первый слой его спрайта.
-fn prototype_image(
+pub(crate) fn prototype_image(
     world: &bevy_ecs::world::World,
     prototype: &str,
     resources: &GameResources,

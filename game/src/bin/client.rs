@@ -14,7 +14,8 @@
 //! комбинезон, ботинки и рюкзак, `--console "<команда>"` (можно несколько раз) после входа
 //! открывает консоль и выполняет команды на сервере, `--palette entities:<поиск>` или
 //! `tiles:<поиск>` открывает палитру маппинга и берёт первую найденную строку, курсор при
-//! этом стоит на две клетки правее игрока.
+//! этом стоит на две клетки правее игрока; `--construct <рецепт>` открывает меню строительства
+//! и показывает призрак рецепта на две клетки ниже игрока.
 
 use std::process::ExitCode;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -42,6 +43,7 @@ struct Options {
     dress: bool,
     console: Vec<String>,
     palette: Option<String>,
+    construct: Option<String>,
 }
 
 fn options() -> Result<Options, String> {
@@ -59,6 +61,7 @@ fn options() -> Result<Options, String> {
         dress: false,
         console: Vec::new(),
         palette: None,
+        construct: None,
     };
     let mut args = std::env::args().skip(1);
     while let Some(arg) = args.next() {
@@ -77,6 +80,7 @@ fn options() -> Result<Options, String> {
             "--capture" => options.capture = Some(value("файл кадра")?),
             "--console" => options.console.push(value("строка команды")?),
             "--palette" => options.palette = Some(value("палитра:поиск")?),
+            "--construct" => options.construct = Some(value("рецепт")?),
             other => {
                 return Err(format!(
                     "неизвестный параметр {other}. Параметры: --host, --connect <адрес>, --name <имя>, --capture <файл>, --walk, --walk-up"
@@ -471,6 +475,7 @@ fn run() -> Result<(), String> {
     .add_plugins(astrocore_game::action_bar::ActionBarPlugin)
     .add_plugins(astrocore_game::dev_console::DevConsolePlugin)
     .add_plugins(astrocore_game::mapping_ui::MappingUiPlugin)
+    .add_plugins(astrocore_game::construction_ui::ConstructionUiPlugin)
     .add_plugins(astrocore_game::decal_visuals::DecalVisualsPlugin)
     .add_plugins(astrocore_game::power_ui::PowerUiPlugin)
     .add_plugins(astrocore_game::wires_ui::WiresUiPlugin);
@@ -520,6 +525,20 @@ fn run() -> Result<(), String> {
             .0
             .insert_resource(tools);
         app.insert_resource(DemoCursor(Vec2::new(2.0, 0.0)));
+    }
+    if let Some(search) = &options.construct {
+        use astrocore_game::construction_ui::ConstructionMenu;
+        app.world_mut()
+            .resource_mut::<Game>()
+            .0
+            .insert_resource(ConstructionMenu {
+                open: true,
+                search: search.clone(),
+                placing: Some(search.clone()),
+                version: 1,
+                ..ConstructionMenu::default()
+            });
+        app.insert_resource(astrocore_game::mapping_ui::DemoCursor(Vec2::new(0.0, -2.0)));
     }
     if !options.console.is_empty() {
         app.insert_resource(StartupCommands(options.console.clone()));

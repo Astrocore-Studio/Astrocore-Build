@@ -925,6 +925,9 @@ pub struct Recipe {
     pub can_build_in_impassable: bool,
     pub conditions: Vec<DataNode>,
     pub hide: bool,
+    /// Ключ названия в меню (`name`); без него — название сущности цели.
+    pub name: Option<String>,
+    pub description: Option<String>,
 }
 
 /// Рецепт по имени.
@@ -943,6 +946,8 @@ pub fn recipe(world: &World, id: &str) -> Option<Recipe> {
         can_build_in_impassable: flag(node, "canBuildInImpassable", false),
         conditions: list(node, "conditions"),
         hide: flag(node, "hide", false),
+        name: text(node, "name"),
+        description: text(node, "description"),
     })
 }
 
@@ -962,6 +967,32 @@ pub fn recipes(world: &World) -> Vec<Recipe> {
         .filter_map(|id| recipe(world, &id))
         .filter(|r| !r.hide)
         .collect()
+}
+
+/// Прототип, которым рецепт показан в меню: сущность узла цели или первая сущность дальше
+/// по рёбрам (`ConstructionSystem` клиента SS14).
+pub fn recipe_entity(world: &mut World, recipe: &Recipe) -> Option<String> {
+    let graph = graph(world, &recipe.graph)?;
+    let mut seen = BTreeSet::new();
+    let mut queue = std::collections::VecDeque::from([recipe.target_node.clone()]);
+    while let Some(name) = queue.pop_front() {
+        if !seen.insert(name.clone()) {
+            continue;
+        }
+        let node = graph.nodes.get(&name)?;
+        if let Some(entity) = &node.entity {
+            return Some(entity.clone());
+        }
+        queue.extend(node.edges.iter().map(|e| e.to.clone()));
+    }
+    None
+}
+
+/// Прототип, который встаёт в мир первым шагом рецепта (призрак при выборе места).
+pub fn recipe_first_entity(world: &mut World, recipe: &Recipe) -> Option<String> {
+    let graph = graph(world, &recipe.graph)?;
+    let path = graph.path(&recipe.start_node, &recipe.target_node)?;
+    graph.nodes.get(path.get(1)?)?.entity.clone()
 }
 
 /// Где ставится постройка из меню: грид, клетка, направление, строитель.
