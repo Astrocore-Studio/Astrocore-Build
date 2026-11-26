@@ -34,6 +34,7 @@ struct Options {
     name: String,
     capture: Option<String>,
     walk: bool,
+    walk_up: bool,
     use_nearest: bool,
     examine_nearest: bool,
     storage_nearest: bool,
@@ -50,6 +51,7 @@ fn options() -> Result<Options, String> {
         name: "Urist".to_owned(),
         capture: None,
         walk: false,
+        walk_up: false,
         use_nearest: false,
         examine_nearest: false,
         storage_nearest: false,
@@ -64,6 +66,7 @@ fn options() -> Result<Options, String> {
         match arg.as_str() {
             "--host" => options.host = true,
             "--walk" => options.walk = true,
+            "--walk-up" => options.walk_up = true,
             "--use-nearest" => options.use_nearest = true,
             "--examine-nearest" => options.examine_nearest = true,
             "--storage-nearest" => options.storage_nearest = true,
@@ -76,7 +79,7 @@ fn options() -> Result<Options, String> {
             "--palette" => options.palette = Some(value("палитра:поиск")?),
             other => {
                 return Err(format!(
-                    "неизвестный параметр {other}. Параметры: --host, --connect <адрес>, --name <имя>, --capture <файл>, --walk"
+                    "неизвестный параметр {other}. Параметры: --host, --connect <адрес>, --name <имя>, --capture <файл>, --walk, --walk-up"
                 ));
             }
         }
@@ -387,6 +390,12 @@ fn hold_right(mut game: ResMut<Game>) {
     }
 }
 
+fn hold_up(mut game: ResMut<Game>) {
+    if let Some(mut input) = game.0.get_resource_mut::<LocalInput>() {
+        input.buttons = MoveButtons::UP;
+    }
+}
+
 fn run() -> Result<(), String> {
     let options = options()?;
     let transport: Box<dyn ClientTransport> = if options.host {
@@ -466,6 +475,9 @@ fn run() -> Result<(), String> {
     .add_plugins(astrocore_game::power_ui::PowerUiPlugin);
     if options.walk {
         app.add_systems(Update, hold_right);
+    }
+    if options.walk_up {
+        app.add_systems(Update, hold_up);
     }
     if options.use_nearest {
         app.add_systems(Update, use_nearest);

@@ -9,6 +9,7 @@ pub mod access;
 pub mod action_blocker;
 pub mod actions;
 pub mod activatable_ui;
+pub mod airtight;
 pub mod ame;
 pub mod body;
 pub mod cables;
@@ -19,6 +20,7 @@ pub mod damage;
 pub mod damage_other_on_hit;
 pub mod decals;
 pub mod do_after;
+pub mod doors;
 pub mod entity_storage;
 pub mod examine;
 pub mod fixed_point;
@@ -52,6 +54,7 @@ pub mod throwing;
 pub mod tools;
 pub mod verbs;
 pub mod virtual_item;
+pub mod weldable;
 pub mod whitelist;
 
 #[cfg(test)]
@@ -71,6 +74,8 @@ pub mod clothing_visuals;
 pub mod decal_visuals;
 #[cfg(feature = "client")]
 pub mod dev_console;
+#[cfg(feature = "client")]
+pub mod door_visuals;
 #[cfg(feature = "client")]
 pub mod hands_hud;
 #[cfg(feature = "client")]
@@ -154,6 +159,9 @@ pub fn install_content(world: &mut World, side: Side) {
     access::install(world, side);
     lock::install(world, side);
     id_console::install(world, side);
+    airtight::install(world, side);
+    weldable::install(world, side);
+    doors::install(world, side);
 }
 
 /// Адрес сервера по умолчанию.

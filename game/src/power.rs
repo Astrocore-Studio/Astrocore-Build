@@ -18,7 +18,7 @@ use astrocore_ecs::{
     MetaData, Paused, RegistryWorldExt, Update,
 };
 use astrocore_map::{AnchorStateChanged, MapGrid, TileCoord, Transform};
-use astrocore_net::NetRegistryWorldExt;
+use astrocore_net::{AppearanceWorldExt, NetRegistryWorldExt};
 use bevy_ecs::component::Component;
 use bevy_ecs::entity::Entity;
 use bevy_ecs::resource::Resource;
@@ -256,6 +256,9 @@ pub struct ApcUiState {
 /// Переключить главный выключатель (`ApcToggleMainBreakerMessage`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ApcToggleMainBreaker;
+
+/// Ключ внешнего вида: устройство запитано (`PowerDeviceVisuals.Powered`).
+pub const POWERED_VISUALS: &str = "enum.PowerDeviceVisuals.Powered";
 
 /// Питание устройства изменилось (`PowerChangedEvent`). Поднимается на устройстве.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -586,6 +589,7 @@ pub fn update(world: &mut World) {
         let was = world.get::<ApcPowered>(entity).is_some_and(|p| p.0);
         if was != powered {
             world.entity_mut(entity).insert(ApcPowered(powered));
+            world.set_appearance(entity, POWERED_VISUALS, powered);
             world.raise(entity, &mut PowerChanged { powered, receiving });
         }
     }
@@ -708,6 +712,11 @@ pub fn install(world: &mut World, side: Side) {
     );
     world.add_game_systems(Update, update_apc_ui);
     world.init_resource::<ApcLinks>();
+    // Огни запитанного устройства (`PowerNetSystem.ApcPowerReceiverMapInit`).
+    world.subscribe::<ApcPowerReceiver, MapInit>(|world, entity, _| {
+        let powered = is_powered(world, entity);
+        world.set_appearance(entity, POWERED_VISUALS, powered);
+    });
     // Заряд на старте (`SharedBatterySystem.OnMapInit`).
     world.subscribe::<Battery, MapInit>(|world, entity, _| {
         if let Some(mut battery) = world.get_mut::<Battery>(entity) {
