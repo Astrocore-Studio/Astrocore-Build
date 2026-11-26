@@ -36,11 +36,6 @@ path = "src/bin/client.rs"
 required-features = ["client"]
 
 [[bin]]
-name = "astrocore-2d-editor"
-path = "src/bin/editor.rs"
-required-features = ["client"]
-
-[[bin]]
 name = "astrocore-2d-import-prototypes"
 path = "src/bin/import_prototypes.rs"
 required-features = ["prototype-import"]

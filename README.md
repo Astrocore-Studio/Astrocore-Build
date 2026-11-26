@@ -40,8 +40,8 @@ cargo play
 ```
 
 Команда собирает 2D-клиент и запускает локальный сервер, который завершится вместе с клиентом.
-На Windows доступен `play.cmd`. Отдельный сервер, второй клиент и редактор карт —
-`cargo serve2d`, `cargo client2d` и `cargo editor2d`.
+На Windows доступен `play.cmd`. Отдельный сервер и второй клиент — `cargo serve2d` и
+`cargo client2d`.
 
 Игра на ядре сущностей читает контент SS14 из референса (`scripts/fetch_reference.sh`) и
 запускается командой `cargo station`; отдельные сервер и клиент — `cargo serve` и `cargo client`.

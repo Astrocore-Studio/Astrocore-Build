@@ -187,15 +187,6 @@ impl MapData {
                 .map(move |&cell| CableSegment { cell, voltage })
         })
     }
-
-    #[cfg(feature = "client")]
-    pub(crate) fn cables_mut(&mut self, voltage: CableGroup) -> &mut Vec<Cell> {
-        match voltage {
-            CableGroup::Apc => &mut self.cables,
-            CableGroup::Medium => &mut self.medium_cables,
-            CableGroup::High => &mut self.high_cables,
-        }
-    }
 }
 
 #[derive(Clone, PartialEq, Eq, Deserialize, Serialize)]

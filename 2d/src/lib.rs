@@ -29,7 +29,6 @@ pub use power::CableGroup;
 pub use prototypes::convert_ss14_catalog;
 
 #[cfg(feature = "client")]
-pub mod editor;
 #[cfg(feature = "client")]
 pub mod filter_view;
 #[cfg(feature = "client")]

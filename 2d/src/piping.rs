@@ -116,11 +116,6 @@ impl PipeShape {
         }
     }
 
-    #[cfg(feature = "client")]
-    pub(crate) fn has_switch(self) -> bool {
-        matches!(self, Self::Valve | Self::Filter { .. }) || self.power_draw().is_some()
-    }
-
     pub(crate) fn valid(self) -> bool {
         match self {
             Self::Canister { pressure_kpa } => (1..=10_132).contains(&pressure_kpa),
