@@ -1,12 +1,14 @@
+mod piping;
 mod power_grid;
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
 use astrocore_grid2d::session::TICK_HZ;
 use astrocore_grid2d::{Cell, Grid, Tile};
 
 use crate::content::{Layout, LevelLink};
 use crate::{AirSample, Crew, MobState, State};
+use piping::PipeNodes;
 use power_grid::PowerGrid;
 
 const DT: f32 = 1.0 / TICK_HZ as f32;
@@ -19,6 +21,7 @@ pub(crate) struct Environment {
     air: atmos::Grid,
     hull: atmos::Layout,
     closed: BTreeSet<Cell>,
+    pipe_nodes: BTreeMap<Cell, PipeNodes>,
     power: PowerGrid,
     breathing_ticks: u32,
 }
@@ -34,6 +37,7 @@ impl Environment {
             air: atmos::Grid::new(),
             hull: atmos::Layout::default(),
             closed: BTreeSet::new(),
+            pipe_nodes: BTreeMap::new(),
             power: PowerGrid::default(),
             breathing_ticks: 0,
         };
@@ -45,6 +49,7 @@ impl Environment {
         self.air = atmos::Grid::new();
         self.hull = hull_layout(&layout.grid, &layout.links);
         self.apply_seals(closed_doors(state));
+        self.install_piping(layout, state);
         self.breathing_ticks = 0;
 
         self.power = PowerGrid::default();

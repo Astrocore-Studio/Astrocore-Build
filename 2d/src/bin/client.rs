@@ -27,6 +27,7 @@ struct Visuals {
     terrain_revision: Option<u32>,
     terrain: BTreeMap<Cell, (Entity, Tile)>,
     cables: BTreeMap<Cell, Entity>,
+    pipe_valves: BTreeMap<Cell, (Entity, bool)>,
     doors: BTreeMap<Cell, (Entity, bool, bool)>,
     generators: BTreeMap<Cell, (Entity, bool)>,
     items: BTreeMap<u16, (Entity, Cell)>,
@@ -296,6 +297,8 @@ fn receive(
             network.act(Action::LayCable { cell });
         } else if keys.just_pressed(KeyCode::KeyR) {
             network.act(Action::CutCable { cell });
+        } else if keys.just_pressed(KeyCode::KeyP) {
+            network.act(Action::ScanPipe { cell });
         } else if let Some((_, tile)) = brush.into_iter().find(|(key, _)| keys.just_pressed(*key)) {
             network.act(Action::Construct { cell, tile });
         }
@@ -375,6 +378,16 @@ fn draw(
         for cell in markers {
             commands.spawn((MapVisual, view.level_marker(cell)));
         }
+        for (&cell, piece) in layout.pipes.iter().filter(|(cell, _)| cell.z == level) {
+            let point = view.world(cell.center());
+            for (offset, sprite) in view.pipe_segments(piece.shape, piece.facing) {
+                commands.spawn((
+                    MapVisual,
+                    sprite,
+                    Transform::from_translation((point + offset).extend(0.24)),
+                ));
+            }
+        }
     }
     if visuals.terrain_revision != Some(state.terrain_revision) {
         for (cell, base) in layout.grid.cells_at(level) {
@@ -420,6 +433,32 @@ fn draw(
                     ))
                     .id()
             });
+        }
+    }
+    for (&cell, &open) in state.pipe_valves.iter().filter(|(cell, _)| cell.z == level) {
+        let indicator = || {
+            let color = if open {
+                Color::srgb_u8(108, 209, 166)
+            } else {
+                Color::srgb_u8(219, 150, 97)
+            };
+            Sprite::from_color(color, Vec2::splat(scale * 0.20))
+        };
+        let (entity, previous) = visuals.pipe_valves.entry(cell).or_insert_with(|| {
+            (
+                commands
+                    .spawn((
+                        MapVisual,
+                        indicator(),
+                        Transform::from_translation(view.world(cell.center()).extend(0.5)),
+                    ))
+                    .id(),
+                open,
+            )
+        });
+        if *previous != open {
+            commands.entity(*entity).insert(indicator());
+            *previous = open;
         }
     }
     for (&cell, door) in &state.doors {
@@ -625,6 +664,13 @@ fn draw(
                     "Scan {} kPa   /   O2 {}%   /   {} K",
                     scan.pressure_kpa, scan.oxygen_percent, scan.temperature_k
                 )
+            } else if let Some(scan) = crew.pipe_scan {
+                scan.opposite_kpa.map_or_else(
+                    || format!("Pipe   /   {} kPa", scan.pressure_kpa),
+                    |other| format!("Valve   /   {} kPa   |   {other} kPa", scan.pressure_kpa),
+                )
+            } else if matches!(held, Some(Kind::Item { analyzer: true, .. })) {
+                "F Sample room   /   P Sample pipe   /   E Interact".into()
             } else if held == Some(Kind::HealthAnalyzer) {
                 "F Scan self   /   G Scan nearby crew   /   X Swap   Q Drop".into()
             } else {

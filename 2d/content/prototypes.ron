@@ -10,4 +10,11 @@
     "backpack": (name: "Utility backpack", kind: Backpack(slots: 4), color: (162, 175, 106)),
     "cable_coil": (name: "Cable coil", kind: CableCoil(segments: 5), color: (114, 189, 208)),
     "wirecutters": (name: "Wirecutters", kind: Wirecutters, color: (114, 139, 208)),
+    "air_pipe": (name: "Straight pipe", kind: Piping(Straight), color: (114, 169, 149)),
+    "pipe_elbow": (name: "Pipe bend", kind: Piping(Bend), color: (114, 169, 149)),
+    "pipe_tee": (name: "Pipe tee", kind: Piping(Tee), color: (114, 169, 149)),
+    "pipe_cross": (name: "Pipe cross", kind: Piping(Cross), color: (114, 169, 149)),
+    "pipe_valve": (name: "Manual valve", kind: Piping(Valve), color: (219, 150, 97)),
+    "passive_vent": (name: "Passive vent", kind: Piping(PassiveVent), color: (84, 183, 208)),
+    "air_canister": (name: "Air canister", kind: Piping(Canister(pressure_kpa: 1600)), color: (169, 194, 118)),
 }

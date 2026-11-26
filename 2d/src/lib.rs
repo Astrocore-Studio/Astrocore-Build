@@ -4,6 +4,7 @@ mod environment;
 mod inventory;
 mod jobs;
 mod medical;
+mod piping;
 mod pulling;
 mod replication;
 pub mod server;
@@ -12,6 +13,7 @@ mod wiring;
 pub use content::{Job, Kind, Layout, LevelLink, MAX_BACKPACK_SLOTS};
 pub use jobs::Participation;
 pub use medical::{Damage, MedicalProgress, MobState};
+pub use piping::{PipeDirection, PipePiece, PipeSample, PipeShape};
 
 #[cfg(feature = "client")]
 pub mod editor;
@@ -34,7 +36,7 @@ use wiring::PendingCut;
 
 const DEBRIEF_TICKS: u32 = 10 * TICK_HZ;
 const MAX_ROUND_ITEMS: usize = 512;
-pub const WIRE_VERSION: u16 = 11;
+pub const WIRE_VERSION: u16 = 12;
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub enum Action {
@@ -57,6 +59,7 @@ pub enum Action {
     LayCable { cell: Cell },
     CutCable { cell: Cell },
     Observe,
+    ScanPipe { cell: Cell },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -111,6 +114,7 @@ pub struct Crew {
     pub damage: Damage,
     pub pressure_kpa: u16,
     pub scan: Option<AirSample>,
+    pub pipe_scan: Option<PipeSample>,
     pub medical_reading: Option<Damage>,
     pub medical_progress: Option<MedicalProgress>,
     pub pulling: Option<PlayerId>,
@@ -137,6 +141,7 @@ impl Crew {
             damage: Damage::default(),
             pressure_kpa: 101,
             scan: None,
+            pipe_scan: None,
             medical_reading: None,
             medical_progress: None,
             pulling: None,
@@ -180,6 +185,7 @@ pub struct State {
     pub doors: BTreeMap<Cell, Door>,
     pub generators: BTreeMap<Cell, Generator>,
     pub vents: BTreeMap<Cell, Vent>,
+    pub pipe_valves: BTreeMap<Cell, bool>,
     pub items: BTreeMap<u16, Item>,
     pub cables: BTreeMap<Cell, u32>,
     pub terrain: BTreeMap<Cell, Tile>,
@@ -259,6 +265,7 @@ impl Station {
                         },
                     );
                 }
+                Kind::Piping(_) => {}
                 kind @ (Kind::Item { .. }
                 | Kind::Backpack { .. }
                 | Kind::Medicine { .. }
@@ -282,6 +289,13 @@ impl Station {
             doors: doors.clone(),
             generators: generators.clone(),
             vents: vents.clone(),
+            pipe_valves: layout
+                .pipes
+                .iter()
+                .filter_map(|(&cell, pipe)| {
+                    (pipe.shape == PipeShape::Valve).then_some((cell, !pipe.starts_off))
+                })
+                .collect(),
             items: items.clone(),
             cables: cables.into_iter().map(|cell| (cell, 0)).collect(),
             terrain: BTreeMap::new(),
@@ -339,6 +353,7 @@ impl Station {
             .keys()
             .chain(self.state.generators.keys())
             .chain(self.state.vents.keys())
+            .chain(self.state.pipe_valves.keys())
             .copied()
             .filter_map(|target| {
                 cell.distance_on_level(target)
@@ -365,6 +380,9 @@ impl Station {
                 generator.enabled = !generator.enabled;
             } else if let Some(vent) = self.state.vents.get_mut(&target) {
                 vent.enabled = !vent.enabled;
+            } else if let Some(open) = self.state.pipe_valves.get_mut(&target) {
+                *open = !*open;
+                self.environment.set_pipe_valve(target, *open);
             } else if let Some(door) = self.state.doors.get_mut(&target)
                 && door.powered
                 && (!door.open
@@ -426,6 +444,7 @@ impl Station {
             (Phase::Active, Action::ReleasePull) => crew.pulling = None,
             (Phase::Active, Action::LayCable { cell }) => self.lay_cable(player, cell),
             (Phase::Active, Action::CutCable { cell }) => self.start_cut(player, cell),
+            (Phase::Active, Action::ScanPipe { cell }) => self.scan_pipe(player, cell),
             (Phase::Active, Action::ChangeLevel { up }) => self.change_deck(player, up),
             (Phase::Active, Action::ClickHand(hand @ 0..=1)) => {
                 let clicked = usize::from(hand);
@@ -460,6 +479,7 @@ impl Station {
                 .get_mut(&player)
                 .expect("игрок существует");
             crew.scan = Some(sample);
+            crew.pipe_scan = None;
             crew.medical_reading = None;
         } else {
             self.start_medical(player, target, id, kind);
@@ -587,6 +607,9 @@ impl Station {
                     self.state.doors.clone_from(&self.initial_doors);
                     self.state.generators.clone_from(&self.initial_generators);
                     self.state.vents.clone_from(&self.initial_vents);
+                    for (cell, open) in &mut self.state.pipe_valves {
+                        *open = !self.layout.pipes[cell].starts_off;
+                    }
                     self.state.items.clone_from(&self.initial_items);
                     self.state.cables.clone_from(&self.initial_cables);
                     self.cable_revision = 0;
@@ -694,6 +717,7 @@ impl Simulation for Station {
                     );
                     if previous != crew.position.cell() {
                         crew.medical_reading = None;
+                        crew.pipe_scan = None;
                     }
                 }
             }

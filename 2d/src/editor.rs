@@ -5,6 +5,7 @@ use std::path::{Path, PathBuf};
 use astrocore_grid2d::{Cell, Grid, Tile};
 
 use crate::content::{Content, LevelLink, MapData, Placement, Prototype, parse_grid};
+use crate::{Kind, PipeDirection};
 
 const UNDO_LIMIT: usize = 32;
 
@@ -15,7 +16,7 @@ pub enum Brush {
     JobSpawn(String),
     Cable,
     Link,
-    Object(String),
+    Object(String, PipeDirection),
 }
 
 pub struct Document {
@@ -98,11 +99,11 @@ impl Document {
         &self.prototypes
     }
 
-    pub fn objects(&self) -> impl Iterator<Item = (Cell, &Prototype)> {
+    pub fn objects(&self) -> impl Iterator<Item = (Cell, &Prototype, PipeDirection)> {
         self.draft.placements.iter().filter_map(|object| {
             self.prototypes
                 .get(&object.prototype)
-                .map(|prototype| (object.cell, prototype))
+                .map(|prototype| (object.cell, prototype, object.facing))
         })
     }
 
@@ -152,21 +153,28 @@ impl Document {
                     self.draft.links.retain(|link| !link.contains(cell));
                 }
             }
-            Brush::Object(id) => {
+            Brush::Object(id, facing) => {
                 if erase {
                     self.draft.placements.retain(|object| object.cell != cell);
-                } else if self.prototypes.contains_key(id)
-                    && !self
+                } else if let Some(prototype) = self.prototypes.get(id) {
+                    if let Some(placement) = self
                         .draft
                         .placements
-                        .iter()
-                        .any(|object| object.cell == cell && object.prototype == *id)
-                {
-                    self.draft.placements.push(Placement {
-                        cell,
-                        prototype: id.clone(),
-                        starts_off: false,
-                    });
+                        .iter_mut()
+                        .find(|object| object.cell == cell && object.prototype == *id)
+                    {
+                        placement.facing = *facing;
+                    } else {
+                        self.draft.placements.push(Placement {
+                            cell,
+                            prototype: id.clone(),
+                            starts_off: matches!(
+                                prototype.kind,
+                                Kind::Piping(crate::PipeShape::Valve)
+                            ),
+                            facing: *facing,
+                        });
+                    }
                 }
             }
         }

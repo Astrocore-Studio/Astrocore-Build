@@ -64,6 +64,7 @@ impl Station {
             let patient = self.state.players.get_mut(&id).expect("пациент существует");
             if patient.position.cell() != position.cell() {
                 patient.medical_reading = None;
+                patient.pipe_scan = None;
             }
             patient.position = position;
         }
@@ -129,6 +130,7 @@ impl Station {
                 .expect("участник перехода существует");
             crew.position = destination.center();
             crew.scan = None;
+            crew.pipe_scan = None;
             crew.medical_reading = None;
         }
     }

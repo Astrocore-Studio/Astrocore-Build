@@ -4,6 +4,7 @@ use std::process::ExitCode;
 
 use astrocore_build_2d::editor::{Brush, Document};
 use astrocore_build_2d::view::MapView;
+use astrocore_build_2d::{Kind, PipeDirection};
 use astrocore_grid2d::{Cell, Tile};
 use bevy::prelude::*;
 use bevy::window::{PrimaryWindow, WindowResolution};
@@ -98,7 +99,7 @@ fn setup(mut commands: Commands, editor: Res<Editor>) {
         Transform::from_xyz(0.0, -249.0, 3.0),
     ));
     commands.spawn((
-        Text2d::new("PgUp/PgDn Deck  Shift+PgUp/PgDn Add  Z Undo  Y Redo  F2 Save"),
+        Text2d::new("PgUp/PgDn Deck  Shift+PgUp/PgDn Add  R Turn pipe  Z Undo  Y Redo  F2 Save"),
         TextFont::from_font_size(15.0),
         TextColor(Color::srgb_u8(157, 182, 195)),
         Transform::from_xyz(0.0, -268.0, 3.0),
@@ -152,14 +153,23 @@ fn input(
         editor.feedback.clear();
     } else if next && !editor.prototypes.is_empty() {
         editor.selected = (editor.selected + 1) % editor.prototypes.len();
-        editor.brush = Brush::Object(editor.prototypes[editor.selected].clone());
+        editor.brush = Brush::Object(
+            editor.prototypes[editor.selected].clone(),
+            PipeDirection::East,
+        );
         editor.link_start = None;
     }
     if keys.just_pressed(KeyCode::Digit6)
         && let Some(prototype) = editor.prototypes.get(editor.selected)
     {
-        editor.brush = Brush::Object(prototype.clone());
+        editor.brush = Brush::Object(prototype.clone(), PipeDirection::East);
         editor.link_start = None;
+    }
+    if keys.just_pressed(KeyCode::KeyR)
+        && let Brush::Object(id, facing) = &editor.brush
+        && matches!(editor.document.prototypes()[id].kind, Kind::Piping(_))
+    {
+        editor.brush = Brush::Object(id.clone(), facing.clockwise());
     }
     if keys.just_pressed(KeyCode::Escape) {
         editor.link_start = None;
@@ -273,7 +283,7 @@ fn draw(
         Brush::JobSpawn(role) => role.as_str(),
         Brush::Cable => "Power cable",
         Brush::Link => "Deck link",
-        Brush::Object(id) => editor.document.prototypes()[id].name.as_str(),
+        Brush::Object(id, _) => editor.document.prototypes()[id].name.as_str(),
     };
     let message = if editor.feedback.is_empty() {
         if editor.document.dirty() {
@@ -284,7 +294,18 @@ fn draw(
     } else {
         &editor.feedback
     };
-    let line = format!("Z {}    /    {label}    /    {message}", editor.level);
+    let facing = match &editor.brush {
+        Brush::Object(id, facing)
+            if matches!(editor.document.prototypes()[id].kind, Kind::Piping(_)) =>
+        {
+            format!(" {facing:?}")
+        }
+        _ => String::new(),
+    };
+    let line = format!(
+        "Z {}    /    {label}{facing}    /    {message}",
+        editor.level
+    );
     if status.0 != line {
         status.0 = line;
     }
@@ -298,33 +319,39 @@ fn draw(
     for shape in &shapes {
         commands.entity(shape).despawn();
     }
-    let mut shape = |cell: astrocore_grid2d::Cell, sprite: Sprite, z: f32| {
+    let mut shape = |point: Vec2, sprite: Sprite, z: f32| {
         commands.spawn((
             MapShape,
             sprite,
-            Transform::from_translation(view.world(cell.center()).extend(z)),
+            Transform::from_translation(point.extend(z)),
         ));
     };
     for (cell, tile) in document.grid().cells_at(level) {
         let sprite = view.tile_sprite(cell, tile).unwrap_or_else(|| {
             Sprite::from_color(Color::srgb_u8(16, 26, 40), Vec2::splat(view.scale - 1.0))
         });
-        shape(cell, sprite, 0.0);
+        shape(view.world(cell.center()), sprite, 0.0);
     }
     for &cell in document.cables().iter().filter(|cell| cell.z == level) {
-        shape(cell, view.cable_sprite(), 0.2);
+        shape(view.world(cell.center()), view.cable_sprite(), 0.2);
     }
     for &cell in document.spawns().iter().filter(|cell| cell.z == level) {
         shape(
-            cell,
+            view.world(cell.center()),
             Sprite::from_color(Color::srgb_u8(91, 224, 151), Vec2::splat(view.scale * 0.27)),
             0.3,
         );
     }
-    for (cell, prototype) in document.objects().filter(|(cell, _)| cell.z == level) {
+    for (cell, prototype, facing) in document.objects().filter(|(cell, _, _)| cell.z == level) {
+        let point = view.world(cell.center());
+        if let Kind::Piping(pipe) = prototype.kind {
+            for (offset, sprite) in view.pipe_segments(pipe, facing) {
+                shape(point + offset, sprite, 0.24);
+            }
+        }
         let (r, g, b) = prototype.color;
         shape(
-            cell,
+            point,
             Sprite::from_color(Color::srgb_u8(r, g, b), Vec2::new(0.50, 0.55) * view.scale),
             0.5,
         );

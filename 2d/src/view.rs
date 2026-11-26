@@ -1,6 +1,8 @@
 use astrocore_grid2d::{Cell, Grid, Position, Tile};
 use bevy::prelude::*;
 
+use crate::{PipeDirection, PipeShape};
+
 pub struct MapView {
     offset: Vec2,
     z: i16,
@@ -47,6 +49,26 @@ impl MapView {
             Color::srgb_u8(114, 189, 208),
             Vec2::new(0.75, 0.09) * self.scale,
         )
+    }
+
+    pub fn pipe_segments(
+        &self,
+        shape: PipeShape,
+        facing: PipeDirection,
+    ) -> impl Iterator<Item = (Vec2, Sprite)> + '_ {
+        shape.ports(facing).map(move |direction| {
+            let [x, y] = direction.offset();
+            let offset = Vec2::new(x as f32, y as f32) * self.scale * 0.25;
+            let dimensions = if x != 0 {
+                Vec2::new(0.52, 0.12)
+            } else {
+                Vec2::new(0.12, 0.52)
+            };
+            (
+                offset,
+                Sprite::from_color(Color::srgb_u8(114, 169, 149), dimensions * self.scale),
+            )
+        })
     }
 
     pub fn tile_sprite(&self, cell: Cell, tile: Tile) -> Option<Sprite> {

@@ -38,6 +38,7 @@ impl Station {
             || self.state.doors.contains_key(&cell)
             || self.state.generators.contains_key(&cell)
             || self.state.vents.contains_key(&cell)
+            || self.layout.pipes.contains_key(&cell)
             || self
                 .state
                 .items

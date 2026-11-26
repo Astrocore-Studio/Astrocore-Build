@@ -25,6 +25,11 @@
         (prototype: "health_analyzer", cell: (x: 6, y: 5)),
         (prototype: "cable_coil", cell: (x: 4, y: 4)),
         (prototype: "wirecutters", cell: (x: 5, y: 4)),
+        (prototype: "air_canister", cell: (x: 3, y: 8)),
+        (prototype: "air_pipe", cell: (x: 4, y: 8)),
+        (prototype: "pipe_valve", cell: (x: 5, y: 8), starts_off: true),
+        (prototype: "air_pipe", cell: (x: 6, y: 8)),
+        (prototype: "passive_vent", cell: (x: 7, y: 8), facing: West),
         (prototype: "analyzer", cell: (x: 17, y: 6)),
     ],
     cables: [

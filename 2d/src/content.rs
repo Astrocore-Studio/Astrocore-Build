@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::environment::coordinates;
 use crate::medical::Damage;
+use crate::piping::{PipeDirection, PipePiece, PipeShape};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Layout {
@@ -14,6 +15,7 @@ pub struct Layout {
     pub prototypes: BTreeMap<String, Prototype>,
     pub roles: Vec<Job>,
     pub links: Vec<LevelLink>,
+    pub pipes: BTreeMap<Cell, PipePiece>,
     pub(crate) spawns: Vec<Cell>,
 }
 
@@ -71,6 +73,7 @@ pub enum Kind {
         segments: u8,
     },
     Wirecutters,
+    Piping(PipeShape),
 }
 
 impl Kind {
@@ -130,6 +133,8 @@ pub(crate) struct Placement {
     pub cell: Cell,
     #[serde(default)]
     pub starts_off: bool,
+    #[serde(default)]
+    pub facing: PipeDirection,
 }
 
 #[derive(Clone, PartialEq, Eq, Deserialize, Serialize)]
@@ -199,6 +204,8 @@ impl Content {
                 || matches!(prototype.kind, Kind::Medicine { restores, delay_seconds }
                     if restores.total() == 0 || !(1..=15).contains(&delay_seconds))
                 || matches!(prototype.kind, Kind::CableCoil { segments: 0 })
+                || matches!(prototype.kind, Kind::Piping(PipeShape::Canister { pressure_kpa })
+                    if !(1..=10_132).contains(&pressure_kpa))
             {
                 return Err(format!("неверные параметры прототипа {id:?}"));
             }
@@ -217,6 +224,7 @@ impl Content {
         }
         let grid = parse_grid(&data)?;
         let mut occupied = BTreeSet::new();
+        let mut pipes = BTreeMap::new();
         for placement in &data.placements {
             let prototype = prototypes
                 .get(&placement.prototype)
@@ -229,6 +237,16 @@ impl Content {
                     "два устройства на одной клетке: {:?}",
                     placement.cell
                 ));
+            }
+            if let Kind::Piping(shape) = prototype.kind {
+                pipes.insert(
+                    placement.cell,
+                    PipePiece {
+                        shape,
+                        facing: placement.facing,
+                        starts_off: placement.starts_off,
+                    },
+                );
             }
         }
         let mut stairs_up = BTreeSet::new();
@@ -328,6 +346,7 @@ impl Content {
                 prototypes,
                 roles,
                 links: data.links,
+                pipes,
                 spawns: data.spawns,
             },
             placements: data.placements,
