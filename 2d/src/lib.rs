@@ -2,6 +2,7 @@ mod construction;
 mod content;
 mod environment;
 mod inventory;
+mod replication;
 pub mod server;
 
 pub use content::{Kind, Layout, MAX_BACKPACK_SLOTS};
@@ -85,7 +86,7 @@ impl From<&RecoverySpec> for Recovery {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Crew {
     pub position: Position,
     pub role: u8,
@@ -122,20 +123,20 @@ impl Crew {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Door {
     pub prototype: String,
     pub open: bool,
     pub powered: bool,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Generator {
     pub prototype: String,
     pub enabled: bool,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Vent {
     pub prototype: String,
     pub enabled: bool,
@@ -143,7 +144,7 @@ pub struct Vent {
     pub reserve_moles: f32,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Item {
     pub prototype: String,
     pub ground: Option<Cell>,
@@ -151,7 +152,7 @@ pub struct Item {
     pub contents: Vec<u16>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct State {
     pub players: BTreeMap<PlayerId, Crew>,
     pub doors: BTreeMap<Cell, Door>,
@@ -260,7 +261,7 @@ impl Station {
             outcome: None,
         };
         let cables: BTreeSet<_> = cables.into_iter().collect();
-        let environment = Environment::new(&layout, &cables, &mut state);
+        let environment = Environment::new(&layout, &cables, &mut state)?;
         Ok(Self {
             terrain: layout.grid.clone(),
             layout,
