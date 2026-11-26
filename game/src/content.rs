@@ -177,7 +177,8 @@ pub fn load_content(world: &mut World, resources: &Resources, ss14: &Path) -> Lo
             prototypes.resolve(world.resource::<ComponentRegistry>(), &mut report);
         });
     }
-    let tiles: Vec<(String, Option<String>, u8, f32)> = {
+    type TileRow = (String, Option<String>, u8, f32, [Option<String>; 8], i32);
+    let tiles: Vec<TileRow> = {
         let prototypes = world.resource::<Prototypes>();
         prototypes
             .ids("tile")
@@ -197,18 +198,20 @@ pub fn load_content(world: &mut World, resources: &Resources, ss14: &Path) -> Lo
                     .and_then(|n| n.as_str())
                     .and_then(|v| v.parse().ok())
                     .unwrap_or(1.0);
-                Some((id.to_owned(), sprite, variants, friction))
+                let (edges, priority) = tile_edges(node);
+                Some((id.to_owned(), sprite, variants, friction, edges, priority))
             })
             .collect()
     };
     let mut frictions = crate::friction::TileFrictions::default();
-    for (id, _, _, friction) in &tiles {
+    for (id, _, _, friction, _, _) in &tiles {
         frictions.set(id, *friction);
     }
     world.insert_resource(frictions);
     let mut definitions = world.get_resource_or_insert_with(TileDefinitions::default);
-    for (id, sprite, variants, _) in tiles {
-        definitions.register(&id, sprite, variants);
+    for (id, sprite, variants, _, edges, priority) in tiles {
+        let type_id = definitions.register(&id, sprite, variants);
+        definitions.set_edges(type_id, edges, priority);
     }
     load_locale(world, resources);
     if let Ok(text) = resources.read_to_string("migration.yml")
@@ -217,6 +220,34 @@ pub fn load_content(world: &mut World, resources: &Resources, ss14: &Path) -> Lo
         world.insert_resource(EntityMigrations::from_node(&node));
     }
     report
+}
+
+/// Края тайла (`EdgeSprites`, `EdgeSpritePriority` в `ContentTileDefinition` SS14 @ 2f4a2aad)
+/// в порядке направлений Robust.
+fn tile_edges(node: &astrocore_data::DataNode) -> ([Option<String>; 8], i32) {
+    const DIRECTIONS: [&str; 8] = [
+        "South",
+        "SouthEast",
+        "East",
+        "NorthEast",
+        "North",
+        "NorthWest",
+        "West",
+        "SouthWest",
+    ];
+    let sprites = node.get("edgeSprites");
+    let edges = DIRECTIONS.map(|direction| {
+        sprites
+            .and_then(|map| map.get(direction))
+            .and_then(|path| path.as_str())
+            .map(|path| path.trim_start_matches('/').to_owned())
+    });
+    let priority = node
+        .get("edgeSpritePriority")
+        .and_then(|n| n.as_str())
+        .and_then(|p| p.parse().ok())
+        .unwrap_or(0);
+    (edges, priority)
 }
 
 /// Язык игры по умолчанию: язык контента SS14.
