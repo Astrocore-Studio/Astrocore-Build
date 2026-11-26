@@ -5,6 +5,7 @@
 //! сюда по плану `docs/ROADMAP.md` (фазы 3–7); сценарий Relay Two на первой 2D-основе живёт
 //! в каталоге `2d/` до конца переезда.
 
+pub mod access;
 pub mod action_blocker;
 pub mod actions;
 pub mod activatable_ui;
@@ -26,11 +27,13 @@ pub mod friction;
 pub mod grammar;
 pub mod hands;
 pub mod healing;
+pub mod id_console;
 pub mod input_contexts;
 pub mod interaction;
 pub mod inventory;
 pub mod item;
 pub mod item_slots;
+pub mod lock;
 pub mod map_commands;
 pub mod mobs;
 pub mod node_container;
@@ -148,6 +151,9 @@ pub fn install_content(world: &mut World, side: Side) {
     flatpack::install(world, side);
     ame::install(world, side);
     cables::install(world, side);
+    access::install(world, side);
+    lock::install(world, side);
+    id_console::install(world, side);
 }
 
 /// Адрес сервера по умолчанию.

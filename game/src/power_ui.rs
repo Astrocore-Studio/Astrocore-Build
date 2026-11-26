@@ -1,18 +1,20 @@
 //! Окна электросети на клиенте: контроллер AME (`AmeControllerBoundUserInterface`,
-//! `AmeWindow`) и АПЦ (`ApcBoundUserInterface`, `ApcMenu`) SS14 @ 2f4a2aad.
+//! `AmeWindow`), АПЦ (`ApcBoundUserInterface`, `ApcMenu`) и консоль ID-карт
+//! (`IdCardConsoleBoundUserInterface`, `IdCardConsoleWindow`) SS14 @ 2f4a2aad.
 
 use astrocore_client::{UiAction, WindowKinds, spawn_button, spawn_label};
 use astrocore_ui::UiWorldExt;
 use bevy::prelude::*;
 
 use crate::ame::{AME_UI_KEY, AmeUiButton, AmeUiState};
+use crate::id_console::{ID_CONSOLE_UI_KEY, IdConsoleState, WriteToTargetId};
 use crate::power::{APC_UI_KEY, ApcExternalPower, ApcToggleMainBreaker, ApcUiState};
 
 fn yes_no(value: bool) -> &'static str {
     if value { "да" } else { "нет" }
 }
 
-/// Окна AME и АПЦ.
+/// Окна AME, АПЦ и консоли ID-карт.
 pub struct PowerUiPlugin;
 
 impl Plugin for PowerUiPlugin {
@@ -67,6 +69,75 @@ impl Plugin for PowerUiPlugin {
                         text,
                         UiAction::new(move |world| {
                             world.send_ui_message(entity, AME_UI_KEY, &button);
+                        }),
+                    );
+                }
+            },
+        );
+        kinds.register(
+            "IdCardConsoleBoundUserInterface",
+            |commands, content, ui, _, style| {
+                let Some(state) = ui.state::<IdConsoleState>() else {
+                    spawn_label(commands, content, style, "Нет данных");
+                    return;
+                };
+                let privileged = if !state.privileged_present {
+                    "нет".to_owned()
+                } else if state.privileged_authorized {
+                    state.privileged_name.clone()
+                } else {
+                    format!("{} (нет прав)", state.privileged_name)
+                };
+                spawn_label(
+                    commands,
+                    content,
+                    style,
+                    &format!("Карта с правами: {privileged}"),
+                );
+                if !state.target_present {
+                    spawn_label(commands, content, style, "Изменяемая карта: нет");
+                    return;
+                }
+                let name = state.target_full_name.clone().unwrap_or_default();
+                let job = state.target_job_title.clone().unwrap_or_default();
+                for line in [
+                    format!("Изменяемая карта: {}", state.target_name),
+                    format!("Имя: {name}"),
+                    format!("Должность: {job}"),
+                ] {
+                    spawn_label(commands, content, style, &line);
+                }
+                if !state.privileged_authorized {
+                    return;
+                }
+                let entity = ui.entity;
+                for level in &state.console_access {
+                    let has = state.target_access.contains(level);
+                    let allowed = state.allowed_access.contains(level);
+                    let mark = if has { "[x]" } else { "[ ]" };
+                    let text = if allowed {
+                        format!("{mark} {level}")
+                    } else {
+                        format!("{mark} {level} (нельзя)")
+                    };
+                    let mut access: Vec<String> = state.target_access.clone();
+                    if has {
+                        access.retain(|tag| tag != level);
+                    } else {
+                        access.push(level.clone());
+                    }
+                    let message = WriteToTargetId {
+                        full_name: name.clone(),
+                        job_title: job.clone(),
+                        access,
+                    };
+                    spawn_button(
+                        commands,
+                        content,
+                        style,
+                        &text,
+                        UiAction::new(move |world| {
+                            world.send_ui_message(entity, ID_CONSOLE_UI_KEY, &message);
                         }),
                     );
                 }

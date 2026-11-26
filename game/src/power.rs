@@ -689,10 +689,23 @@ pub fn install(world: &mut World, side: Side) {
     if !side.is_server() {
         return;
     }
-    // Доступ к выключателю (`AccessReader`) — вместе с доступом (5.2).
-    world.subscribe::<Apc, astrocore_ui::BoundUiMessage<ApcToggleMainBreaker>>(|world, apc, _| {
-        toggle_apc_breaker(world, apc);
-    });
+    world.subscribe::<Apc, astrocore_ui::BoundUiMessage<ApcToggleMainBreaker>>(
+        |world, apc, event| {
+            // `OnToggleMainBreaker`: только с доступом считывателя АПЦ.
+            if crate::access::is_allowed(world, event.actor, apc) {
+                toggle_apc_breaker(world, apc);
+            } else {
+                let text = crate::examine::loc(world, "apc-component-insufficient-access", &[]);
+                crate::popups::PopupWorldExt::popup_entity_for(
+                    world,
+                    &text,
+                    apc,
+                    event.actor,
+                    crate::popups::PopupType::Medium,
+                );
+            }
+        },
+    );
     world.add_game_systems(Update, update_apc_ui);
     world.init_resource::<ApcLinks>();
     // Заряд на старте (`SharedBatterySystem.OnMapInit`).
