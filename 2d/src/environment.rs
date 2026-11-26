@@ -70,7 +70,7 @@ impl Environment {
         self.breathing_ticks += 1;
         if self.breathing_ticks == TICK_HZ {
             self.breathing_ticks = 0;
-            for crew in state.players.values_mut() {
+            for crew in state.players.values_mut().filter(|crew| crew.on_duty()) {
                 self.breathe(crew);
             }
         }

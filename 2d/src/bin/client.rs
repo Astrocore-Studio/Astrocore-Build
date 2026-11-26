@@ -6,8 +6,8 @@ use astrocore_build_2d::inventory_view::{self, InventoryBackdrop, InventoryLine,
 use astrocore_build_2d::server::LocalServer;
 use astrocore_build_2d::view::MapView;
 use astrocore_build_2d::{
-    Action, Kind, Layout, MobState, Outcome, Phase, State, WIRE_VERSION, bind_address,
-    configured_key, endpoint,
+    Action, Crew, Kind, Layout, MobState, Outcome, Participation, Phase, State, WIRE_VERSION,
+    bind_address, configured_key, endpoint,
 };
 use astrocore_grid2d::session::{Client, PlayerId, TICK_HZ, TICK_PERIOD};
 use astrocore_grid2d::{Cell, Tile};
@@ -177,6 +177,16 @@ fn setup(mut commands: Commands) {
 }
 
 fn send_movement(keys: Res<ButtonInput<KeyCode>>, mut network: NonSendMut<Network>) {
+    if network.session().is_none_or(|session| {
+        session.state.phase != Phase::Active
+            || !session
+                .state
+                .players
+                .get(&session.player)
+                .is_some_and(Crew::on_duty)
+    }) {
+        return;
+    }
     let pressed = |left, right| i8::from(keys.pressed(left) || keys.pressed(right));
     network.move_player([
         pressed(KeyCode::KeyD, KeyCode::ArrowRight) - pressed(KeyCode::KeyA, KeyCode::ArrowLeft),
@@ -193,10 +203,14 @@ fn receive(
     mut inventory: ResMut<InventoryPanel>,
 ) {
     network.step();
-    if network
-        .session()
-        .is_none_or(|session| session.state.phase != Phase::Active)
-    {
+    if network.session().is_none_or(|session| {
+        session.state.phase != Phase::Active
+            || !session
+                .state
+                .players
+                .get(&session.player)
+                .is_some_and(Crew::on_duty)
+    }) {
         inventory.open = false;
     } else if keys.just_pressed(KeyCode::KeyI) {
         inventory.open = !inventory.open;
@@ -208,6 +222,7 @@ fn receive(
         (KeyCode::KeyQ, Action::Drop),
         (KeyCode::KeyX, Action::SwapHand),
         (KeyCode::KeyF, Action::Use),
+        (KeyCode::KeyO, Action::Observe),
         (KeyCode::PageUp, Action::ChangeLevel { up: true }),
         (KeyCode::PageDown, Action::ChangeLevel { up: false }),
         (KeyCode::Digit1, Action::SelectRole(0)),
@@ -507,12 +522,13 @@ fn draw(
         }
     }
 
+    let show_crew = |crew: &Crew| {
+        crew.position.z == level
+            && (crew.on_duty()
+                || state.phase == Phase::Lobby && crew.participation != Participation::Observing)
+    };
     visuals.avatars.retain(|player, entity| {
-        if state
-            .players
-            .get(player)
-            .is_some_and(|crew| crew.position.z == level)
-        {
+        if state.players.get(player).is_some_and(show_crew) {
             true
         } else {
             commands.entity(*entity).despawn();
@@ -520,7 +536,7 @@ fn draw(
         }
     });
     for (&player, crew) in &state.players {
-        if crew.position.z != level {
+        if !show_crew(crew) {
             continue;
         }
         let location = view.world(crew.position).extend(1.0);
@@ -558,31 +574,10 @@ fn draw(
     let role = layout
         .roles
         .get(usize::from(crew.role))
-        .map_or("", String::as_str);
+        .map_or("", |job| job.name.as_str());
     let (help, status) = match state.phase {
-        Phase::Lobby => {
-            let help = layout
-                .roles
-                .iter()
-                .enumerate()
-                .map(|(i, name)| format!("{} {name}", i + 1))
-                .collect::<Vec<_>>()
-                .join("   ");
-            let ready_count = state.players.values().filter(|player| player.ready).count();
-            let readiness = if crew.ready {
-                "Ready"
-            } else {
-                "Press Enter to ready"
-            };
-            (
-                help,
-                format!(
-                    "Round {}  /  {role}  /  {ready_count}/{} ready  /  {readiness}",
-                    state.round,
-                    state.players.len()
-                ),
-            )
-        }
+        Phase::Lobby => job_labels(layout, state, crew),
+        Phase::Active if !crew.on_duty() => job_labels(layout, state, crew),
         Phase::Active => {
             let construction = matches!(held, Some(Kind::Item { materials: 1.., .. }));
             let cell = crew.position.cell();
@@ -703,7 +698,7 @@ fn draw(
             Label::Help => &help,
             Label::Status => &status,
             Label::Objective => &objective,
-            Label::Hand(hand) if state.phase == Phase::Active => {
+            Label::Hand(hand) if state.phase == Phase::Active && crew.on_duty() => {
                 let item = crew.hands[usize::from(hand)].and_then(|id| state.items.get(&id));
                 let prototype = item.and_then(|item| layout.prototypes.get(&item.prototype));
                 let hand_label = if hand == 0 { "L" } else { "R" };
@@ -741,6 +736,54 @@ fn draw(
     }
 }
 
+fn job_labels(layout: &Layout, state: &State, crew: &Crew) -> (String, String) {
+    let help = layout
+        .roles
+        .iter()
+        .enumerate()
+        .map(|(index, job)| {
+            let number = index + 1;
+            let name = &job.name;
+            match state.remaining_slots(index, job) {
+                Some(free) => format!("{number} {name} ({free} free)"),
+                None => format!("{number} {name}"),
+            }
+        })
+        .collect::<Vec<_>>()
+        .join("   ");
+    let selected = usize::from(crew.role);
+    let job = &layout.roles[selected];
+    let hint = match crew.participation {
+        Participation::Ready => "Ready   /   O Observe",
+        Participation::Observing => "Observing   /   O Choose job",
+        _ if state.remaining_slots(selected, job) == Some(0) => "Job full   /   O Observe",
+        _ if state.phase == Phase::Active => "Enter Join   /   O Observe",
+        _ => "Enter Ready   /   O Observe",
+    };
+    let progress = if state.phase == Phase::Lobby {
+        let waiting = state
+            .players
+            .values()
+            .filter(|other| other.participation != Participation::Observing)
+            .count();
+        let ready = state
+            .players
+            .values()
+            .filter(|other| other.participation == Participation::Ready)
+            .count();
+        format!("{ready}/{waiting} ready")
+    } else {
+        "In progress".into()
+    };
+    (
+        help,
+        format!(
+            "Round {}   /   {}   /   {progress}   /   {hint}",
+            state.round, job.name
+        ),
+    )
+}
+
 fn draw_inventory(
     network: NonSend<Network>,
     inventory: Res<InventoryPanel>,
@@ -767,7 +810,7 @@ fn capture_frame(
     mut frames: Local<u32>,
     mut exit: MessageWriter<AppExit>,
 ) {
-    if visuals.avatars.is_empty() {
+    if !visuals.initialized {
         return;
     }
     *frames += 1;

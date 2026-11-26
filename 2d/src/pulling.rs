@@ -135,7 +135,9 @@ impl Station {
 }
 
 fn can_pull(actor: &Crew, patient: &Crew) -> bool {
-    actor.damage.state() == MobState::Alive
+    actor.on_duty()
+        && patient.on_duty()
+        && actor.damage.state() == MobState::Alive
         && patient.damage.state() != MobState::Alive
         && actor.hands.contains(&None)
         && actor.position.z == patient.position.z

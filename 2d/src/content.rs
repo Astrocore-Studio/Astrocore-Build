@@ -12,8 +12,23 @@ pub struct Layout {
     pub name: String,
     pub grid: Grid,
     pub prototypes: BTreeMap<String, Prototype>,
-    pub roles: Vec<String>,
+    pub roles: Vec<Job>,
     pub links: Vec<LevelLink>,
+    pub(crate) spawns: Vec<Cell>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Job {
+    pub name: String,
+    pub slots: Option<u16>,
+    pub spawns: Vec<Cell>,
+}
+
+#[derive(Clone, Default, PartialEq, Eq, Deserialize, Serialize)]
+pub(crate) struct JobSettings {
+    #[serde(default)]
+    slots: Option<u16>,
+    #[serde(default)]
     pub(crate) spawns: Vec<Cell>,
 }
 
@@ -98,6 +113,8 @@ pub(crate) struct MapData {
     pub spawns: Vec<Cell>,
     pub placements: Vec<Placement>,
     pub roles: Vec<String>,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub jobs: BTreeMap<String, JobSettings>,
     #[serde(default)]
     pub loadouts: BTreeMap<String, Vec<String>>,
     #[serde(default)]
@@ -281,12 +298,35 @@ impl Content {
         {
             return Err("точки появления должны находиться на свободном полу".into());
         }
+        for (name, job) in &data.jobs {
+            if data.roles.iter().filter(|role| *role == name).count() != 1
+                || job.spawns.len() > 64
+                || job
+                    .spawns
+                    .iter()
+                    .any(|&cell| grid.tile(cell) != Tile::Floor || occupied.contains(&cell))
+            {
+                return Err(format!("неверная настройка профессии {name:?}"));
+            }
+        }
+        let roles = data
+            .roles
+            .into_iter()
+            .map(|name| {
+                let job = data.jobs.get(&name).cloned().unwrap_or_default();
+                Job {
+                    name,
+                    slots: job.slots,
+                    spawns: job.spawns,
+                }
+            })
+            .collect();
         Ok(Self {
             layout: Layout {
                 name: data.name,
                 grid,
                 prototypes,
-                roles: data.roles,
+                roles,
                 links: data.links,
                 spawns: data.spawns,
             },

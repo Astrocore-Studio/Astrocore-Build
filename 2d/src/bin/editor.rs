@@ -14,6 +14,7 @@ struct Editor {
     brush: Brush,
     prototypes: Vec<String>,
     selected: usize,
+    selected_job: usize,
     feedback: String,
     redraw: bool,
     level: i16,
@@ -66,6 +67,7 @@ fn run() -> Result<(), String> {
         brush: Brush::Tile(Tile::Floor),
         prototypes,
         selected: 0,
+        selected_job: 0,
         feedback: String::new(),
         redraw: true,
         level: 0,
@@ -88,7 +90,9 @@ fn setup(mut commands: Commands, editor: Res<Editor>) {
         Transform::from_xyz(0.0, 270.0, 3.0),
     ));
     commands.spawn((
-        Text2d::new("1 Floor  2 Wall  3 Space  4 Spawn  5 Cable  6 Object  7 Link  Tab Next"),
+        Text2d::new(
+            "1 Floor  2 Wall  3 Space  4 Spawn  5 Cable  6 Object  7 Link  8 Job spawn  Tab Next",
+        ),
         TextFont::from_font_size(15.0),
         TextColor(Color::srgb_u8(157, 182, 195)),
         Transform::from_xyz(0.0, -249.0, 3.0),
@@ -137,7 +141,16 @@ fn input(
             editor.feedback.clear();
         }
     }
-    if keys.just_pressed(KeyCode::Tab) && !editor.prototypes.is_empty() {
+    let next = keys.just_pressed(KeyCode::Tab);
+    let job_brush = matches!(editor.brush, Brush::JobSpawn(_));
+    if keys.just_pressed(KeyCode::Digit8) || next && job_brush {
+        if next {
+            editor.selected_job = (editor.selected_job + 1) % editor.document.roles().len();
+        }
+        editor.brush = Brush::JobSpawn(editor.document.roles()[editor.selected_job].clone());
+        editor.link_start = None;
+        editor.feedback.clear();
+    } else if next && !editor.prototypes.is_empty() {
         editor.selected = (editor.selected + 1) % editor.prototypes.len();
         editor.brush = Brush::Object(editor.prototypes[editor.selected].clone());
         editor.link_start = None;
@@ -257,6 +270,7 @@ fn draw(
         Brush::Tile(Tile::Wall) => "Wall",
         Brush::Tile(Tile::Void) => "Space",
         Brush::Spawn => "Spawn point",
+        Brush::JobSpawn(role) => role.as_str(),
         Brush::Cable => "Power cable",
         Brush::Link => "Deck link",
         Brush::Object(id) => editor.document.prototypes()[id].name.as_str(),
@@ -314,6 +328,15 @@ fn draw(
             Sprite::from_color(Color::srgb_u8(r, g, b), Vec2::new(0.50, 0.55) * view.scale),
             0.5,
         );
+    }
+    for (job, cell) in document.job_spawns().filter(|(_, cell)| cell.z == level) {
+        commands.spawn((
+            MapShape,
+            Text2d::new(job),
+            TextFont::from_font_size((view.scale * 0.28).max(10.0)),
+            TextColor(Color::srgb_u8(182, 164, 245)),
+            Transform::from_translation(view.world(cell.center()).extend(0.7)),
+        ));
     }
     let markers: BTreeSet<_> = document
         .link_cells()

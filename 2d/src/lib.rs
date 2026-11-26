@@ -2,13 +2,15 @@ mod construction;
 mod content;
 mod environment;
 mod inventory;
+mod jobs;
 mod medical;
 mod pulling;
 mod replication;
 pub mod server;
 mod wiring;
 
-pub use content::{Kind, Layout, LevelLink, MAX_BACKPACK_SLOTS};
+pub use content::{Job, Kind, Layout, LevelLink, MAX_BACKPACK_SLOTS};
+pub use jobs::Participation;
 pub use medical::{Damage, MedicalProgress, MobState};
 
 #[cfg(feature = "client")]
@@ -32,7 +34,7 @@ use wiring::PendingCut;
 
 const DEBRIEF_TICKS: u32 = 10 * TICK_HZ;
 const MAX_ROUND_ITEMS: usize = 512;
-pub const WIRE_VERSION: u16 = 10;
+pub const WIRE_VERSION: u16 = 11;
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub enum Action {
@@ -54,6 +56,7 @@ pub enum Action {
     ReleasePull,
     LayCable { cell: Cell },
     CutCable { cell: Cell },
+    Observe,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -101,7 +104,7 @@ impl From<&RecoverySpec> for Recovery {
 pub struct Crew {
     pub position: Position,
     pub role: u8,
-    pub ready: bool,
+    pub participation: Participation,
     pub hands: [Option<u16>; 2],
     pub backpack: Option<u16>,
     pub active_hand: bool,
@@ -127,7 +130,7 @@ impl Crew {
         Self {
             position,
             role: 0,
-            ready: false,
+            participation: Participation::Choosing,
             hands: [None; 2],
             backpack: None,
             active_hand: false,
@@ -369,6 +372,7 @@ impl Station {
                         .state
                         .players
                         .values()
+                        .filter(|crew| crew.on_duty())
                         .any(|crew| crew.position.overlaps(target)))
             {
                 door.open = !door.open;
@@ -381,13 +385,25 @@ impl Station {
             return;
         };
         match (self.state.phase, action) {
-            (Phase::Lobby, Action::Ready) => crew.ready = !crew.ready,
-            (Phase::Lobby, Action::SelectRole(role))
-                if usize::from(role) < self.layout.roles.len() =>
+            (Phase::Lobby | Phase::Active, Action::Ready) if !crew.on_duty() => {
+                self.request_join(player);
+            }
+            (Phase::Lobby | Phase::Active, Action::SelectRole(role))
+                if !crew.on_duty() && usize::from(role) < self.layout.roles.len() =>
             {
+                if crew.role != role || crew.participation == Participation::Observing {
+                    crew.participation = Participation::Choosing;
+                }
                 crew.role = role;
             }
-            (Phase::Active, _) if crew.damage.state() != MobState::Alive => {}
+            (Phase::Lobby | Phase::Active, Action::Observe) if !crew.on_duty() => {
+                crew.participation = if crew.participation == Participation::Observing {
+                    Participation::Choosing
+                } else {
+                    Participation::Observing
+                };
+            }
+            (Phase::Active, _) if !crew.on_duty() || crew.damage.state() != MobState::Alive => {}
             (Phase::Active, Action::Interact) => self.interact(player),
             (Phase::Active, Action::Construct { cell, tile }) => self.construct(player, cell, tile),
             (Phase::Active, Action::Drop) => {
@@ -456,7 +472,7 @@ impl Station {
             .players
             .get_mut(&player)
             .expect("игрок существует");
-        let role = &self.layout.roles[usize::from(crew.role)];
+        let role = &self.layout.roles[usize::from(crew.role)].name;
         let Some(loadout) = self.loadouts.get(role) else {
             return;
         };
@@ -509,13 +525,27 @@ impl Station {
     fn advance_round(&mut self) {
         match self.state.phase {
             Phase::Lobby => {
-                if !self.state.players.is_empty()
-                    && self.state.players.values().all(|crew| crew.ready)
+                if self
+                    .state
+                    .players
+                    .values()
+                    .all(|crew| crew.participation != Participation::Choosing)
                 {
+                    let ready: Vec<_> = self
+                        .state
+                        .players
+                        .iter()
+                        .filter_map(|(&player, crew)| {
+                            (crew.participation == Participation::Ready).then_some(player)
+                        })
+                        .collect();
+                    if ready.is_empty() {
+                        return;
+                    }
                     self.state.phase = Phase::Active;
                     self.phase_ticks = self.round_ticks;
-                    for player in self.state.players.keys().copied().collect::<Vec<_>>() {
-                        self.equip(player);
+                    for player in ready {
+                        self.spawn_for_job(player);
                     }
                 }
             }
@@ -526,6 +556,7 @@ impl Station {
                     .state
                     .players
                     .values()
+                    .filter(|crew| crew.on_duty())
                     .all(|crew| crew.damage.state() == MobState::Dead)
                 {
                     Some(Outcome::CrewLost)
@@ -576,8 +607,12 @@ impl Station {
                         .zip(self.layout.spawns.iter().cycle())
                     {
                         let role = crew.role;
+                        let observing = crew.participation == Participation::Observing;
                         *crew = Crew::new(spawn.center());
                         crew.role = role;
+                        if observing {
+                            crew.participation = Participation::Observing;
+                        }
                     }
                     self.environment.reset(&self.layout, &mut self.state);
                 }
@@ -616,9 +651,6 @@ impl Simulation for Station {
             .copied()
             .unwrap_or(self.layout.spawns[0]);
         self.state.players.insert(player, Crew::new(spawn.center()));
-        if self.state.phase == Phase::Active {
-            self.equip(player);
-        }
     }
 
     fn left(&mut self, player: PlayerId) {
@@ -644,7 +676,8 @@ impl Simulation for Station {
         if self.state.phase == Phase::Active {
             let doors = &self.state.doors;
             for (player, crew) in &mut self.state.players {
-                if crew.damage.state() == MobState::Alive
+                if crew.on_duty()
+                    && crew.damage.state() == MobState::Alive
                     && let Some(input) = inputs.get(player)
                 {
                     let previous = crew.position.cell();

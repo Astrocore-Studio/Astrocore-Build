@@ -119,7 +119,10 @@ impl Station {
                 return;
             }
             let Some((&patient, _)) = self.state.players.iter().find(|(id, crew)| {
-                **id != player && crew.position.cell() == target && procedure.supports(crew.damage)
+                **id != player
+                    && crew.on_duty()
+                    && crew.position.cell() == target
+                    && procedure.supports(crew.damage)
             }) else {
                 return;
             };

@@ -90,6 +90,7 @@ impl Station {
         };
         let Some(receiver) = self.state.players.iter_mut().find_map(|(&id, crew)| {
             if id != player
+                && crew.on_duty()
                 && crew.damage.state() == MobState::Alive
                 && crew.position.cell() == cell
                 && crew.hands[usize::from(crew.active_hand)].is_none()

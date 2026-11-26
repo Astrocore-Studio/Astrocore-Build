@@ -45,6 +45,11 @@
         (x: 16, y: 5),
     ],
     roles: ["Operator", "Engineer", "Medic"],
+    jobs: {
+        "Operator": (slots: Some(2)),
+        "Engineer": (slots: Some(1), spawns: [(x: 4, y: 5)]),
+        "Medic": (slots: Some(1), spawns: [(x: 8, y: 5)]),
+    },
     loadouts: {
         "Operator": ["analyzer", "backpack"],
         "Engineer": ["service_kit", "backpack"],

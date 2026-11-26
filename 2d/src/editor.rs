@@ -12,6 +12,7 @@ const UNDO_LIMIT: usize = 32;
 pub enum Brush {
     Tile(Tile),
     Spawn,
+    JobSpawn(String),
     Cable,
     Link,
     Object(String),
@@ -68,6 +69,20 @@ impl Document {
         &self.draft.spawns
     }
 
+    pub fn roles(&self) -> &[String] {
+        &self.draft.roles
+    }
+
+    pub fn job_spawns(&self) -> impl Iterator<Item = (&str, Cell)> + '_ {
+        self.draft.jobs.iter().flat_map(|(job, settings)| {
+            settings
+                .spawns
+                .iter()
+                .copied()
+                .map(|cell| (job.as_str(), cell))
+        })
+    }
+
     pub fn cables(&self) -> &[Cell] {
         &self.draft.cables
     }
@@ -121,6 +136,16 @@ impl Document {
                 self.grid.set_tile(cell, tile);
             }
             Brush::Spawn => mark(&mut self.draft.spawns, cell, erase),
+            Brush::JobSpawn(role) => {
+                if erase {
+                    if let Some(job) = self.draft.jobs.get_mut(role) {
+                        mark(&mut job.spawns, cell, true);
+                    }
+                } else if self.draft.roles.contains(role) {
+                    let job = self.draft.jobs.entry(role.clone()).or_default();
+                    mark(&mut job.spawns, cell, false);
+                }
+            }
             Brush::Cable => mark(&mut self.draft.cables, cell, erase),
             Brush::Link => {
                 if erase {
@@ -260,6 +285,7 @@ fn empty_station() -> MapData {
         spawns: vec![Cell::new(16, 8)],
         placements: Vec::new(),
         roles: vec!["Operator".into(), "Engineer".into(), "Medic".into()],
+        jobs: BTreeMap::new(),
         loadouts: BTreeMap::new(),
         recovery: None,
         cables: Vec::new(),
