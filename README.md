@@ -2,78 +2,41 @@
 <img alt="Astrocore Build" width="880" height="300" src="docs/img/logo.svg">
 </div>
 
-Astrocore Build — многопользовательская игра про космическую станцию в духе Space Station 14,
-работающая на [Astrocore Engine](https://github.com/Astrocore-Studio/Astrocore-Engine), нашем
-собственном движке на Rust. Мир трёхмерный и воксельный, механики — сервер-авторитарные.
+Astrocore Build — многопользовательская 2D-станционная песочница на Rust на
+[Astrocore Engine](https://github.com/Astrocore-Studio/Astrocore-Engine).
+Устройство игровых систем и сценарии NightCity служат референсом при
+переносе механик на движок Astrocore.
 
-Это основной репозиторий игры. Движок подключается как зависимость и не копируется сюда: в Build
-лежит всё, что делает игру игрой — механики, прототипы, карты, интерфейс и ассеты. Тематические
-игры — форки этого репозитория: они отключают или заменяют системы и кладут свой контент поверх.
+## Запуск
 
-Если вы хотите поднять сервер, делать контент, карты или механики — вам нужен этот репозиторий.
-
-## Ссылки
-
-<div class="header" align="center">
-
-[Astrocore Engine](https://github.com/Astrocore-Studio/Astrocore-Engine) | [Задачи (issues)](https://github.com/Astrocore-Studio/Astrocore-Build/issues) | [План работ](docs/PLAN.md) | [Что сделано](docs/FEATURES.md) | [Решения (ADR)](docs/ADR)
-
-</div>
-
-## Документация
-
-- [docs/PLAN.md](docs/PLAN.md) — план работ мелкими задачами: с чего начать и что делать дальше.
-- [docs/FEATURES.md](docs/FEATURES.md) — что уже сделано: механики, форматы, инструменты, управление.
-- [docs/SYSTEMS.md](docs/SYSTEMS.md) — как устроены игровые системы и как добавить свою.
-- [docs/VOXEL_MODELS.md](docs/VOXEL_MODELS.md) — как нарисовать модель в MagicaVoxel и добавить в игру.
-- [docs/ADR](docs/ADR) — архитектурные решения: [отделение от SS14](docs/ADR/0001-separation-from-ss14-and-workflow.md), [воксельная графика](docs/ADR/0002-voxel-graphics.md), [уровни и маппинг](docs/ADR/0003-levels-and-mapping.md) (отменён), [воксельный 3D-мир и разрушение](docs/ADR/0004-voxel-world.md).
-- [Документация движка](https://github.com/Astrocore-Studio/Astrocore-Engine/tree/main/docs) — мир, сеть, рендер, редактор.
-
-Масштаб мира: 1 тайл = 1 м, куб стены 1 × 1 × 1 м, этаж — два тайла стены, персонаж ростом в тайл.
-
-## Участие
-
-Помощь принимается от всех. Берите любую задачу из [плана работ](docs/PLAN.md) или
-[issues](https://github.com/Astrocore-Studio/Astrocore-Build/issues) — у каждой указаны сложность,
-где править и как проверить. Многое делается без Rust: прототипы, карты и ассеты — это RON и
-картинки. Не бойтесь спрашивать.
-
-Перед отправкой изменений всё должно проходить без ошибок и предупреждений:
+Установите Rust stable и откройте чекауты Build и Engine в соседних каталогах
+`Astrocore-Build` и `Astrocore-Engine`. Выполните из корня Build:
 
 ```bash
+cargo play
+```
+
+Команда собирает 2D-клиент и запускает локальный сервер, который завершится
+вместе с клиентом. На Windows из этого же каталога доступен `play.cmd`.
+
+Для отдельного сервера, подключения второго клиента и редактирования карт
+есть команды `cargo serve2d`, `cargo client2d` и `cargo editor2d`.
+[Параметры запуска, управление и сценарий Relay Two](2d/README.md)
+
+## Сборка и проверка
+
+```bash
+cargo build --locked --bin astrocore-2d-server
+cargo build --locked --features client
 cargo fmt --all -- --check
+cargo clippy --locked --workspace --all-targets --features client -- -D warnings
+cargo test --locked --workspace --features client
 ```
 
-```bash
-cargo clippy --workspace --all-targets -- -D warnings
-```
-
-```bash
-cargo test --workspace --no-fail-fast
-```
-
-Новая механика — с тестом на стенде сервера (`crates/gameplay/src/tests.rs`). Решения, меняющие
-архитектуру, оформляются ADR в `docs/ADR`.
-
-## Сборка
-
-1. Установите Rust stable (не ниже 1.97.1) через [rustup](https://rustup.rs).
-2. Склонируйте репозиторий:
-```bash
-git clone https://github.com/Astrocore-Studio/Astrocore-Build.git
-```
-3. Перейдите в папку проекта и запустите сервер с клиентом (движок скачается и соберётся сам,
-   версия закреплена в `Cargo.lock`):
-```bash
-cd Astrocore-Build
-```
-```bash
-scripts/run_all.sh
-```
-
-На Windows — `scripts\run_all.bat`. Локальный сервер выдаёт всем админ-ранг: консоль — `` ` ``,
-окно маппинга — F5. Другая карта — переменная `ASTRO_MAP=<файл.ron>`. Сервер и клиент отдельно,
-ключи и параметры — в [docs/FEATURES.md](docs/FEATURES.md#запуск-и-просмотр).
+В корневом workspace находятся 2D-сервер, клиент и редактор, а также
+библиотеки атмосферы и питания. Старые документы в `docs/` фиксируют
+историю 3D-этапа и переноса механик. Актуальные команды и формат карт
+описаны в документации Relay Two.
 
 ## Лицензии
 

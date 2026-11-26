@@ -1,3 +1,5 @@
 @echo off
-call "%~dp0_env.bat"
-cargo run -p server -- --listen %ASTRO_ADDR% --key %ASTRO_KEY% %*
+setlocal
+cd /d "%~dp0.." || exit /b 1
+cargo serve2d %*
+exit /b %errorlevel%

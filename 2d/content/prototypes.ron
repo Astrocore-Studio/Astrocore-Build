@@ -1,0 +1,8 @@
+{
+    "generator": (name: "Backup generator", kind: Generator(watts: 850), color: (244, 196, 98)),
+    "air_reserve": (name: "Air reserve", kind: Vent(watts: 200, reserve_moles: 5600, flow_moles: 350), color: (84, 183, 208)),
+    "pressure_hatch": (name: "Pressure hatch", kind: Door(watts: 120), color: (218, 123, 81)),
+    "service_kit": (name: "Service kit", kind: Item(healing: 0, materials: 8), color: (244, 202, 114)),
+    "field_dressing": (name: "Field dressing", kind: Item(healing: 35), color: (214, 144, 206)),
+    "analyzer": (name: "Gas analyzer", kind: Item(healing: 0, analyzer: true), color: (130, 203, 245)),
+}

@@ -1,2 +1,8 @@
 [net]
 git-fetch-with-cli = true
+
+[alias]
+play = "run --locked --features client --bin astrocore-2d-client -- --host"
+serve2d = "run --locked --bin astrocore-2d-server"
+client2d = "run --locked --features client --bin astrocore-2d-client --"
+editor2d = "run --locked --features client --bin astrocore-2d-editor --"

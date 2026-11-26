@@ -1,0 +1,39 @@
+[package]
+name = "astrocore-build-2d"
+version = "0.1.0"
+edition = "2024"
+publish = false
+license = "AGPL-3.0-or-later"
+
+[features]
+client = ["dep:bevy", "dep:getrandom", "dep:tempfile"]
+
+[dependencies]
+astrocore-grid2d = { path = "../../Astrocore-Engine/crates/astrocore-grid2d" }
+astrocore-network = { path = "../../Astrocore-Engine/crates/astrocore-network" }
+atmos = { path = "../crates/atmos" }
+power = { path = "../crates/power" }
+serde = { version = "1", features = ["derive"] }
+ron = "0.10"
+getrandom = { version = "0.2", optional = true }
+tempfile = { version = "3", optional = true }
+bevy = { version = "=0.20.1", default-features = false, optional = true, features = [
+    "2d_bevy_render", "default_app", "default_font", "bevy_winit", "bevy_window", "x11", "png", "std", "multi_threaded",
+] }
+
+[[bin]]
+name = "astrocore-2d-server"
+path = "src/bin/server.rs"
+
+[[bin]]
+name = "astrocore-2d-client"
+path = "src/bin/client.rs"
+required-features = ["client"]
+
+[[bin]]
+name = "astrocore-2d-editor"
+path = "src/bin/editor.rs"
+required-features = ["client"]
+
+[lints.rust]
+unsafe_code = "forbid"

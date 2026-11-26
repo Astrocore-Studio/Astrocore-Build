@@ -1,3 +1,5 @@
 @echo off
-call "%~dp0_env.bat"
-cargo run -p client -- --connect-lightyear %ASTRO_ADDR% --ly-key %ASTRO_KEY% --world-id polygon --render-manifest assets/ss14/render-manifest.json %*
+setlocal
+cd /d "%~dp0.." || exit /b 1
+cargo client2d %*
+exit /b %errorlevel%
