@@ -1,15 +1,17 @@
 use std::collections::BTreeMap;
 
 use astrocore_grid2d::Cell;
-use power::{CableGroup, Cables, Load, PowerState, Supply};
+use power::{Battery, CableGroup, Cables, Load, PowerState, Supply};
 
 use super::{DT, coordinates};
-use crate::{Kind, Layout, State};
+use crate::electricity::storage_ports;
+use crate::{Kind, Layout, State, StorageSample};
 
 #[derive(Default)]
 pub(super) struct PowerGrid {
     solver: PowerState,
     generators: BTreeMap<Cell, usize>,
+    storages: BTreeMap<Cell, (usize, bool)>,
     doors: BTreeMap<Cell, usize>,
     vents: BTreeMap<Cell, (usize, u16)>,
     pipe_machines: BTreeMap<Cell, usize>,
@@ -25,6 +27,7 @@ impl PowerGrid {
         );
         let mut solver = PowerState::default();
         let previous_generators = std::mem::take(&mut self.generators);
+        let previous_storages = std::mem::take(&mut self.storages);
         self.doors.clear();
         self.vents.clear();
         self.pipe_machines.clear();
@@ -41,6 +44,36 @@ impl PowerGrid {
                 );
                 self.generators.insert(cell, solver.add_supply(net, supply));
             }
+        }
+        for (&cell, storage) in &state.storages {
+            let Kind::EnergyStorage {
+                capacity_joules,
+                initial_joules,
+                charge_watts,
+                supply_watts,
+            } = layout.prototypes[&storage.prototype].kind
+            else {
+                continue;
+            };
+            let previous = previous_storages
+                .get(&cell)
+                .map(|&(id, _)| &self.solver.batteries[id]);
+            let stored = previous.map_or(initial_joules as f32, |battery| battery.current_storage);
+            let mut battery = Battery::new(capacity_joules as f32, stored);
+            battery.max_charge_rate = charge_watts as f32;
+            battery.max_supply = supply_watts as f32;
+            battery.enabled = storage.enabled;
+            if let Some(previous) = previous {
+                battery.supply_ramp_position = previous.supply_ramp_position;
+            }
+            let (input, output) = storage_ports(&cables, cell, storage.facing);
+            let bypassed = input.is_some() && input == output;
+            let id = if bypassed {
+                solver.add_battery_ports(None, None, battery)
+            } else {
+                solver.add_battery_ports(input, output, battery)
+            };
+            self.storages.insert(cell, (id, bypassed));
         }
         for (&cell, door) in &state.doors {
             if let Some(net) = cables.net_at(CableGroup::Apc, coordinates(cell))
@@ -75,6 +108,9 @@ impl PowerGrid {
         for (&cell, &id) in &self.generators {
             self.solver.supplies[id].enabled = state.generators[&cell].enabled;
         }
+        for (&cell, &(id, _)) in &self.storages {
+            self.solver.batteries[id].enabled = state.storages[&cell].enabled;
+        }
         self.solver.tick(DT);
         for (&cell, door) in &mut state.doors {
             door.powered = self
@@ -99,6 +135,23 @@ impl PowerGrid {
 
     pub(super) fn vent_flow(&self, cell: Cell) -> u16 {
         self.vents[&cell].1
+    }
+
+    pub(super) fn sample_storage(&self, cell: Cell, capacity: u32) -> Option<StorageSample> {
+        let &(id, bypassed) = self.storages.get(&cell)?;
+        let battery = &self.solver.batteries[id];
+        Some(StorageSample {
+            cell,
+            joules: (battery.current_storage.round() as u32).min(capacity),
+            capacity,
+            input_watts: battery
+                .charging
+                .map(|_| battery.current_receiving.round() as u32),
+            output_watts: battery
+                .discharging
+                .map(|_| battery.current_supply.round() as u32),
+            bypassed,
+        })
     }
 
     fn load_powered(&self, id: usize) -> bool {

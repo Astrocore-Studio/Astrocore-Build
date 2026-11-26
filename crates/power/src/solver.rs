@@ -147,13 +147,27 @@ impl PowerState {
     }
 
     /// Аккумулятор, заряжающийся из `charging` и отдающий в `discharging`.
-    pub fn add_battery(&mut self, charging: usize, discharging: usize, mut b: Battery) -> usize {
-        b.charging = Some(charging);
-        b.discharging = Some(discharging);
+    pub fn add_battery(&mut self, charging: usize, discharging: usize, b: Battery) -> usize {
+        self.add_battery_ports(Some(charging), Some(discharging), b)
+    }
+
+    /// Подключить каждый из доступных портов. Заряд хранится и при двух отключённых портах.
+    pub fn add_battery_ports(
+        &mut self,
+        charging: Option<usize>,
+        discharging: Option<usize>,
+        mut b: Battery,
+    ) -> usize {
+        b.charging = charging;
+        b.discharging = discharging;
         self.batteries.push(b);
         let id = self.batteries.len() - 1;
-        self.networks[charging].battery_loads.push(id);
-        self.networks[discharging].battery_supplies.push(id);
+        if let Some(net) = charging {
+            self.networks[net].battery_loads.push(id);
+        }
+        if let Some(net) = discharging {
+            self.networks[net].battery_supplies.push(id);
+        }
         self.groups = None;
         id
     }

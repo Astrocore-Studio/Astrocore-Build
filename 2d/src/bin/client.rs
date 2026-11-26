@@ -8,7 +8,7 @@ use astrocore_build_2d::server::LocalServer;
 use astrocore_build_2d::view::MapView;
 use astrocore_build_2d::{
     Action, Crew, Kind, Layout, MobState, Outcome, Participation, Phase, PipeSample, PipeShape,
-    State, WIRE_VERSION, bind_address, configured_key, endpoint,
+    State, StorageSample, WIRE_VERSION, bind_address, configured_key, endpoint,
 };
 use astrocore_grid2d::session::{Client, PlayerId, TICK_HZ, TICK_PERIOD};
 use astrocore_grid2d::{Cell, Tile};
@@ -335,6 +335,8 @@ fn receive(
             network.act(Action::CutCable { cell });
         } else if keys.just_pressed(KeyCode::KeyP) {
             network.act(Action::ScanPipe { cell });
+        } else if keys.just_pressed(KeyCode::KeyJ) {
+            network.act(Action::InspectStorage { cell });
         } else if let Some((_, tile)) = brush.into_iter().find(|(key, _)| keys.just_pressed(*key)) {
             network.act(Action::Construct { cell, tile });
         }
@@ -535,6 +537,12 @@ fn draw(
             .generators
             .iter()
             .map(|(&cell, device)| (cell, &device.prototype, device.enabled))
+            .chain(
+                state
+                    .storages
+                    .iter()
+                    .map(|(&cell, device)| (cell, &device.prototype, device.enabled)),
+            )
             .chain(state.vents.iter().map(|(&cell, device)| {
                 (cell, &device.prototype, device.enabled && device.powered)
             }));
@@ -691,6 +699,8 @@ fn draw(
                     "Health scan   /   Trauma {}   /   Asphyxiation {}",
                     reading.blunt, reading.asphyxiation
                 )
+            } else if let Some(scan) = crew.storage_scan {
+                storage_reading(state, scan)
             } else if up && down {
                 "PgUp Upper deck   /   PgDn Lower deck".into()
             } else if up {
@@ -710,6 +720,11 @@ fn draw(
                 )
             } else if let Some(scan) = crew.pipe_scan {
                 pipe_reading(layout, state, scan)
+            } else if state.storages.keys().any(|&target| {
+                cell.distance_on_level(target)
+                    .is_some_and(|distance| distance <= 1)
+            }) {
+                "J Inspect storage   /   E Interact".into()
             } else if matches!(held, Some(Kind::Item { analyzer: true, .. })) {
                 "F Sample room   /   P Sample pipe   /   E Interact   /   U Gas filter".into()
             } else if held == Some(Kind::HealthAnalyzer) {
@@ -823,6 +838,26 @@ fn draw(
             text.0.clone_from(next);
         }
     }
+}
+
+fn storage_reading(state: &State, scan: StorageSample) -> String {
+    let charge = format!("Storage {} / {} J", scan.joules, scan.capacity);
+    if scan.bypassed {
+        return format!("{charge}   /   Ports on the same network");
+    }
+    let status = if state.storages[&scan.cell].enabled {
+        "On"
+    } else {
+        "Off"
+    };
+    let port = |watts: Option<u32>| {
+        watts.map_or_else(|| "Disconnected".to_owned(), |watts| format!("{watts} W"))
+    };
+    format!(
+        "{charge}   /   In {}   /   Out {}   /   {status}",
+        port(scan.input_watts),
+        port(scan.output_watts)
+    )
 }
 
 fn pipe_reading(layout: &Layout, state: &State, scan: PipeSample) -> String {

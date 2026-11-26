@@ -264,6 +264,7 @@ impl Station {
             .get_mut(&player)
             .expect("игрок существует");
         crew.scan = None;
+        crew.storage_scan = None;
         crew.medical_reading = None;
         crew.pipe_scan = Some(sample);
     }

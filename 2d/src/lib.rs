@@ -1,5 +1,6 @@
 mod construction;
 mod content;
+mod electricity;
 mod environment;
 mod inventory;
 mod jobs;
@@ -12,6 +13,7 @@ pub mod server;
 mod wiring;
 
 pub use content::{Job, Kind, Layout, LevelLink, MAX_BACKPACK_SLOTS};
+pub use electricity::{Storage, StorageSample};
 pub use jobs::Participation;
 pub use medical::{Damage, MedicalProgress, MobState};
 pub use piping::{
@@ -44,7 +46,7 @@ use wiring::PendingCut;
 
 const DEBRIEF_TICKS: u32 = 10 * TICK_HZ;
 const MAX_ROUND_ITEMS: usize = 512;
-pub const WIRE_VERSION: u16 = 15;
+pub const WIRE_VERSION: u16 = 16;
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub enum Action {
@@ -69,6 +71,7 @@ pub enum Action {
     Observe,
     ScanPipe { cell: Cell },
     ControlFilter { cell: Cell, control: FilterControl },
+    InspectStorage { cell: Cell },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -124,6 +127,7 @@ pub struct Crew {
     pub pressure_kpa: u16,
     pub scan: Option<AirSample>,
     pub pipe_scan: Option<PipeSample>,
+    pub storage_scan: Option<StorageSample>,
     pub medical_reading: Option<Damage>,
     pub medical_progress: Option<MedicalProgress>,
     pub pulling: Option<PlayerId>,
@@ -151,6 +155,7 @@ impl Crew {
             pressure_kpa: 101,
             scan: None,
             pipe_scan: None,
+            storage_scan: None,
             medical_reading: None,
             medical_progress: None,
             pulling: None,
@@ -193,6 +198,7 @@ pub struct State {
     pub players: BTreeMap<PlayerId, Crew>,
     pub doors: BTreeMap<Cell, Door>,
     pub generators: BTreeMap<Cell, Generator>,
+    pub storages: BTreeMap<Cell, Storage>,
     pub vents: BTreeMap<Cell, Vent>,
     pub pipe_valves: BTreeMap<Cell, bool>,
     pub pipe_machines: BTreeMap<Cell, PipeMachine>,
@@ -215,6 +221,7 @@ pub struct Station {
     state: State,
     initial_doors: BTreeMap<Cell, Door>,
     initial_generators: BTreeMap<Cell, Generator>,
+    initial_storages: BTreeMap<Cell, Storage>,
     initial_vents: BTreeMap<Cell, Vent>,
     environment: Environment,
     pending_medical: BTreeMap<PlayerId, PendingMedical>,
@@ -240,6 +247,7 @@ impl Station {
         } = Content::load(directory)?;
         let mut doors = BTreeMap::new();
         let mut generators = BTreeMap::new();
+        let mut storages = BTreeMap::new();
         let mut vents = BTreeMap::new();
         let mut items = BTreeMap::new();
         let next_item = placements.len() as u16;
@@ -260,6 +268,16 @@ impl Station {
                         placement.cell,
                         Generator {
                             prototype: placement.prototype,
+                            enabled: !placement.starts_off,
+                        },
+                    );
+                }
+                Kind::EnergyStorage { .. } => {
+                    storages.insert(
+                        placement.cell,
+                        Storage {
+                            prototype: placement.prototype,
+                            facing: placement.facing,
                             enabled: !placement.starts_off,
                         },
                     );
@@ -299,6 +317,7 @@ impl Station {
             players: BTreeMap::new(),
             doors: doors.clone(),
             generators: generators.clone(),
+            storages: storages.clone(),
             vents: vents.clone(),
             pipe_valves: layout
                 .pipes
@@ -333,6 +352,7 @@ impl Station {
             state,
             initial_doors: doors,
             initial_generators: generators,
+            initial_storages: storages,
             initial_vents: vents,
             environment,
             pending_medical: BTreeMap::new(),
@@ -370,6 +390,7 @@ impl Station {
             .doors
             .keys()
             .chain(self.state.generators.keys())
+            .chain(self.state.storages.keys())
             .chain(self.state.vents.keys())
             .chain(self.state.pipe_valves.keys())
             .chain(self.state.pipe_machines.keys())
@@ -397,6 +418,8 @@ impl Station {
         } else if let Some((_, target)) = device {
             if let Some(generator) = self.state.generators.get_mut(&target) {
                 generator.enabled = !generator.enabled;
+            } else if let Some(storage) = self.state.storages.get_mut(&target) {
+                storage.enabled = !storage.enabled;
             } else if let Some(vent) = self.state.vents.get_mut(&target) {
                 vent.enabled = !vent.enabled;
             } else if let Some(open) = self.state.pipe_valves.get_mut(&target) {
@@ -467,6 +490,7 @@ impl Station {
             (Phase::Active, Action::LayCable { cell }) => self.lay_cable(player, cell),
             (Phase::Active, Action::CutCable { cell }) => self.start_cut(player, cell),
             (Phase::Active, Action::ScanPipe { cell }) => self.scan_pipe(player, cell),
+            (Phase::Active, Action::InspectStorage { cell }) => self.inspect_storage(player, cell),
             (Phase::Active, Action::ControlFilter { cell, control }) => {
                 self.control_filter(player, cell, control);
             }
@@ -505,6 +529,7 @@ impl Station {
                 .expect("игрок существует");
             crew.scan = Some(sample);
             crew.pipe_scan = None;
+            crew.storage_scan = None;
             crew.medical_reading = None;
         } else {
             self.start_medical(player, target, id, kind);
@@ -631,6 +656,7 @@ impl Station {
                     self.state.round += 1;
                     self.state.doors.clone_from(&self.initial_doors);
                     self.state.generators.clone_from(&self.initial_generators);
+                    self.state.storages.clone_from(&self.initial_storages);
                     self.state.vents.clone_from(&self.initial_vents);
                     for (cell, open) in &mut self.state.pipe_valves {
                         *open = !self.layout.pipes[cell].starts_off;
@@ -747,6 +773,7 @@ impl Simulation for Station {
                     if previous != crew.position.cell() {
                         crew.medical_reading = None;
                         crew.pipe_scan = None;
+                        crew.storage_scan = None;
                     }
                 }
             }
@@ -758,6 +785,14 @@ impl Simulation for Station {
                 .is_some_and(|sample| sample.cell != crew.position.cell())
             {
                 crew.scan = None;
+            }
+            if crew.storage_scan.is_some_and(|sample| {
+                crew.position
+                    .cell()
+                    .distance_on_level(sample.cell)
+                    .is_none_or(|distance| distance > 1)
+            }) {
+                crew.storage_scan = None;
             }
         }
         let previous_revision = self.state.terrain_revision;

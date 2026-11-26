@@ -158,6 +158,7 @@ impl Station {
             .get_mut(&player)
             .expect("игрок существует");
         actor.scan = None;
+        actor.storage_scan = None;
         actor.pipe_scan = None;
         actor.medical_reading = None;
         actor.medical_progress = Some(MedicalProgress {

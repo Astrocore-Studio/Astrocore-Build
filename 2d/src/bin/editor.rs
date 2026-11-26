@@ -99,7 +99,7 @@ fn setup(mut commands: Commands, editor: Res<Editor>) {
         Transform::from_xyz(0.0, -249.0, 3.0),
     ));
     commands.spawn((
-        Text2d::new("PgUp/PgDn Deck  Shift+PgUp/PgDn Add  R Turn pipe  Z Undo  Y Redo  F2 Save"),
+        Text2d::new("PgUp/PgDn Deck  Shift+PgUp/PgDn Add  R Rotate  Z Undo  Y Redo  F2 Save"),
         TextFont::from_font_size(15.0),
         TextColor(Color::srgb_u8(157, 182, 195)),
         Transform::from_xyz(0.0, -268.0, 3.0),
@@ -167,7 +167,7 @@ fn input(
     }
     if keys.just_pressed(KeyCode::KeyR)
         && let Brush::Object(id, facing) = &editor.brush
-        && matches!(editor.document.prototypes()[id].kind, Kind::Piping(_))
+        && editor.document.prototypes()[id].kind.rotatable()
     {
         editor.brush = Brush::Object(id.clone(), facing.clockwise());
     }
@@ -295,9 +295,7 @@ fn draw(
         &editor.feedback
     };
     let facing = match &editor.brush {
-        Brush::Object(id, facing)
-            if matches!(editor.document.prototypes()[id].kind, Kind::Piping(_)) =>
-        {
+        Brush::Object(id, facing) if editor.document.prototypes()[id].kind.rotatable() => {
             format!(" {facing:?}")
         }
         _ => String::new(),

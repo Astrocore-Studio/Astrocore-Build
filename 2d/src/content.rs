@@ -4,6 +4,7 @@ use std::path::Path;
 use astrocore_grid2d::{Cell, Grid, GridLevel, Tile};
 use serde::{Deserialize, Serialize};
 
+use crate::electricity::storage_ports;
 use crate::environment::coordinates;
 use crate::medical::Damage;
 use crate::piping::{PipeDirection, PipePiece, PipeShape};
@@ -80,9 +81,19 @@ pub enum Kind {
     },
     Wirecutters,
     Piping(PipeShape),
+    EnergyStorage {
+        capacity_joules: u32,
+        initial_joules: u32,
+        charge_watts: u32,
+        supply_watts: u32,
+    },
 }
 
 impl Kind {
+    pub fn rotatable(self) -> bool {
+        matches!(self, Self::Piping(_) | Self::EnergyStorage { .. })
+    }
+
     pub(crate) fn item_materials(self) -> Option<u8> {
         match self {
             Self::Item { materials, .. } => Some(materials),
@@ -204,6 +215,10 @@ impl Content {
                     if restores.total() == 0 || use_ticks == 0 || use_ticks > 15 * astrocore_grid2d::session::TICK_HZ as u16 || uses == 0)
                 || matches!(prototype.kind, Kind::CableCoil { segments: 0 })
                 || matches!(prototype.kind, Kind::Piping(shape) if !shape.valid())
+                || matches!(prototype.kind, Kind::EnergyStorage {
+                    capacity_joules, initial_joules, charge_watts, supply_watts,
+                } if capacity_joules == 0 || initial_joules > capacity_joules
+                    || charge_watts == 0 || supply_watts == 0)
             {
                 return Err(format!("неверные параметры прототипа {id:?}"));
             }
@@ -290,21 +305,10 @@ impl Content {
         {
             return Err("кабели должны находиться на полу карты".into());
         }
-        if let Some(recovery) = &data.recovery {
-            let group = power::CableGroup::Apc;
-            let cables =
-                power::Cables::build(data.cables.iter().map(|&cell| (group, coordinates(cell))));
-            let vent_net = cables.net_at(group, coordinates(recovery.vent));
-            if vent_net.is_none()
-                || !data.placements.iter().any(|placement| {
-                    matches!(
-                        prototypes[&placement.prototype].kind,
-                        Kind::Generator { watts: 1.. }
-                    ) && cables.net_at(group, coordinates(placement.cell)) == vent_net
-                })
-            {
-                return Err("вентиляция цели должна быть соединена кабелем с генератором".into());
-            }
+        if let Some(recovery) = &data.recovery
+            && !has_recovery_supply(recovery.vent, &data, &prototypes)
+        {
+            return Err("вентиляции цели нужен кабельный путь от генератора".into());
         }
         if data.spawns.is_empty()
             || data
@@ -354,6 +358,47 @@ impl Content {
             recovery: data.recovery,
         })
     }
+}
+
+fn has_recovery_supply(
+    vent: Cell,
+    data: &MapData,
+    prototypes: &BTreeMap<String, Prototype>,
+) -> bool {
+    let group = power::CableGroup::Apc;
+    let cables = power::Cables::build(data.cables.iter().map(|&cell| (group, coordinates(cell))));
+    let net_at = |cell| cables.net_at(group, coordinates(cell));
+    let Some(target) = net_at(vent) else {
+        return false;
+    };
+    let mut sources = Vec::new();
+    let mut bridges = BTreeMap::<usize, Vec<usize>>::new();
+    for placement in &data.placements {
+        match prototypes[&placement.prototype].kind {
+            Kind::Generator { watts: 1.. } => sources.extend(net_at(placement.cell)),
+            Kind::EnergyStorage { .. } => {
+                if let (Some(input), Some(output)) =
+                    storage_ports(&cables, placement.cell, placement.facing)
+                    && input != output
+                {
+                    bridges.entry(input).or_default().push(output);
+                }
+            }
+            _ => {}
+        }
+    }
+    let mut visited = BTreeSet::new();
+    while let Some(net) = sources.pop() {
+        if net == target {
+            return true;
+        }
+        if visited.insert(net)
+            && let Some(next) = bridges.get(&net)
+        {
+            sources.extend(next);
+        }
+    }
+    false
 }
 
 pub(crate) fn parse_grid(data: &MapData) -> Result<Grid, String> {

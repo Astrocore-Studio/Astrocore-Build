@@ -7,7 +7,7 @@ use astrocore_grid2d::session::TICK_HZ;
 use astrocore_grid2d::{Cell, Grid, Tile};
 
 use crate::content::{Layout, LevelLink};
-use crate::{AirSample, Crew, MobState, PipeMachine, State};
+use crate::{AirSample, Crew, MobState, PipeMachine, State, StorageSample};
 use piping::PipeNodes;
 use power_grid::PowerGrid;
 
@@ -60,6 +60,10 @@ impl Environment {
 
     pub fn rewire(&mut self, layout: &Layout, state: &State) {
         self.power.rewire(layout, state);
+    }
+
+    pub(crate) fn sample_storage(&self, cell: Cell, capacity: u32) -> Option<StorageSample> {
+        self.power.sample_storage(cell, capacity)
     }
 
     pub fn tick(&mut self, state: &mut State) {

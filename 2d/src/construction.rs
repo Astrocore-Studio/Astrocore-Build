@@ -37,6 +37,7 @@ impl Station {
             || self.layout.links.iter().any(|link| link.contains(cell))
             || self.state.doors.contains_key(&cell)
             || self.state.generators.contains_key(&cell)
+            || self.state.storages.contains_key(&cell)
             || self.state.vents.contains_key(&cell)
             || self.layout.pipes.contains_key(&cell)
             || self

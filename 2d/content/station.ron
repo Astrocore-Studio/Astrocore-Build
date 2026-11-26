@@ -16,6 +16,7 @@
     spawns: [(x: 4, y: 5), (x: 5, y: 5), (x: 7, y: 5), (x: 8, y: 5)],
     placements: [
         (prototype: "generator", cell: (x: 4, y: 3), starts_off: true),
+        (prototype: "grid_storage", cell: (x: 6, y: 5)),
         (prototype: "pressure_hatch", cell: (x: 11, y: 5)),
         (prototype: "pressure_hatch", cell: (x: 14, y: 5)),
         (prototype: "air_reserve", cell: (x: 16, y: 5)),
@@ -46,7 +47,6 @@
         (x: 4, y: 4),
         (x: 4, y: 5),
         (x: 5, y: 5),
-        (x: 6, y: 5),
         (x: 7, y: 5),
         (x: 8, y: 5),
         (x: 9, y: 5),

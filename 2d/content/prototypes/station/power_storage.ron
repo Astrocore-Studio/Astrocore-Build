@@ -1,0 +1,7 @@
+{
+    "grid_storage": (
+        name: "Reserve battery",
+        kind: EnergyStorage(capacity_joules: 6000, initial_joules: 0, charge_watts: 450, supply_watts: 850),
+        color: (181, 158, 107),
+    ),
+}

@@ -131,6 +131,7 @@ impl Station {
             crew.position = destination.center();
             crew.scan = None;
             crew.pipe_scan = None;
+            crew.storage_scan = None;
             crew.medical_reading = None;
         }
     }
