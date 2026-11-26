@@ -1,0 +1,5 @@
+{
+    "generator": (name: "Backup generator", kind: Generator(watts: 850), color: (244, 196, 98)),
+    "relay_generator": (name: "HV backup generator", kind: Generator(watts: 850, voltage: High), color: (244, 196, 98)),
+    "pressure_hatch": (name: "Pressure hatch", kind: Door(watts: 120), color: (218, 123, 81)),
+}

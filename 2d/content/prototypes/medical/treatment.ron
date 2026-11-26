@@ -1,0 +1,5 @@
+{
+    "field_dressing": (name: "Field dressing", kind: MedicalStack(restores: (blunt: 5), use_ticks: 60, uses: 10), color: (214, 144, 206)),
+    "oxygen_treatment": (name: "Oxygen treatment", kind: Medicine(restores: (asphyxiation: 35), delay_seconds: 2), color: (202, 148, 94)),
+    "health_analyzer": (name: "Health analyzer", kind: HealthAnalyzer, color: (163, 198, 115)),
+}

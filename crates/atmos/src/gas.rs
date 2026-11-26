@@ -3,6 +3,8 @@
 //! Константы и формулы взяты из SS14 дословно; значения сверены с `Atmospherics.cs` и
 //! `Resources/Prototypes/Atmospherics/gases.yml` (коммит `910154a7`).
 
+use serde::{Deserialize, Serialize};
+
 /// Универсальная газовая постоянная, кПа·л/(К·моль).
 pub const R: f32 = 8.314_463;
 pub const ONE_ATMOSPHERE: f32 = 101.325;
@@ -58,7 +60,7 @@ pub const FIRE_GROWTH_RATE: f32 = 40000.0;
 pub const GAS_COUNT: usize = 9;
 
 /// Газы в порядке `Gas` SS14 (он же порядок в `gases.yml`).
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Gas {
     Oxygen = 0,
     Nitrogen,
@@ -69,6 +71,20 @@ pub enum Gas {
     Ammonia,
     NitrousOxide,
     Frezon,
+}
+
+impl Gas {
+    pub const ALL: [Self; GAS_COUNT] = [
+        Self::Oxygen,
+        Self::Nitrogen,
+        Self::CarbonDioxide,
+        Self::Plasma,
+        Self::Tritium,
+        Self::WaterVapor,
+        Self::Ammonia,
+        Self::NitrousOxide,
+        Self::Frezon,
+    ];
 }
 
 /// Молярная теплоёмкость газов (`molarHeatCapacity` из `gases.yml`).

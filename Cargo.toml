@@ -1,6 +1,7 @@
 [workspace]
 resolver = "3"
-members = ["crates/prototypes", "crates/assets", "crates/gameplay", "crates/polygon", "crates/maps", "crates/atmos", "crates/power", "crates/tools", "crates/voxelize", "crates/round", "crates/prefs", "apps/server", "apps/client"]
+members = ["2d", "crates/atmos", "crates/power", "crates/prototypes"]
+default-members = ["2d"]
 
 [workspace.package]
 version = "0.1.0"
@@ -9,54 +10,12 @@ publish = false
 license = "AGPL-3.0-or-later"
 
 [workspace.dependencies]
-astrocore-api = { git = "https://github.com/Astrocore-Studio/Astrocore-Engine", branch = "main" }
-astrocore-core = { git = "https://github.com/Astrocore-Studio/Astrocore-Engine", branch = "main" }
-astrocore-math = { git = "https://github.com/Astrocore-Studio/Astrocore-Engine", branch = "main" }
-astrocore-editor = { git = "https://github.com/Astrocore-Studio/Astrocore-Engine", branch = "main" }
-astrocore-lightyear = { git = "https://github.com/Astrocore-Studio/Astrocore-Engine", branch = "main" }
-astrocore-network = { git = "https://github.com/Astrocore-Studio/Astrocore-Engine", branch = "main" }
-astrocore-physics = { git = "https://github.com/Astrocore-Studio/Astrocore-Engine", branch = "main" }
-astrocore-spatial = { git = "https://github.com/Astrocore-Studio/Astrocore-Engine", branch = "main" }
-astrocore-runtime = { git = "https://github.com/Astrocore-Studio/Astrocore-Engine", branch = "main" }
-astrocore-sprites = { git = "https://github.com/Astrocore-Studio/Astrocore-Engine", branch = "main" }
-astrocore-voxels = { git = "https://github.com/Astrocore-Studio/Astrocore-Engine", branch = "main" }
-astrocore-world = { git = "https://github.com/Astrocore-Studio/Astrocore-Engine", branch = "main" }
-serde_json = "1"
-serde = { version = "1", features = ["derive"] }
+astrocore-core = { path = "../Astrocore-Engine/crates/astrocore-core" }
 ron = "0.10"
+serde = { version = "1", features = ["derive"] }
 serde_yaml = "0.9"
-thiserror = "2"
 tempfile = "3"
+thiserror = "2"
 
 [workspace.lints.rust]
 unsafe_code = "forbid"
-
-[workspace.dependencies.prefs]
-path = "crates/prefs"
-
-[workspace.dependencies.prototypes]
-path = "crates/prototypes"
-
-[workspace.dependencies.atmos]
-path = "crates/atmos"
-
-[workspace.dependencies.power]
-path = "crates/power"
-
-[workspace.dependencies.maps]
-path = "crates/maps"
-
-[workspace.dependencies.assets]
-path = "crates/assets"
-
-[workspace.dependencies.gameplay]
-path = "crates/gameplay"
-
-[workspace.dependencies.polygon]
-path = "crates/polygon"
-
-[workspace.dependencies.round]
-path = "crates/round"
-
-[workspace.dependencies.voxelize]
-path = "crates/voxelize"

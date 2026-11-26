@@ -412,6 +412,20 @@ impl Grid {
         }
     }
 
+    /// Нужны ли актуальные данные питания для очередного шага устройств.
+    pub fn will_update_devices(&self, dt: f32) -> bool {
+        let mut time = self.timer + dt;
+        let mut state = self.state;
+        while time >= ATMOS_TIME {
+            if STATES[state] == State::AtmosDevices {
+                return true;
+            }
+            time -= ATMOS_TIME;
+            state = (state + 1) % STATES.len();
+        }
+        false
+    }
+
     fn step(&mut self) {
         match STATES[self.state] {
             State::TileEqualize => self.process_tile_equalize(),

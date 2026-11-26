@@ -1,0 +1,15 @@
+{
+    "crew_id": (name: "ID card", kind: IdCard, color: (187, 205, 177)),
+    "id_console": (
+        name: "ID console",
+        kind: IdConsole(watts: 40),
+        color: (128, 169, 193),
+        access_reader: (access: [["HeadOfPersonnel"]]),
+        access_levels: ["Atmospherics", "Engineering", "External", "Maintenance", "Medical"],
+    ),
+    "engineering_hatch": (
+        parents: ["pressure_hatch"],
+        name: "Engineering hatch",
+        access_reader: (access: [["Engineering"], ["Atmospherics", "Maintenance"]]),
+    ),
+}

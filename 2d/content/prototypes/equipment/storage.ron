@@ -1,0 +1,3 @@
+{
+    "backpack": (name: "Utility backpack", kind: Backpack(slots: 4), color: (162, 175, 106)),
+}

@@ -1,0 +1,4 @@
+{
+    "air_reserve": (name: "Air reserve", kind: Vent(watts: 200, reserve_moles: 5600, flow_moles: 350), color: (84, 183, 208)),
+    "analyzer": (name: "Gas analyzer", kind: Item(healing: 0, analyzer: true), color: (130, 203, 245)),
+}

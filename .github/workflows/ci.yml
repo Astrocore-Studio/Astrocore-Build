@@ -1,20 +1,30 @@
-name: ci
+name: 2D CI
 on:
   pull_request:
   workflow_dispatch:
 env:
   CARGO_TERM_COLOR: always
+defaults:
+  run:
+    working-directory: Astrocore-Build
 jobs:
   check:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Системные библиотеки Bevy
-        run: sudo apt-get update && sudo apt-get install -y libasound2-dev libudev-dev libwayland-dev libxkbcommon-dev
+        with:
+          path: Astrocore-Build
+      - uses: actions/checkout@v4
+        with:
+          repository: Astrocore-Studio/Astrocore-Engine
+          ref: 7caf04e8592b3f27fe4d4772644fff6a14b9085f
+          path: Astrocore-Engine
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
       - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: Astrocore-Build
       - run: cargo fmt --all --check
-      - run: cargo clippy --workspace --all-targets -- -D warnings
-      - run: cargo test --workspace
+      - run: cargo clippy --locked --workspace --all-targets --features client,prototype-import -- -D warnings
+      - run: cargo test --locked --workspace --features client,prototype-import
