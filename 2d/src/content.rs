@@ -40,7 +40,22 @@ pub enum Kind {
         #[serde(default)]
         analyzer: bool,
     },
+    Backpack {
+        slots: u8,
+    },
 }
+
+impl Kind {
+    pub(crate) fn item_materials(self) -> Option<u8> {
+        match self {
+            Self::Item { materials, .. } => Some(materials),
+            Self::Backpack { .. } => Some(0),
+            _ => None,
+        }
+    }
+}
+
+pub const MAX_BACKPACK_SLOTS: u8 = 8;
 
 #[derive(Clone, PartialEq, Eq, Deserialize, Serialize)]
 pub(crate) struct MapData {
@@ -126,8 +141,12 @@ impl Content {
             return Err("превышен лимит прототипов, размещений или точек появления".into());
         }
         for (id, prototype) in &prototypes {
-            if !valid_name(id) || !valid_name(&prototype.name) {
-                return Err(format!("неверное имя прототипа {id:?}"));
+            if !valid_name(id)
+                || !valid_name(&prototype.name)
+                || matches!(prototype.kind, Kind::Backpack { slots }
+                    if !(1..=MAX_BACKPACK_SLOTS).contains(&slots))
+            {
+                return Err(format!("неверные параметры прототипа {id:?}"));
             }
         }
         for (role, equipment) in &data.loadouts {
@@ -136,7 +155,7 @@ impl Content {
                 || equipment.iter().any(|id| {
                     !prototypes
                         .get(id)
-                        .is_some_and(|prototype| matches!(prototype.kind, Kind::Item { .. }))
+                        .is_some_and(|prototype| prototype.kind.item_materials().is_some())
                 })
             {
                 return Err(format!("неверное стартовое снаряжение роли {role:?}"));
@@ -151,7 +170,7 @@ impl Content {
             if grid.tile(placement.cell) != Tile::Floor {
                 return Err(format!("размещение вне пола: {:?}", placement.cell));
             }
-            if !matches!(prototype.kind, Kind::Item { .. }) && !occupied.insert(placement.cell) {
+            if prototype.kind.item_materials().is_none() && !occupied.insert(placement.cell) {
                 return Err(format!(
                     "два устройства на одной клетке: {:?}",
                     placement.cell

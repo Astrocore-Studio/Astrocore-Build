@@ -2,10 +2,12 @@ use std::collections::BTreeMap;
 use std::path::PathBuf;
 use std::process::ExitCode;
 
+use astrocore_build_2d::inventory_view::{self, InventoryBackdrop, InventoryLine, InventoryPanel};
 use astrocore_build_2d::server::LocalServer;
 use astrocore_build_2d::view::MapView;
 use astrocore_build_2d::{
-    Action, Kind, Layout, Outcome, Phase, State, bind_address, configured_key, endpoint,
+    Action, Kind, Layout, Outcome, Phase, State, WIRE_VERSION, bind_address, configured_key,
+    endpoint,
 };
 use astrocore_grid2d::session::{Client, PlayerId, TICK_PERIOD};
 use astrocore_grid2d::{Cell, Tile};
@@ -107,11 +109,17 @@ fn run() -> Result<(), String> {
     }))
     .insert_resource(ClearColor(Color::srgb_u8(9, 16, 26)))
     .insert_resource(Time::<Fixed>::from_duration(TICK_PERIOD))
-    .insert_non_send(Network::connect(address, u64::from_le_bytes(id), key)?)
+    .insert_non_send(Network::connect(
+        address,
+        u64::from_le_bytes(id),
+        key,
+        WIRE_VERSION,
+    )?)
     .init_resource::<Visuals>()
+    .init_resource::<InventoryPanel>()
     .add_systems(Startup, setup)
     .add_systems(FixedUpdate, send_movement)
-    .add_systems(Update, (receive, draw).chain());
+    .add_systems(Update, (receive, draw, draw_inventory).chain());
     if let Some(path) = capture {
         app.insert_resource(Capture(path))
             .add_systems(Update, capture_frame.after(draw));
@@ -126,6 +134,7 @@ fn run() -> Result<(), String> {
 
 fn setup(mut commands: Commands) {
     commands.spawn(Camera2d);
+    inventory_view::spawn(&mut commands);
     commands.spawn((
         Label::Title,
         Text2d::new("ASTROCORE"),
@@ -179,8 +188,18 @@ fn receive(
     window: Single<&Window, With<PrimaryWindow>>,
     camera: Single<(&Camera, &GlobalTransform), With<Camera2d>>,
     mut network: NonSendMut<Network>,
+    mut inventory: ResMut<InventoryPanel>,
 ) {
     network.step();
+    if network
+        .session()
+        .is_none_or(|session| session.state.phase != Phase::Active)
+    {
+        inventory.open = false;
+    } else if keys.just_pressed(KeyCode::KeyI) {
+        inventory.open = !inventory.open;
+        return;
+    }
     let keys_to_actions = [
         (KeyCode::Enter, Action::Ready),
         (KeyCode::KeyE, Action::Interact),
@@ -213,6 +232,15 @@ fn receive(
         && let Some(session) = network.session()
         && let Ok(point) = camera.0.viewport_to_world_2d(camera.1, cursor)
     {
+        if inventory.contains(point) {
+            if buttons.just_pressed(MouseButton::Left)
+                && let Some(crew) = session.state.players.get(&session.player)
+                && let Some(action) = inventory.action(point, &session.state, crew)
+            {
+                network.act(action);
+            }
+            return;
+        }
         if session.state.phase == Phase::Active
             && buttons.just_pressed(MouseButton::Left)
             && (point.y - HAND_LABEL_Y).abs() <= 16.0
@@ -226,6 +254,8 @@ fn receive(
         let cell = MapView::new(&session.layout.grid).cell(point);
         if keys.just_pressed(KeyCode::KeyG) {
             network.act(Action::Treat { cell });
+        } else if keys.just_pressed(KeyCode::KeyH) {
+            network.act(Action::Give { cell });
         } else if let Some((_, tile)) = brush.into_iter().find(|(key, _)| keys.just_pressed(*key)) {
             network.act(Action::Construct { cell, tile });
         }
@@ -476,14 +506,14 @@ fn draw(
                 matches!(prototype.kind, Kind::Item { materials: 1.., .. })
             });
             let help = if construction {
-                "Aim mouse   B Wall   N Floor   V Dismantle   X Swap hand   Q Drop".into()
+                "B Wall   N Floor   V Dismantle   X Swap   Q Drop   I Inventory".into()
             } else if let Some(scan) = crew.scan {
                 format!(
                     "Scan {} kPa   /   O2 {}%   /   {} K",
                     scan.pressure_kpa, scan.oxygen_percent, scan.temperature_k
                 )
             } else {
-                "WASD Move   E Interact   X Swap hand   Q Drop   F Use   G Treat".into()
+                "E Interact  X Swap  Q Drop  F Use  G Treat  H Give  I Inventory".into()
             };
             let role: String = role.chars().take(12).collect();
             (
@@ -571,6 +601,25 @@ fn draw(
             text.0.clone_from(next);
         }
     }
+}
+
+fn draw_inventory(
+    network: NonSend<Network>,
+    inventory: Res<InventoryPanel>,
+    backdrop: Single<&mut Visibility, With<InventoryBackdrop>>,
+    mut lines: Query<(&InventoryLine, &mut Text2d, &mut Visibility), Without<InventoryBackdrop>>,
+) {
+    let player = network.session().and_then(|session| {
+        if !inventory.open || session.state.phase != Phase::Active {
+            return None;
+        }
+        Some((
+            &session.layout,
+            &session.state,
+            session.state.players.get(&session.player)?,
+        ))
+    });
+    inventory_view::sync(player, backdrop, &mut lines);
 }
 
 fn capture_frame(

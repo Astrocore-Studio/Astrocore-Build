@@ -5,4 +5,5 @@
     "service_kit": (name: "Service kit", kind: Item(healing: 0, materials: 8), color: (244, 202, 114)),
     "field_dressing": (name: "Field dressing", kind: Item(healing: 35), color: (214, 144, 206)),
     "analyzer": (name: "Gas analyzer", kind: Item(healing: 0, analyzer: true), color: (130, 203, 245)),
+    "backpack": (name: "Utility backpack", kind: Backpack(slots: 4), color: (162, 175, 106)),
 }

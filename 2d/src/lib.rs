@@ -1,12 +1,15 @@
 mod construction;
 mod content;
 mod environment;
+mod inventory;
 pub mod server;
 
-pub use content::{Kind, Layout};
+pub use content::{Kind, Layout, MAX_BACKPACK_SLOTS};
 
 #[cfg(feature = "client")]
 pub mod editor;
+#[cfg(feature = "client")]
+pub mod inventory_view;
 #[cfg(feature = "client")]
 pub mod view;
 
@@ -22,6 +25,7 @@ use serde::{Deserialize, Serialize};
 
 const DEBRIEF_TICKS: u32 = 10 * TICK_HZ;
 const MAX_ROUND_ITEMS: usize = 512;
+pub const WIRE_VERSION: u16 = 6;
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub enum Action {
@@ -34,6 +38,10 @@ pub enum Action {
     Construct { cell: Cell, tile: Tile },
     Treat { cell: Cell },
     ClickHand(u8),
+    ToggleBackpack,
+    StoreInBackpack,
+    TakeFromBackpack { item: u16 },
+    Give { cell: Cell },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -83,6 +91,7 @@ pub struct Crew {
     pub role: u8,
     pub ready: bool,
     pub hands: [Option<u16>; 2],
+    pub backpack: Option<u16>,
     pub active_hand: bool,
     pub health: u8,
     pub pressure_kpa: u16,
@@ -104,6 +113,7 @@ impl Crew {
             role: 0,
             ready: false,
             hands: [None; 2],
+            backpack: None,
             active_hand: false,
             health: 100,
             pressure_kpa: 101,
@@ -138,6 +148,7 @@ pub struct Item {
     pub prototype: String,
     pub ground: Option<Cell>,
     pub materials: u8,
+    pub contents: Vec<u16>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -221,13 +232,14 @@ impl Station {
                         },
                     );
                 }
-                Kind::Item { materials, .. } => {
+                kind @ (Kind::Item { .. } | Kind::Backpack { .. }) => {
                     items.insert(
                         id as u16,
                         Item {
                             prototype: placement.prototype,
                             ground: Some(placement.cell),
-                            materials,
+                            materials: kind.item_materials().expect("прототип предмета"),
+                            contents: Vec::new(),
                         },
                     );
                 }
@@ -353,6 +365,12 @@ impl Station {
                 }
             }
             (Phase::Active, Action::SwapHand) => crew.active_hand = !crew.active_hand,
+            (Phase::Active, Action::ToggleBackpack) => self.toggle_backpack(player),
+            (Phase::Active, Action::StoreInBackpack) => self.store_in_backpack(player),
+            (Phase::Active, Action::TakeFromBackpack { item }) => {
+                self.take_from_backpack(player, item)
+            }
+            (Phase::Active, Action::Give { cell }) => self.give_item(player, cell),
             (Phase::Active, Action::ClickHand(hand @ 0..=1)) => {
                 let clicked = usize::from(hand);
                 let active = usize::from(crew.active_hand);
@@ -451,7 +469,7 @@ impl Station {
             let Some(next) = self.next_item.checked_add(1) else {
                 break;
             };
-            let Kind::Item { materials, .. } = self.layout.prototypes[prototype].kind else {
+            let Some(materials) = self.layout.prototypes[prototype].kind.item_materials() else {
                 continue;
             };
             self.state.items.insert(
@@ -460,6 +478,7 @@ impl Station {
                     prototype: prototype.clone(),
                     ground: None,
                     materials,
+                    contents: Vec::new(),
                 },
             );
             *hand = Some(self.next_item);
@@ -557,6 +576,7 @@ impl Station {
 }
 
 impl Simulation for Station {
+    const WIRE_VERSION: u16 = WIRE_VERSION;
     type Layout = Layout;
     type State = State;
     type Action = Action;
@@ -591,7 +611,7 @@ impl Simulation for Station {
 
     fn left(&mut self, player: PlayerId) {
         if let Some(crew) = self.state.players.remove(&player) {
-            for id in crew.hands.into_iter().flatten() {
+            for id in crew.hands.into_iter().flatten().chain(crew.backpack) {
                 self.state
                     .items
                     .get_mut(&id)

@@ -20,6 +20,7 @@
         (prototype: "pressure_hatch", cell: (x: 14, y: 5)),
         (prototype: "air_reserve", cell: (x: 16, y: 5)),
         (prototype: "service_kit", cell: (x: 7, y: 4)),
+        (prototype: "backpack", cell: (x: 8, y: 4)),
         (prototype: "field_dressing", cell: (x: 7, y: 3)),
         (prototype: "analyzer", cell: (x: 17, y: 6)),
     ],
@@ -42,8 +43,8 @@
     ],
     roles: ["Operator", "Engineer", "Medic"],
     loadouts: {
-        "Operator": ["analyzer"],
-        "Engineer": ["service_kit", "analyzer"],
+        "Operator": ["analyzer", "backpack"],
+        "Engineer": ["service_kit", "backpack"],
         "Medic": ["field_dressing", "field_dressing"],
     },
     recovery: Some((
