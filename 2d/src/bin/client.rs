@@ -226,6 +226,18 @@ fn receive(
         network.act(action);
         return;
     }
+    if keys.just_pressed(KeyCode::KeyT)
+        && network.session().is_some_and(|session| {
+            session
+                .state
+                .players
+                .get(&session.player)
+                .is_some_and(|crew| crew.pulling.is_some())
+        })
+    {
+        network.act(Action::ReleasePull);
+        return;
+    }
     let brush = [
         (KeyCode::KeyB, Tile::Wall),
         (KeyCode::KeyN, Tile::Floor),
@@ -262,6 +274,8 @@ fn receive(
             network.act(Action::Treat { cell });
         } else if keys.just_pressed(KeyCode::KeyH) {
             network.act(Action::Give { cell });
+        } else if keys.just_pressed(KeyCode::KeyT) {
+            network.act(Action::Pull { cell });
         } else if let Some((_, tile)) = brush.into_iter().find(|(key, _)| keys.just_pressed(*key)) {
             network.act(Action::Construct { cell, tile });
         }
@@ -584,7 +598,17 @@ fn draw(
             } else if prototype.is_some_and(|item| matches!(item.kind, Kind::HealthAnalyzer)) {
                 "F Scan self   /   G Scan nearby crew   /   X Swap   Q Drop".into()
             } else {
-                "E Interact  X Swap  Q Drop  F Use  G Treat  H Give  I Inventory".into()
+                let drag = if crew.pulling.is_none() {
+                    "  T Drag"
+                } else {
+                    ""
+                };
+                format!("E Interact  X Swap  Q Drop  F Use  G Treat  H Give{drag}  I Inventory")
+            };
+            let help = if crew.pulling.is_some() {
+                format!("{help}   /   T Release")
+            } else {
+                help
             };
             let role: String = role.chars().take(12).collect();
             let condition = match life {

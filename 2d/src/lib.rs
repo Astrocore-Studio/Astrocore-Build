@@ -3,6 +3,7 @@ mod content;
 mod environment;
 mod inventory;
 mod medical;
+mod pulling;
 mod replication;
 pub mod server;
 
@@ -29,7 +30,7 @@ use serde::{Deserialize, Serialize};
 
 const DEBRIEF_TICKS: u32 = 10 * TICK_HZ;
 const MAX_ROUND_ITEMS: usize = 512;
-pub const WIRE_VERSION: u16 = 8;
+pub const WIRE_VERSION: u16 = 9;
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub enum Action {
@@ -47,6 +48,8 @@ pub enum Action {
     TakeFromBackpack { item: u16 },
     Give { cell: Cell },
     ChangeLevel { up: bool },
+    Pull { cell: Cell },
+    ReleasePull,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -103,6 +106,7 @@ pub struct Crew {
     pub scan: Option<AirSample>,
     pub medical_reading: Option<Damage>,
     pub medical_progress: Option<MedicalProgress>,
+    pub pulling: Option<PlayerId>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -127,6 +131,7 @@ impl Crew {
             scan: None,
             medical_reading: None,
             medical_progress: None,
+            pulling: None,
         }
     }
 }
@@ -388,23 +393,9 @@ impl Station {
                 self.take_from_backpack(player, item)
             }
             (Phase::Active, Action::Give { cell }) => self.give_item(player, cell),
-            (Phase::Active, Action::ChangeLevel { up }) => {
-                let cell = crew.position.cell();
-                let destination = self.layout.links.iter().find_map(|link| {
-                    if up && cell == link.lower {
-                        Some(link.upper)
-                    } else if !up && cell == link.upper {
-                        Some(link.lower)
-                    } else {
-                        None
-                    }
-                });
-                if let Some(destination) = destination {
-                    crew.position = destination.center();
-                    crew.scan = None;
-                    crew.medical_reading = None;
-                }
-            }
+            (Phase::Active, Action::Pull { cell }) => self.start_pull(player, cell),
+            (Phase::Active, Action::ReleasePull) => crew.pulling = None,
+            (Phase::Active, Action::ChangeLevel { up }) => self.change_deck(player, up),
             (Phase::Active, Action::ClickHand(hand @ 0..=1)) => {
                 let clicked = usize::from(hand);
                 let active = usize::from(crew.active_hand);
@@ -534,6 +525,7 @@ impl Station {
                     self.pending_medical.clear();
                     for crew in self.state.players.values_mut() {
                         crew.medical_progress = None;
+                        crew.pulling = None;
                     }
                     self.state.phase = Phase::Debrief;
                     self.phase_ticks = DEBRIEF_TICKS;
@@ -613,6 +605,11 @@ impl Simulation for Station {
     fn left(&mut self, player: PlayerId) {
         self.pending_medical.remove(&player);
         if let Some(crew) = self.state.players.remove(&player) {
+            for other in self.state.players.values_mut() {
+                if other.pulling == Some(player) {
+                    other.pulling = None;
+                }
+            }
             for id in crew.hands.into_iter().flatten().chain(crew.backpack) {
                 self.state
                     .items
@@ -631,16 +628,23 @@ impl Simulation for Station {
                     && let Some(input) = inputs.get(player)
                 {
                     let previous = crew.position.cell();
-                    crew.position = self
-                        .terrain
-                        .move_body(crew.position, input.movement, |cell| {
-                            doors.get(&cell).is_some_and(|door| !door.open)
-                        });
+                    let speed_ratio = if crew.pulling.is_some() {
+                        pulling::PULL_SPEED_RATIO
+                    } else {
+                        1.0
+                    };
+                    crew.position = self.terrain.move_body_at_speed(
+                        crew.position,
+                        input.movement,
+                        speed_ratio,
+                        |cell| doors.get(&cell).is_some_and(|door| !door.open),
+                    );
                     if previous != crew.position.cell() {
                         crew.medical_reading = None;
                     }
                 }
             }
+            self.move_pulled();
         }
         for crew in self.state.players.values_mut() {
             if crew
@@ -663,6 +667,7 @@ impl Simulation for Station {
             }
             self.environment.tick(&mut self.state);
             self.advance_medical();
+            self.prune_pulls();
         }
         self.advance_round();
     }
