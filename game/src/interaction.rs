@@ -58,11 +58,11 @@ fn toggle_ui(world: &mut World, player: Entity, target: Entity) -> bool {
 
 /// Подключает взаимодействие. На сервере функции ввода исполняются, на клиенте только
 /// регистрируются компоненты и сетевые сообщения.
-pub fn install(world: &mut World, server: bool) {
+pub fn install(world: &mut World, side: crate::Side) {
     world.add_plugin(InputPlugin);
     world.add_plugin(UiPlugin);
     world.register_data_component_as::<ActivatableUi>("ActivatableUI");
-    if server {
+    if side.is_server() {
         world.bind_input(ACTIVATE_IN_WORLD, |world, args| {
             match (args.state, args.player, args.target) {
                 (BoundKeyState::Down, Some(player), Some(target)) => {

@@ -8,12 +8,43 @@
 pub mod content;
 pub mod input_contexts;
 pub mod interaction;
+pub mod item;
 pub mod server;
+pub mod tag;
+pub mod whitelist;
+
+#[cfg(test)]
+pub(crate) mod testing;
 
 #[cfg(feature = "client")]
 pub mod client;
 #[cfg(feature = "client")]
 pub mod smooth;
+
+use bevy_ecs::world::World;
+
+/// Сторона, на которой работает мир игры.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Side {
+    /// Решает исход действий.
+    Server,
+    /// Показывает мир и передаёт намерения игрока.
+    Client,
+}
+
+impl Side {
+    pub fn is_server(self) -> bool {
+        self == Side::Server
+    }
+}
+
+/// Системы контента SS14 (ADR-0005): компоненты регистрируются одинаково на обеих сторонах,
+/// логика, меняющая мир, — только на сервере.
+pub fn install_content(world: &mut World, side: Side) {
+    tag::install(world);
+    item::install(world);
+    interaction::install(world, side);
+}
 
 /// Адрес сервера по умолчанию.
 pub const DEFAULT_ADDRESS: &str = "127.0.0.1:7783";

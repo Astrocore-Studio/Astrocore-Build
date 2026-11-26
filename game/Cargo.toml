@@ -31,6 +31,9 @@ bevy = { version = "=0.20.1", default-features = false, optional = true }
 bevy_ecs = { version = "=0.20.1", default-features = false, features = ["std", "multi_threaded", "async_executor"] }
 serde.workspace = true
 
+[dev-dependencies]
+astrocore-data = { path = "../../Astrocore-Engine/crates/astrocore-data" }
+
 [[bin]]
 name = "astrocore-server"
 path = "src/bin/server.rs"
