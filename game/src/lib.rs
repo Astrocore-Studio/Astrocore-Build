@@ -10,6 +10,7 @@ pub mod actions;
 pub mod activatable_ui;
 pub mod body;
 pub mod combat;
+pub mod container_fill;
 pub mod content;
 pub mod damage;
 pub mod damage_other_on_hit;
@@ -34,6 +35,7 @@ pub mod placement;
 pub mod popups;
 pub mod power;
 pub mod pulling;
+pub mod random;
 pub mod server;
 pub mod stack;
 pub mod standing;
@@ -133,6 +135,7 @@ pub fn install_content(world: &mut World, side: Side) {
     decals::install(world, side);
     node_container::install(world, side);
     power::install(world, side);
+    container_fill::install(world, side);
 }
 
 /// Адрес сервера по умолчанию.

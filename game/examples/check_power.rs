@@ -27,6 +27,11 @@ fn main() -> Result<(), String> {
         world.run_tick();
     }
     let per_tick = started.elapsed() / ticks.max(1);
+    let total = world.query::<&MetaData>().iter(world).count();
+    println!(
+        "Сущностей в мире: {total} (в файле карты {})",
+        start.map.entities
+    );
     let groups = world.resource::<NodeGroups>();
     let mut kinds: BTreeMap<String, usize> = BTreeMap::new();
     for group in &groups.groups {
