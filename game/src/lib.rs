@@ -21,6 +21,7 @@ pub mod damage_other_on_hit;
 pub mod decals;
 pub mod do_after;
 pub mod doors;
+pub mod electrocution;
 pub mod entity_storage;
 pub mod examine;
 pub mod fixed_point;
@@ -48,6 +49,7 @@ pub mod random;
 pub mod server;
 pub mod stack;
 pub mod standing;
+pub mod status_effects;
 pub mod storage;
 pub mod tag;
 pub mod throwing;
@@ -56,6 +58,7 @@ pub mod verbs;
 pub mod virtual_item;
 pub mod weldable;
 pub mod whitelist;
+pub mod wires;
 
 #[cfg(test)]
 pub(crate) mod testing;
@@ -98,6 +101,8 @@ pub mod stack_visuals;
 pub mod storage_hud;
 #[cfg(feature = "client")]
 pub mod storage_visuals;
+#[cfg(feature = "client")]
+pub mod wires_ui;
 
 use bevy_ecs::world::World;
 
@@ -161,7 +166,10 @@ pub fn install_content(world: &mut World, side: Side) {
     id_console::install(world, side);
     airtight::install(world, side);
     weldable::install(world, side);
+    status_effects::install(world, side);
+    electrocution::install(world, side);
     doors::install(world, side);
+    wires::install(world, side);
 }
 
 /// Адрес сервера по умолчанию.

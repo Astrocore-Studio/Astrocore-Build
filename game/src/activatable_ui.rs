@@ -48,6 +48,20 @@ fn verb_text() -> String {
 }
 
 /// Открывает интерфейс игроку или закрывает открытый (`InteractUI`).
+/// Можно ли открыть окно (`ActivatableUIOpenAttemptEvent`). Поднимается на сущности окна.
+#[derive(Debug, Clone, Copy)]
+pub struct ActivatableUiOpenAttempt {
+    pub user: Entity,
+    pub cancelled: bool,
+}
+
+/// Закрыть окно у всех (`ActivatableUISystem.CloseAll`).
+pub fn close_all(world: &mut World, target: Entity) {
+    if let Some(key) = world.get::<ActivatableUi>(target).map(|a| a.key.clone()) {
+        world.close_ui_for_all(target, &key);
+    }
+}
+
 pub fn toggle_ui(world: &mut World, user: Entity, target: Entity) -> bool {
     let Some(activatable) = world.get::<ActivatableUi>(target).cloned() else {
         return false;
@@ -61,6 +75,15 @@ pub fn toggle_ui(world: &mut World, user: Entity, target: Entity) -> bool {
     }
     if world.ui_open_for(target, &activatable.key, user) {
         return world.close_ui(target, &activatable.key, user);
+    }
+    // `ActivatableUIOpenAttemptEvent`: другие системы могут запретить (панель закрыта).
+    let mut attempt = ActivatableUiOpenAttempt {
+        user,
+        cancelled: false,
+    };
+    world.raise(target, &mut attempt);
+    if attempt.cancelled {
+        return false;
     }
     let busy = activatable.single_user
         && world

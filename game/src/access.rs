@@ -55,6 +55,9 @@ pub struct AccessReader {
     pub container_access_provider: Option<String>,
     #[serde(default = "yes")]
     pub break_on_access_breaker: bool,
+    /// Журнал доступа отключён (`LoggingDisabled`); сам журнал — с записями станции.
+    #[serde(default)]
+    pub logging_disabled: bool,
 }
 
 /// ID-карта (`IdCardComponent`).

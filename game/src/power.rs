@@ -267,6 +267,35 @@ pub struct PowerChanged {
     pub receiving: f32,
 }
 
+/// Отключить или включить приёмник (`PowerReceiverSystem.SetPowerDisabled`): питание
+/// пересчитается на следующем такте сети.
+pub fn set_power_disabled(world: &mut World, entity: Entity, disabled: bool) {
+    if let Some(mut receiver) = world.get_mut::<ApcPowerReceiver>(entity)
+        && receiver.power_disabled != disabled
+    {
+        receiver.power_disabled = disabled;
+    }
+}
+
+/// Наибольшая мощность, которую могли дать сети на прошлом такте
+/// (`LastCombinedMaxSupply`), по номеру группы узлов. Ресурс сервера.
+#[derive(Resource, Debug, Default)]
+pub struct NetworkSupply(pub HashMap<usize, f32>);
+
+/// Наибольшая мощность сети узла `node` сущности на прошлом такте; без сети — ноль.
+pub fn node_max_supply(world: &World, entity: Entity, node: &str) -> f32 {
+    let Some(group) = world
+        .get_resource::<NodeGroups>()
+        .and_then(|groups| groups.group_of(entity, node))
+    else {
+        return 0.0;
+    };
+    world
+        .get_resource::<NetworkSupply>()
+        .and_then(|supply| supply.0.get(&group).copied())
+        .unwrap_or(0.0)
+}
+
 /// Связи устройств с АПЦ. Ресурс сервера.
 #[derive(Resource, Debug, Default)]
 pub struct ApcLinks {
@@ -539,6 +568,11 @@ pub fn update(world: &mut World) {
     world.insert_resource(groups);
 
     state.tick(dt);
+    let supply = nets
+        .iter()
+        .map(|(group, id)| (*group, state.networks[*id].last_combined_max_supply))
+        .collect();
+    world.insert_resource(NetworkSupply(supply));
 
     // Результаты.
     for (entity, id) in supply_ids {

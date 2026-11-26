@@ -1424,6 +1424,14 @@ fn install_airlock(world: &mut World) {
         }
     });
     world.subscribe::<Airlock, DoorStateChanged>(|world, entity, event| {
+        // Панель видна только у закрытого шлюза.
+        if world.get::<crate::wires::WiresPanel>(entity).is_some() {
+            let visible = world
+                .get::<Airlock>(entity)
+                .is_some_and(|a| a.open_panel_visible)
+                || event.state != DoorState::Open;
+            crate::wires::change_panel_visibility(world, entity, visible);
+        }
         update_auto_close(world, entity);
         if event.state == DoorState::Closed
             && let Some(mut airlock) = world.get_mut::<Airlock>(entity)

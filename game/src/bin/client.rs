@@ -472,7 +472,8 @@ fn run() -> Result<(), String> {
     .add_plugins(astrocore_game::dev_console::DevConsolePlugin)
     .add_plugins(astrocore_game::mapping_ui::MappingUiPlugin)
     .add_plugins(astrocore_game::decal_visuals::DecalVisualsPlugin)
-    .add_plugins(astrocore_game::power_ui::PowerUiPlugin);
+    .add_plugins(astrocore_game::power_ui::PowerUiPlugin)
+    .add_plugins(astrocore_game::wires_ui::WiresUiPlugin);
     if options.walk {
         app.add_systems(Update, hold_right);
     }
