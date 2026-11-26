@@ -34,11 +34,15 @@
 | `Robust.Shared/Physics` | `astrocore-physics` | частично | Тела, фикстуры, слои и маски SS14, события касаний, сон тел. Упрощено: без трения между телами, вращения от ударов и сочленений (3.8); столкновения только внутри одного грида и этажа (шаттлы — 7.8). |
 | `SharedMoverController` (ядро), ввод движения | `astrocore-movement` | частично | Скорость по `HandleMobMovement`, предсказание своего персонажа. В игре (фаза 3): невесомость, трение тайлов, шаги, передача управления. |
 | Предсказание Robust (откат и повтор тиков) | `astrocore-movement::Prediction` | частично | Только движение своего персонажа (решение владельца); остальные системы — по мере переноса. |
-| `SpriteComponent`, `SpriteSystem`, RSI | `astrocore-client::Sprite`, `Textures` | частично | Слои, состояния, направления 1/4/8, анимация, глубина отрисовки, цвет, смещение, масштаб. Нет шейдеров слоёв и `Appearance` (2.8). |
+| `SpriteComponent`, `SpriteSystem`, RSI | `astrocore-client::Sprite`, `Textures` | частично | Слои, состояния, направления 1/4/8, анимация, глубина отрисовки, цвет, смещение, масштаб; движение сглаживается между тактами. Нет шейдеров слоёв. |
+| `AppearanceComponent`, `GenericVisualizer` | `astrocore-net::Appearance`, `astrocore-client::GenericVisualizer` | готово | Значения внешнего вида по ключам от сервера, смена слоёв по данным прототипа. Визуализаторы с кодом переносятся вместе с системами игры. |
 | Отрисовка тайлов грида | `astrocore-client` (`view`) | частично | Картинка на чанк, варианты тайлов. Нет декалей и краёв тайлов. |
 | `EyeComponent`, камера | `astrocore-client::Eye` | частично | Следует за сущностью игрока, 15 тайлов по вертикали. Нет зума и поворота. |
-| Ввод | `astrocore-client` | частично | Клавиши движения. `KeyFunctions`, `keybinds.yml`, клики по сущностям — задача 2.13. |
-| Свет и поле зрения, звук, UI | — | нет | Задачи 2.10–2.12. |
+| `InputManager`, `keybinds.yml`, контексты, `InputCmdMessage` | `astrocore-input`, `astrocore-client` (`input`) | готово | Назначения SS14, сочетания, приоритеты, переназначение, команды ввода с точкой и сущностью под курсором (по пикселям спрайта). Обработчики функций пишет игра. |
+| `PointLightComponent`, `OccluderComponent`, свет и FOV `Clyde` | `astrocore-light`, `astrocore-client` (`lighting`) | частично | Свет с тенями и поле зрения по клеткам; карта освещения с шагом 1/8 тайла. Нет масок направленного света, мягких теней, света сквозь контейнеры. |
+| `Robust.Shared/Audio`, `AudioSystem` | `astrocore-audio`, `astrocore-client` (`audio`) | частично | Звуки по пути и из коллекций, рассылка по слышимости, затухание, фоновые `AmbientSound`. Нет стереопанорамы и эффектов (эхо). |
+| `SharedUserInterfaceSystem`, `BoundUserInterface` | `astrocore-ui` | готово | Открытие окна игроку, состояние, сообщения, закрытие по расстоянию. |
+| `Robust.Client/UserInterface` (окна, элементы) | `astrocore-client` (`windows`) на `bevy_ui` | частично | Рамка окна, перетаскивание, закрытие, кнопки и текст. Остальные элементы (списки, поля ввода, вкладки) добавляются с окнами игры. |
 | `MapLoaderSystem`, `EntityDeserializer` | `astrocore-map::MapLoadWorldExt` | частично | Карты SS14 форматов 6–7: тайлы, сущности, иерархия, переименования из `migration.yml`. Нет сохранения мира в файл. |
 | `Robust.Shared/Localization` | `astrocore-loc` | частично | Fluent, запасной язык, атрибуты `ent-ID`. Нет грамматических функций SS14 (`THE`, `GENDER`, …) — задача игры; 13 сообщений en-US с расширением синтаксиса Linguini не разбираются. |
 | `Robust.Shared/ContentPack` (ресурсы), RSI | `astrocore-resources` | частично | Каталоги контента с приоритетом, описания RSI. Нет архивов и перезагрузки на лету. |
@@ -62,6 +66,8 @@
 | `MarkerComponent`, `MarkerSystem` | `game/src/client.rs` | частично | Метки скрыты; показа для мапперов нет. |
 | `CollisionGroup`, `DrawDepth` | `game/src/content.rs` | готово | Таблицы имён SS14. |
 | Вход игрока на карту | `game/src/server.rs` | частично | Тело из `game.player_prototype` у точки появления. Должности и лобби — задача 6.3. |
+| `ActivatableUISystem` | `game/src/interaction.rs` | частично | Клавиша E открывает и закрывает интерфейс устройства в пределах 1,5 тайла. Нет проверки преград, питания и рук. |
+| `ContentContexts` (контексты ввода) | `game/src/input_contexts.rs` | готово | Таблица получена из исходника SS14. |
 | Остальные системы `Content.*` | — | нет | Фазы 3–7. |
 
 ## Данные SS14
@@ -74,4 +80,4 @@
 | `Resources/Maps` — 218 файлов, 58 МБ | разбираются в дерево данных и записываются обратно в YAML и RON без расхождений; Saltern загружается в мир целиком: 11 484 сущности и 6905 тайлов |
 | `Resources/Textures` — 3199 наборов RSI, 24 170 состояний | описания разбираются без замечаний, картинка есть у каждого состояния |
 | `Resources/Locale/en-US` — 1242 файла | 28 199 сообщений; 13 не разбираются (расширение синтаксиса) |
-| Компоненты в прототипах сущностей | 1664 типа; движок понимает `Transform`, `ContainerContainer`, `Physics`, `Fixtures`, `InputMover`, `MovementSpeedModifier`, `Sprite`, игра — `IconSmooth` и `Marker`, остальные пропускаются с учётом в отчёте |
+| Компоненты в прототипах сущностей | 1664 типа; движок понимает `Transform`, `ContainerContainer`, `Physics`, `Fixtures`, `InputMover`, `MovementSpeedModifier`, `Sprite`, `Appearance`, `GenericVisualizer`, `PointLight`, `Occluder`, `AmbientSound`, `UserInterface`, `Clickable`, игра — `IconSmooth`, `Marker`, `ActivatableUI`, остальные пропускаются с учётом в отчёте |

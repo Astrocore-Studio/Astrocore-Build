@@ -6,6 +6,8 @@
 //! в каталоге `2d/` до конца переезда.
 
 pub mod content;
+pub mod input_contexts;
+pub mod interaction;
 pub mod server;
 
 #[cfg(feature = "client")]

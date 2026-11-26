@@ -62,6 +62,9 @@ pub fn start() -> Result<ServerStart, String> {
     world.add_plugin(NetServerPlugin);
     world.add_plugin(PhysicsPlugin::SERVER);
     world.add_plugin(MovementServerPlugin);
+    world.add_plugin(astrocore_audio::AudioPlugin);
+    world.add_plugin(astrocore_light::LightPlugin);
+    crate::interaction::install(&mut world, true);
     content::register_cvars(&mut world);
     if let Ok(text) = std::fs::read_to_string("server_config.toml") {
         world

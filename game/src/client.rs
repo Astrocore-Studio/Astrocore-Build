@@ -1,7 +1,8 @@
 //! Клиент игры: мир клиента с контентом, сглаживанием спрайтов и скрытыми маркерами.
 
-use astrocore_client::{Sprite, register_client_components, register_draw_depth};
+use astrocore_client::{Bindings, Sprite, register_client_components, register_draw_depth};
 use astrocore_ecs::{ComponentInit, EventWorldExt, GameWorldExt, RegistryWorldExt};
+use astrocore_input::{COMMON_CONTEXT, KeyBindings, engine_contexts};
 use astrocore_movement::MovementClientPlugin;
 use astrocore_net::{
     ClientNet, ClientTransport, ClientWorldExt, ConnId, Incoming, NetClientPlugin, ServerNet,
@@ -39,6 +40,7 @@ pub fn start(name: &str) -> Result<(World, Resources), String> {
         }
     });
     smooth::install(&mut world);
+    crate::interaction::install(&mut world, false);
     let report = content::load_content(&mut world, &resources, &ss14);
     for error in report.errors.iter().take(20) {
         eprintln!("прототипы: {error}");
@@ -72,5 +74,40 @@ impl ClientTransport for LocalHost {
                 .map(|(_, bytes)| Incoming::Packet(LOCAL, bytes)),
         );
         self.server.run_tick();
+    }
+}
+
+/// Назначения клавиш SS14 (`keybinds.yml`) с изменениями игрока из файла `keybinds.yml`
+/// в каталоге запуска и контексты ввода SS14. Активен контекст игрока-человека.
+pub fn bindings(resources: &Resources) -> Bindings {
+    let mut contexts = engine_contexts();
+    for (name, parent, functions) in crate::input_contexts::CONTEXTS {
+        contexts.add(name, parent.unwrap_or(COMMON_CONTEXT));
+        contexts.add_functions(name, functions.iter().copied());
+    }
+    contexts.set_active("human");
+    let mut keys = KeyBindings::default();
+    let loaded = resources
+        .read_to_string("keybinds.yml")
+        .map_err(|error| error.to_string())
+        .and_then(|text| astrocore_data::parse_yaml(&text).map_err(|error| error.to_string()))
+        .and_then(|node| keys.load_defaults(&node).map_err(|error| error.to_string()));
+    match loaded {
+        Ok(()) => {
+            if let Ok(text) = std::fs::read_to_string("keybinds.yml")
+                && let Ok(node) = astrocore_data::parse_yaml(&text)
+                && let Err(error) = keys.load_user(&node)
+            {
+                eprintln!("keybinds.yml игрока: {error}");
+            }
+            Bindings { keys, contexts }
+        }
+        Err(error) => {
+            eprintln!("назначения клавиш SS14 не загружены: {error}");
+            Bindings {
+                contexts,
+                ..Bindings::default()
+            }
+        }
     }
 }

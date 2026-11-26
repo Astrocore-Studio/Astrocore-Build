@@ -10,9 +10,12 @@ license.workspace = true
 client = ["dep:astrocore-client", "dep:bevy"]
 
 [dependencies]
+astrocore-audio = { path = "../../Astrocore-Engine/crates/astrocore-audio" }
 astrocore-console = { path = "../../Astrocore-Engine/crates/astrocore-console" }
 astrocore-data = { path = "../../Astrocore-Engine/crates/astrocore-data" }
 astrocore-ecs = { path = "../../Astrocore-Engine/crates/astrocore-ecs" }
+astrocore-input = { path = "../../Astrocore-Engine/crates/astrocore-input" }
+astrocore-light = { path = "../../Astrocore-Engine/crates/astrocore-light" }
 astrocore-map = { path = "../../Astrocore-Engine/crates/astrocore-map" }
 astrocore-math = { path = "../../Astrocore-Engine/crates/astrocore-math" }
 astrocore-movement = { path = "../../Astrocore-Engine/crates/astrocore-movement" }
@@ -21,6 +24,7 @@ astrocore-physics = { path = "../../Astrocore-Engine/crates/astrocore-physics" }
 astrocore-prototypes = { path = "../../Astrocore-Engine/crates/astrocore-prototypes" }
 astrocore-resources = { path = "../../Astrocore-Engine/crates/astrocore-resources" }
 astrocore-transport = { path = "../../Astrocore-Engine/crates/astrocore-transport" }
+astrocore-ui = { path = "../../Astrocore-Engine/crates/astrocore-ui" }
 astrocore-client = { path = "../../Astrocore-Engine/crates/astrocore-client", optional = true }
 bevy = { version = "=0.20.1", default-features = false, optional = true }
 bevy_ecs = { version = "=0.20.1", default-features = false, features = ["std", "multi_threaded", "async_executor"] }
