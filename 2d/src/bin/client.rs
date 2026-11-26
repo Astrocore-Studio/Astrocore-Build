@@ -2,6 +2,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::path::PathBuf;
 use std::process::ExitCode;
 
+use astrocore_build_2d::filter_view::{self, FilterPanel, FilterReadout};
 use astrocore_build_2d::inventory_view::{self, InventoryBackdrop, InventoryLine, InventoryPanel};
 use astrocore_build_2d::server::LocalServer;
 use astrocore_build_2d::view::MapView;
@@ -120,9 +121,10 @@ fn run() -> Result<(), String> {
     )?)
     .init_resource::<Visuals>()
     .init_resource::<InventoryPanel>()
+    .init_resource::<FilterPanel>()
     .add_systems(Startup, setup)
     .add_systems(FixedUpdate, send_movement)
-    .add_systems(Update, (receive, draw, draw_inventory).chain());
+    .add_systems(Update, (receive, draw, draw_inventory, draw_filter).chain());
     if let Some(path) = capture {
         app.insert_resource(Capture(path))
             .add_systems(Update, capture_frame.after(draw));
@@ -138,6 +140,7 @@ fn run() -> Result<(), String> {
 fn setup(mut commands: Commands) {
     commands.spawn(Camera2d);
     inventory_view::spawn(&mut commands);
+    filter_view::spawn(&mut commands);
     commands.spawn((
         Label::Title,
         Text2d::new("ASTROCORE"),
@@ -177,7 +180,11 @@ fn setup(mut commands: Commands) {
     }
 }
 
-fn send_movement(keys: Res<ButtonInput<KeyCode>>, mut network: NonSendMut<Network>) {
+fn send_movement(
+    keys: Res<ButtonInput<KeyCode>>,
+    filter: Res<FilterPanel>,
+    mut network: NonSendMut<Network>,
+) {
     if network.session().is_none_or(|session| {
         session.state.phase != Phase::Active
             || !session
@@ -186,6 +193,10 @@ fn send_movement(keys: Res<ButtonInput<KeyCode>>, mut network: NonSendMut<Networ
                 .get(&session.player)
                 .is_some_and(Crew::on_duty)
     }) {
+        return;
+    }
+    if filter.0.is_some() {
+        network.move_player([0, 0]);
         return;
     }
     let pressed = |left, right| i8::from(keys.pressed(left) || keys.pressed(right));
@@ -202,8 +213,25 @@ fn receive(
     camera: Single<(&Camera, &GlobalTransform), With<Camera2d>>,
     mut network: NonSendMut<Network>,
     mut inventory: ResMut<InventoryPanel>,
+    mut filter: ResMut<FilterPanel>,
 ) {
     network.step();
+    if let Some(cell) = filter.0 {
+        let machine = network
+            .session()
+            .and_then(|session| session.state.filter_in_reach(session.player, cell));
+        if machine.is_none()
+            || keys.just_pressed(KeyCode::KeyU)
+            || keys.just_pressed(KeyCode::Escape)
+        {
+            filter.0 = None;
+        } else if let Some(action) =
+            machine.and_then(|machine| FilterPanel::action(cell, machine, &keys))
+        {
+            network.act(action);
+        }
+        return;
+    }
     if network.session().is_none_or(|session| {
         session.state.phase != Phase::Active
             || !session
@@ -287,7 +315,15 @@ fn receive(
             return;
         };
         let cell = MapView::new(&session.layout.grid, crew.position.z).cell(point);
-        if keys.just_pressed(KeyCode::KeyG) {
+        if keys.just_pressed(KeyCode::KeyU) && !inventory.open {
+            if session
+                .state
+                .filter_in_reach(session.player, cell)
+                .is_some()
+            {
+                filter.0 = Some(cell);
+            }
+        } else if keys.just_pressed(KeyCode::KeyG) {
             network.act(Action::Treat { cell });
         } else if keys.just_pressed(KeyCode::KeyH) {
             network.act(Action::Give { cell });
@@ -675,7 +711,7 @@ fn draw(
             } else if let Some(scan) = crew.pipe_scan {
                 pipe_reading(layout, state, scan)
             } else if matches!(held, Some(Kind::Item { analyzer: true, .. })) {
-                "F Sample room   /   P Sample pipe   /   E Interact".into()
+                "F Sample room   /   P Sample pipe   /   E Interact   /   U Gas filter".into()
             } else if held == Some(Kind::HealthAnalyzer) {
                 "F Scan self   /   G Scan nearby crew   /   X Swap   Q Drop".into()
             } else {
@@ -793,6 +829,26 @@ fn pipe_reading(layout: &Layout, state: &State, scan: PipeSample) -> String {
     let pressure = scan.pressure_kpa;
     let shape = layout.pipes.get(&scan.cell).map(|piece| piece.shape);
     let reading = match (shape, scan.opposite_kpa) {
+        (Some(PipeShape::Filter { .. }), Some(inlet)) => {
+            let Some(filter) = scan.filter else {
+                return format!("Gas filter   /   In {inlet} kPa   /   Out {pressure} kPa");
+            };
+            if filter.gas.is_some() {
+                format!(
+                    "{}   /   In {inlet} kPa {}%   /   Out {pressure} kPa {}%   /   Side {} kPa {}%",
+                    filter_view::gas_name(filter.gas),
+                    filter.inlet_percent,
+                    filter.outlet_percent,
+                    filter.branch_kpa,
+                    filter.branch_percent,
+                )
+            } else {
+                format!(
+                    "Gas filter   /   In {inlet} kPa   /   Out {pressure} kPa   /   Side {} kPa",
+                    filter.branch_kpa,
+                )
+            }
+        }
         (Some(PipeShape::PressurePump { .. }), Some(inlet)) => {
             format!("Pressure pump   /   Out {pressure} kPa   |   In {inlet} kPa")
         }
@@ -879,6 +935,17 @@ fn draw_inventory(
         ))
     });
     inventory_view::sync(player, backdrop, &mut lines);
+}
+
+fn draw_filter(
+    network: NonSend<Network>,
+    panel: Res<FilterPanel>,
+    readout: Single<(&mut Text2d, &mut Visibility), With<FilterReadout>>,
+) {
+    let machine = network
+        .session()
+        .and_then(|session| session.state.filter_in_reach(session.player, panel.0?));
+    filter_view::sync(machine, readout);
 }
 
 fn capture_frame(

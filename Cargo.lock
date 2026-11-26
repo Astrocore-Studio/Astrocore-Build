@@ -707,6 +707,9 @@ dependencies = [
 [[package]]
 name = "atmos"
 version = "0.1.0"
+dependencies = [
+ "serde",
+]
 
 [[package]]
 name = "atomic-polyfill"

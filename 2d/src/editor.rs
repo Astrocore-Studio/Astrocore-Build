@@ -170,7 +170,7 @@ impl Document {
                             starts_off: matches!(
                                 prototype.kind,
                                 Kind::Piping(shape)
-                                    if shape == crate::PipeShape::Valve || shape.power_draw().is_some()
+                                    if shape.has_switch()
                             ),
                             facing: *facing,
                         });

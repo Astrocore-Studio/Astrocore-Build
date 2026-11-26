@@ -10,4 +10,6 @@
     "pressure_pump": (name: "Pressure pump", kind: Piping(PressurePump(watts: 100, target_kpa: 260)), color: (114, 189, 208)),
     "vent_pump": (name: "Vent pump", kind: Piping(VentPump(watts: 120, target_kpa: 145)), color: (84, 183, 208)),
     "scrubber": (name: "Scrubber", kind: Piping(Scrubber(watts: 100, rate_lps: 200)), color: (144, 175, 208)),
+    "gas_filter": (name: "Gas filter", kind: Piping(Filter(rate_lps: 1000)), color: (136, 191, 190)),
+    "gas_filter_mirrored": (name: "Gas filter (mirrored)", kind: Piping(Filter(rate_lps: 1000, mirrored: true)), color: (136, 191, 190)),
 }

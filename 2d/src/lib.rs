@@ -14,12 +14,17 @@ mod wiring;
 pub use content::{Job, Kind, Layout, LevelLink, MAX_BACKPACK_SLOTS};
 pub use jobs::Participation;
 pub use medical::{Damage, MedicalProgress, MobState};
-pub use piping::{PipeDirection, PipeMachine, PipePiece, PipeSample, PipeShape};
+pub use piping::{
+    FilterControl, FilterSample, FilterSettings, MAX_FILTER_RATE_LPS, PipeDirection, PipeMachine,
+    PipePiece, PipeSample, PipeShape,
+};
 #[cfg(feature = "prototype-import")]
 pub use prototypes::convert_ss14_catalog;
 
 #[cfg(feature = "client")]
 pub mod editor;
+#[cfg(feature = "client")]
+pub mod filter_view;
 #[cfg(feature = "client")]
 pub mod inventory_view;
 #[cfg(feature = "client")]
@@ -39,7 +44,7 @@ use wiring::PendingCut;
 
 const DEBRIEF_TICKS: u32 = 10 * TICK_HZ;
 const MAX_ROUND_ITEMS: usize = 512;
-pub const WIRE_VERSION: u16 = 14;
+pub const WIRE_VERSION: u16 = 15;
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub enum Action {
@@ -63,6 +68,7 @@ pub enum Action {
     CutCable { cell: Cell },
     Observe,
     ScanPipe { cell: Cell },
+    ControlFilter { cell: Cell, control: FilterControl },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -304,16 +310,8 @@ impl Station {
             pipe_machines: layout
                 .pipes
                 .iter()
-                .filter_map(|(&cell, piece)| {
-                    piece.shape.power_draw().map(|_| {
-                        (
-                            cell,
-                            PipeMachine {
-                                enabled: !piece.starts_off,
-                                powered: false,
-                            },
-                        )
-                    })
+                .filter_map(|(&cell, &piece)| {
+                    PipeMachine::from_piece(piece).map(|machine| (cell, machine))
                 })
                 .collect(),
             items: items.clone(),
@@ -406,7 +404,7 @@ impl Station {
                 self.environment.set_pipe_valve(target, *open);
             } else if let Some(machine) = self.state.pipe_machines.get_mut(&target) {
                 machine.enabled = !machine.enabled;
-                self.environment.set_pipe_machine(target, machine.enabled);
+                self.environment.set_pipe_machine(target, *machine);
             } else if let Some(door) = self.state.doors.get_mut(&target)
                 && door.powered
                 && (!door.open
@@ -469,6 +467,9 @@ impl Station {
             (Phase::Active, Action::LayCable { cell }) => self.lay_cable(player, cell),
             (Phase::Active, Action::CutCable { cell }) => self.start_cut(player, cell),
             (Phase::Active, Action::ScanPipe { cell }) => self.scan_pipe(player, cell),
+            (Phase::Active, Action::ControlFilter { cell, control }) => {
+                self.control_filter(player, cell, control);
+            }
             (Phase::Active, Action::ChangeLevel { up }) => self.change_deck(player, up),
             (Phase::Active, Action::ClickHand(hand @ 0..=1)) => {
                 let clicked = usize::from(hand);
@@ -635,8 +636,8 @@ impl Station {
                         *open = !self.layout.pipes[cell].starts_off;
                     }
                     for (cell, machine) in &mut self.state.pipe_machines {
-                        machine.enabled = !self.layout.pipes[cell].starts_off;
-                        machine.powered = false;
+                        *machine = PipeMachine::from_piece(self.layout.pipes[cell])
+                            .expect("устройство задано на карте");
                     }
                     self.state.items.clone_from(&self.initial_items);
                     self.state.cables.clone_from(&self.initial_cables);

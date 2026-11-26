@@ -89,10 +89,11 @@ impl PowerGrid {
                 .is_some_and(|&(id, _)| self.load_powered(id));
         }
         for (&cell, machine) in &mut state.pipe_machines {
-            machine.powered = self
-                .pipe_machines
-                .get(&cell)
-                .is_some_and(|&id| self.load_powered(id));
+            machine.powered = !machine.requires_power()
+                || self
+                    .pipe_machines
+                    .get(&cell)
+                    .is_some_and(|&id| self.load_powered(id));
         }
     }
 

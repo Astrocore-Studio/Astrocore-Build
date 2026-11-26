@@ -1,8 +1,11 @@
 use astrocore_grid2d::Cell;
 use astrocore_grid2d::session::PlayerId;
+use atmos::Gas;
 use serde::{Deserialize, Serialize};
 
-use crate::{Kind, Station};
+use crate::{Kind, MobState, Phase, State, Station};
+
+pub const MAX_FILTER_RATE_LPS: u16 = 1000;
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub enum PipeDirection {
@@ -62,6 +65,13 @@ pub enum PipeShape {
         #[serde(default)]
         siphoning: bool,
     },
+    Filter {
+        rate_lps: u16,
+        #[serde(default)]
+        gas: Option<Gas>,
+        #[serde(default)]
+        mirrored: bool,
+    },
 }
 
 impl PipeShape {
@@ -71,6 +81,7 @@ impl PipeShape {
             Self::Straight | Self::Valve | Self::PressurePump { .. } => straight,
             Self::Bend => [Some(facing), Some(facing.clockwise()), None, None],
             Self::Tee => [straight[0], straight[1], Some(facing.clockwise()), None],
+            Self::Filter { .. } => [straight[0], straight[1], self.filter_branch(facing), None],
             Self::Cross => [
                 straight[0],
                 straight[1],
@@ -95,6 +106,20 @@ impl PipeShape {
         }
     }
 
+    pub(crate) fn filter_branch(self, facing: PipeDirection) -> Option<PipeDirection> {
+        match self {
+            Self::Filter {
+                mirrored: false, ..
+            } => Some(facing.clockwise()),
+            Self::Filter { mirrored: true, .. } => Some(facing.opposite().clockwise()),
+            _ => None,
+        }
+    }
+
+    pub(crate) fn has_switch(self) -> bool {
+        matches!(self, Self::Valve | Self::Filter { .. }) || self.power_draw().is_some()
+    }
+
     pub(crate) fn valid(self) -> bool {
         match self {
             Self::Canister { pressure_kpa } => (1..=10_132).contains(&pressure_kpa),
@@ -104,6 +129,7 @@ impl PipeShape {
             Self::Scrubber {
                 watts, rate_lps, ..
             } => watts > 0 && (1..=atmos::pipes::MAX_TRANSFER_RATE as u16).contains(&rate_lps),
+            Self::Filter { rate_lps, .. } => rate_lps <= MAX_FILTER_RATE_LPS,
             _ => true,
         }
     }
@@ -121,15 +147,98 @@ pub struct PipeSample {
     pub cell: Cell,
     pub pressure_kpa: u16,
     pub opposite_kpa: Option<u16>,
+    pub filter: Option<FilterSample>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct FilterSample {
+    pub branch_kpa: u16,
+    pub gas: Option<Gas>,
+    pub inlet_percent: u8,
+    pub outlet_percent: u8,
+    pub branch_percent: u8,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct FilterSettings {
+    pub gas: Option<Gas>,
+    pub rate_lps: u16,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+pub enum FilterControl {
+    Toggle,
+    SetGas(Option<Gas>),
+    SetRate(u16),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PipeMachine {
     pub enabled: bool,
     pub powered: bool,
+    pub filter: Option<FilterSettings>,
+}
+
+impl PipeMachine {
+    pub(crate) fn requires_power(&self) -> bool {
+        self.filter.is_none()
+    }
+
+    pub(crate) fn from_piece(piece: PipePiece) -> Option<Self> {
+        let filter = match piece.shape {
+            PipeShape::Filter { rate_lps, gas, .. } => Some(FilterSettings { rate_lps, gas }),
+            _ => None,
+        };
+        (filter.is_some() || piece.shape.power_draw().is_some()).then_some(Self {
+            enabled: !piece.starts_off,
+            powered: filter.is_some(),
+            filter,
+        })
+    }
+}
+
+impl State {
+    pub fn filter_in_reach(&self, player: PlayerId, cell: Cell) -> Option<&PipeMachine> {
+        let crew = self.players.get(&player)?;
+        if self.phase != Phase::Active
+            || !crew.on_duty()
+            || crew.damage.state() != MobState::Alive
+            || crew
+                .position
+                .cell()
+                .distance_on_level(cell)
+                .is_none_or(|distance| distance > 1)
+        {
+            return None;
+        }
+        self.pipe_machines
+            .get(&cell)
+            .filter(|machine| machine.filter.is_some())
+    }
 }
 
 impl Station {
+    pub(crate) fn control_filter(&mut self, player: PlayerId, cell: Cell, control: FilterControl) {
+        if self.state.filter_in_reach(player, cell).is_none() {
+            return;
+        }
+        let machine = self
+            .state
+            .pipe_machines
+            .get_mut(&cell)
+            .expect("фильтр в зоне доступа");
+        let settings = machine
+            .filter
+            .as_mut()
+            .expect("настройки фильтра существуют");
+        match control {
+            FilterControl::Toggle => machine.enabled = !machine.enabled,
+            FilterControl::SetGas(gas) => settings.gas = gas,
+            FilterControl::SetRate(rate) => settings.rate_lps = rate.min(MAX_FILTER_RATE_LPS),
+        }
+        self.environment.set_pipe_machine(cell, *machine);
+    }
+
     pub(crate) fn scan_pipe(&mut self, player: PlayerId, cell: Cell) {
         let crew = &self.state.players[&player];
         let Some(tool) = crew.hands[usize::from(crew.active_hand)] else {

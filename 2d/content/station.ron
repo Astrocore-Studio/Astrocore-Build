@@ -35,6 +35,10 @@
         (prototype: "vent_pump", cell: (x: 9, y: 7), facing: West, starts_off: true),
         (prototype: "scrubber", cell: (x: 9, y: 6), starts_off: true),
         (prototype: "air_pipe", cell: (x: 10, y: 6)),
+        (prototype: "air_canister", cell: (x: 8, y: 2)),
+        (prototype: "gas_filter_mirrored", cell: (x: 9, y: 2), starts_off: true),
+        (prototype: "air_pipe", cell: (x: 10, y: 2)),
+        (prototype: "air_pipe", cell: (x: 9, y: 3), facing: South),
         (prototype: "analyzer", cell: (x: 17, y: 6)),
     ],
     cables: [

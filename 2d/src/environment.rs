@@ -7,7 +7,7 @@ use astrocore_grid2d::session::TICK_HZ;
 use astrocore_grid2d::{Cell, Grid, Tile};
 
 use crate::content::{Layout, LevelLink};
-use crate::{AirSample, Crew, MobState, State};
+use crate::{AirSample, Crew, MobState, PipeMachine, State};
 use piping::PipeNodes;
 use power_grid::PowerGrid;
 
@@ -67,7 +67,12 @@ impl Environment {
         if self.closed != closed {
             self.apply_seals(closed);
         }
-        if !state.pipe_machines.is_empty() && self.air.will_update_devices(DT) {
+        if self.air.will_update_devices(DT)
+            && state
+                .pipe_machines
+                .values()
+                .any(PipeMachine::requires_power)
+        {
             self.power.step(state);
             self.sync_pipe_power(state);
             self.air.advance(DT);

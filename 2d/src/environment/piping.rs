@@ -3,11 +3,12 @@ use atmos::pipes::{CANISTER_VOLUME, DEFAULT_PIPE_VOLUME, EAST, NORTH, SOUTH, WES
 use atmos::{Canister, Device, GasMixture, NodeSpec, Scrubber, VentPump};
 
 use super::{Environment, coordinates};
-use crate::{Layout, PipeDirection, PipeSample, PipeShape, State};
+use crate::{FilterSample, Layout, PipeDirection, PipeMachine, PipeSample, PipeShape, State};
 
 pub(super) struct PipeNodes {
     first: u64,
     opposite: Option<u64>,
+    branch: Option<u64>,
 }
 
 impl Environment {
@@ -15,22 +16,46 @@ impl Environment {
         self.pipe_nodes.clear();
         let mut specs = Vec::new();
         for (index, (&cell, piece)) in layout.pipes.iter().enumerate() {
-            let first = index as u64 * 2;
+            let first = index as u64 * 3;
+            let branch_facing = piece.shape.filter_branch(piece.facing);
+            let branch = branch_facing.map(|_| first + 2);
             let opposite = matches!(
                 piece.shape,
-                PipeShape::Valve | PipeShape::PressurePump { .. }
+                PipeShape::Valve | PipeShape::PressurePump { .. } | PipeShape::Filter { .. }
             )
             .then_some(first + 1);
             let coordinates = coordinates(cell);
-            let device = if let Some(second) = opposite {
+            let mut add_node = |key, dirs, volume| {
+                specs.push(NodeSpec {
+                    key,
+                    cell: coordinates,
+                    layer: 0,
+                    dirs,
+                    volume,
+                });
+            };
+            let device = if let Some((key, facing)) = branch.zip(branch_facing) {
+                let inlet = first + 1;
+                for (key, direction) in [
+                    (first, piece.facing),
+                    (inlet, piece.facing.opposite()),
+                    (key, facing),
+                ] {
+                    add_node(key, mask(direction), DEFAULT_PIPE_VOLUME);
+                }
+                let machine = state.pipe_machines[&cell];
+                let settings = machine.filter.expect("настройки фильтра существуют");
+                Some(Device::Filter {
+                    inlet,
+                    filter: key,
+                    outlet: first,
+                    enabled: machine.enabled,
+                    rate: f32::from(settings.rate_lps),
+                    gas: settings.gas,
+                })
+            } else if let Some(second) = opposite {
                 for (key, facing) in [(first, piece.facing), (second, piece.facing.opposite())] {
-                    specs.push(NodeSpec {
-                        key,
-                        cell: coordinates,
-                        layer: 0,
-                        dirs: mask(facing),
-                        volume: DEFAULT_PIPE_VOLUME / 2.0,
-                    });
+                    add_node(key, mask(facing), DEFAULT_PIPE_VOLUME / 2.0);
                 }
                 match piece.shape {
                     PipeShape::Valve => Some(Device::Valve {
@@ -51,13 +76,7 @@ impl Environment {
                     .shape
                     .ports(piece.facing)
                     .fold(0, |dirs, port| dirs | mask(port));
-                specs.push(NodeSpec {
-                    key: first,
-                    cell: coordinates,
-                    layer: 0,
-                    dirs,
-                    volume: DEFAULT_PIPE_VOLUME,
-                });
+                add_node(first, dirs, DEFAULT_PIPE_VOLUME);
                 match piece.shape {
                     PipeShape::PassiveVent => Some(Device::PassiveVent { node: first }),
                     PipeShape::Canister { pressure_kpa } => {
@@ -86,7 +105,14 @@ impl Environment {
             if let Some(device) = device {
                 self.air.pipes_mut().add_device(first, coordinates, device);
             }
-            self.pipe_nodes.insert(cell, PipeNodes { first, opposite });
+            self.pipe_nodes.insert(
+                cell,
+                PipeNodes {
+                    first,
+                    opposite,
+                    branch,
+                },
+            );
         }
         self.air.set_pipe_nodes(&specs);
     }
@@ -100,16 +126,24 @@ impl Environment {
         }
     }
 
-    pub(crate) fn set_pipe_machine(&mut self, cell: Cell, enabled: bool) {
+    pub(crate) fn set_pipe_machine(&mut self, cell: Cell, machine: PipeMachine) {
         let Some(nodes) = self.pipe_nodes.get(&cell) else {
             return;
         };
         match self.air.pipes_mut().device_mut(nodes.first) {
             Some(Device::PressurePump {
                 enabled: current, ..
-            }) => *current = enabled,
-            Some(Device::VentPump(vent)) => vent.enabled = enabled,
-            Some(Device::Scrubber(scrubber)) => scrubber.enabled = enabled,
+            }) => *current = machine.enabled,
+            Some(Device::VentPump(vent)) => vent.enabled = machine.enabled,
+            Some(Device::Scrubber(scrubber)) => scrubber.enabled = machine.enabled,
+            Some(Device::Filter {
+                enabled, rate, gas, ..
+            }) => {
+                let settings = machine.filter.expect("настройки фильтра существуют");
+                *enabled = machine.enabled;
+                *rate = f32::from(settings.rate_lps);
+                *gas = settings.gas;
+            }
             _ => {}
         }
     }
@@ -124,18 +158,39 @@ impl Environment {
 
     pub(crate) fn sample_pipe(&self, cell: Cell) -> Option<PipeSample> {
         let nodes = self.pipe_nodes.get(&cell)?;
-        let pressure = |key| {
-            self.air
-                .pipes()
-                .air_of(key)
-                .map(|air| air.pressure().round().clamp(0.0, f32::from(u16::MAX)) as u16)
-        };
+        let pipes = self.air.pipes();
+        let first = pipes.air_of(nodes.first)?;
+        let second = nodes.opposite.and_then(|key| pipes.air_of(key));
+        let filter = nodes.branch.zip(second).and_then(|(branch, inlet)| {
+            let branch = pipes.air_of(branch)?;
+            let Device::Filter { gas, .. } = pipes.device(nodes.first)? else {
+                return None;
+            };
+            let percent = |air: &GasMixture| {
+                gas.map_or(0, |gas| {
+                    let fraction = air.moles(gas) / air.total_moles().max(f32::EPSILON);
+                    (100.0 * fraction).round().clamp(0.0, 100.0) as u8
+                })
+            };
+            Some(FilterSample {
+                branch_kpa: pressure(branch),
+                gas: *gas,
+                inlet_percent: percent(inlet),
+                outlet_percent: percent(first),
+                branch_percent: percent(branch),
+            })
+        });
         Some(PipeSample {
             cell,
-            pressure_kpa: pressure(nodes.first)?,
-            opposite_kpa: nodes.opposite.and_then(pressure),
+            pressure_kpa: pressure(first),
+            opposite_kpa: second.map(pressure),
+            filter,
         })
     }
+}
+
+fn pressure(air: &GasMixture) -> u16 {
+    air.pressure().round().clamp(0.0, f32::from(u16::MAX)) as u16
 }
 
 fn connected_canister(port: u64, pressure_kpa: u16) -> Device {
