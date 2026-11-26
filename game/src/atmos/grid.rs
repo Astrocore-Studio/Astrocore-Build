@@ -69,6 +69,18 @@ pub struct MonstermosInfo {
     pub fast_done: bool,
 }
 
+/// Пламя на клетке (`Hotspot`).
+#[derive(Debug, Clone, Copy, Default, PartialEq)]
+pub struct Hotspot {
+    pub valid: bool,
+    pub skipped_first_process: bool,
+    pub bypassing: bool,
+    pub temperature: f32,
+    pub volume: f32,
+    /// Вид пламени: 1 — маленькое, 2 — среднее, 3 — охватило клетку.
+    pub state: u8,
+}
+
 /// Клетка (`TileAtmosphere`).
 #[derive(Debug, Clone, PartialEq)]
 pub struct TileAtmosphere {
@@ -92,6 +104,7 @@ pub struct TileAtmosphere {
     pub air_archived: Option<GasMixture>,
     pub last_share: f32,
     pub max_fire_temperature_sustained: f32,
+    pub hotspot: Hotspot,
     pub map_atmosphere: bool,
     pub no_grid_tile: bool,
     pub trim_queued: bool,
@@ -126,6 +139,7 @@ impl TileAtmosphere {
             air,
             last_share: 0.0,
             max_fire_temperature_sustained: 0.0,
+            hotspot: Hotspot::default(),
             map_atmosphere: false,
             no_grid_tile: false,
             trim_queued: false,
@@ -228,6 +242,9 @@ pub struct GridAtmosphere {
     free_groups: Vec<u32>,
     pub map_tiles: IndexSet,
     pub high_pressure_delta: IndexSet,
+    pub hotspot_tiles: IndexSet,
+    /// Клетки, вид которых устарел (`InvalidateVisuals`).
+    pub visuals_dirty: IndexSet,
     pub possibly_disconnected: Vec<u32>,
     /// Клетки, которые надо пересчитать (`InvalidatedCoords`): порядок вставки без повторов.
     pub invalidated: Vec<TileCoord>,
@@ -254,6 +271,8 @@ impl Default for GridAtmosphere {
             free_groups: Vec::new(),
             map_tiles: IndexSet::default(),
             high_pressure_delta: IndexSet::default(),
+            hotspot_tiles: IndexSet::default(),
+            visuals_dirty: IndexSet::default(),
             possibly_disconnected: Vec::new(),
             invalidated: Vec::new(),
             invalidated_set: Default::default(),

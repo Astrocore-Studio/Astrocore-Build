@@ -2,8 +2,10 @@
 //! разгерметизация. Образец — `AtmosphereSystem` (`Processing`, `GridAtmosphere`, `Map`,
 //! `Utils`), `AirtightSystem`, `TileAtmosCollectionSerializer` SS14 @ 2f4a2aad.
 
+pub mod fire;
 pub mod gas;
 pub mod grid;
+pub mod overlay;
 pub mod sim;
 
 use std::collections::HashMap;
@@ -28,6 +30,7 @@ use crate::airtight::{AirBlockedDirection, Airtight, AirtightChanged};
 
 pub use gas::{GasData, GasMixture};
 pub use grid::GridAtmosphere;
+use grid::Hotspot;
 use grid::*;
 pub use sim::AtmosConfig;
 use sim::*;
@@ -67,6 +70,7 @@ pub struct AtmosRun {
     grids: Vec<Entity>,
     index: usize,
     space_wind_sound_cooldown: i32,
+    hotspot_sound_cooldown: i32,
 }
 
 /// Свойства газов (ресурс создаётся из прототипов при первом обращении).
@@ -459,9 +463,222 @@ fn trim_disconnected_map_tiles(world: &World, grid_entity: Entity, grid: &mut Gr
 
 // Шаги.
 
-struct WorldHooks;
+struct WorldHooks<'a> {
+    reactions: &'a fire::GasReactions,
+}
 
-impl Hooks for WorldHooks {}
+impl Hooks for WorldHooks<'_> {
+    fn react(&mut self, grid: &mut GridAtmosphere, gas: &GasData, tile: u32) {
+        fire::react_tile(grid, gas, self.reactions, tile);
+    }
+}
+
+/// Реакции газов (ресурс создаётся из прототипов при первом обращении).
+pub fn gas_reactions(world: &mut World) -> fire::GasReactions {
+    if let Some(reactions) = world.get_resource::<fire::GasReactions>() {
+        return reactions.clone();
+    }
+    let reactions = world
+        .get_resource::<Prototypes>()
+        .map(fire::GasReactions::from_prototypes)
+        .unwrap_or_default();
+    world.insert_resource(reactions.clone());
+    reactions
+}
+
+const HOTSPOT_SOUND_COOLDOWN_CYCLES: i32 = 200;
+
+/// Пламя на клетке горит или гаснет (`ProcessHotspot`). Возвращает пламя для события
+/// `TileFire`.
+fn process_hotspot(
+    grid: &mut GridAtmosphere,
+    gas_data: &GasData,
+    reactions: &fire::GasReactions,
+    tile: u32,
+    effects: &mut HotspotEffects,
+) {
+    if !grid.tile(tile).hotspot.valid {
+        grid.hotspot_tiles.remove(tile);
+        return;
+    }
+    add_active_tile(grid, tile);
+    if !grid.tile(tile).hotspot.skipped_first_process {
+        grid.tile_mut(tile).hotspot.skipped_first_process = true;
+        return;
+    }
+    if let Some(group) = grid.tile(tile).excited_group {
+        let group = grid.group_mut(group);
+        group.breakdown_cooldown = 0;
+        group.dismantle_cooldown = 0;
+    }
+    let t = grid.tile(tile);
+    let ignitable = t
+        .air
+        .as_ref()
+        .is_some_and(|air| gas_data.is_fuel(air) && gas_data.is_oxidizer(air));
+    if t.hotspot.temperature < gas::FIRE_MINIMUM_TEMPERATURE_TO_EXIST
+        || t.hotspot.volume <= 1.0
+        || !ignitable
+    {
+        grid.tile_mut(tile).hotspot = Hotspot::default();
+        grid.visuals_dirty.insert(tile);
+        return;
+    }
+    if let Some((temperature, volume)) =
+        fire::perform_hotspot_exposure(grid, gas_data, reactions, tile)
+    {
+        effects
+            .fires
+            .push((grid.tile(tile).coord, temperature, volume));
+    }
+    if grid.tile(tile).hotspot.bypassing {
+        grid.tile_mut(tile).hotspot.state = 3;
+        effects.burnt.push(grid.tile(tile).coord);
+        let air_temperature = grid
+            .tile(tile)
+            .air
+            .as_ref()
+            .map_or(0.0, |a| a.temperature());
+        if air_temperature > gas::FIRE_MINIMUM_TEMPERATURE_TO_SPREAD {
+            let radiated = air_temperature * gas::FIRE_SPREAD_RADIOSITY_SCALE;
+            let adjacent = grid.tile(tile).adjacent;
+            for other in adjacent.into_iter().flatten() {
+                if !grid.tile(other).hotspot.valid {
+                    fire::hotspot_expose(
+                        grid,
+                        gas_data,
+                        other,
+                        radiated,
+                        gas::CELL_VOLUME / 4.0,
+                        false,
+                    );
+                }
+            }
+        }
+    } else {
+        let volume = grid.tile(tile).hotspot.volume;
+        grid.tile_mut(tile).hotspot.state = if volume > gas::CELL_VOLUME * 0.4 {
+            2
+        } else {
+            1
+        };
+    }
+    let t = grid.tile_mut(tile);
+    if t.hotspot.temperature > t.max_fire_temperature_sustained {
+        t.max_fire_temperature_sustained = t.hotspot.temperature;
+    }
+    let state = t.hotspot.state;
+    let coord = t.coord;
+    if effects.sound_cooldown == 0 {
+        effects.sounds.push((coord, state));
+    }
+    effects.sound_cooldown += 1;
+    if effects.sound_cooldown > HOTSPOT_SOUND_COOLDOWN_CYCLES {
+        effects.sound_cooldown = 0;
+    }
+}
+
+/// Что пламя сделает с миром после шага.
+#[derive(Default)]
+struct HotspotEffects {
+    fires: Vec<(TileCoord, f32, f32)>,
+    burnt: Vec<TileCoord>,
+    sounds: Vec<(TileCoord, u8)>,
+    sound_cooldown: i32,
+}
+
+/// Пламя коснулось сущности на клетке (`TileFireEvent`). Поднимается на сущности.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct TileFire {
+    pub temperature: f32,
+    pub volume: f32,
+}
+
+fn apply_hotspot_effects(world: &mut World, grid_entity: Entity, effects: HotspotEffects) {
+    for (coord, temperature, volume) in effects.fires {
+        let bounds =
+            astrocore_math::Box2::centered(coord.center(), astrocore_math::Vec2::splat(1.0));
+        let entities = astrocore_physics::PhysicsWorldExt::entities_intersecting(
+            world,
+            grid_entity,
+            coord.z,
+            bounds,
+        );
+        for entity in entities {
+            world.raise(
+                entity,
+                &mut TileFire {
+                    temperature,
+                    volume,
+                },
+            );
+        }
+    }
+    let burnt: Vec<String> = world
+        .get_resource::<Prototypes>()
+        .map(|p| {
+            let mut ids: Vec<String> = p
+                .ids("decal")
+                .filter(|id| {
+                    p.resolved_node("decal", id)
+                        .and_then(|n| n.get("tags"))
+                        .and_then(DataNode::as_seq)
+                        .is_some_and(|tags| tags.iter().any(|t| t.as_str() == Some("burnt")))
+                })
+                .map(str::to_owned)
+                .collect();
+            ids.sort();
+            ids
+        })
+        .unwrap_or_default();
+    for coord in effects.burnt {
+        if burnt.is_empty() {
+            break;
+        }
+        let position = astrocore_math::Vec2::new(coord.x as f32, coord.y as f32);
+        let existing = world
+            .get::<crate::decals::GridDecals>(grid_entity)
+            .map(|d| {
+                d.decals
+                    .values()
+                    .filter(|decal| burnt.contains(&decal.id))
+                    .filter(|decal| {
+                        (position - decal.coordinates - astrocore_math::Vec2::splat(0.5)).length()
+                            <= 0.75
+                    })
+                    .count()
+            })
+            .unwrap_or(0);
+        if existing >= 4 {
+            continue;
+        }
+        let index = crate::random::random(world).range(0, burnt.len() as i32) as usize;
+        let decal = crate::decals::Decal {
+            coordinates: position,
+            id: burnt[index].clone(),
+            color: None,
+            angle: 0.0,
+            z_index: 0,
+            cleanable: true,
+        };
+        crate::decals::place(world, grid_entity, position, decal);
+    }
+    for (coord, state) in effects.sounds {
+        let at = astrocore_map::EntityCoordinates::new(grid_entity, coord.center());
+        if let Some(map) = astrocore_map::TransformWorldExt::to_map_coordinates(world, at) {
+            let state = f32::from(state.max(1));
+            let sound = SoundSpecifier::Collection {
+                collection: "AtmosHotspot".into(),
+                params: astrocore_audio::AudioParams {
+                    volume: -5.0 + 5.0 * state,
+                    variation: Some(0.15 / state),
+                    ..Default::default()
+                },
+            };
+            world.play_at(&sound, map, None);
+        }
+    }
+}
 
 fn out_of_time(start: Instant, config: &AtmosConfig) -> bool {
     start.elapsed().as_secs_f32() * 1000.0 >= config.max_process_time
@@ -543,6 +760,7 @@ fn run_tiles(
 fn process_excited_groups(
     grid: &mut GridAtmosphere,
     gas_data: &GasData,
+    reactions: &fire::GasReactions,
     config: &AtmosConfig,
     start: Instant,
 ) -> bool {
@@ -565,7 +783,7 @@ fn process_excited_groups(
         group.breakdown_cooldown += 1;
         group.dismantle_cooldown += 1;
         if group.breakdown_cooldown > gas::EXCITED_GROUP_BREAKDOWN_CYCLES {
-            excited_group_self_breakdown(grid, gas_data, config, id, &mut WorldHooks);
+            excited_group_self_breakdown(grid, gas_data, config, id, &mut WorldHooks { reactions });
         } else if grid.group(id).dismantle_cooldown > gas::EXCITED_GROUPS_DISMANTLE_CYCLES {
             deactivate_group_tiles(grid, id);
         }
@@ -651,12 +869,14 @@ fn process_atmosphere(
     else {
         return Completion::Continue;
     };
+    let reactions = gas_reactions(world);
     let result = step(
         world,
         grid_entity,
         &mut grid,
         frame_time,
         gas_data,
+        &reactions,
         config,
         start,
     );
@@ -666,12 +886,14 @@ fn process_atmosphere(
     result
 }
 
+#[allow(clippy::too_many_arguments)]
 fn step(
     world: &mut World,
     grid_entity: Entity,
     grid: &mut GridAtmosphere,
     frame_time: f32,
     gas_data: &GasData,
+    reactions: &fire::GasReactions,
     config: &AtmosConfig,
     start: Instant,
 ) -> Completion {
@@ -698,7 +920,14 @@ fn step(
             }
             (
                 run_tiles(grid, config, start, |grid, tile| {
-                    equalize_pressure_in_zone(grid, gas_data, config, tile, cycle, &mut WorldHooks)
+                    equalize_pressure_in_zone(
+                        grid,
+                        gas_data,
+                        config,
+                        tile,
+                        cycle,
+                        &mut WorldHooks { reactions },
+                    )
                 }),
                 ProcessingState::ActiveTiles,
             )
@@ -710,7 +939,14 @@ fn step(
             }
             (
                 run_tiles(grid, config, start, |grid, tile| {
-                    process_cell(grid, gas_data, config, tile, cycle, &mut WorldHooks)
+                    process_cell(
+                        grid,
+                        gas_data,
+                        config,
+                        tile,
+                        cycle,
+                        &mut WorldHooks { reactions },
+                    )
                 }),
                 if config.excited_groups {
                     ProcessingState::ExcitedGroups
@@ -720,7 +956,7 @@ fn step(
             )
         }
         ProcessingState::ExcitedGroups => (
-            process_excited_groups(grid, gas_data, config, start),
+            process_excited_groups(grid, gas_data, reactions, config, start),
             ProcessingState::HighPressureDelta,
         ),
         ProcessingState::HighPressureDelta => (
@@ -733,14 +969,29 @@ fn step(
         ),
         // Давление на конструкции, огонь, теплопроводность — 5.5б; трубы и устройства — 5.6.
         ProcessingState::DeltaPressure => (true, ProcessingState::Hotspots),
-        ProcessingState::Hotspots => (
-            true,
-            if config.superconduction {
-                ProcessingState::Superconductivity
-            } else {
-                ProcessingState::PipeNet
-            },
-        ),
+        ProcessingState::Hotspots => {
+            if !grid.processing_paused {
+                let set = grid.hotspot_tiles.clone();
+                queue_run_tiles(grid, &set);
+            }
+            let mut effects = HotspotEffects {
+                sound_cooldown: world.resource::<AtmosRun>().hotspot_sound_cooldown,
+                ..HotspotEffects::default()
+            };
+            let done = run_tiles(grid, config, start, |grid, tile| {
+                process_hotspot(grid, gas_data, reactions, tile, &mut effects)
+            });
+            world.resource_mut::<AtmosRun>().hotspot_sound_cooldown = effects.sound_cooldown;
+            apply_hotspot_effects(world, grid_entity, effects);
+            (
+                done,
+                if config.superconduction {
+                    ProcessingState::Superconductivity
+                } else {
+                    ProcessingState::PipeNet
+                },
+            )
+        }
         ProcessingState::Superconductivity => (true, ProcessingState::PipeNet),
         ProcessingState::PipeNet => (true, ProcessingState::AtmosDevices),
         ProcessingState::AtmosDevices => (true, ProcessingState::Revalidate),
@@ -1061,7 +1312,43 @@ fn invalidate_airtight(world: &mut World, entity: Entity) {
     }
 }
 
+/// Поджечь клетку (`HotspotExpose`): искра, сварка, горящий предмет.
+pub fn hotspot_expose_at(
+    world: &mut World,
+    grid: Entity,
+    coord: TileCoord,
+    temperature: f32,
+    volume: f32,
+    soh: bool,
+) {
+    let gas_data = gas_data(world);
+    if let Some(mut atmos) = world.get_mut::<GridAtmosphere>(grid)
+        && let Some(index) = atmos.tile_index(coord)
+    {
+        fire::hotspot_expose(&mut atmos, &gas_data, index, temperature, volume, soh);
+    }
+}
+
+/// Горит ли клетка (`IsHotspotActive`).
+pub fn is_hotspot_active(world: &World, grid: Entity, coord: TileCoord) -> bool {
+    world
+        .get::<GridAtmosphere>(grid)
+        .and_then(|a| a.tile_at(coord))
+        .is_some_and(|t| t.hotspot.valid)
+}
+
+/// Потушить клетку (`HotspotExtinguish`).
+pub fn hotspot_extinguish(world: &mut World, grid: Entity, coord: TileCoord) {
+    if let Some(mut atmos) = world.get_mut::<GridAtmosphere>(grid)
+        && let Some(index) = atmos.tile_index(coord)
+    {
+        atmos.tile_mut(index).hotspot = Hotspot::default();
+        add_active_tile(&mut atmos, index);
+    }
+}
+
 pub fn install(world: &mut World, side: Side) {
+    overlay::install(world, side.is_server());
     if !side.is_server() {
         return;
     }

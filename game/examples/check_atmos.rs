@@ -114,6 +114,20 @@ fn main() -> Result<(), String> {
         .unwrap_or(20.0);
     let mut start = server::start()?;
     let world = &mut start.world;
+    // Где появится игрок: номер грида и клетка — для `addgas` в консоли.
+    if let Some((entity, _)) = world
+        .query::<(Entity, &MetaData)>()
+        .iter(world)
+        .find(|(_, m)| m.prototype.as_deref() == Some("SpawnPointLatejoin"))
+        && let Some(transform) = world.get::<Transform>(entity)
+        && let Some(grid) = transform.grid()
+    {
+        let cell = TileCoord::containing(transform.local_position(), transform.level());
+        let net = world
+            .get::<astrocore_net::NetEntity>(grid)
+            .map_or(0, |n| n.0);
+        println!("Точка появления: грид {net}, клетка {},{}", cell.x, cell.y);
+    }
     let first = run(world, 1.0);
     print("Через 1 с", &stats(world));
     let before = stats(world);

@@ -12,6 +12,7 @@ pub mod activatable_ui;
 pub mod airtight;
 pub mod ame;
 pub mod atmos;
+pub mod barotrauma;
 pub mod body;
 pub mod cables;
 pub mod combat;
@@ -80,6 +81,8 @@ pub mod decal_visuals;
 pub mod dev_console;
 #[cfg(feature = "client")]
 pub mod door_visuals;
+#[cfg(feature = "client")]
+pub mod gas_overlay_visuals;
 #[cfg(feature = "client")]
 pub mod hands_hud;
 #[cfg(feature = "client")]
@@ -167,6 +170,7 @@ pub fn install_content(world: &mut World, side: Side) {
     id_console::install(world, side);
     airtight::install(world, side);
     atmos::install(world, side);
+    barotrauma::install(world, side);
     weldable::install(world, side);
     status_effects::install(world, side);
     electrocution::install(world, side);

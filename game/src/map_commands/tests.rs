@@ -219,3 +219,22 @@ fn tp_lands_on_the_grid_under_the_point() {
         Vec2::new(5.5, 6.5)
     );
 }
+
+#[test]
+fn addgas_adds_moles_to_a_tile() {
+    let mut world = world_with(PROTOTYPES);
+    let grid = station(&mut world);
+    crate::atmos::ensure_grid_atmosphere(&mut world, grid);
+    for _ in 0..10 {
+        astrocore_ecs::GameWorldExt::run_tick(&mut world);
+    }
+    let id = net_id(&world, grid);
+    let (out, errors) = run(&mut world, &format!("addgas 3 -4 {id} Plasma 30"));
+    assert!(errors.is_empty(), "{errors:?}");
+    assert!(out.iter().any(|l| l.contains("Нет клетки")), "{out:?}");
+    let (out, errors) = run(&mut world, &format!("addgas 3 4 {id} Plasma 30"));
+    assert!(errors.is_empty() && out.is_empty(), "{out:?} {errors:?}");
+    let air =
+        crate::atmos::tile_mixture(&world, grid, astrocore_map::TileCoord::new(3, 4, 0)).unwrap();
+    assert_eq!(air.moles[crate::atmos::gas::PLASMA], 30.0);
+}

@@ -639,6 +639,44 @@ fn command(
     }
 }
 
+/// Добавить газ на клетку грида (`AddGasCommand` SS14 @ 2f4a2aad).
+fn addgas(world: &mut World, shell: &mut ConsoleShell, args: &[String]) {
+    if args.len() < 5 {
+        return;
+    }
+    let (Ok(x), Ok(y)) = (args[0].parse::<i32>(), args[1].parse::<i32>()) else {
+        return;
+    };
+    // Грид по номеру, как его печатает `lsmap`.
+    let grids: Vec<Entity> = world
+        .query::<&Map>()
+        .iter(world)
+        .flat_map(|map| map.grids().to_vec())
+        .collect();
+    let grid = grids
+        .into_iter()
+        .find(|grid| net_id(world, *grid) == args[2]);
+    // `TryParseGasID`: имя газа или номер.
+    let gas = args[3]
+        .parse::<usize>()
+        .ok()
+        .filter(|g| *g < crate::atmos::gas::GAS_COUNT)
+        .or_else(|| crate::atmos::gas::gas_index(&args[3]));
+    let (Some(grid), Some(gas), Ok(moles)) = (grid, gas, args[4].parse::<f32>()) else {
+        return;
+    };
+    if world.get::<astrocore_map::MapGrid>(grid).is_none() {
+        shell.write_error(format!("«{}» — не грид", args[2]));
+        return;
+    }
+    let coord = astrocore_map::TileCoord::new(x, y, 0);
+    if crate::atmos::with_tile_mixture(world, grid, coord, |air| air.adjust_moles(gas, moles))
+        .is_none()
+    {
+        shell.write_line("Нет клетки с воздухом.");
+    }
+}
+
 pub fn install(world: &mut World, side: Side) {
     if !side.is_server() {
         return;
@@ -698,6 +736,13 @@ pub fn install(world: &mut World, side: Side) {
             "mapinit <номер>",
             mapinit,
             true,
+        ),
+        command(
+            "addgas",
+            "Добавляет газ на клетку.",
+            "addgas <x> <y> <грид> <газ> <моли>",
+            addgas,
+            false,
         ),
         command("lsmap", "Список карт.", "lsmap", lsmap, false),
         command(

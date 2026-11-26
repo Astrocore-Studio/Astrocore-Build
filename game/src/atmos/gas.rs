@@ -34,6 +34,43 @@ pub const MONSTERMOS_HARD_TILE_LIMIT: usize = 2000;
 pub const MONSTERMOS_TILE_LIMIT: usize = 200;
 /// Делитель теплоёмкостей (`atmos.heat_scale`).
 pub const HEAT_SCALE: f32 = 8.0;
+pub const EPSILON: f32 = 0.5;
+pub const FIRE_HYDROGEN_ENERGY_RELEASED: f32 = 284e3;
+pub const FIRE_MINIMUM_TEMPERATURE_TO_EXIST: f32 = T0C + 100.0;
+pub const FIRE_MINIMUM_TEMPERATURE_TO_SPREAD: f32 = T0C + 150.0;
+pub const FIRE_SPREAD_RADIOSITY_SCALE: f32 = 0.85;
+pub const FIRE_PLASMA_ENERGY_RELEASED: f32 = 160e3;
+pub const FIRE_GROWTH_RATE: f32 = 40000.0;
+pub const SUPER_SATURATION_THRESHOLD: f32 = 96.0;
+pub const SUPER_SATURATION_ENDS: f32 = SUPER_SATURATION_THRESHOLD / 3.0;
+pub const OXYGEN_BURN_RATE_BASE: f32 = 1.4;
+pub const PLASMA_MINIMUM_BURN_TEMPERATURE: f32 = 100.0 + T0C;
+pub const PLASMA_UPPER_TEMPERATURE: f32 = 1370.0 + T0C;
+pub const PLASMA_OXYGEN_FULLBURN: f32 = 10.0;
+pub const PLASMA_BURN_RATE_DELTA: f32 = 9.0;
+pub const MINIMUM_TRITIUM_OXYBURN_ENERGY: f32 = 143_000.0;
+pub const TRITIUM_BURN_OXY_FACTOR: f32 = 100.0;
+pub const TRITIUM_BURN_TRIT_FACTOR: f32 = 10.0;
+pub const TRITIUM_BURN_FUEL_RATIO: f32 = 2.0;
+pub const FREZON_COOL_LOWER_TEMPERATURE: f32 = 23.15;
+pub const FREZON_COOL_MID_TEMPERATURE: f32 = 373.15;
+pub const FREZON_COOL_MAXIMUM_ENERGY_MODIFIER: f32 = 10.0;
+pub const FREZON_NITROGEN_COOL_RATIO: f32 = 5.0;
+pub const FREZON_COOL_ENERGY_RELEASED: f32 = -600e3;
+pub const FREZON_COOL_RATE_MODIFIER: f32 = 20.0;
+pub const FREZON_PRODUCTION_MAX_EFFICIENCY_TEMPERATURE: f32 = 73.15;
+pub const FREZON_PRODUCTION_NITROGEN_RATIO: f32 = 10.0;
+pub const FREZON_PRODUCTION_TRIT_RATIO: f32 = 50.0;
+pub const FREZON_PRODUCTION_CONVERSION_RATE: f32 = 50.0;
+pub const N2O_DECOMPOSITION_RATE: f32 = 2.0;
+pub const AMMONIA_OXYGEN_REACTION_RATE: f32 = 10.0;
+pub const HAZARD_HIGH_PRESSURE: f32 = 550.0;
+pub const WARNING_HIGH_PRESSURE: f32 = 0.7 * HAZARD_HIGH_PRESSURE;
+pub const HAZARD_LOW_PRESSURE: f32 = 20.0;
+pub const WARNING_LOW_PRESSURE: f32 = 2.5 * HAZARD_LOW_PRESSURE;
+pub const PRESSURE_DAMAGE_COEFFICIENT: f32 = 4.0;
+pub const MAX_HIGH_PRESSURE_DAMAGE: f32 = 4.0;
+pub const LOW_PRESSURE_DAMAGE: f32 = 4.0;
 
 /// Число газов (`TotalNumberOfGases`).
 pub const GAS_COUNT: usize = 9;
@@ -75,6 +112,12 @@ pub struct GasData {
     pub fuel: [bool; GAS_COUNT],
     pub oxidizer: [bool; GAS_COUNT],
     pub colors: [Option<String>; GAS_COUNT],
+    /// Вид газа на клетке (`GasOverlaySprite`): набор RSI и состояние.
+    pub overlay: [Option<(String, String)>; GAS_COUNT],
+    /// С какого количества газ виден (`GasMolesVisible`) и множитель полной видимости
+    /// (`GasVisibilityFactor`).
+    pub moles_visible: [f32; GAS_COUNT],
+    pub visibility_factor: [f32; GAS_COUNT],
 }
 
 impl Default for GasData {
@@ -91,6 +134,9 @@ impl Default for GasData {
             fuel: [false, false, false, true, true, false, false, false, false],
             oxidizer: [true, false, false, false, false, false, false, false, false],
             colors: Default::default(),
+            overlay: Default::default(),
+            moles_visible: [0.25; GAS_COUNT],
+            visibility_factor: [20.0; GAS_COUNT],
         }
     }
 }
@@ -122,8 +168,27 @@ impl GasData {
                 .get("color")
                 .and_then(DataNode::as_str)
                 .map(str::to_owned);
+            data.overlay[i] = node.get("gasOverlaySprite").and_then(|sprite| {
+                Some((
+                    sprite.get("sprite")?.as_str()?.to_owned(),
+                    sprite.get("state")?.as_str()?.to_owned(),
+                ))
+            });
+            if let Some(visible) = number(node, "gasMolesVisible") {
+                data.moles_visible[i] = visible;
+            }
+            if let Some(factor) = number(node, "gasVisibilityFactor") {
+                data.visibility_factor[i] = factor;
+            }
         }
         data
+    }
+
+    /// Видимые газы (`VisibleGasId`): с рисунком на клетке.
+    pub fn visible_gases(&self) -> Vec<usize> {
+        (0..GAS_COUNT)
+            .filter(|i| self.overlay[*i].is_some())
+            .collect()
     }
 
     /// Теплоёмкость смеси (`GetHeatCapacity`, со шкалой): у пустого космоса — постоянная.
@@ -148,6 +213,24 @@ impl GasData {
     /// Тепловая энергия (`GetThermalEnergy`).
     pub fn thermal_energy(&self, mixture: &GasMixture) -> f32 {
         mixture.temperature() * self.heat_capacity(mixture)
+    }
+
+    /// Есть горючее (`IsMixtureFuel`).
+    pub fn is_fuel(&self, mixture: &GasMixture) -> bool {
+        let sum: f32 = (0..GAS_COUNT)
+            .filter(|i| self.fuel[*i])
+            .map(|i| mixture.moles[i])
+            .sum();
+        sum > EPSILON
+    }
+
+    /// Есть окислитель (`IsMixtureOxidizer`).
+    pub fn is_oxidizer(&self, mixture: &GasMixture) -> bool {
+        let sum: f32 = (0..GAS_COUNT)
+            .filter(|i| self.oxidizer[*i])
+            .map(|i| mixture.moles[i])
+            .sum();
+        sum > EPSILON
     }
 
     /// Масса, кг (`GetMass`).
@@ -219,6 +302,8 @@ pub struct GasMixture {
     pub volume: f32,
     /// Неизменная (космос, атмосфера карты).
     pub immutable: bool,
+    /// Итог горения на последней реакции (`ReactionResults[GasReaction.Fire]`).
+    pub reaction_fire: f32,
 }
 
 impl Default for GasMixture {
@@ -228,6 +313,7 @@ impl Default for GasMixture {
             temperature: TCMB,
             volume: 0.0,
             immutable: false,
+            reaction_fire: 0.0,
         }
     }
 }
@@ -344,6 +430,12 @@ impl GasMixture {
         if !self.immutable {
             self.moles = [0.0; GAS_COUNT];
         }
+    }
+
+    /// Забрать объём (`RemoveVolume`).
+    pub fn remove_volume(&mut self, volume: f32) -> GasMixture {
+        let ratio = volume / self.volume;
+        self.remove_ratio(ratio)
     }
 
     pub fn multiply(&mut self, factor: f32) {

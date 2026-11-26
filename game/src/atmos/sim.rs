@@ -56,8 +56,6 @@ pub trait Hooks {
     fn consider_firelocks(&mut self, _grid: &mut GridAtmosphere, _a: u32, _b: u32) -> bool {
         false
     }
-    /// Вид газа клетки устарел (`InvalidateVisuals`).
-    fn invalidate_visuals(&mut self, _grid: &GridAtmosphere, _tile: u32) {}
     /// Реакции газа в клетке (`React`).
     fn react(&mut self, _grid: &mut GridAtmosphere, _gas: &GasData, _tile: u32) {}
     /// Сорвать плитку пола при сильном ветре (`HandleDecompressionFloorRip`).
@@ -160,7 +158,7 @@ pub fn excited_group_self_breakdown(
     gas: &GasData,
     config: &AtmosConfig,
     group: u32,
-    hooks: &mut dyn Hooks,
+    _hooks: &mut dyn Hooks,
 ) {
     if grid.group(group).disposed {
         return;
@@ -186,7 +184,7 @@ pub fn excited_group_self_breakdown(
     for tile in &tiles {
         if let Some(air) = &mut grid.tile_mut(*tile).air {
             air.copy_from(&combined);
-            hooks.invalidate_visuals(grid, *tile);
+            grid.visuals_dirty.insert(*tile);
         }
     }
     grid.group_mut(group).breakdown_cooldown = 0;
@@ -489,7 +487,7 @@ pub fn process_cell(
     if grid.tile(tile).air.is_some() {
         hooks.react(grid, gas, tile);
     }
-    hooks.invalidate_visuals(grid, tile);
+    grid.visuals_dirty.insert(tile);
     // Теплопроводность (`ConsiderSuperconductivity`) — в 5.5б; пока клетка не задерживается.
     let remove = true;
     if config.excited_groups && grid.tile(tile).excited_group.is_none() && remove {
@@ -804,8 +802,8 @@ fn finalize_eq(grid: &mut GridAtmosphere, gas: &GasData, tile: u32, hooks: &mut 
         grid.tile_mut(other).monstermos.transfer[opposite_index(i)] = 0.0;
         let removed = grid.tile_mut(tile).air.as_mut().unwrap().remove(amount);
         gas.merge(grid.tile_mut(other).air.as_mut().unwrap(), &removed);
-        hooks.invalidate_visuals(grid, tile);
-        hooks.invalidate_visuals(grid, other);
+        grid.visuals_dirty.insert(tile);
+        grid.visuals_dirty.insert(other);
         consider_pressure_difference(grid, tile, direction(i), amount);
     }
 }
@@ -980,7 +978,7 @@ pub fn explosively_depressurize(
             air.clear();
             air.set_temperature(TCMB);
         }
-        hooks.invalidate_visuals(grid, other);
+        grid.visuals_dirty.insert(other);
         if config.monstermos_rip_tiles {
             hooks.rip_tile(grid, other, amount);
         }
