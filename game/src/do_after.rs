@@ -135,6 +135,8 @@ pub struct DoAfterDone<E> {
     pub handled: bool,
     /// Повторить действие с начала (`Repeat`).
     pub repeat: bool,
+    /// Задержка повтора, секунды; обработчик может её поменять (`Args.Delay`).
+    pub delay: f64,
 }
 
 /// Можно ли продолжать (`DoAfterAttemptEvent<T>`). Поднимается как итог.
@@ -148,7 +150,8 @@ pub struct DoAfterAttempt<E> {
 
 /// Итог в стёртом виде: поднимается со своим типом.
 trait Raise: Send + Sync {
-    fn done(&self, world: &mut World, args: &DoAfterArgs, cancelled: bool) -> bool;
+    /// Итог; при повторе — новая задержка.
+    fn done(&self, world: &mut World, args: &DoAfterArgs, cancelled: bool) -> Option<f64>;
     fn attempt(&self, world: &mut World, args: &DoAfterArgs) -> bool;
     fn event_type(&self) -> TypeId;
 }
@@ -156,7 +159,7 @@ trait Raise: Send + Sync {
 struct Typed<E>(E);
 
 impl<E: Clone + Send + Sync + 'static> Raise for Typed<E> {
-    fn done(&self, world: &mut World, args: &DoAfterArgs, cancelled: bool) -> bool {
+    fn done(&self, world: &mut World, args: &DoAfterArgs, cancelled: bool) -> Option<f64> {
         let mut event = DoAfterDone {
             event: self.0.clone(),
             user: args.user,
@@ -165,6 +168,7 @@ impl<E: Clone + Send + Sync + 'static> Raise for Typed<E> {
             cancelled,
             handled: false,
             repeat: false,
+            delay: args.delay,
         };
         match args.event_target.filter(|target| world.is_alive(*target)) {
             Some(target) if args.broadcast => world.raise_and_broadcast(target, &mut event),
@@ -172,7 +176,7 @@ impl<E: Clone + Send + Sync + 'static> Raise for Typed<E> {
             None if args.broadcast => world.raise_broadcast(&mut event),
             None => {}
         }
-        event.repeat
+        event.repeat.then_some(event.delay)
     }
 
     fn attempt(&self, world: &mut World, args: &DoAfterArgs) -> bool {
@@ -593,12 +597,14 @@ fn complete(world: &mut World, user: Entity, index: u16, do_after: &DoAfter, tim
         stored.completed = true;
     }
     let repeat = do_after.event.done(world, &do_after.args, false);
-    if repeat
+    if let Some(delay) = repeat
         && let Some(mut component) = world.get_mut::<DoAfterComponent>(user)
         && let Some(stored) = component.do_afters.get_mut(&index)
     {
         stored.start_time = time;
         stored.completed = false;
+        stored.args.delay = delay;
+        sync_bars(world, user);
     }
 }
 

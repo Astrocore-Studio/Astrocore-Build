@@ -78,7 +78,7 @@ fn thresholds_move_the_mob_between_states() {
     let pen = spawn_at(&mut world, "Pen", grid, 2, 2);
     world.run_tick();
     assert!(world.try_pickup_any_hand(mob, pen, true));
-    assert!(world.is_alive(mob));
+    assert!(world.is_mob_alive(mob));
     assert_eq!(world.incap_threshold(mob), Some(FixedPoint2::new(100)));
     let mask = |world: &World| {
         world
@@ -92,7 +92,7 @@ fn thresholds_move_the_mob_between_states() {
 
     // Крит: лежит, выронил вещь, не двигается и не действует.
     world.change_damage(mob, &blunt(120), true, true, None);
-    assert!(world.is_critical(mob));
+    assert!(world.is_mob_critical(mob));
     assert!(world.is_down(mob));
     assert_eq!(world.held_items(mob), Vec::<Entity>::new());
     assert!(!world.get::<InputMover>(mob).unwrap().can_move);
@@ -105,18 +105,18 @@ fn thresholds_move_the_mob_between_states() {
 
     // Лечение ниже порога — снова на ногах.
     world.change_damage(mob, &blunt(-50), true, true, None);
-    assert!(world.is_alive(mob));
+    assert!(world.is_mob_alive(mob));
     assert!(!world.is_down(mob));
     assert!(world.get::<InputMover>(mob).unwrap().can_move);
     assert_ne!(mask(&world) & STANDING_COLLISION_LAYER, 0);
 
     // Смерть не отменяется лечением, только полным исцелением.
     world.change_damage(mob, &blunt(150), true, true, None);
-    assert!(world.is_dead(mob));
+    assert!(world.is_mob_dead(mob));
     world.change_damage(mob, &blunt(-200), true, true, None);
-    assert!(world.is_dead(mob));
+    assert!(world.is_mob_dead(mob));
     world.rejuvenate(mob);
-    assert!(world.is_alive(mob));
+    assert!(world.is_mob_alive(mob));
     assert_eq!(world.total_damage(mob), FixedPoint2::ZERO);
 
     assert_eq!(
@@ -137,9 +137,9 @@ fn moving_a_threshold_rechecks_the_state() {
     let grid = station(&mut world);
     let mob = spawn_at(&mut world, "Mob", grid, 2, 2);
     world.change_damage(mob, &blunt(60), true, true, None);
-    assert!(world.is_alive(mob));
+    assert!(world.is_mob_alive(mob));
     world.set_mob_state_threshold(mob, FixedPoint2::new(50), MobState::Critical);
-    assert!(world.is_critical(mob));
+    assert!(world.is_mob_critical(mob));
     assert_eq!(
         world.threshold_for_state(mob, MobState::Critical),
         Some(FixedPoint2::new(50))

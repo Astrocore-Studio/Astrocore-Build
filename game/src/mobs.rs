@@ -133,9 +133,9 @@ pub struct MobStateChanged {
 /// Состояния на `World`.
 pub trait MobStateWorldExt {
     fn mob_state(&self, entity: Entity) -> Option<MobState>;
-    fn is_alive(&self, entity: Entity) -> bool;
-    fn is_critical(&self, entity: Entity) -> bool;
-    fn is_dead(&self, entity: Entity) -> bool;
+    fn is_mob_alive(&self, entity: Entity) -> bool;
+    fn is_mob_critical(&self, entity: Entity) -> bool;
+    fn is_mob_dead(&self, entity: Entity) -> bool;
     /// В критическом состоянии или мертво (`IsIncapacitated`).
     fn is_incapacitated(&self, entity: Entity) -> bool;
     /// Сменить состояние, если оно разрешено (`ChangeMobState`).
@@ -156,15 +156,15 @@ impl MobStateWorldExt for World {
             .map(|m| m.current_state)
     }
 
-    fn is_alive(&self, entity: Entity) -> bool {
+    fn is_mob_alive(&self, entity: Entity) -> bool {
         self.mob_state(entity) == Some(MobState::Alive)
     }
 
-    fn is_critical(&self, entity: Entity) -> bool {
+    fn is_mob_critical(&self, entity: Entity) -> bool {
         self.mob_state(entity) == Some(MobState::Critical)
     }
 
-    fn is_dead(&self, entity: Entity) -> bool {
+    fn is_mob_dead(&self, entity: Entity) -> bool {
         self.mob_state(entity) == Some(MobState::Dead)
     }
 

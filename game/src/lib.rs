@@ -9,6 +9,7 @@ pub mod action_blocker;
 pub mod activatable_ui;
 pub mod content;
 pub mod damage;
+pub mod damage_other_on_hit;
 pub mod do_after;
 pub mod entity_storage;
 pub mod examine;
@@ -16,6 +17,7 @@ pub mod fixed_point;
 pub mod friction;
 pub mod grammar;
 pub mod hands;
+pub mod healing;
 pub mod input_contexts;
 pub mod interaction;
 pub mod inventory;
@@ -93,6 +95,8 @@ pub fn install_content(world: &mut World, side: Side) {
     damage::install(world, side);
     standing::install(world, side);
     mobs::install(world, side);
+    healing::install(world, side);
+    damage_other_on_hit::install(world, side);
 }
 
 /// Адрес сервера по умолчанию.
