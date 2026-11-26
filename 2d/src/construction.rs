@@ -40,6 +40,7 @@ impl Station {
                 .any(|role| role.spawns.contains(&cell))
             || self.layout.links.iter().any(|link| link.contains(cell))
             || self.state.doors.contains_key(&cell)
+            || self.state.id_consoles.contains_key(&cell)
             || self.state.generators.contains_key(&cell)
             || self.state.storages.contains_key(&cell)
             || self.state.vents.contains_key(&cell)

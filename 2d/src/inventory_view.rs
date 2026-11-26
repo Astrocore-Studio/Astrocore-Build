@@ -172,7 +172,9 @@ pub fn sync(
 }
 
 pub fn item_label<'a>(layout: &'a Layout, item: &'a Item) -> Cow<'a, str> {
-    if let Some(card) = &item.identity {
+    if let Some(card) = &item.identity
+        && !card.assignment.is_empty()
+    {
         Cow::Owned(format!("{} ID", card.assignment))
     } else {
         Cow::Borrowed(&layout.prototypes[&item.prototype].name)

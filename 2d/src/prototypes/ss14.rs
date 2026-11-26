@@ -53,6 +53,7 @@ pub fn convert_ss14_catalog(yaml_directory: &Path, selection: &str) -> Result<St
         })?;
         target.insert(Prototype {
             access_reader: None,
+            access_levels: Vec::new(),
             name,
             kind,
             color: entry.color,

@@ -5,14 +5,15 @@ use astrocore_grid2d::{Cell, Tile};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    CableSegment, Crew, Door, Generator, Item, Outcome, Phase, PipeMachine, Recovery, State,
-    Storage, Vent,
+    CableSegment, Crew, Door, Generator, IdConsole, Item, Outcome, Phase, PipeMachine, Recovery,
+    State, Storage, Vent,
 };
 
 #[derive(Serialize, Deserialize)]
 pub struct StateDelta {
     players: MapDelta<PlayerId, Crew>,
     doors: MapDelta<Cell, Door>,
+    id_consoles: MapDelta<Cell, IdConsole>,
     generators: MapDelta<Cell, Generator>,
     storages: MapDelta<Cell, Storage>,
     vents: MapDelta<Cell, Vent>,
@@ -65,6 +66,7 @@ impl ReplicatedState for State {
         StateDelta {
             players: MapDelta::diff(&self.players, &baseline.players),
             doors: MapDelta::diff(&self.doors, &baseline.doors),
+            id_consoles: MapDelta::diff(&self.id_consoles, &baseline.id_consoles),
             generators: MapDelta::diff(&self.generators, &baseline.generators),
             storages: MapDelta::diff(&self.storages, &baseline.storages),
             vents: MapDelta::diff(&self.vents, &baseline.vents),
@@ -85,6 +87,7 @@ impl ReplicatedState for State {
     fn apply(&mut self, delta: StateDelta) {
         delta.players.apply(&mut self.players);
         delta.doors.apply(&mut self.doors);
+        delta.id_consoles.apply(&mut self.id_consoles);
         delta.generators.apply(&mut self.generators);
         delta.storages.apply(&mut self.storages);
         delta.vents.apply(&mut self.vents);

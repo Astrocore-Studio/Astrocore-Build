@@ -34,6 +34,8 @@ struct Definition {
     color: Option<(u8, u8, u8)>,
     #[serde(default)]
     access_reader: Option<AccessReader>,
+    #[serde(default)]
+    access_levels: Option<Vec<String>>,
 }
 
 struct Properties {
@@ -41,6 +43,7 @@ struct Properties {
     kind: Option<Kind>,
     color: Option<(u8, u8, u8)>,
     access_reader: Option<AccessReader>,
+    access_levels: Option<Vec<String>>,
 }
 
 pub(crate) fn load_catalog(
@@ -114,6 +117,7 @@ fn resolve_catalog(Catalog(definitions): &Catalog) -> Result<BTreeMap<String, Pr
             kind: definition.kind,
             color: definition.color,
             access_reader: definition.access_reader.clone(),
+            access_levels: definition.access_levels.clone(),
         };
         for parent in &definition.parents {
             let inherited = &resolved[parent.as_str()];
@@ -123,6 +127,9 @@ fn resolve_catalog(Catalog(definitions): &Catalog) -> Result<BTreeMap<String, Pr
             properties.access_reader = properties
                 .access_reader
                 .or_else(|| inherited.access_reader.clone());
+            properties.access_levels = properties
+                .access_levels
+                .or_else(|| inherited.access_levels.clone());
         }
         if !definition.is_abstract {
             let (Some(name), Some(kind), Some(color)) =
@@ -139,6 +146,7 @@ fn resolve_catalog(Catalog(definitions): &Catalog) -> Result<BTreeMap<String, Pr
                     kind,
                     color,
                     access_reader: properties.access_reader.clone(),
+                    access_levels: properties.access_levels.clone().unwrap_or_default(),
                 },
             );
         }

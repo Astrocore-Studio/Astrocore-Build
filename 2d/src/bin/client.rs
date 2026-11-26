@@ -3,6 +3,7 @@ use std::path::PathBuf;
 use std::process::ExitCode;
 
 use astrocore_build_2d::filter_view::{self, FilterPanel, FilterReadout};
+use astrocore_build_2d::id_console_view::{self, IdConsolePanel, IdConsoleReadout};
 use astrocore_build_2d::inventory_view::{self, InventoryBackdrop, InventoryLine, InventoryPanel};
 use astrocore_build_2d::server::LocalServer;
 use astrocore_build_2d::view::MapView;
@@ -123,9 +124,13 @@ fn run() -> Result<(), String> {
     .init_resource::<Visuals>()
     .init_resource::<InventoryPanel>()
     .init_resource::<FilterPanel>()
+    .init_resource::<IdConsolePanel>()
     .add_systems(Startup, setup)
     .add_systems(FixedUpdate, send_movement)
-    .add_systems(Update, (receive, draw, draw_inventory, draw_filter).chain());
+    .add_systems(
+        Update,
+        (receive, draw, draw_inventory, draw_filter, draw_id_console).chain(),
+    );
     if let Some(path) = capture {
         app.insert_resource(Capture(path))
             .add_systems(Update, capture_frame.after(draw));
@@ -142,6 +147,7 @@ fn setup(mut commands: Commands) {
     commands.spawn(Camera2d);
     inventory_view::spawn(&mut commands);
     filter_view::spawn(&mut commands);
+    id_console_view::spawn(&mut commands);
     commands.spawn((
         Label::Title,
         Text2d::new("ASTROCORE"),
@@ -184,6 +190,7 @@ fn setup(mut commands: Commands) {
 fn send_movement(
     keys: Res<ButtonInput<KeyCode>>,
     filter: Res<FilterPanel>,
+    id_console: Res<IdConsolePanel>,
     mut network: NonSendMut<Network>,
 ) {
     if network.session().is_none_or(|session| {
@@ -196,7 +203,7 @@ fn send_movement(
     }) {
         return;
     }
-    if filter.0.is_some() {
+    if filter.0.is_some() || id_console.cell.is_some() {
         network.move_player([0, 0]);
         return;
     }
@@ -214,9 +221,28 @@ fn receive(
     camera: Single<(&Camera, &GlobalTransform), With<Camera2d>>,
     mut network: NonSendMut<Network>,
     mut inventory: ResMut<InventoryPanel>,
-    mut filter: ResMut<FilterPanel>,
+    (mut filter, mut id_console): (ResMut<FilterPanel>, ResMut<IdConsolePanel>),
 ) {
     network.step();
+    if let Some(cell) = id_console.cell {
+        let target = network.session().and_then(|session| {
+            let console = session.state.id_console_in_reach(session.player, cell)?;
+            let crew = session.state.players.get(&session.player)?;
+            let levels = &session.layout.prototypes[&console.prototype].access_levels;
+            Some((&session.state, levels, console, crew))
+        });
+        if target.is_none()
+            || keys.just_pressed(KeyCode::KeyK)
+            || keys.just_pressed(KeyCode::Escape)
+        {
+            id_console.cell = None;
+        } else if let Some(action) = target.and_then(|(state, levels, console, crew)| {
+            id_console.action(&keys, state, levels, console, crew)
+        }) {
+            network.act(action);
+        }
+        return;
+    }
     if let Some(cell) = filter.0 {
         let machine = network
             .session()
@@ -316,7 +342,15 @@ fn receive(
             return;
         };
         let cell = MapView::new(&session.layout.grid, crew.position.z).cell(point);
-        if keys.just_pressed(KeyCode::KeyU) && !inventory.open {
+        if keys.just_pressed(KeyCode::KeyK) && !inventory.open {
+            if session
+                .state
+                .id_console_in_reach(session.player, cell)
+                .is_some()
+            {
+                id_console.open(cell);
+            }
+        } else if keys.just_pressed(KeyCode::KeyU) && !inventory.open {
             if session
                 .state
                 .filter_in_reach(session.player, cell)
@@ -558,6 +592,12 @@ fn draw(
             .map(|(&cell, device)| (cell, &device.prototype, device.enabled))
             .chain(
                 state
+                    .id_consoles
+                    .iter()
+                    .map(|(&cell, device)| (cell, &device.prototype, device.powered)),
+            )
+            .chain(
+                state
                     .storages
                     .iter()
                     .map(|(&cell, device)| (cell, &device.prototype, device.enabled)),
@@ -748,6 +788,11 @@ fn draw(
                 )
             } else if let Some(scan) = crew.pipe_scan {
                 pipe_reading(layout, state, scan)
+            } else if state.id_consoles.keys().any(|&target| {
+                cell.distance_on_level(target)
+                    .is_some_and(|distance| distance <= 1)
+            }) {
+                "K ID console   /   I Inventory".into()
             } else if state.storages.keys().any(|&target| {
                 cell.distance_on_level(target)
                     .is_some_and(|distance| distance <= 1)
@@ -1013,6 +1058,20 @@ fn draw_filter(
         .session()
         .and_then(|session| session.state.filter_in_reach(session.player, panel.0?));
     filter_view::sync(machine, readout);
+}
+
+fn draw_id_console(
+    network: NonSend<Network>,
+    panel: Res<IdConsolePanel>,
+    readout: Single<(&mut Text2d, &mut Visibility), With<IdConsoleReadout>>,
+) {
+    let view = network.session().and_then(|session| {
+        let console = session
+            .state
+            .id_console_in_reach(session.player, panel.cell?)?;
+        Some((&session.layout, &session.state, console))
+    });
+    id_console_view::sync(view, &panel, readout);
 }
 
 fn capture_frame(

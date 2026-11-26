@@ -3,6 +3,7 @@ mod construction;
 mod content;
 mod electricity;
 mod environment;
+mod id_console;
 mod inventory;
 mod jobs;
 mod medical;
@@ -16,6 +17,7 @@ mod wiring;
 pub use access::{AccessReader, DoorFailure, DoorNotice, IdentityCard};
 pub use content::{Job, Kind, Layout, LevelLink, MAX_BACKPACK_SLOTS};
 pub use electricity::{CableSegment, Storage, StoragePorts, StorageSample};
+pub use id_console::{CardSlot, IdConsole, IdConsoleControl};
 pub use jobs::Participation;
 pub use medical::{Damage, MedicalProgress, MobState};
 pub use piping::{
@@ -30,6 +32,8 @@ pub use prototypes::convert_ss14_catalog;
 pub mod editor;
 #[cfg(feature = "client")]
 pub mod filter_view;
+#[cfg(feature = "client")]
+pub mod id_console_view;
 #[cfg(feature = "client")]
 pub mod inventory_view;
 #[cfg(feature = "client")]
@@ -49,7 +53,7 @@ use wiring::PendingCut;
 
 const DEBRIEF_TICKS: u32 = 10 * TICK_HZ;
 const MAX_ROUND_ITEMS: usize = 512;
-pub const WIRE_VERSION: u16 = 18;
+pub const WIRE_VERSION: u16 = 19;
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub enum Action {
@@ -59,23 +63,51 @@ pub enum Action {
     Use,
     Ready,
     SelectRole(u8),
-    Construct { cell: Cell, tile: Tile },
-    Treat { cell: Cell },
+    Construct {
+        cell: Cell,
+        tile: Tile,
+    },
+    Treat {
+        cell: Cell,
+    },
     ClickHand(u8),
     ToggleBackpack,
     StoreInBackpack,
-    TakeFromBackpack { item: u16 },
-    Give { cell: Cell },
-    ChangeLevel { up: bool },
-    Pull { cell: Cell },
+    TakeFromBackpack {
+        item: u16,
+    },
+    Give {
+        cell: Cell,
+    },
+    ChangeLevel {
+        up: bool,
+    },
+    Pull {
+        cell: Cell,
+    },
     ReleasePull,
-    LayCable { cell: Cell },
-    CutCable { cable: CableSegment },
+    LayCable {
+        cell: Cell,
+    },
+    CutCable {
+        cable: CableSegment,
+    },
     Observe,
-    ScanPipe { cell: Cell },
-    ControlFilter { cell: Cell, control: FilterControl },
-    InspectStorage { cell: Cell },
+    ScanPipe {
+        cell: Cell,
+    },
+    ControlFilter {
+        cell: Cell,
+        control: FilterControl,
+    },
+    InspectStorage {
+        cell: Cell,
+    },
     ToggleIdCard,
+    ControlIdConsole {
+        cell: Cell,
+        control: IdConsoleControl,
+    },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -206,6 +238,7 @@ pub struct Item {
 pub struct State {
     pub players: BTreeMap<PlayerId, Crew>,
     pub doors: BTreeMap<Cell, Door>,
+    pub id_consoles: BTreeMap<Cell, IdConsole>,
     pub generators: BTreeMap<Cell, Generator>,
     pub storages: BTreeMap<Cell, Storage>,
     pub vents: BTreeMap<Cell, Vent>,
@@ -255,6 +288,7 @@ impl Station {
             recovery,
         } = Content::load(directory)?;
         let mut doors = BTreeMap::new();
+        let mut id_consoles = BTreeMap::new();
         let mut generators = BTreeMap::new();
         let mut storages = BTreeMap::new();
         let mut vents = BTreeMap::new();
@@ -269,6 +303,16 @@ impl Station {
                             prototype: placement.prototype,
                             open: false,
                             powered: false,
+                        },
+                    );
+                }
+                Kind::IdConsole { .. } => {
+                    id_consoles.insert(
+                        placement.cell,
+                        IdConsole {
+                            prototype: placement.prototype,
+                            powered: false,
+                            cards: [None; 2],
                         },
                     );
                 }
@@ -327,6 +371,7 @@ impl Station {
         let mut state = State {
             players: BTreeMap::new(),
             doors: doors.clone(),
+            id_consoles,
             generators: generators.clone(),
             storages: storages.clone(),
             vents: vents.clone(),
@@ -496,6 +541,9 @@ impl Station {
             (Phase::Active, Action::InspectStorage { cell }) => self.inspect_storage(player, cell),
             (Phase::Active, Action::ControlFilter { cell, control }) => {
                 self.control_filter(player, cell, control);
+            }
+            (Phase::Active, Action::ControlIdConsole { cell, control }) => {
+                self.control_id_console(player, cell, control);
             }
             (Phase::Active, Action::ChangeLevel { up }) => self.change_deck(player, up),
             (Phase::Active, Action::ClickHand(hand @ 0..=1)) => {
@@ -668,6 +716,10 @@ impl Station {
                     self.state.phase = Phase::Lobby;
                     self.state.round += 1;
                     self.state.doors.clone_from(&self.initial_doors);
+                    for console in self.state.id_consoles.values_mut() {
+                        console.cards = [None; 2];
+                        console.powered = false;
+                    }
                     self.state.generators.clone_from(&self.initial_generators);
                     self.state.storages.clone_from(&self.initial_storages);
                     self.state.vents.clone_from(&self.initial_vents);

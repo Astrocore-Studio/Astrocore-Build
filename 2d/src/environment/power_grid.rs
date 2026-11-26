@@ -12,6 +12,7 @@ pub(super) struct PowerGrid {
     generators: BTreeMap<Cell, usize>,
     storages: BTreeMap<Cell, (usize, bool)>,
     doors: BTreeMap<Cell, usize>,
+    id_consoles: BTreeMap<Cell, usize>,
     vents: BTreeMap<Cell, (usize, u16)>,
     pipe_machines: BTreeMap<Cell, usize>,
 }
@@ -23,6 +24,7 @@ impl PowerGrid {
         let previous_generators = std::mem::take(&mut self.generators);
         let previous_storages = std::mem::take(&mut self.storages);
         self.doors.clear();
+        self.id_consoles.clear();
         self.vents.clear();
         self.pipe_machines.clear();
         for _ in 0..cables.net_count() {
@@ -78,6 +80,14 @@ impl PowerGrid {
                 self.doors.insert(cell, load);
             }
         }
+        for (&cell, console) in &state.id_consoles {
+            if let Some(net) = cables.net_at(CableGroup::Apc, coordinates(cell))
+                && let Kind::IdConsole { watts } = layout.prototypes[&console.prototype].kind
+            {
+                self.id_consoles
+                    .insert(cell, solver.add_load(net, Load::new(f32::from(watts))));
+            }
+        }
         for (&cell, vent) in &state.vents {
             if let Some(net) = cables.net_at(CableGroup::Apc, coordinates(cell))
                 && let Kind::Vent {
@@ -110,6 +120,12 @@ impl PowerGrid {
         for (&cell, door) in &mut state.doors {
             door.powered = self
                 .doors
+                .get(&cell)
+                .is_some_and(|&id| self.load_powered(id));
+        }
+        for (&cell, console) in &mut state.id_consoles {
+            console.powered = self
+                .id_consoles
                 .get(&cell)
                 .is_some_and(|&id| self.load_powered(id));
         }

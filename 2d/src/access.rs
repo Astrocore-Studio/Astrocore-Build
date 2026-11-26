@@ -6,6 +6,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::{Crew, Kind, State, Station};
 
+pub(crate) const MAX_ACCESS_TAGS: usize = 32;
+
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct AccessReader {
     #[serde(default)]
@@ -21,7 +23,7 @@ impl AccessReader {
             && valid_tags(&self.deny)
     }
 
-    fn allows(&self, tags: &BTreeSet<&str>) -> bool {
+    pub(crate) fn allows(&self, tags: &BTreeSet<&str>) -> bool {
         !self.deny.iter().any(|tag| tags.contains(tag.as_str()))
             && (self.access.is_empty()
                 || self
@@ -32,7 +34,7 @@ impl AccessReader {
 }
 
 pub(crate) fn valid_tags(tags: &[String]) -> bool {
-    tags.len() <= 32
+    tags.len() <= MAX_ACCESS_TAGS
         && tags
             .iter()
             .all(|tag| !tag.is_empty() && tag.len() <= 48 && tag.trim() == tag)

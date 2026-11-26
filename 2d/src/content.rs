@@ -48,6 +48,8 @@ pub struct Prototype {
     pub color: (u8, u8, u8),
     #[serde(default)]
     pub access_reader: Option<AccessReader>,
+    #[serde(default)]
+    pub access_levels: Vec<String>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -101,6 +103,9 @@ pub enum Kind {
         ports: StoragePorts,
     },
     IdCard,
+    IdConsole {
+        watts: u16,
+    },
 }
 
 impl Kind {
@@ -256,8 +261,13 @@ impl Content {
             if !valid_name(id)
                 || !valid_name(&prototype.name)
                 || prototype.access_reader.as_ref().is_some_and(|reader| {
-                    !matches!(prototype.kind, Kind::Door { .. }) || !reader.valid()
+                    !matches!(prototype.kind, Kind::Door { .. } | Kind::IdConsole { .. })
+                        || !reader.valid()
                 })
+                || !valid_tags(&prototype.access_levels)
+                || !prototype.access_levels.is_empty()
+                    && !matches!(prototype.kind, Kind::IdConsole { .. })
+                || matches!(prototype.kind, Kind::IdConsole { watts: 0 })
                 || matches!(prototype.kind, Kind::Backpack { slots }
                     if !(1..=MAX_BACKPACK_SLOTS).contains(&slots))
                 || matches!(prototype.kind, Kind::Medicine { restores, delay_seconds }
