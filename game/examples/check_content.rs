@@ -102,5 +102,21 @@ fn main() -> Result<(), String> {
                 .join(", ")
         );
     }
+
+    let audit = astrocore_game::construction::audit(&mut world);
+    println!(
+        "Строительство: графов {}, рецептов {}, без пути {}",
+        audit.graphs,
+        audit.recipes,
+        audit.broken_recipes.len()
+    );
+    for id in audit.broken_recipes.iter().take(10) {
+        println!("  без пути: {id}");
+    }
+    let mut unknown: Vec<_> = audit.unknown.iter().collect();
+    unknown.sort_by(|a, b| b.1.cmp(a.1));
+    for (what, count) in unknown.iter().take(30) {
+        println!("  нет: {what}: {count}");
+    }
     Ok(())
 }

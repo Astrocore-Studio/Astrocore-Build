@@ -272,7 +272,7 @@ fn aabb_size(world: &World, entity: Entity) -> Vec2 {
 
 /// Незакреплённые сущности рядом с точкой (`GetEntitiesInRange` с `Approximate | Dynamic |
 /// Sundries`).
-fn entities_near(world: &World, at: MapCoordinates, range: f32) -> Vec<Entity> {
+pub(crate) fn entities_near(world: &World, at: MapCoordinates, range: f32) -> Vec<Entity> {
     let (root, local, z) = match world.find_grid_at(at) {
         Some(grid) => match world.world_transform(grid) {
             Some(placement) => (

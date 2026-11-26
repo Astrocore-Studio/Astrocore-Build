@@ -17,6 +17,7 @@ pub mod barotrauma;
 pub mod body;
 pub mod cables;
 pub mod combat;
+pub mod construction;
 pub mod container_fill;
 pub mod content;
 pub mod damage;
@@ -180,6 +181,7 @@ pub fn install_content(world: &mut World, side: Side) {
     electrocution::install(world, side);
     doors::install(world, side);
     wires::install(world, side);
+    construction::install(world, side);
 }
 
 /// Адрес сервера по умолчанию.
