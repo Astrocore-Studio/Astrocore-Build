@@ -79,6 +79,35 @@ pub struct ThrowAttempt {
     pub cancelled: bool,
 }
 
+/// Может ли сущность двигаться сама (`UpdateCanMoveEvent`). Поднимается на сущности.
+#[derive(Debug, Clone, Copy)]
+pub struct UpdateCanMove {
+    pub entity: Entity,
+    pub cancelled: bool,
+}
+
+/// Пересчитывает `InputMover.can_move` по событию `UpdateCanMove` (`UpdateCanMove`).
+pub fn update_can_move(world: &mut World, entity: Entity) -> bool {
+    if world
+        .get::<astrocore_movement::InputMover>(entity)
+        .is_none()
+    {
+        return false;
+    }
+    let mut event = UpdateCanMove {
+        entity,
+        cancelled: false,
+    };
+    world.raise(entity, &mut event);
+    let can_move = !event.cancelled;
+    if let Some(mut mover) = world.get_mut::<astrocore_movement::InputMover>(entity)
+        && mover.can_move != can_move
+    {
+        mover.can_move = can_move;
+    }
+    can_move
+}
+
 /// Проверки действий на `World`.
 pub trait ActionBlockerWorldExt {
     fn can_consciously_perform_action(&mut self, user: Entity) -> bool;

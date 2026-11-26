@@ -8,9 +8,11 @@
 pub mod action_blocker;
 pub mod activatable_ui;
 pub mod content;
+pub mod damage;
 pub mod do_after;
 pub mod entity_storage;
 pub mod examine;
+pub mod fixed_point;
 pub mod friction;
 pub mod grammar;
 pub mod hands;
@@ -18,9 +20,11 @@ pub mod input_contexts;
 pub mod interaction;
 pub mod inventory;
 pub mod item;
+pub mod mobs;
 pub mod ordered;
 pub mod popups;
 pub mod server;
+pub mod standing;
 pub mod storage;
 pub mod tag;
 pub mod throwing;
@@ -40,6 +44,8 @@ pub mod hands_hud;
 pub mod inhands;
 #[cfg(feature = "client")]
 pub mod inventory_hud;
+#[cfg(feature = "client")]
+pub mod mob_visuals;
 #[cfg(feature = "client")]
 pub mod overlays;
 #[cfg(feature = "client")]
@@ -84,6 +90,9 @@ pub fn install_content(world: &mut World, side: Side) {
     inventory::install(world, side);
     storage::install(world, side);
     entity_storage::install(world, side);
+    damage::install(world, side);
+    standing::install(world, side);
+    mobs::install(world, side);
 }
 
 /// Адрес сервера по умолчанию.
