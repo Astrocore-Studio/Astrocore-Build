@@ -1,7 +1,7 @@
 use astrocore_grid2d::Cell;
 use astrocore_grid2d::session::PlayerId;
 
-use crate::{Kind, Station};
+use crate::{Kind, MobState, Station};
 
 impl Station {
     pub(crate) fn toggle_backpack(&mut self, player: PlayerId) {
@@ -90,7 +90,7 @@ impl Station {
         };
         let Some(receiver) = self.state.players.iter_mut().find_map(|(&id, crew)| {
             if id != player
-                && crew.health > 0
+                && crew.damage.state() == MobState::Alive
                 && crew.position.cell() == cell
                 && crew.hands[usize::from(crew.active_hand)].is_none()
             {

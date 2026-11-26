@@ -6,13 +6,13 @@ use astrocore_grid2d::session::TICK_HZ;
 use astrocore_grid2d::{Cell, Grid, Tile};
 
 use crate::content::{Layout, LevelLink};
-use crate::{AirSample, Crew, State};
+use crate::{AirSample, Crew, MobState, State};
 use power_grid::PowerGrid;
 
 const DT: f32 = 1.0 / TICK_HZ as f32;
 const SIDES: [(i32, i32); 4] = [(1, 0), (-1, 0), (0, 1), (0, -1)];
 const MIN_BREATHABLE_OXYGEN_KPA: f32 = 16.0;
-const SUFFOCATION_DAMAGE: u8 = 6;
+const SUFFOCATION_DAMAGE: u16 = 6;
 
 pub(crate) struct Environment {
     workers: rayon::ThreadPool,
@@ -145,12 +145,19 @@ impl Environment {
         let cell = coordinates(crew.position.cell());
         let (pressure, breathable) = self.pressure(crew.position.cell());
         crew.pressure_kpa = pressure.round().clamp(0.0, f32::from(u16::MAX)) as u16;
-        if crew.health == 0 {
+        let life = crew.damage.state();
+        if life == MobState::Dead {
             return;
         }
+        if pressure <= atmos::HAZARD_LOW_PRESSURE {
+            crew.damage.blunt = crew.damage.blunt.saturating_add(2);
+        }
         if !breathable {
-            crew.health = crew.health.saturating_sub(SUFFOCATION_DAMAGE);
+            crew.damage.asphyxiation = crew.damage.asphyxiation.saturating_add(SUFFOCATION_DAMAGE);
         } else {
+            if life == MobState::Alive {
+                crew.damage.asphyxiation = crew.damage.asphyxiation.saturating_sub(1);
+            }
             self.air.with_air(cell, |air| {
                 let consumed = 0.012_f32.min(air.moles(atmos::Gas::Oxygen));
                 air.adjust_moles(atmos::Gas::Oxygen, -consumed);

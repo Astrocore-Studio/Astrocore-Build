@@ -22,6 +22,7 @@
         (prototype: "service_kit", cell: (x: 7, y: 4)),
         (prototype: "backpack", cell: (x: 8, y: 4)),
         (prototype: "field_dressing", cell: (x: 7, y: 3)),
+        (prototype: "health_analyzer", cell: (x: 6, y: 5)),
         (prototype: "analyzer", cell: (x: 17, y: 6)),
     ],
     cables: [
@@ -45,7 +46,7 @@
     loadouts: {
         "Operator": ["analyzer", "backpack"],
         "Engineer": ["service_kit", "backpack"],
-        "Medic": ["field_dressing", "field_dressing"],
+        "Medic": ["field_dressing", "oxygen_treatment"],
     },
     recovery: Some((
         breach: (x: 20, y: 7),

@@ -6,10 +6,10 @@ use astrocore_build_2d::inventory_view::{self, InventoryBackdrop, InventoryLine,
 use astrocore_build_2d::server::LocalServer;
 use astrocore_build_2d::view::MapView;
 use astrocore_build_2d::{
-    Action, Kind, Layout, Outcome, Phase, State, WIRE_VERSION, bind_address, configured_key,
-    endpoint,
+    Action, Kind, Layout, MobState, Outcome, Phase, State, WIRE_VERSION, bind_address,
+    configured_key, endpoint,
 };
-use astrocore_grid2d::session::{Client, PlayerId, TICK_PERIOD};
+use astrocore_grid2d::session::{Client, PlayerId, TICK_HZ, TICK_PERIOD};
 use astrocore_grid2d::{Cell, Tile};
 use bevy::prelude::*;
 use bevy::render::view::screenshot::{Screenshot, save_to_disk};
@@ -479,12 +479,11 @@ fn draw(
             continue;
         }
         let location = view.world(crew.position).extend(1.0);
-        let color = if crew.health == 0 {
-            Color::srgb_u8(115, 93, 109)
-        } else if player == session.player {
-            Color::srgb_u8(115, 230, 209)
-        } else {
-            Color::srgb_u8(175, 155, 245)
+        let color = match crew.damage.state() {
+            MobState::Dead => Color::srgb_u8(115, 93, 109),
+            MobState::Critical => Color::srgb_u8(233, 122, 108),
+            MobState::Alive if player == session.player => Color::srgb_u8(115, 230, 209),
+            MobState::Alive => Color::srgb_u8(175, 155, 245),
         };
         let entity = *visuals.avatars.entry(player).or_insert_with(|| {
             commands
@@ -549,7 +548,27 @@ fn draw(
             let cell = crew.position.cell();
             let up = layout.links.iter().any(|link| link.lower == cell);
             let down = layout.links.iter().any(|link| link.upper == cell);
-            let help = if up && down {
+            let life = crew.damage.state();
+            let help = if life == MobState::Dead {
+                "Await the next round".into()
+            } else if life == MobState::Critical {
+                "Await medical assistance".into()
+            } else if let Some(progress) = crew.medical_progress {
+                let verb = if progress.scanning {
+                    "Scanning"
+                } else {
+                    "Treating"
+                };
+                format!(
+                    "{verb} {:.1}s   /   Hold still",
+                    f32::from(progress.ticks_left) / TICK_HZ as f32
+                )
+            } else if let Some(reading) = crew.medical_reading {
+                format!(
+                    "Health scan   /   Trauma {}   /   Asphyxiation {}",
+                    reading.blunt, reading.asphyxiation
+                )
+            } else if up && down {
                 "PgUp Upper deck   /   PgDn Lower deck".into()
             } else if up {
                 "PgUp Upper deck".into()
@@ -562,18 +581,25 @@ fn draw(
                     "Scan {} kPa   /   O2 {}%   /   {} K",
                     scan.pressure_kpa, scan.oxygen_percent, scan.temperature_k
                 )
+            } else if prototype.is_some_and(|item| matches!(item.kind, Kind::HealthAnalyzer)) {
+                "F Scan self   /   G Scan nearby crew   /   X Swap   Q Drop".into()
             } else {
                 "E Interact  X Swap  Q Drop  F Use  G Treat  H Give  I Inventory".into()
             };
             let role: String = role.chars().take(12).collect();
+            let condition = match life {
+                MobState::Alive => "DMG",
+                MobState::Critical => "CRITICAL",
+                MobState::Dead => "DEAD",
+            };
             (
                 help,
                 format!(
-                    "R{} / {role} / {:02}:{:02} / Z {level} / HP {} / {} kPa",
+                    "R{} / {role} / {:02}:{:02} / Z {level} / {condition} {} / {} kPa",
                     state.round,
                     state.seconds_left / 60,
                     state.seconds_left % 60,
-                    crew.health,
+                    crew.damage.total(),
                     crew.pressure_kpa
                 ),
             )

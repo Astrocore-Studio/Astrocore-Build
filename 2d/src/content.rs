@@ -5,6 +5,7 @@ use astrocore_grid2d::{Cell, Grid, GridLevel, Tile};
 use serde::{Deserialize, Serialize};
 
 use crate::environment::coordinates;
+use crate::medical::Damage;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Layout {
@@ -46,13 +47,18 @@ pub enum Kind {
     Backpack {
         slots: u8,
     },
+    Medicine {
+        restores: Damage,
+        delay_seconds: u8,
+    },
+    HealthAnalyzer,
 }
 
 impl Kind {
     pub(crate) fn item_materials(self) -> Option<u8> {
         match self {
             Self::Item { materials, .. } => Some(materials),
-            Self::Backpack { .. } => Some(0),
+            Self::Backpack { .. } | Self::Medicine { .. } | Self::HealthAnalyzer => Some(0),
             _ => None,
         }
     }
@@ -164,6 +170,8 @@ impl Content {
                 || !valid_name(&prototype.name)
                 || matches!(prototype.kind, Kind::Backpack { slots }
                     if !(1..=MAX_BACKPACK_SLOTS).contains(&slots))
+                || matches!(prototype.kind, Kind::Medicine { restores, delay_seconds }
+                    if restores.total() == 0 || !(1..=15).contains(&delay_seconds))
             {
                 return Err(format!("неверные параметры прототипа {id:?}"));
             }

@@ -2,10 +2,12 @@ mod construction;
 mod content;
 mod environment;
 mod inventory;
+mod medical;
 mod replication;
 pub mod server;
 
 pub use content::{Kind, Layout, LevelLink, MAX_BACKPACK_SLOTS};
+pub use medical::{Damage, MedicalProgress, MobState};
 
 #[cfg(feature = "client")]
 pub mod editor;
@@ -22,11 +24,12 @@ use astrocore_grid2d::session::{Input, PlayerId, Simulation, TICK_HZ};
 use astrocore_grid2d::{Cell, Grid, Position, Tile};
 use content::{Content, RecoverySpec};
 use environment::Environment;
+use medical::PendingMedical;
 use serde::{Deserialize, Serialize};
 
 const DEBRIEF_TICKS: u32 = 10 * TICK_HZ;
 const MAX_ROUND_ITEMS: usize = 512;
-pub const WIRE_VERSION: u16 = 7;
+pub const WIRE_VERSION: u16 = 8;
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub enum Action {
@@ -95,9 +98,11 @@ pub struct Crew {
     pub hands: [Option<u16>; 2],
     pub backpack: Option<u16>,
     pub active_hand: bool,
-    pub health: u8,
+    pub damage: Damage,
     pub pressure_kpa: u16,
     pub scan: Option<AirSample>,
+    pub medical_reading: Option<Damage>,
+    pub medical_progress: Option<MedicalProgress>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -117,9 +122,11 @@ impl Crew {
             hands: [None; 2],
             backpack: None,
             active_hand: false,
-            health: 100,
+            damage: Damage::default(),
             pressure_kpa: 101,
             scan: None,
+            medical_reading: None,
+            medical_progress: None,
         }
     }
 }
@@ -178,6 +185,7 @@ pub struct Station {
     initial_generators: BTreeMap<Cell, Generator>,
     initial_vents: BTreeMap<Cell, Vent>,
     environment: Environment,
+    pending_medical: BTreeMap<PlayerId, PendingMedical>,
     initial_items: BTreeMap<u16, Item>,
     loadouts: BTreeMap<String, Vec<String>>,
     next_item: u16,
@@ -234,7 +242,10 @@ impl Station {
                         },
                     );
                 }
-                kind @ (Kind::Item { .. } | Kind::Backpack { .. }) => {
+                kind @ (Kind::Item { .. }
+                | Kind::Backpack { .. }
+                | Kind::Medicine { .. }
+                | Kind::HealthAnalyzer) => {
                     items.insert(
                         id as u16,
                         Item {
@@ -272,6 +283,7 @@ impl Station {
             initial_generators: generators,
             initial_vents: vents,
             environment,
+            pending_medical: BTreeMap::new(),
             initial_items: items,
             loadouts,
             next_item,
@@ -357,7 +369,7 @@ impl Station {
             {
                 crew.role = role;
             }
-            (Phase::Active, _) if crew.health == 0 => {}
+            (Phase::Active, _) if crew.damage.state() != MobState::Alive => {}
             (Phase::Active, Action::Interact) => self.interact(player),
             (Phase::Active, Action::Construct { cell, tile }) => self.construct(player, cell, tile),
             (Phase::Active, Action::Drop) => {
@@ -390,6 +402,7 @@ impl Station {
                 if let Some(destination) = destination {
                     crew.position = destination.center();
                     crew.scan = None;
+                    crew.medical_reading = None;
                 }
             }
             (Phase::Active, Action::ClickHand(hand @ 0..=1)) => {
@@ -416,58 +429,18 @@ impl Station {
         let hand = usize::from(crew.active_hand);
         let Some(id) = crew.hands[hand] else { return };
         let prototype = &self.state.items[&id].prototype;
-        let Kind::Item {
-            healing, analyzer, ..
-        } = self.layout.prototypes[prototype].kind
-        else {
-            return;
-        };
-        let origin = crew.position.cell();
-        if analyzer && target.is_none() {
-            let sample = self.environment.sample(origin);
-            self.state
+        let kind = self.layout.prototypes[prototype].kind;
+        if matches!(kind, Kind::Item { analyzer: true, .. }) && target.is_none() {
+            let sample = self.environment.sample(crew.position.cell());
+            let crew = self
+                .state
                 .players
                 .get_mut(&player)
-                .expect("игрок существует")
-                .scan = Some(sample);
-            return;
-        }
-        if healing == 0 {
-            return;
-        }
-
-        let recipient = match target {
-            None => player,
-            Some(cell)
-                if origin
-                    .distance_on_level(cell)
-                    .is_some_and(|distance| distance <= 1)
-                    && self.state.doors.get(&cell).is_none_or(|door| door.open) =>
-            {
-                let Some((&recipient, _)) = self.state.players.iter().find(|(id, crew)| {
-                    **id != player
-                        && crew.position.cell() == cell
-                        && (1..100).contains(&crew.health)
-                }) else {
-                    return;
-                };
-                recipient
-            }
-            Some(_) => return,
-        };
-        let recipient = self
-            .state
-            .players
-            .get_mut(&recipient)
-            .expect("пациент существует");
-        if (1..100).contains(&recipient.health) {
-            recipient.health = recipient.health.saturating_add(healing).min(100);
-            self.state
-                .players
-                .get_mut(&player)
-                .expect("игрок существует")
-                .hands[hand] = None;
-            self.state.items.remove(&id);
+                .expect("игрок существует");
+            crew.scan = Some(sample);
+            crew.medical_reading = None;
+        } else {
+            self.start_medical(player, target, id, kind);
         }
     }
 
@@ -543,7 +516,12 @@ impl Station {
             Phase::Active => {
                 self.phase_ticks -= 1;
                 let restored = self.check_recovery();
-                self.state.outcome = if self.state.players.values().all(|crew| crew.health == 0) {
+                self.state.outcome = if self
+                    .state
+                    .players
+                    .values()
+                    .all(|crew| crew.damage.state() == MobState::Dead)
+                {
                     Some(Outcome::CrewLost)
                 } else if restored {
                     Some(Outcome::Restored)
@@ -553,6 +531,10 @@ impl Station {
                     None
                 };
                 if self.state.outcome.is_some() {
+                    self.pending_medical.clear();
+                    for crew in self.state.players.values_mut() {
+                        crew.medical_progress = None;
+                    }
                     self.state.phase = Phase::Debrief;
                     self.phase_ticks = DEBRIEF_TICKS;
                 }
@@ -629,6 +611,7 @@ impl Simulation for Station {
     }
 
     fn left(&mut self, player: PlayerId) {
+        self.pending_medical.remove(&player);
         if let Some(crew) = self.state.players.remove(&player) {
             for id in crew.hands.into_iter().flatten().chain(crew.backpack) {
                 self.state
@@ -644,14 +627,18 @@ impl Simulation for Station {
         if self.state.phase == Phase::Active {
             let doors = &self.state.doors;
             for (player, crew) in &mut self.state.players {
-                if crew.health > 0
+                if crew.damage.state() == MobState::Alive
                     && let Some(input) = inputs.get(player)
                 {
+                    let previous = crew.position.cell();
                     crew.position = self
                         .terrain
                         .move_body(crew.position, input.movement, |cell| {
                             doors.get(&cell).is_some_and(|door| !door.open)
                         });
+                    if previous != crew.position.cell() {
+                        crew.medical_reading = None;
+                    }
                 }
             }
         }
@@ -675,6 +662,7 @@ impl Simulation for Station {
                     .rebuild_hull(&self.terrain, &self.layout.links, &self.state);
             }
             self.environment.tick(&mut self.state);
+            self.advance_medical();
         }
         self.advance_round();
     }
