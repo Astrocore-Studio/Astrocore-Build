@@ -49,6 +49,7 @@ cargo client -- --connect 127.0.0.1:7783 --name Urist
 |---|---|
 | Каталог `Resources` SS14 | переменная `ASTRO_SS14_RESOURCES`; по умолчанию `../reference/space-station-14/Resources` |
 | Свой контент поверх SS14 | каталог `Resources` в корне Build: его файлы важнее файлов SS14 |
+| Язык | `ASTRO_LANG`, по умолчанию `en-US` (язык контента SS14); свой перевод кладётся в `Resources/Locale/<язык>` игры |
 | Адрес сервера | `ASTRO_ADDR`, по умолчанию `127.0.0.1:7783` |
 | Ключ соединений | `ASTRO_KEY`, 64 шестнадцатеричных символа; одинаковый у сервера и клиентов |
 | Карта раунда | `game.map` в `server_config.toml`, например `"Maps/bagel.yml"` |

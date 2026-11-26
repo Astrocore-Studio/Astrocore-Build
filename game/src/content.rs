@@ -4,7 +4,9 @@ use std::path::{Path, PathBuf};
 
 use astrocore_console::{CVarDef, CVarFlags, ConfigWorldExt};
 use astrocore_ecs::ComponentRegistry;
+use astrocore_loc::{EntityNameWorldExt, Loc};
 use astrocore_map::{EntityMigrations, TileDefinitions};
+use astrocore_net::register_visibility_layer;
 use astrocore_physics::register_collision_group;
 use astrocore_prototypes::{LoadReport, Prototypes};
 use astrocore_resources::{Resources, ResourcesWorldExt};
@@ -191,12 +193,59 @@ pub fn load_content(world: &mut World, resources: &Resources, ss14: &Path) -> Lo
     for (id, sprite, variants) in tiles {
         definitions.register(&id, sprite, variants);
     }
+    load_locale(world, resources);
     if let Ok(text) = resources.read_to_string("migration.yml")
         && let Ok(node) = astrocore_data::parse_yaml(&text)
     {
         world.insert_resource(EntityMigrations::from_node(&node));
     }
     report
+}
+
+/// Язык игры по умолчанию: язык контента SS14.
+pub const DEFAULT_CULTURE: &str = "en-US";
+
+/// Загружает сообщения языка и считает названия сущностей. Язык задаёт переменная
+/// окружения `ASTRO_LANG` (например `ru-RU`, если перевод лежит в `Resources/Locale/ru-RU`
+/// игры); чего в нём нет, берётся из языка SS14.
+pub fn load_locale(world: &mut World, resources: &Resources) {
+    let wanted = std::env::var("ASTRO_LANG").unwrap_or_else(|_| DEFAULT_CULTURE.to_owned());
+    let mut loc = Loc::default();
+    let mut cultures = vec![wanted.as_str()];
+    if wanted != DEFAULT_CULTURE {
+        cultures.push(DEFAULT_CULTURE);
+    }
+    for culture in cultures {
+        match loc.load_culture(resources, culture) {
+            Ok(report) if report.messages == 0 => {
+                eprintln!("язык {culture}: сообщений нет — проверьте каталог Locale/{culture}");
+            }
+            Ok(_) => {}
+            Err(error) => eprintln!("язык {culture}: {error}"),
+        }
+    }
+    world.insert_resource(loc);
+    world.build_entity_names();
+}
+
+/// Таблицы имён SS14, общие для сервера и клиента: группы столкновений и слои видимости.
+/// Вызывается до загрузки прототипов: по этим именам читаются их данные.
+pub fn register_names() {
+    register_collision_groups();
+    register_visibility_layers();
+}
+
+/// Слои видимости SS14 (`Content.Shared/Eye/VisibilityFlags.cs` @ 2f4a2aad).
+pub fn register_visibility_layers() {
+    for (name, bits) in [
+        ("None", 0),
+        ("Normal", 1 << 0),
+        ("Ghost", 1 << 1),
+        ("Subfloor", 1 << 2),
+        ("Admin", 1 << 3),
+    ] {
+        register_visibility_layer(name, bits);
+    }
 }
 
 /// Регистрирует настройки игры.

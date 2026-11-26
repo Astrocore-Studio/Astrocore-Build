@@ -56,7 +56,7 @@ fn arrival_point(world: &mut World, report: &MapLoadReport) -> MapCoordinates {
 
 /// Создаёт мир сервера: плагины движка, контент, карта раунда и правила входа игроков.
 pub fn start() -> Result<ServerStart, String> {
-    content::register_collision_groups();
+    content::register_names();
     let (resources, ss14) = content::mount_resources()?;
     let mut world = World::new();
     world.add_plugin(NetServerPlugin);

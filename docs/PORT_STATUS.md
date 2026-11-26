@@ -21,15 +21,15 @@
 | `IRobustRandom` | `astrocore-ecs::GameRng` | готово | xoshiro256++ с зерном. |
 | `PrototypeManager` | `astrocore-prototypes` | частично | Загрузка, наследование, `CreateVariants`, типизированные виды, `ProtoId<T>`. Отложено: частичные прототипы `!Partial` (в SS14 не используются), категории сущностей (4.4), перезагрузка на лету (2.15). |
 | `EntityPrototype`, `EntityManager.Spawn` | `astrocore-prototypes`, `astrocore-map::SpawnWorldExt` | готово | Создание сущности из прототипа с изменениями из файла карты. |
-| `TransformComponent`, `SharedTransformSystem` | `astrocore-map::Transform` | частично | Иерархия, мировые координаты, смена родителя, привязка к клетке, этаж `z`. Нет обхода гридов при движении (`GridTraversal`) — задача 2.6. |
+| `TransformComponent`, `SharedTransformSystem`, `SharedGridTraversalSystem` | `astrocore-map::Transform`, `GridTraversal` | готово | Иерархия, мировые координаты, смена родителя, привязка к клетке, этаж `z`, переход между гридами на ходу. |
 | `MapComponent`, `SharedMapSystem.Map/Pause/MapInit` | `astrocore-map::Map` | готово | Карты, пауза, отложенный `MapInit`. |
 | `MapGridComponent`, `SharedMapSystem.Grid` | `astrocore-map::MapGrid` | частично | Чанки 16×16 с этажами, тайлы, привязанные сущности, поиск грида по точке. Нет физики грида и разделения грида на части — задачи 2.5 и 5.7. |
 | `ITileDefinitionManager` | `astrocore-map::TileDefinitions` | готово | Игровые свойства тайла хранит прототип `tile` в Build (задача 4.1). |
 | `Robust.Shared/Containers` | `astrocore-map::ContainerManager` | готово | Контейнеры и слоты, события попытки и результата. |
 | `IConfigurationManager` (CVar) | `astrocore-console::Config` | частично | Значения, TOML, события. Нет репликации `REPLICATED` клиентам — задача 2.3. |
 | `IConsoleHost` | `astrocore-console::Console` | частично | Команды, права, подсказки. Нет Toolshed и передачи команд по сети — задачи 2.3 и 6.6. |
-| `Robust.Server/GameStates`, `Robust.Client/GameStates` | `astrocore-net` | частично | Состояния компонентов от подтверждённого тика, сессии, `Actor`, сетевые события, связь с Lightyear. Отложено: сжатие больших состояний, маски видимости (призраки), репликация CVar, сглаживание чужих сущностей между состояниями. |
-| `PvsSystem`, `PvsOverrideSystem` | `astrocore-net` (PVS) | частично | Клетки 8×8 тайлов по этажам, бюджет новых сущностей, принудительная видимость. Отложено: видимость соседних этажей через проёмы, несколько глаз у сессии. |
+| `Robust.Server/GameStates`, `Robust.Client/GameStates` | `astrocore-net` | частично | Состояния компонентов от подтверждённого тика, сессии, `Actor`, сетевые события, связь с Lightyear, сжатие больших состояний (LZ4). Отложено: передача настроек сервера клиенту (6.3). |
+| `PvsSystem`, `PvsOverrideSystem`, `VisibilityComponent`, `EyeComponent.VisibilityMask` | `astrocore-net` (PVS, `Visibility`, `Eye`) | частично | Клетки 8×8 тайлов по этажам, бюджет новых сущностей, принудительная видимость, слои видимости и маска глаза. Отложено: видимость соседних этажей через проёмы, несколько глаз у сессии. |
 | `EntityLookupSystem` | `astrocore-physics::PhysicsWorldExt::entities_intersecting` | частично | Поиск тел в прямоугольнике. Лучи и поиск по радиусу — задача 3.1. |
 | `Robust.Shared/Physics` | `astrocore-physics` | частично | Тела, фикстуры, слои и маски SS14, события касаний, сон тел. Упрощено: без трения между телами, вращения от ударов и сочленений (3.8); столкновения только внутри одного грида и этажа (шаттлы — 7.8). |
 | `SharedMoverController` (ядро), ввод движения | `astrocore-movement` | частично | Скорость по `HandleMobMovement`, предсказание своего персонажа. В игре (фаза 3): невесомость, трение тайлов, шаги, передача управления. |
@@ -44,7 +44,7 @@
 | `SharedUserInterfaceSystem`, `BoundUserInterface` | `astrocore-ui` | готово | Открытие окна игроку, состояние, сообщения, закрытие по расстоянию. |
 | `Robust.Client/UserInterface` (окна, элементы) | `astrocore-client` (`windows`) на `bevy_ui` | частично | Рамка окна, перетаскивание, закрытие, кнопки и текст. Остальные элементы (списки, поля ввода, вкладки) добавляются с окнами игры. |
 | `MapLoaderSystem`, `EntityDeserializer` | `astrocore-map::MapLoadWorldExt` | частично | Карты SS14 форматов 6–7: тайлы, сущности, иерархия, переименования из `migration.yml`. Нет сохранения мира в файл. |
-| `Robust.Shared/Localization` | `astrocore-loc` | частично | Fluent, запасной язык, атрибуты `ent-ID`. Нет грамматических функций SS14 (`THE`, `GENDER`, …) — задача игры; 13 сообщений en-US с расширением синтаксиса Linguini не разбираются. |
+| `Robust.Shared/Localization` | `astrocore-loc` | частично | Fluent, запасной язык, названия и описания сущностей из `ent-ID` с наследованием от родителей. Нет грамматических функций SS14 (`THE`, `GENDER`, …) — задача игры; 13 сообщений en-US с расширением синтаксиса Linguini не разбираются. |
 | `Robust.Shared/ContentPack` (ресурсы), RSI | `astrocore-resources` | частично | Каталоги контента с приоритетом, описания RSI. Нет архивов и перезагрузки на лету. |
 
 ## Игра (Space Station 14 → Astrocore Build)
@@ -64,7 +64,7 @@
 | Перетаскивание | `2d/src/pulling.rs` | частично | Задача 3.8. |
 | `Content.Client/IconSmoothing` | `game/src/smooth.rs` | готово | Все правила SS14: `Corner`, `CardinalCorner`, `Diagonal`, `AltDiagonal`, `Direction`, `Edge`. Нет шейдера слоёв и `RandomIconSmooth`. |
 | `MarkerComponent`, `MarkerSystem` | `game/src/client.rs` | частично | Метки скрыты; показа для мапперов нет. |
-| `CollisionGroup`, `DrawDepth` | `game/src/content.rs` | готово | Таблицы имён SS14. |
+| `CollisionGroup`, `DrawDepth`, `VisibilityFlags` | `game/src/content.rs` | готово | Таблицы имён SS14. |
 | Вход игрока на карту | `game/src/server.rs` | частично | Тело из `game.player_prototype` у точки появления. Должности и лобби — задача 6.3. |
 | `ActivatableUISystem` | `game/src/interaction.rs` | частично | Клавиша E открывает и закрывает интерфейс устройства в пределах 1,5 тайла. Нет проверки преград, питания и рук. |
 | `ContentContexts` (контексты ввода) | `game/src/input_contexts.rs` | готово | Таблица получена из исходника SS14. |

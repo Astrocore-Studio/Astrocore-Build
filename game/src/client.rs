@@ -23,7 +23,7 @@ pub struct Marker {}
 
 /// Создаёт мир клиента и отправляет серверу приветствие с именем игрока.
 pub fn start(name: &str) -> Result<(World, Resources), String> {
-    content::register_collision_groups();
+    content::register_names();
     for (depth, value) in content::DRAW_DEPTHS {
         register_draw_depth(depth, value);
     }
