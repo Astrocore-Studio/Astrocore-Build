@@ -170,7 +170,8 @@ impl Document {
                             prototype: id.clone(),
                             starts_off: matches!(
                                 prototype.kind,
-                                Kind::Piping(crate::PipeShape::Valve)
+                                Kind::Piping(shape)
+                                    if shape == crate::PipeShape::Valve || shape.power_draw().is_some()
                             ),
                             facing: *facing,
                         });

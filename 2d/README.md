@@ -119,6 +119,17 @@ Store held item кладёт предмет из активной руки в с
 [NightCity GasValveSystem](https://github.com/NightCity2045/space-station-14/blob/366c3c13cab39c3ccf22fba75eb9a3af2a6e7cb7/Content.Server/Atmos/Piping/Binary/EntitySystems/GasValveSystem.cs)
 [NightCity GasPassiveVentSystem](https://github.com/NightCity2045/space-station-14/blob/366c3c13cab39c3ccf22fba75eb9a3af2a6e7cb7/Content.Server/Atmos/Piping/Unary/EntitySystems/GasPassiveVentSystem.cs)
 
+Рядом есть контур с насосом давления (8, 7) и нагнетателем (9, 7).
+Включите резервный генератор и переключите каждый прибор клавишей E.
+Насос поднимает давление на выходе, нагнетатель подаёт газ в помещение
+до заданного давления. Скруббер (9, 6) отводит примеси в отдельную трубу.
+Газоанализатор по P показывает давление и состояние питания. У насоса
+он выводит значения на выходе и входе. Обрыв кабеля останавливает
+перенос газа. После ремонта включённый прибор продолжает работу.
+[NightCity GasPressurePumpSystem](https://github.com/NightCity2045/space-station-14/blob/366c3c13cab39c3ccf22fba75eb9a3af2a6e7cb7/Content.Server/Atmos/Piping/Binary/EntitySystems/GasPressurePumpSystem.cs)
+[NightCity GasVentPumpSystem](https://github.com/NightCity2045/space-station-14/blob/366c3c13cab39c3ccf22fba75eb9a3af2a6e7cb7/Content.Server/Atmos/Piping/Unary/EntitySystems/GasVentPumpSystem.cs)
+[NightCity GasVentScrubberSystem](https://github.com/NightCity2045/space-station-14/blob/366c3c13cab39c3ccf22fba75eb9a3af2a6e7cb7/Content.Server/Atmos/Piping/Unary/EntitySystems/GasVentScrubberSystem.cs)
+
 ### Медицина
 
 Недостаток кислорода вызывает удушье. Давление до 20 кПа также вызывает
@@ -196,14 +207,18 @@ Page Up и Page Down переключают этаж. Вместе с Shift он
 клеткам пола на смежных этажах. Esc отменяет выбор первой клетки. Правая
 кнопка на отметке с кистью 7 удаляет переход.
 
-Кисть объекта размещает трубы, клапаны, баллоны и пассивную вентиляцию.
+Кисть объекта размещает трубы, клапаны, баллоны и атмосферные приборы.
 Клавиша R поворачивает выбранную деталь на 90° по часовой стрелке. Повторный
 щелчок той же деталью обновляет ориентацию установленной. Соседние детали
 соединяются встречными портами на одном этаже. В `station.ron` ориентация
 задаётся полем `facing`, по умолчанию `East`. У прямой трубы и клапана второй
 порт смотрит в противоположную сторону, у изгиба второй порт повёрнут на 90°
 по часовой стрелке. Порты тройника идут вдоль прямой и на 90° по часовой
-стрелке. Баллон и пассивная вентиляция имеют один порт.
+стрелке. У насоса сторона `facing` задаёт выход. Баллоны, нагнетатели,
+скрубберы и пассивная вентиляция имеют один порт. Для активного прибора
+проложите кабель на его клетке. Поле `starts_off` задаёт положение
+переключателя в начале раунда. Скруббер с `siphoning: true` откачивает всю
+смесь в трубу. Обычный режим отводит только примеси из списка фильтра.
 Прототипы берутся из `prototypes.ron`. Если каталогу ещё не задан
 `station.ron`, редактор открывает пустую сетку с точкой появления.
 

@@ -6,8 +6,8 @@ use astrocore_build_2d::inventory_view::{self, InventoryBackdrop, InventoryLine,
 use astrocore_build_2d::server::LocalServer;
 use astrocore_build_2d::view::MapView;
 use astrocore_build_2d::{
-    Action, Crew, Kind, Layout, MobState, Outcome, Participation, Phase, State, WIRE_VERSION,
-    bind_address, configured_key, endpoint,
+    Action, Crew, Kind, Layout, MobState, Outcome, Participation, Phase, PipeSample, PipeShape,
+    State, WIRE_VERSION, bind_address, configured_key, endpoint,
 };
 use astrocore_grid2d::session::{Client, PlayerId, TICK_HZ, TICK_PERIOD};
 use astrocore_grid2d::{Cell, Tile};
@@ -27,7 +27,7 @@ struct Visuals {
     terrain_revision: Option<u32>,
     terrain: BTreeMap<Cell, (Entity, Tile)>,
     cables: BTreeMap<Cell, Entity>,
-    pipe_valves: BTreeMap<Cell, (Entity, bool)>,
+    pipe_indicators: BTreeMap<Cell, (Entity, [u8; 3])>,
     doors: BTreeMap<Cell, (Entity, bool, bool)>,
     generators: BTreeMap<Cell, (Entity, bool)>,
     items: BTreeMap<u16, (Entity, Cell)>,
@@ -435,16 +435,24 @@ fn draw(
             });
         }
     }
-    for (&cell, &open) in state.pipe_valves.iter().filter(|(cell, _)| cell.z == level) {
-        let indicator = || {
-            let color = if open {
-                Color::srgb_u8(108, 209, 166)
-            } else {
-                Color::srgb_u8(219, 150, 97)
-            };
-            Sprite::from_color(color, Vec2::splat(scale * 0.20))
+    let active = [108, 209, 166];
+    let idle = [219, 150, 97];
+    let valves = state
+        .pipe_valves
+        .iter()
+        .map(|(&cell, &open)| (cell, if open { active } else { idle }));
+    let machines = state.pipe_machines.iter().map(|(&cell, machine)| {
+        let color = match (machine.enabled, machine.powered) {
+            (true, true) => active,
+            (true, false) => [219, 94, 94],
+            (false, _) => idle,
         };
-        let (entity, previous) = visuals.pipe_valves.entry(cell).or_insert_with(|| {
+        (cell, color)
+    });
+    for (cell, color) in valves.chain(machines).filter(|(cell, _)| cell.z == level) {
+        let [r, g, b] = color;
+        let indicator = || Sprite::from_color(Color::srgb_u8(r, g, b), Vec2::splat(scale * 0.20));
+        let (entity, previous) = visuals.pipe_indicators.entry(cell).or_insert_with(|| {
             (
                 commands
                     .spawn((
@@ -453,12 +461,12 @@ fn draw(
                         Transform::from_translation(view.world(cell.center()).extend(0.5)),
                     ))
                     .id(),
-                open,
+                color,
             )
         });
-        if *previous != open {
+        if *previous != color {
             commands.entity(*entity).insert(indicator());
-            *previous = open;
+            *previous = color;
         }
     }
     for (&cell, door) in &state.doors {
@@ -665,10 +673,7 @@ fn draw(
                     scan.pressure_kpa, scan.oxygen_percent, scan.temperature_k
                 )
             } else if let Some(scan) = crew.pipe_scan {
-                scan.opposite_kpa.map_or_else(
-                    || format!("Pipe   /   {} kPa", scan.pressure_kpa),
-                    |other| format!("Valve   /   {} kPa   |   {other} kPa", scan.pressure_kpa),
-                )
+                pipe_reading(layout, state, scan)
             } else if matches!(held, Some(Kind::Item { analyzer: true, .. })) {
                 "F Sample room   /   P Sample pipe   /   E Interact".into()
             } else if held == Some(Kind::HealthAnalyzer) {
@@ -780,6 +785,31 @@ fn draw(
             text.0.clone_from(next);
         }
     }
+}
+
+fn pipe_reading(layout: &Layout, state: &State, scan: PipeSample) -> String {
+    let pressure = scan.pressure_kpa;
+    let shape = layout.pipes.get(&scan.cell).map(|piece| piece.shape);
+    let reading = match (shape, scan.opposite_kpa) {
+        (Some(PipeShape::PressurePump { .. }), Some(inlet)) => {
+            format!("Pressure pump   /   Out {pressure} kPa   |   In {inlet} kPa")
+        }
+        (Some(PipeShape::Valve), Some(other)) => {
+            format!("Valve   /   {pressure} kPa   |   {other} kPa")
+        }
+        (Some(PipeShape::VentPump { .. }), _) => format!("Vent pump   /   {pressure} kPa"),
+        (Some(PipeShape::Scrubber { .. }), _) => format!("Scrubber   /   {pressure} kPa"),
+        _ => format!("Pipe   /   {pressure} kPa"),
+    };
+    let Some(machine) = state.pipe_machines.get(&scan.cell) else {
+        return reading;
+    };
+    let status = match (machine.enabled, machine.powered) {
+        (true, true) => "On",
+        (true, false) => "No power",
+        (false, _) => "Off",
+    };
+    format!("{reading}   /   {status}")
 }
 
 fn job_labels(layout: &Layout, state: &State, crew: &Crew) -> (String, String) {

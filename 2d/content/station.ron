@@ -30,6 +30,11 @@
         (prototype: "pipe_valve", cell: (x: 5, y: 8), starts_off: true),
         (prototype: "air_pipe", cell: (x: 6, y: 8)),
         (prototype: "passive_vent", cell: (x: 7, y: 8), facing: West),
+        (prototype: "air_canister", cell: (x: 7, y: 7)),
+        (prototype: "pressure_pump", cell: (x: 8, y: 7), starts_off: true),
+        (prototype: "vent_pump", cell: (x: 9, y: 7), facing: West, starts_off: true),
+        (prototype: "scrubber", cell: (x: 9, y: 6), starts_off: true),
+        (prototype: "air_pipe", cell: (x: 10, y: 6)),
         (prototype: "analyzer", cell: (x: 17, y: 6)),
     ],
     cables: [
@@ -48,6 +53,9 @@
         (x: 14, y: 5),
         (x: 15, y: 5),
         (x: 16, y: 5),
+        (x: 9, y: 6),
+        (x: 9, y: 7),
+        (x: 8, y: 7),
     ],
     roles: ["Operator", "Engineer", "Medic"],
     jobs: {

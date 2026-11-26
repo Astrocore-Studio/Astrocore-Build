@@ -4,7 +4,7 @@ use astrocore_grid2d::session::{PlayerId, ReplicatedState};
 use astrocore_grid2d::{Cell, Tile};
 use serde::{Deserialize, Serialize};
 
-use crate::{Crew, Door, Generator, Item, Outcome, Phase, Recovery, State, Vent};
+use crate::{Crew, Door, Generator, Item, Outcome, Phase, PipeMachine, Recovery, State, Vent};
 
 #[derive(Serialize, Deserialize)]
 pub struct StateDelta {
@@ -13,6 +13,7 @@ pub struct StateDelta {
     generators: MapDelta<Cell, Generator>,
     vents: MapDelta<Cell, Vent>,
     pipe_valves: MapDelta<Cell, bool>,
+    pipe_machines: MapDelta<Cell, PipeMachine>,
     items: MapDelta<u16, Item>,
     cables: MapDelta<Cell, u32>,
     terrain: MapDelta<Cell, Tile>,
@@ -63,6 +64,7 @@ impl ReplicatedState for State {
             generators: MapDelta::diff(&self.generators, &baseline.generators),
             vents: MapDelta::diff(&self.vents, &baseline.vents),
             pipe_valves: MapDelta::diff(&self.pipe_valves, &baseline.pipe_valves),
+            pipe_machines: MapDelta::diff(&self.pipe_machines, &baseline.pipe_machines),
             items: MapDelta::diff(&self.items, &baseline.items),
             cables: MapDelta::diff(&self.cables, &baseline.cables),
             terrain: MapDelta::diff(&self.terrain, &baseline.terrain),
@@ -81,6 +83,7 @@ impl ReplicatedState for State {
         delta.generators.apply(&mut self.generators);
         delta.vents.apply(&mut self.vents);
         delta.pipe_valves.apply(&mut self.pipe_valves);
+        delta.pipe_machines.apply(&mut self.pipe_machines);
         delta.items.apply(&mut self.items);
         delta.cables.apply(&mut self.cables);
         delta.terrain.apply(&mut self.terrain);

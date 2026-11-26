@@ -1,6 +1,6 @@
 use astrocore_grid2d::Cell;
 use atmos::pipes::{CANISTER_VOLUME, DEFAULT_PIPE_VOLUME, EAST, NORTH, SOUTH, WEST};
-use atmos::{Canister, Device, GasMixture, NodeSpec};
+use atmos::{Canister, Device, GasMixture, NodeSpec, Scrubber, VentPump};
 
 use super::{Environment, coordinates};
 use crate::{Layout, PipeDirection, PipeSample, PipeShape, State};
@@ -16,7 +16,11 @@ impl Environment {
         let mut specs = Vec::new();
         for (index, (&cell, piece)) in layout.pipes.iter().enumerate() {
             let first = index as u64 * 2;
-            let opposite = (piece.shape == PipeShape::Valve).then_some(first + 1);
+            let opposite = matches!(
+                piece.shape,
+                PipeShape::Valve | PipeShape::PressurePump { .. }
+            )
+            .then_some(first + 1);
             let coordinates = coordinates(cell);
             let device = if let Some(second) = opposite {
                 for (key, facing) in [(first, piece.facing), (second, piece.facing.opposite())] {
@@ -28,11 +32,20 @@ impl Environment {
                         volume: DEFAULT_PIPE_VOLUME / 2.0,
                     });
                 }
-                Some(Device::Valve {
-                    a: first,
-                    b: second,
-                    open: state.pipe_valves[&cell],
-                })
+                match piece.shape {
+                    PipeShape::Valve => Some(Device::Valve {
+                        a: first,
+                        b: second,
+                        open: state.pipe_valves[&cell],
+                    }),
+                    PipeShape::PressurePump { target_kpa, .. } => Some(Device::PressurePump {
+                        inlet: second,
+                        outlet: first,
+                        target: f32::from(target_kpa),
+                        enabled: state.pipe_machines[&cell].enabled,
+                    }),
+                    _ => unreachable!("у детали один порт"),
+                }
             } else {
                 let dirs = piece
                     .shape
@@ -49,6 +62,23 @@ impl Environment {
                     PipeShape::PassiveVent => Some(Device::PassiveVent { node: first }),
                     PipeShape::Canister { pressure_kpa } => {
                         Some(connected_canister(first, pressure_kpa))
+                    }
+                    PipeShape::VentPump { target_kpa, .. } => {
+                        let mut vent = VentPump::new(first);
+                        vent.external_bound = f32::from(target_kpa);
+                        vent.enabled = state.pipe_machines[&cell].enabled;
+                        Some(Device::VentPump(vent))
+                    }
+                    PipeShape::Scrubber {
+                        rate_lps,
+                        siphoning,
+                        ..
+                    } => {
+                        let mut scrubber = Scrubber::new(first);
+                        scrubber.transfer_rate = f32::from(rate_lps);
+                        scrubber.siphoning = siphoning;
+                        scrubber.enabled = state.pipe_machines[&cell].enabled;
+                        Some(Device::Scrubber(scrubber))
                     }
                     _ => None,
                 }
@@ -67,6 +97,28 @@ impl Environment {
         };
         if let Some(Device::Valve { open, .. }) = self.air.pipes_mut().device_mut(nodes.first) {
             *open = enabled;
+        }
+    }
+
+    pub(crate) fn set_pipe_machine(&mut self, cell: Cell, enabled: bool) {
+        let Some(nodes) = self.pipe_nodes.get(&cell) else {
+            return;
+        };
+        match self.air.pipes_mut().device_mut(nodes.first) {
+            Some(Device::PressurePump {
+                enabled: current, ..
+            }) => *current = enabled,
+            Some(Device::VentPump(vent)) => vent.enabled = enabled,
+            Some(Device::Scrubber(scrubber)) => scrubber.enabled = enabled,
+            _ => {}
+        }
+    }
+
+    pub(super) fn sync_pipe_power(&mut self, state: &State) {
+        for (&cell, machine) in &state.pipe_machines {
+            self.air
+                .pipes_mut()
+                .set_powered(self.pipe_nodes[&cell].first, machine.powered);
         }
     }
 

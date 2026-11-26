@@ -45,14 +45,30 @@ pub enum PipeShape {
     Cross,
     Valve,
     PassiveVent,
-    Canister { pressure_kpa: u16 },
+    Canister {
+        pressure_kpa: u16,
+    },
+    PressurePump {
+        watts: u16,
+        target_kpa: u16,
+    },
+    VentPump {
+        watts: u16,
+        target_kpa: u16,
+    },
+    Scrubber {
+        watts: u16,
+        rate_lps: u16,
+        #[serde(default)]
+        siphoning: bool,
+    },
 }
 
 impl PipeShape {
     pub fn ports(self, facing: PipeDirection) -> impl Iterator<Item = PipeDirection> {
         let straight = [Some(facing), Some(facing.opposite()), None, None];
         match self {
-            Self::Straight | Self::Valve => straight,
+            Self::Straight | Self::Valve | Self::PressurePump { .. } => straight,
             Self::Bend => [Some(facing), Some(facing.clockwise()), None, None],
             Self::Tee => [straight[0], straight[1], Some(facing.clockwise()), None],
             Self::Cross => [
@@ -61,10 +77,35 @@ impl PipeShape {
                 Some(facing.clockwise()),
                 Some(facing.opposite().clockwise()),
             ],
-            Self::PassiveVent | Self::Canister { .. } => [Some(facing), None, None, None],
+            Self::PassiveVent
+            | Self::Canister { .. }
+            | Self::VentPump { .. }
+            | Self::Scrubber { .. } => [Some(facing), None, None, None],
         }
         .into_iter()
         .flatten()
+    }
+
+    pub(crate) fn power_draw(self) -> Option<u16> {
+        match self {
+            Self::PressurePump { watts, .. }
+            | Self::VentPump { watts, .. }
+            | Self::Scrubber { watts, .. } => Some(watts),
+            _ => None,
+        }
+    }
+
+    pub(crate) fn valid(self) -> bool {
+        match self {
+            Self::Canister { pressure_kpa } => (1..=10_132).contains(&pressure_kpa),
+            Self::PressurePump { watts, target_kpa } | Self::VentPump { watts, target_kpa } => {
+                watts > 0 && (1..=atmos::pipes::MAX_OUTPUT_PRESSURE as u16).contains(&target_kpa)
+            }
+            Self::Scrubber {
+                watts, rate_lps, ..
+            } => watts > 0 && (1..=atmos::pipes::MAX_TRANSFER_RATE as u16).contains(&rate_lps),
+            _ => true,
+        }
     }
 }
 
@@ -80,6 +121,12 @@ pub struct PipeSample {
     pub cell: Cell,
     pub pressure_kpa: u16,
     pub opposite_kpa: Option<u16>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PipeMachine {
+    pub enabled: bool,
+    pub powered: bool,
 }
 
 impl Station {

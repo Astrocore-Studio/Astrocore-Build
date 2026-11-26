@@ -12,6 +12,7 @@ pub(super) struct PowerGrid {
     generators: BTreeMap<Cell, usize>,
     doors: BTreeMap<Cell, usize>,
     vents: BTreeMap<Cell, (usize, u16)>,
+    pipe_machines: BTreeMap<Cell, usize>,
 }
 
 impl PowerGrid {
@@ -26,6 +27,7 @@ impl PowerGrid {
         let previous_generators = std::mem::take(&mut self.generators);
         self.doors.clear();
         self.vents.clear();
+        self.pipe_machines.clear();
         for _ in 0..cables.net_count() {
             solver.add_network();
         }
@@ -58,6 +60,14 @@ impl PowerGrid {
                 self.vents.insert(cell, (load, flow_moles));
             }
         }
+        for &cell in state.pipe_machines.keys() {
+            if let Some(net) = cables.net_at(CableGroup::Apc, coordinates(cell))
+                && let Some(watts) = layout.pipes[&cell].shape.power_draw()
+            {
+                self.pipe_machines
+                    .insert(cell, solver.add_load(net, Load::new(f32::from(watts))));
+            }
+        }
         self.solver = solver;
     }
 
@@ -77,6 +87,12 @@ impl PowerGrid {
                 .vents
                 .get(&cell)
                 .is_some_and(|&(id, _)| self.load_powered(id));
+        }
+        for (&cell, machine) in &mut state.pipe_machines {
+            machine.powered = self
+                .pipe_machines
+                .get(&cell)
+                .is_some_and(|&id| self.load_powered(id));
         }
     }
 

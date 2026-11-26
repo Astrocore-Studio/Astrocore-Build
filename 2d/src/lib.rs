@@ -13,7 +13,7 @@ mod wiring;
 pub use content::{Job, Kind, Layout, LevelLink, MAX_BACKPACK_SLOTS};
 pub use jobs::Participation;
 pub use medical::{Damage, MedicalProgress, MobState};
-pub use piping::{PipeDirection, PipePiece, PipeSample, PipeShape};
+pub use piping::{PipeDirection, PipeMachine, PipePiece, PipeSample, PipeShape};
 
 #[cfg(feature = "client")]
 pub mod editor;
@@ -36,7 +36,7 @@ use wiring::PendingCut;
 
 const DEBRIEF_TICKS: u32 = 10 * TICK_HZ;
 const MAX_ROUND_ITEMS: usize = 512;
-pub const WIRE_VERSION: u16 = 12;
+pub const WIRE_VERSION: u16 = 13;
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub enum Action {
@@ -186,6 +186,7 @@ pub struct State {
     pub generators: BTreeMap<Cell, Generator>,
     pub vents: BTreeMap<Cell, Vent>,
     pub pipe_valves: BTreeMap<Cell, bool>,
+    pub pipe_machines: BTreeMap<Cell, PipeMachine>,
     pub items: BTreeMap<u16, Item>,
     pub cables: BTreeMap<Cell, u32>,
     pub terrain: BTreeMap<Cell, Tile>,
@@ -296,6 +297,21 @@ impl Station {
                     (pipe.shape == PipeShape::Valve).then_some((cell, !pipe.starts_off))
                 })
                 .collect(),
+            pipe_machines: layout
+                .pipes
+                .iter()
+                .filter_map(|(&cell, piece)| {
+                    piece.shape.power_draw().map(|_| {
+                        (
+                            cell,
+                            PipeMachine {
+                                enabled: !piece.starts_off,
+                                powered: false,
+                            },
+                        )
+                    })
+                })
+                .collect(),
             items: items.clone(),
             cables: cables.into_iter().map(|cell| (cell, 0)).collect(),
             terrain: BTreeMap::new(),
@@ -354,6 +370,7 @@ impl Station {
             .chain(self.state.generators.keys())
             .chain(self.state.vents.keys())
             .chain(self.state.pipe_valves.keys())
+            .chain(self.state.pipe_machines.keys())
             .copied()
             .filter_map(|target| {
                 cell.distance_on_level(target)
@@ -383,6 +400,9 @@ impl Station {
             } else if let Some(open) = self.state.pipe_valves.get_mut(&target) {
                 *open = !*open;
                 self.environment.set_pipe_valve(target, *open);
+            } else if let Some(machine) = self.state.pipe_machines.get_mut(&target) {
+                machine.enabled = !machine.enabled;
+                self.environment.set_pipe_machine(target, machine.enabled);
             } else if let Some(door) = self.state.doors.get_mut(&target)
                 && door.powered
                 && (!door.open
@@ -609,6 +629,10 @@ impl Station {
                     self.state.vents.clone_from(&self.initial_vents);
                     for (cell, open) in &mut self.state.pipe_valves {
                         *open = !self.layout.pipes[cell].starts_off;
+                    }
+                    for (cell, machine) in &mut self.state.pipe_machines {
+                        machine.enabled = !self.layout.pipes[cell].starts_off;
+                        machine.powered = false;
                     }
                     self.state.items.clone_from(&self.initial_items);
                     self.state.cables.clone_from(&self.initial_cables);

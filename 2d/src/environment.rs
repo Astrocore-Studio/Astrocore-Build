@@ -55,6 +55,7 @@ impl Environment {
         self.power = PowerGrid::default();
         self.rewire(layout, state);
         self.power.step(state);
+        self.sync_pipe_power(state);
     }
 
     pub fn rewire(&mut self, layout: &Layout, state: &State) {
@@ -66,11 +67,17 @@ impl Environment {
         if self.closed != closed {
             self.apply_seals(closed);
         }
-        self.workers.in_place_scope(|scope| {
-            let air = &mut self.air;
-            scope.spawn(move |_| air.advance(DT));
+        if !state.pipe_machines.is_empty() && self.air.will_update_devices(DT) {
             self.power.step(state);
-        });
+            self.sync_pipe_power(state);
+            self.air.advance(DT);
+        } else {
+            self.workers.in_place_scope(|scope| {
+                let air = &mut self.air;
+                scope.spawn(move |_| air.advance(DT));
+                self.power.step(state);
+            });
+        }
         self.feed_vents(state);
         self.breathing_ticks += 1;
         if self.breathing_ticks == TICK_HZ {

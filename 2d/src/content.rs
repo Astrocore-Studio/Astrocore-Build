@@ -204,8 +204,7 @@ impl Content {
                 || matches!(prototype.kind, Kind::Medicine { restores, delay_seconds }
                     if restores.total() == 0 || !(1..=15).contains(&delay_seconds))
                 || matches!(prototype.kind, Kind::CableCoil { segments: 0 })
-                || matches!(prototype.kind, Kind::Piping(PipeShape::Canister { pressure_kpa })
-                    if !(1..=10_132).contains(&pressure_kpa))
+                || matches!(prototype.kind, Kind::Piping(shape) if !shape.valid())
             {
                 return Err(format!("неверные параметры прототипа {id:?}"));
             }
