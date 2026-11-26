@@ -15,6 +15,8 @@ Astrocore Build — Space Station 14 на Rust: многопользовател
 
 - [docs/ROADMAP.md](docs/ROADMAP.md) — план работ от текущего состояния до финала.
 - [docs/REFERENCE.md](docs/REFERENCE.md) — ревизии SS14 и RobustToolbox, с которых идёт перенос.
+- [docs/PORT_STATUS.md](docs/PORT_STATUS.md) — что из Robust Toolbox и SS14 уже перенесено.
+- [docs/PERF.md](docs/PERF.md) — замеры производительности.
 - [2d/README.md](2d/README.md) — запуск, управление и редактор карт Relay Two.
 - [docs/ADR](docs/ADR) — решения Build; решения движка — в
   [Astrocore Engine](https://github.com/Astrocore-Studio/Astrocore-Engine/tree/main/docs/ADR).
