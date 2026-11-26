@@ -1,8 +1,8 @@
 use astrocore_grid2d::session::PlayerId;
 use astrocore_grid2d::{Cell, Tile};
 
-use crate::Station;
 use crate::content::Kind;
+use crate::{CableGroup, CableSegment, Station};
 
 impl Station {
     pub(crate) fn construct(&mut self, player: PlayerId, cell: Cell, tile: Tile) {
@@ -27,7 +27,11 @@ impl Station {
             return;
         };
         if capacity == 0
-            || self.state.cables.contains_key(&cell)
+            || CableGroup::ALL.into_iter().any(|voltage| {
+                self.state
+                    .cables
+                    .contains_key(&CableSegment { cell, voltage })
+            })
             || self.layout.spawns.contains(&cell)
             || self
                 .layout

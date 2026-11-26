@@ -1,7 +1,7 @@
 use astrocore_grid2d::{Cell, Grid, Position, Tile};
 use bevy::prelude::*;
 
-use crate::{PipeDirection, PipeShape};
+use crate::{CableGroup, CableSegment, PipeDirection, PipeShape};
 
 pub struct MapView {
     offset: Vec2,
@@ -44,11 +44,15 @@ impl MapView {
         )
     }
 
-    pub fn cable_sprite(&self) -> Sprite {
-        Sprite::from_color(
-            Color::srgb_u8(114, 189, 208),
-            Vec2::new(0.75, 0.09) * self.scale,
-        )
+    pub fn cable(&self, segment: CableSegment) -> (Vec2, Sprite) {
+        let (offset, color) = match segment.voltage {
+            CableGroup::Apc => (-0.15, Color::srgb_u8(110, 207, 146)),
+            CableGroup::Medium => (0.0, Color::srgb_u8(234, 216, 101)),
+            CableGroup::High => (0.15, Color::srgb_u8(240, 153, 88)),
+        };
+        let point = self.world(segment.cell.center()) + Vec2::Y * self.scale * offset;
+        let sprite = Sprite::from_color(color, Vec2::new(0.75, 0.09) * self.scale);
+        (point, sprite)
     }
 
     pub fn pipe_segments(

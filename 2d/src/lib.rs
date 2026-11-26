@@ -13,13 +13,14 @@ pub mod server;
 mod wiring;
 
 pub use content::{Job, Kind, Layout, LevelLink, MAX_BACKPACK_SLOTS};
-pub use electricity::{Storage, StorageSample};
+pub use electricity::{CableSegment, Storage, StoragePorts, StorageSample};
 pub use jobs::Participation;
 pub use medical::{Damage, MedicalProgress, MobState};
 pub use piping::{
     FilterControl, FilterSample, FilterSettings, MAX_FILTER_RATE_LPS, PipeDirection, PipeMachine,
     PipePiece, PipeSample, PipeShape,
 };
+pub use power::CableGroup;
 #[cfg(feature = "prototype-import")]
 pub use prototypes::convert_ss14_catalog;
 
@@ -46,7 +47,7 @@ use wiring::PendingCut;
 
 const DEBRIEF_TICKS: u32 = 10 * TICK_HZ;
 const MAX_ROUND_ITEMS: usize = 512;
-pub const WIRE_VERSION: u16 = 16;
+pub const WIRE_VERSION: u16 = 17;
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub enum Action {
@@ -67,7 +68,7 @@ pub enum Action {
     Pull { cell: Cell },
     ReleasePull,
     LayCable { cell: Cell },
-    CutCable { cell: Cell },
+    CutCable { cable: CableSegment },
     Observe,
     ScanPipe { cell: Cell },
     ControlFilter { cell: Cell, control: FilterControl },
@@ -203,7 +204,7 @@ pub struct State {
     pub pipe_valves: BTreeMap<Cell, bool>,
     pub pipe_machines: BTreeMap<Cell, PipeMachine>,
     pub items: BTreeMap<u16, Item>,
-    pub cables: BTreeMap<Cell, u32>,
+    pub cables: BTreeMap<CableSegment, u32>,
     pub terrain: BTreeMap<Cell, Tile>,
     pub terrain_revision: u32,
     pub phase: Phase,
@@ -216,7 +217,7 @@ pub struct State {
 pub struct Station {
     layout: Layout,
     terrain: Grid,
-    initial_cables: BTreeMap<Cell, u32>,
+    initial_cables: BTreeMap<CableSegment, u32>,
     cable_revision: u32,
     state: State,
     initial_doors: BTreeMap<Cell, Door>,
@@ -334,7 +335,7 @@ impl Station {
                 })
                 .collect(),
             items: items.clone(),
-            cables: cables.into_iter().map(|cell| (cell, 0)).collect(),
+            cables: cables.into_iter().map(|segment| (segment, 0)).collect(),
             terrain: BTreeMap::new(),
             terrain_revision: 0,
             phase: Phase::Lobby,
@@ -488,7 +489,7 @@ impl Station {
             (Phase::Active, Action::Pull { cell }) => self.start_pull(player, cell),
             (Phase::Active, Action::ReleasePull) => crew.pulling = None,
             (Phase::Active, Action::LayCable { cell }) => self.lay_cable(player, cell),
-            (Phase::Active, Action::CutCable { cell }) => self.start_cut(player, cell),
+            (Phase::Active, Action::CutCable { cable }) => self.start_cut(player, cable),
             (Phase::Active, Action::ScanPipe { cell }) => self.scan_pipe(player, cell),
             (Phase::Active, Action::InspectStorage { cell }) => self.inspect_storage(player, cell),
             (Phase::Active, Action::ControlFilter { cell, control }) => {

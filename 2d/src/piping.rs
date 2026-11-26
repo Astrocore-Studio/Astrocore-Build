@@ -116,6 +116,7 @@ impl PipeShape {
         }
     }
 
+    #[cfg(feature = "client")]
     pub(crate) fn has_switch(self) -> bool {
         matches!(self, Self::Valve | Self::Filter { .. }) || self.power_draw().is_some()
     }

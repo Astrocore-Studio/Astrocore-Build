@@ -3,18 +3,41 @@
 
 use std::collections::BTreeMap;
 
+use serde::{Deserialize, Serialize};
+
 /// Клетка карты: x и z (этажи разнесены по z, как в атмосфере).
 pub type Cell = (i32, i32);
 
 /// Группа узлов (`nodeGroupID`): высокое, среднее напряжение и сеть АПЦ.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize,
+)]
 pub enum CableGroup {
     High,
     Medium,
+    #[default]
     Apc,
 }
 
 impl CableGroup {
+    pub const ALL: [Self; 3] = [Self::Apc, Self::Medium, Self::High];
+
+    pub const fn label(self) -> &'static str {
+        match self {
+            Self::High => "HV",
+            Self::Medium => "MV",
+            Self::Apc => "LV",
+        }
+    }
+
+    pub const fn next(self) -> Self {
+        match self {
+            Self::Apc => Self::Medium,
+            Self::Medium => Self::High,
+            Self::High => Self::Apc,
+        }
+    }
+
     pub fn parse(s: &str) -> Option<Self> {
         Some(match s.to_ascii_lowercase().as_str() {
             "hv" | "high" | "hvpower" => Self::High,

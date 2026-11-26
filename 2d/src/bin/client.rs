@@ -7,8 +7,9 @@ use astrocore_build_2d::inventory_view::{self, InventoryBackdrop, InventoryLine,
 use astrocore_build_2d::server::LocalServer;
 use astrocore_build_2d::view::MapView;
 use astrocore_build_2d::{
-    Action, Crew, Kind, Layout, MobState, Outcome, Participation, Phase, PipeSample, PipeShape,
-    State, StorageSample, WIRE_VERSION, bind_address, configured_key, endpoint,
+    Action, CableGroup, CableSegment, Crew, Kind, Layout, MobState, Outcome, Participation, Phase,
+    PipeSample, PipeShape, State, StorageSample, WIRE_VERSION, bind_address, configured_key,
+    endpoint,
 };
 use astrocore_grid2d::session::{Client, PlayerId, TICK_HZ, TICK_PERIOD};
 use astrocore_grid2d::{Cell, Tile};
@@ -27,7 +28,7 @@ struct Visuals {
     level: Option<i16>,
     terrain_revision: Option<u32>,
     terrain: BTreeMap<Cell, (Entity, Tile)>,
-    cables: BTreeMap<Cell, Entity>,
+    cables: BTreeMap<CableSegment, Entity>,
     pipe_indicators: BTreeMap<Cell, (Entity, [u8; 3])>,
     doors: BTreeMap<Cell, (Entity, bool, bool)>,
     generators: BTreeMap<Cell, (Entity, bool)>,
@@ -332,7 +333,16 @@ fn receive(
         } else if keys.just_pressed(KeyCode::KeyC) {
             network.act(Action::LayCable { cell });
         } else if keys.just_pressed(KeyCode::KeyR) {
-            network.act(Action::CutCable { cell });
+            let voltage = if keys.any_pressed([KeyCode::ControlLeft, KeyCode::ControlRight]) {
+                CableGroup::High
+            } else if keys.any_pressed([KeyCode::ShiftLeft, KeyCode::ShiftRight]) {
+                CableGroup::Medium
+            } else {
+                CableGroup::Apc
+            };
+            network.act(Action::CutCable {
+                cable: CableSegment { cell, voltage },
+            });
         } else if keys.just_pressed(KeyCode::KeyP) {
             network.act(Action::ScanPipe { cell });
         } else if keys.just_pressed(KeyCode::KeyJ) {
@@ -451,23 +461,32 @@ fn draw(
         }
         visuals.terrain_revision = Some(state.terrain_revision);
     }
-    let show_cables = matches!(held, Some(Kind::CableCoil { .. } | Kind::Wirecutters));
-    visuals.cables.retain(|cell, entity| {
-        if show_cables && state.cables.contains_key(cell) {
+    let show_cable = |cable: CableSegment| match held {
+        Some(Kind::CableCoil { voltage, .. }) => cable.voltage == voltage,
+        Some(Kind::Wirecutters) => true,
+        _ => false,
+    };
+    visuals.cables.retain(|&cable, entity| {
+        if show_cable(cable) && state.cables.contains_key(&cable) {
             true
         } else {
             commands.entity(*entity).despawn();
             false
         }
     });
-    if show_cables {
-        for &cell in state.cables.keys().filter(|cell| cell.z == level) {
-            visuals.cables.entry(cell).or_insert_with(|| {
+    if matches!(held, Some(Kind::CableCoil { .. } | Kind::Wirecutters)) {
+        for &cable in state
+            .cables
+            .keys()
+            .filter(|cable| cable.cell.z == level && show_cable(**cable))
+        {
+            visuals.cables.entry(cable).or_insert_with(|| {
+                let (point, sprite) = view.cable(cable);
                 commands
                     .spawn((
                         MapVisual,
-                        view.cable_sprite(),
-                        Transform::from_translation(view.world(cell.center()).extend(0.2)),
+                        sprite,
+                        Transform::from_translation(point.extend(0.2)),
                     ))
                     .id()
             });
@@ -700,17 +719,17 @@ fn draw(
                     reading.blunt, reading.asphyxiation
                 )
             } else if let Some(scan) = crew.storage_scan {
-                storage_reading(state, scan)
+                storage_reading(layout, state, scan)
             } else if up && down {
                 "PgUp Upper deck   /   PgDn Lower deck".into()
             } else if up {
                 "PgUp Upper deck".into()
             } else if down {
                 "PgDn Lower deck".into()
-            } else if matches!(held, Some(Kind::CableCoil { .. })) {
-                "C Lay cable   /   X Swap   Q Drop".into()
+            } else if let Some(Kind::CableCoil { voltage, .. }) = held {
+                format!("C Lay {} cable   /   X Swap   Q Drop", voltage.label())
             } else if held == Some(Kind::Wirecutters) {
-                "R Cut cable   /   X Swap   Q Drop".into()
+                "R Cut LV   /   Shift+R Cut MV   /   Ctrl+R Cut HV   /   X Swap   Q Drop".into()
             } else if construction {
                 "B Wall   N Floor   V Dismantle   X Swap   Q Drop   I Inventory".into()
             } else if let Some(scan) = crew.scan {
@@ -840,22 +859,24 @@ fn draw(
     }
 }
 
-fn storage_reading(state: &State, scan: StorageSample) -> String {
+fn storage_reading(layout: &Layout, state: &State, scan: StorageSample) -> String {
     let charge = format!("Storage {} / {} J", scan.joules, scan.capacity);
     if scan.bypassed {
         return format!("{charge}   /   Ports on the same network");
     }
-    let status = if state.storages[&scan.cell].enabled {
-        "On"
-    } else {
-        "Off"
+    let storage = &state.storages[&scan.cell];
+    let Kind::EnergyStorage { ports, .. } = layout.prototypes[&storage.prototype].kind else {
+        return charge;
     };
+    let status = if storage.enabled { "On" } else { "Off" };
     let port = |watts: Option<u32>| {
         watts.map_or_else(|| "Disconnected".to_owned(), |watts| format!("{watts} W"))
     };
     format!(
-        "{charge}   /   In {}   /   Out {}   /   {status}",
+        "{charge}   /   {} In {}   /   {} Out {}   /   {status}",
+        ports.input.label(),
         port(scan.input_watts),
+        ports.output.label(),
         port(scan.output_watts)
     )
 }

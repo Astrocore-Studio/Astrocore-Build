@@ -4,7 +4,7 @@ use std::process::ExitCode;
 
 use astrocore_build_2d::editor::{Brush, Document};
 use astrocore_build_2d::view::MapView;
-use astrocore_build_2d::{Kind, PipeDirection};
+use astrocore_build_2d::{CableGroup, Kind, PipeDirection};
 use astrocore_grid2d::{Cell, Tile};
 use bevy::prelude::*;
 use bevy::window::{PrimaryWindow, WindowResolution};
@@ -133,7 +133,7 @@ fn input(
         (KeyCode::Digit2, Brush::Tile(Tile::Wall)),
         (KeyCode::Digit3, Brush::Tile(Tile::Void)),
         (KeyCode::Digit4, Brush::Spawn),
-        (KeyCode::Digit5, Brush::Cable),
+        (KeyCode::Digit5, Brush::Cable(CableGroup::Apc)),
         (KeyCode::Digit7, Brush::Link),
     ] {
         if keys.just_pressed(key) {
@@ -144,7 +144,10 @@ fn input(
     }
     let next = keys.just_pressed(KeyCode::Tab);
     let job_brush = matches!(editor.brush, Brush::JobSpawn(_));
-    if keys.just_pressed(KeyCode::Digit8) || next && job_brush {
+    if next && let Brush::Cable(voltage) = editor.brush {
+        editor.brush = Brush::Cable(voltage.next());
+        editor.feedback.clear();
+    } else if keys.just_pressed(KeyCode::Digit8) || next && job_brush {
         if next {
             editor.selected_job = (editor.selected_job + 1) % editor.document.roles().len();
         }
@@ -281,7 +284,7 @@ fn draw(
         Brush::Tile(Tile::Void) => "Space",
         Brush::Spawn => "Spawn point",
         Brush::JobSpawn(role) => role.as_str(),
-        Brush::Cable => "Power cable",
+        Brush::Cable(voltage) => voltage.label(),
         Brush::Link => "Deck link",
         Brush::Object(id, _) => editor.document.prototypes()[id].name.as_str(),
     };
@@ -330,8 +333,9 @@ fn draw(
         });
         shape(view.world(cell.center()), sprite, 0.0);
     }
-    for &cell in document.cables().iter().filter(|cell| cell.z == level) {
-        shape(view.world(cell.center()), view.cable_sprite(), 0.2);
+    for cable in document.cables().filter(|cable| cable.cell.z == level) {
+        let (point, sprite) = view.cable(cable);
+        shape(point, sprite, 0.2);
     }
     for &cell in document.spawns().iter().filter(|cell| cell.z == level) {
         shape(

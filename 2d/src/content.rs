@@ -4,11 +4,12 @@ use std::path::Path;
 use astrocore_grid2d::{Cell, Grid, GridLevel, Tile};
 use serde::{Deserialize, Serialize};
 
-use crate::electricity::storage_ports;
+use crate::electricity::{CableSegment, StoragePorts};
 use crate::environment::coordinates;
 use crate::medical::Damage;
 use crate::piping::{PipeDirection, PipePiece, PipeShape};
 use crate::prototypes::load_catalog;
+use power::CableGroup;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Layout {
@@ -50,6 +51,8 @@ pub enum Kind {
     },
     Generator {
         watts: u16,
+        #[serde(default)]
+        voltage: CableGroup,
     },
     Vent {
         watts: u16,
@@ -78,6 +81,8 @@ pub enum Kind {
     HealthAnalyzer,
     CableCoil {
         segments: u8,
+        #[serde(default)]
+        voltage: CableGroup,
     },
     Wirecutters,
     Piping(PipeShape),
@@ -86,18 +91,24 @@ pub enum Kind {
         initial_joules: u32,
         charge_watts: u32,
         supply_watts: u32,
+        #[serde(default)]
+        ports: StoragePorts,
     },
 }
 
 impl Kind {
     pub fn rotatable(self) -> bool {
-        matches!(self, Self::Piping(_) | Self::EnergyStorage { .. })
+        match self {
+            Self::Piping(_) => true,
+            Self::EnergyStorage { ports, .. } => ports.opposite_sides(),
+            _ => false,
+        }
     }
 
     pub(crate) fn item_materials(self) -> Option<u8> {
         match self {
             Self::Item { materials, .. } => Some(materials),
-            Self::CableCoil { segments } => Some(segments),
+            Self::CableCoil { segments, .. } => Some(segments),
             Self::MedicalStack { uses, .. } => Some(uses),
             Self::Backpack { .. }
             | Self::Medicine { .. }
@@ -142,7 +153,36 @@ pub(crate) struct MapData {
     pub recovery: Option<RecoverySpec>,
     #[serde(default)]
     pub cables: Vec<Cell>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub medium_cables: Vec<Cell>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub high_cables: Vec<Cell>,
     pub round_seconds: u32,
+}
+
+impl MapData {
+    pub(crate) fn cable_cells(&self) -> impl Iterator<Item = CableSegment> + '_ {
+        [
+            (CableGroup::Apc, &self.cables),
+            (CableGroup::Medium, &self.medium_cables),
+            (CableGroup::High, &self.high_cables),
+        ]
+        .into_iter()
+        .flat_map(|(voltage, cells)| {
+            cells
+                .iter()
+                .map(move |&cell| CableSegment { cell, voltage })
+        })
+    }
+
+    #[cfg(feature = "client")]
+    pub(crate) fn cables_mut(&mut self, voltage: CableGroup) -> &mut Vec<Cell> {
+        match voltage {
+            CableGroup::Apc => &mut self.cables,
+            CableGroup::Medium => &mut self.medium_cables,
+            CableGroup::High => &mut self.high_cables,
+        }
+    }
 }
 
 #[derive(Clone, PartialEq, Eq, Deserialize, Serialize)]
@@ -167,7 +207,7 @@ pub(crate) struct RecoverySpec {
 pub(crate) struct Content {
     pub layout: Layout,
     pub placements: Vec<Placement>,
-    pub cables: Vec<Cell>,
+    pub cables: Vec<CableSegment>,
     pub round_seconds: u32,
     pub loadouts: BTreeMap<String, Vec<String>>,
     pub recovery: Option<RecoverySpec>,
@@ -213,10 +253,10 @@ impl Content {
                     if restores.total() == 0 || !(1..=15).contains(&delay_seconds))
                 || matches!(prototype.kind, Kind::MedicalStack { restores, use_ticks, uses }
                     if restores.total() == 0 || use_ticks == 0 || use_ticks > 15 * astrocore_grid2d::session::TICK_HZ as u16 || uses == 0)
-                || matches!(prototype.kind, Kind::CableCoil { segments: 0 })
+                || matches!(prototype.kind, Kind::CableCoil { segments: 0, .. })
                 || matches!(prototype.kind, Kind::Piping(shape) if !shape.valid())
                 || matches!(prototype.kind, Kind::EnergyStorage {
-                    capacity_joules, initial_joules, charge_watts, supply_watts,
+                    capacity_joules, initial_joules, charge_watts, supply_watts, ..
                 } if capacity_joules == 0 || initial_joules > capacity_joules
                     || charge_watts == 0 || supply_watts == 0)
             {
@@ -297,16 +337,16 @@ impl Content {
                 "цель восстановления требует пробоины, точки измерения и вентиляции".into(),
             );
         }
-        if data.cables.len() > MAX_CABLES
-            || data
-                .cables
+        let cables: Vec<_> = data.cable_cells().collect();
+        if cables.len() > MAX_CABLES
+            || cables
                 .iter()
-                .any(|cell| grid.tile(*cell) != Tile::Floor)
+                .any(|cable| grid.tile(cable.cell) != Tile::Floor)
         {
             return Err("кабели должны находиться на полу карты".into());
         }
         if let Some(recovery) = &data.recovery
-            && !has_recovery_supply(recovery.vent, &data, &prototypes)
+            && !has_recovery_supply(recovery.vent, &data, &prototypes, &cables)
         {
             return Err("вентиляции цели нужен кабельный путь от генератора".into());
         }
@@ -352,7 +392,7 @@ impl Content {
                 spawns: data.spawns,
             },
             placements: data.placements,
-            cables: data.cables,
+            cables,
             round_seconds: data.round_seconds,
             loadouts: data.loadouts,
             recovery: data.recovery,
@@ -364,21 +404,25 @@ fn has_recovery_supply(
     vent: Cell,
     data: &MapData,
     prototypes: &BTreeMap<String, Prototype>,
+    segments: &[CableSegment],
 ) -> bool {
-    let group = power::CableGroup::Apc;
-    let cables = power::Cables::build(data.cables.iter().map(|&cell| (group, coordinates(cell))));
-    let net_at = |cell| cables.net_at(group, coordinates(cell));
-    let Some(target) = net_at(vent) else {
+    let cables = power::Cables::build(segments.iter().map(|segment| segment.network_key()));
+    let Some(target) = cables.net_at(CableGroup::Apc, coordinates(vent)) else {
         return false;
     };
     let mut sources = Vec::new();
     let mut bridges = BTreeMap::<usize, Vec<usize>>::new();
     for placement in &data.placements {
         match prototypes[&placement.prototype].kind {
-            Kind::Generator { watts: 1.. } => sources.extend(net_at(placement.cell)),
-            Kind::EnergyStorage { .. } => {
+            Kind::Generator {
+                watts: 1..,
+                voltage,
+            } => {
+                sources.extend(cables.net_at(voltage, coordinates(placement.cell)));
+            }
+            Kind::EnergyStorage { ports, .. } => {
                 if let (Some(input), Some(output)) =
-                    storage_ports(&cables, placement.cell, placement.facing)
+                    ports.nets(&cables, placement.cell, placement.facing)
                     && input != output
                 {
                     bridges.entry(input).or_default().push(output);

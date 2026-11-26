@@ -4,4 +4,22 @@
         kind: EnergyStorage(capacity_joules: 6000, initial_joules: 0, charge_watts: 450, supply_watts: 850),
         color: (181, 158, 107),
     ),
+    "substation": (
+        name: "Substation",
+        kind: EnergyStorage(
+            capacity_joules: 4000, initial_joules: 0,
+            charge_watts: 80, supply_watts: 850,
+            ports: (input: High, output: Medium),
+        ),
+        color: (207, 153, 94),
+    ),
+    "apc": (
+        name: "APC",
+        kind: EnergyStorage(
+            capacity_joules: 2000, initial_joules: 0,
+            charge_watts: 40, supply_watts: 850,
+            ports: (input: Medium, output: Apc),
+        ),
+        color: (149, 190, 113),
+    ),
 }

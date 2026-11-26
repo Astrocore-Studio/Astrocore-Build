@@ -1,5 +1,7 @@
 {
     "service_kit": (name: "Service kit", kind: Item(healing: 0, materials: 8), color: (244, 202, 114)),
     "cable_coil": (name: "Cable coil", kind: CableCoil(segments: 5), color: (114, 189, 208)),
+    "cable_coil_medium": (name: "MV cable coil", kind: CableCoil(segments: 5, voltage: Medium), color: (234, 216, 101)),
+    "cable_coil_high": (name: "HV cable coil", kind: CableCoil(segments: 5, voltage: High), color: (240, 153, 88)),
     "wirecutters": (name: "Wirecutters", kind: Wirecutters, color: (114, 139, 208)),
 }

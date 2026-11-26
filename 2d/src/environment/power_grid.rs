@@ -4,7 +4,6 @@ use astrocore_grid2d::Cell;
 use power::{Battery, CableGroup, Cables, Load, PowerState, Supply};
 
 use super::{DT, coordinates};
-use crate::electricity::storage_ports;
 use crate::{Kind, Layout, State, StorageSample};
 
 #[derive(Default)]
@@ -19,12 +18,7 @@ pub(super) struct PowerGrid {
 
 impl PowerGrid {
     pub(super) fn rewire(&mut self, layout: &Layout, state: &State) {
-        let cables = Cables::build(
-            state
-                .cables
-                .keys()
-                .map(|&cell| (CableGroup::Apc, coordinates(cell))),
-        );
+        let cables = Cables::build(state.cables.keys().map(|segment| segment.network_key()));
         let mut solver = PowerState::default();
         let previous_generators = std::mem::take(&mut self.generators);
         let previous_storages = std::mem::take(&mut self.storages);
@@ -35,8 +29,8 @@ impl PowerGrid {
             solver.add_network();
         }
         for (&cell, generator) in &state.generators {
-            if let Some(net) = cables.net_at(CableGroup::Apc, coordinates(cell))
-                && let Kind::Generator { watts } = layout.prototypes[&generator.prototype].kind
+            if let Kind::Generator { watts, voltage } = layout.prototypes[&generator.prototype].kind
+                && let Some(net) = cables.net_at(voltage, coordinates(cell))
             {
                 let supply = previous_generators.get(&cell).map_or_else(
                     || Supply::new(f32::from(watts)),
@@ -51,6 +45,7 @@ impl PowerGrid {
                 initial_joules,
                 charge_watts,
                 supply_watts,
+                ports,
             } = layout.prototypes[&storage.prototype].kind
             else {
                 continue;
@@ -66,7 +61,7 @@ impl PowerGrid {
             if let Some(previous) = previous {
                 battery.supply_ramp_position = previous.supply_ramp_position;
             }
-            let (input, output) = storage_ports(&cables, cell, storage.facing);
+            let (input, output) = ports.nets(&cables, cell, storage.facing);
             let bypassed = input.is_some() && input == output;
             let id = if bypassed {
                 solver.add_battery_ports(None, None, battery)

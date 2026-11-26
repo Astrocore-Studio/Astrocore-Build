@@ -5,7 +5,8 @@ use astrocore_grid2d::{Cell, Tile};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Crew, Door, Generator, Item, Outcome, Phase, PipeMachine, Recovery, State, Storage, Vent,
+    CableSegment, Crew, Door, Generator, Item, Outcome, Phase, PipeMachine, Recovery, State,
+    Storage, Vent,
 };
 
 #[derive(Serialize, Deserialize)]
@@ -18,7 +19,7 @@ pub struct StateDelta {
     pipe_valves: MapDelta<Cell, bool>,
     pipe_machines: MapDelta<Cell, PipeMachine>,
     items: MapDelta<u16, Item>,
-    cables: MapDelta<Cell, u32>,
+    cables: MapDelta<CableSegment, u32>,
     terrain: MapDelta<Cell, Tile>,
     terrain_revision: u32,
     phase: Phase,

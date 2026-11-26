@@ -6,7 +6,7 @@ use astrocore_grid2d::{Cell, Grid, Tile};
 
 use crate::content::{Content, LevelLink, MapData, Placement, Prototype, parse_grid};
 use crate::prototypes::load_catalog;
-use crate::{Kind, PipeDirection};
+use crate::{CableGroup, CableSegment, Kind, PipeDirection};
 
 const UNDO_LIMIT: usize = 32;
 
@@ -15,7 +15,7 @@ pub enum Brush {
     Tile(Tile),
     Spawn,
     JobSpawn(String),
-    Cable,
+    Cable(CableGroup),
     Link,
     Object(String, PipeDirection),
 }
@@ -83,8 +83,8 @@ impl Document {
         })
     }
 
-    pub fn cables(&self) -> &[Cell] {
-        &self.draft.cables
+    pub fn cables(&self) -> impl Iterator<Item = CableSegment> + '_ {
+        self.draft.cable_cells()
     }
 
     pub fn link_cells(&self) -> impl Iterator<Item = Cell> + '_ {
@@ -146,7 +146,7 @@ impl Document {
                     mark(&mut job.spawns, cell, false);
                 }
             }
-            Brush::Cable => mark(&mut self.draft.cables, cell, erase),
+            Brush::Cable(voltage) => mark(self.draft.cables_mut(*voltage), cell, erase),
             Brush::Link => {
                 if erase {
                     self.draft.links.retain(|link| !link.contains(cell));
@@ -297,6 +297,8 @@ fn empty_station() -> MapData {
         loadouts: BTreeMap::new(),
         recovery: None,
         cables: Vec::new(),
+        medium_cables: Vec::new(),
+        high_cables: Vec::new(),
         round_seconds: 600,
     }
 }
