@@ -68,6 +68,8 @@ cargo client -- --connect 127.0.0.1:7783 --name Urist
 Пути — как в ресурсах: `Maps/saltern.yml`. Файл ищется сначала в `data/`, затем в ресурсах игры.
 `cargo run --release -p astrocore-game --example check_map` проверяет, что карта сохраняется и
 загружается обратно без потерь.
+`cargo run --release -p astrocore-game --example check_power -- 60` запускает карту раунда на 60
+секунд игры и печатает состояние электросети: сети, заряд аккумуляторов, запитанные устройства.
 
 ## Настройка
 

@@ -10,6 +10,7 @@ license.workspace = true
 client = ["dep:astrocore-client", "dep:bevy"]
 
 [dependencies]
+power = { path = "../crates/power" }
 astrocore-audio = { path = "../../Astrocore-Engine/crates/astrocore-audio" }
 astrocore-console = { path = "../../Astrocore-Engine/crates/astrocore-console" }
 astrocore-data = { path = "../../Astrocore-Engine/crates/astrocore-data" }

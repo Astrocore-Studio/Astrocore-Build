@@ -28,9 +28,11 @@ pub mod inventory;
 pub mod item;
 pub mod map_commands;
 pub mod mobs;
+pub mod node_container;
 pub mod ordered;
 pub mod placement;
 pub mod popups;
+pub mod power;
 pub mod pulling;
 pub mod server;
 pub mod stack;
@@ -129,6 +131,8 @@ pub fn install_content(world: &mut World, side: Side) {
     map_commands::install(world, side);
     placement::install(world, side);
     decals::install(world, side);
+    node_container::install(world, side);
+    power::install(world, side);
 }
 
 /// Адрес сервера по умолчанию.
