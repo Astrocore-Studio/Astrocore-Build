@@ -238,7 +238,8 @@ fn run() -> Result<(), String> {
     .insert_non_send(Link(transport))
     .add_plugins(ClientPlugin)
     .add_plugins(astrocore_game::hands_hud::HandsHudPlugin)
-    .add_plugins(astrocore_game::overlays::OverlaysPlugin);
+    .add_plugins(astrocore_game::overlays::OverlaysPlugin)
+    .add_plugins(astrocore_game::inventory_hud::InventoryHudPlugin);
     if options.walk {
         app.add_systems(Update, hold_right);
     }

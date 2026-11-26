@@ -15,6 +15,7 @@ pub mod grammar;
 pub mod hands;
 pub mod input_contexts;
 pub mod interaction;
+pub mod inventory;
 pub mod item;
 pub mod ordered;
 pub mod popups;
@@ -30,9 +31,13 @@ pub(crate) mod testing;
 #[cfg(feature = "client")]
 pub mod client;
 #[cfg(feature = "client")]
+pub mod clothing_visuals;
+#[cfg(feature = "client")]
 pub mod hands_hud;
 #[cfg(feature = "client")]
 pub mod inhands;
+#[cfg(feature = "client")]
+pub mod inventory_hud;
 #[cfg(feature = "client")]
 pub mod overlays;
 #[cfg(feature = "client")]
@@ -70,6 +75,7 @@ pub fn install_content(world: &mut World, side: Side) {
     do_after::install(world, side);
     verbs::install(world);
     examine::install(world, side);
+    inventory::install(world, side);
 }
 
 /// Адрес сервера по умолчанию.

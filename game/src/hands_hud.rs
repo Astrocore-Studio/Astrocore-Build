@@ -55,7 +55,7 @@ fn click_hand(world: &mut bevy_ecs::world::World, hand: &str) {
 }
 
 /// Значок сущности: первый слой её спрайта, первое направление и кадр.
-fn icon(
+pub(crate) fn icon(
     world: &bevy_ecs::world::World,
     entity: bevy_ecs::entity::Entity,
     resources: &GameResources,
