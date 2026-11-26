@@ -719,7 +719,7 @@ fn do_drop(
 }
 
 /// Проверка команды клиента: у сессии есть живое тело.
-fn player(world: &World, session: Option<Entity>) -> Option<Entity> {
+pub(crate) fn player(world: &World, session: Option<Entity>) -> Option<Entity> {
     let user = world.get::<Session>(session?)?.attached?;
     world.is_alive(user).then_some(user)
 }

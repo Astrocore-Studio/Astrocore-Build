@@ -6,6 +6,7 @@
 //! в каталоге `2d/` до конца переезда.
 
 pub mod action_blocker;
+pub mod actions;
 pub mod activatable_ui;
 pub mod content;
 pub mod damage;
@@ -40,6 +41,8 @@ pub mod whitelist;
 #[cfg(test)]
 pub(crate) mod testing;
 
+#[cfg(feature = "client")]
+pub mod action_bar;
 #[cfg(feature = "client")]
 pub mod client;
 #[cfg(feature = "client")]
@@ -106,6 +109,7 @@ pub fn install_content(world: &mut World, side: Side) {
     tools::install(world, side);
     virtual_item::install(world, side);
     pulling::install(world, side);
+    actions::install(world, side);
     damage_other_on_hit::install(world, side);
 }
 

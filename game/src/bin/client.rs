@@ -366,7 +366,8 @@ fn run() -> Result<(), String> {
     .add_plugins(astrocore_game::hands_hud::HandsHudPlugin)
     .add_plugins(astrocore_game::overlays::OverlaysPlugin)
     .add_plugins(astrocore_game::inventory_hud::InventoryHudPlugin)
-    .add_plugins(astrocore_game::storage_hud::StorageHudPlugin);
+    .add_plugins(astrocore_game::storage_hud::StorageHudPlugin)
+    .add_plugins(astrocore_game::action_bar::ActionBarPlugin);
     if options.walk {
         app.add_systems(Update, hold_right);
     }

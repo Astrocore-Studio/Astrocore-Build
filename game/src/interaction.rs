@@ -651,7 +651,7 @@ pub struct AccessViaContainer {
 }
 
 /// Поворот к точке клика, если сущность не идёт (`ValidateInteractAndFace`).
-fn face(world: &mut World, user: Entity, click: MapCoordinates) {
+pub(crate) fn face(world: &mut World, user: Entity, click: MapCoordinates) {
     let moving = world
         .get::<InputMover>(user)
         .is_some_and(|mover| mover.held.direction() != astrocore_math::Vec2::ZERO);
