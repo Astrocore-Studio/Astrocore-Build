@@ -1175,10 +1175,24 @@ pub fn with_tile_mixture<R>(
     coord: TileCoord,
     f: impl FnOnce(&mut GasMixture) -> R,
 ) -> Option<R> {
+    modify_tile_mixture(world, grid, coord, true, f)
+}
+
+/// Изменить воздух клетки (`GetTileMixture`); `excite` — разбудить клетку, чтобы атмосфера
+/// пересчитала её.
+pub fn modify_tile_mixture<R>(
+    world: &mut World,
+    grid: Entity,
+    coord: TileCoord,
+    excite: bool,
+    f: impl FnOnce(&mut GasMixture) -> R,
+) -> Option<R> {
     let mut atmos = world.get_mut::<GridAtmosphere>(grid)?;
     let index = atmos.tile_index(coord)?;
     let result = f(atmos.tile_mut(index).air.as_mut()?);
-    add_active_tile(&mut atmos, index);
+    if excite {
+        add_active_tile(&mut atmos, index);
+    }
     Some(result)
 }
 

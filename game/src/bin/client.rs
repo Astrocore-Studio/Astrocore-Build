@@ -34,12 +34,15 @@ struct Options {
     connect: Option<String>,
     name: String,
     capture: Option<String>,
+    /// Через сколько кадров снимать (`--capture-after`), по умолчанию 90.
+    capture_after: u32,
     walk: bool,
     walk_up: bool,
     use_nearest: bool,
     examine_nearest: bool,
     storage_nearest: bool,
     hurt: bool,
+    ignite: bool,
     dress: bool,
     console: Vec<String>,
     palette: Option<String>,
@@ -52,12 +55,14 @@ fn options() -> Result<Options, String> {
         connect: None,
         name: "Urist".to_owned(),
         capture: None,
+        capture_after: 90,
         walk: false,
         walk_up: false,
         use_nearest: false,
         examine_nearest: false,
         storage_nearest: false,
         hurt: false,
+        ignite: false,
         dress: false,
         console: Vec::new(),
         palette: None,
@@ -74,10 +79,16 @@ fn options() -> Result<Options, String> {
             "--examine-nearest" => options.examine_nearest = true,
             "--storage-nearest" => options.storage_nearest = true,
             "--hurt" => options.hurt = true,
+            "--ignite" => options.ignite = true,
             "--dress" => options.dress = true,
             "--connect" => options.connect = Some(value("адрес сервера")?),
             "--name" => options.name = value("имя игрока")?,
             "--capture" => options.capture = Some(value("файл кадра")?),
+            "--capture-after" => {
+                options.capture_after = value("число кадров")?
+                    .parse()
+                    .map_err(|_| "--capture-after: нужно число кадров".to_owned())?
+            }
             "--console" => options.console.push(value("строка команды")?),
             "--palette" => options.palette = Some(value("палитра:поиск")?),
             "--construct" => options.construct = Some(value("рецепт")?),
@@ -313,6 +324,21 @@ fn hurt_player(world: &mut bevy_ecs::world::World, mut ticks: Local<u32>) {
     }
 }
 
+/// Проверка без человека: через секунду игрок горит (четыре «стопки» огня).
+fn ignite_player(world: &mut bevy_ecs::world::World, mut ticks: Local<u32>) {
+    let Some(player) = world
+        .query_filtered::<bevy_ecs::entity::Entity, With<astrocore_net::Actor>>()
+        .iter(world)
+        .next()
+    else {
+        return;
+    };
+    *ticks += 1;
+    if *ticks == 30 {
+        astrocore_game::flammable::set_fire_stacks(world, player, 4.0, true);
+    }
+}
+
 /// Проверка без человека: через секунду игрок одет.
 fn dress_player(world: &mut bevy_ecs::world::World, mut ticks: Local<u32>) {
     use astrocore_game::inventory::{EquipOptions, InventoryWorldExt};
@@ -421,6 +447,12 @@ fn run() -> Result<(), String> {
             start
                 .world
                 .add_game_systems(astrocore_ecs::Update, hurt_player);
+        }
+        if options.ignite {
+            use astrocore_ecs::GameWorldExt;
+            start
+                .world
+                .add_game_systems(astrocore_ecs::Update, ignite_player);
         }
         println!(
             "Игра в одиночку: сущностей на карте {}.",
@@ -547,7 +579,7 @@ fn run() -> Result<(), String> {
     if let Some(path) = options.capture {
         app.insert_resource(Capture {
             path: path.into(),
-            after_frames: 90,
+            after_frames: options.capture_after,
         });
     }
     app.run();

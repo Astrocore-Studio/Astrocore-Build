@@ -13,7 +13,7 @@ use astrocore_map::{
     ContainerWorldExt, EntGotInsertedIntoContainer, MapCoordinates, TransformWorldExt,
 };
 use astrocore_math::Vec2;
-use astrocore_movement::{InputMover, MoveButtons, MovementSpeedModifier};
+use astrocore_movement::{InputMover, MoveButtons};
 use astrocore_net::{NetEntity, NetRegistryWorldExt};
 use astrocore_physics::{BodyType, JointRemoved, JointWorldExt, Physics, PhysicsWorldExt};
 use bevy_ecs::component::Component;
@@ -392,14 +392,7 @@ fn stop_pulling(world: &mut World, pulled: Entity) {
 
 /// Скорость тянущего (`OnRefreshMovespeed`): 0,95 от обычной.
 fn refresh_speed(world: &mut World, puller: Entity) {
-    let pulling = world.pulling_of(puller).is_some();
-    let modifier = if pulling { PULLING_SPEED_MODIFIER } else { 1.0 };
-    if let Some(mut speed) = world.get_mut::<MovementSpeedModifier>(puller)
-        && (speed.walk_speed_modifier != modifier || speed.sprint_speed_modifier != modifier)
-    {
-        speed.walk_speed_modifier = modifier;
-        speed.sprint_speed_modifier = modifier;
-    }
+    crate::movement_speed::refresh_movement_speed_modifiers(world, puller);
 }
 
 /// Глаголы «Тянуть» и «Перестать тянуть» (`AddPullVerbs`).
@@ -599,6 +592,13 @@ pub(crate) fn install(world: &mut World, side: crate::Side) {
     world.subscribe::<Pullable, EntGotInsertedIntoContainer>(|world, pulled, _| {
         world.try_stop_pull(pulled, None);
     });
+    world.subscribe::<Puller, crate::movement_speed::RefreshMovementSpeedModifiers>(
+        |world, puller, event| {
+            if world.pulling_of(puller).is_some() {
+                event.modify_speed(PULLING_SPEED_MODIFIER, PULLING_SPEED_MODIFIER);
+            }
+        },
+    );
     world.subscribe::<Puller, EntGotInsertedIntoContainer>(|world, puller, _| {
         if let Some(pulled) = world.pulling_of(puller) {
             world.try_stop_pull(pulled, Some(puller));

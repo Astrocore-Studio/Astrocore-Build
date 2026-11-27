@@ -79,9 +79,17 @@ pub struct ExposedGetAir {
     pub handled: bool,
 }
 
-/// Воздух вокруг сущности (`GetContainingMixture`): контейнера со своим воздухом или клетки
-/// грида под ней; вне грида — космос.
-pub fn containing_mixture(world: &mut World, entity: Entity) -> Option<GasMixture> {
+/// Где воздух вокруг сущности.
+enum AirAt {
+    /// Свой воздух контейнера (`AtmosExposedGetAirEvent`): копия.
+    Holder(GasMixture),
+    /// Клетка грида.
+    Tile(Entity, TileCoord),
+    /// Вне грида — космос.
+    Space,
+}
+
+fn air_at(world: &mut World, entity: Entity) -> Option<AirAt> {
     let mut current = entity;
     while let Some(holder) = world.containing_container(current).map(|c| c.owner) {
         let mut event = ExposedGetAir {
@@ -90,14 +98,15 @@ pub fn containing_mixture(world: &mut World, entity: Entity) -> Option<GasMixtur
         };
         world.raise(holder, &mut event);
         if event.handled {
-            return event.mixture;
+            return event.mixture.map(AirAt::Holder);
         }
         current = holder;
     }
     let transform = world.get::<Transform>(current)?;
     let Some(grid) = transform.grid() else {
-        return transform.map().map(|_| GasMixture::space());
+        return transform.map().map(|_| AirAt::Space);
     };
+    let level = transform.level();
     let coordinates = world.coordinates(current)?;
     let local = if coordinates.parent == grid {
         coordinates.position
@@ -105,12 +114,41 @@ pub fn containing_mixture(world: &mut World, entity: Entity) -> Option<GasMixtur
         let world_position = world.world_transform(current)?.position;
         world.world_transform(grid)?.to_local(world_position)
     };
-    let coord = TileCoord::containing(local, transform.level());
-    Some(
-        tile_mixture(world, grid, coord)
+    Some(AirAt::Tile(grid, TileCoord::containing(local, level)))
+}
+
+/// Воздух вокруг сущности (`GetContainingMixture`): контейнера со своим воздухом или клетки
+/// грида под ней; вне грида — космос.
+pub fn containing_mixture(world: &mut World, entity: Entity) -> Option<GasMixture> {
+    Some(match air_at(world, entity)? {
+        AirAt::Holder(mixture) => mixture,
+        AirAt::Tile(grid, coord) => tile_mixture(world, grid, coord)
             .cloned()
             .unwrap_or_else(GasMixture::space),
-    )
+        AirAt::Space => GasMixture::space(),
+    })
+}
+
+/// Изменить воздух вокруг сущности (`GetContainingMixture`, изменяемая смесь). Космос не
+/// меняется: правка уходит в копию. Свой воздух контейнера пока тоже только копия — у
+/// шкафов его ещё нет. `excite` — разбудить клетку для атмосферы.
+pub fn with_containing_mixture<R>(
+    world: &mut World,
+    entity: Entity,
+    excite: bool,
+    f: impl FnOnce(&mut GasMixture) -> R,
+) -> Option<R> {
+    match air_at(world, entity)? {
+        AirAt::Holder(mut mixture) => Some(f(&mut mixture)),
+        AirAt::Tile(grid, coord) => {
+            if tile_mixture(world, grid, coord).is_some() {
+                crate::atmos::modify_tile_mixture(world, grid, coord, excite, f)
+            } else {
+                Some(f(&mut GasMixture::space()))
+            }
+        }
+        AirAt::Space => Some(f(&mut GasMixture::space())),
+    }
 }
 
 /// Значения защиты предмета (`TryGetPressureProtectionValues`).

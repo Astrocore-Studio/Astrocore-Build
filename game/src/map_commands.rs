@@ -662,13 +662,16 @@ fn addgas(world: &mut World, shell: &mut ConsoleShell, args: &[String]) {
         .ok()
         .filter(|g| *g < crate::atmos::gas::GAS_COUNT)
         .or_else(|| crate::atmos::gas::gas_index(&args[3]));
-    let (Some(grid), Some(gas), Ok(moles)) = (grid, gas, args[4].parse::<f32>()) else {
+    let (Some(gas), Ok(moles)) = (gas, args[4].parse::<f32>()) else {
         return;
     };
-    if world.get::<astrocore_map::MapGrid>(grid).is_none() {
-        shell.write_error(format!("«{}» — не грид", args[2]));
+    let Some(grid) = grid.filter(|g| world.get::<astrocore_map::MapGrid>(*g).is_some()) else {
+        shell.write_error(format!(
+            "«{}» — нет такой сущности или это не грид",
+            args[2]
+        ));
         return;
-    }
+    };
     let coord = astrocore_map::TileCoord::new(x, y, 0);
     if crate::atmos::with_tile_mixture(world, grid, coord, |air| air.adjust_moles(gas, moles))
         .is_none()

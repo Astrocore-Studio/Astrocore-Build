@@ -33,6 +33,7 @@ pub mod entity_storage;
 pub mod examine;
 pub mod explosion;
 pub mod fixed_point;
+pub mod flammable;
 pub mod flatpack;
 pub mod floor_tile;
 pub mod friction;
@@ -52,6 +53,7 @@ pub mod lights;
 pub mod lock;
 pub mod map_commands;
 pub mod mobs;
+pub mod movement_speed;
 pub mod multipart;
 pub mod node_container;
 pub mod ordered;
@@ -71,6 +73,7 @@ pub mod standing;
 pub mod status_effects;
 pub mod storage;
 pub mod tag;
+pub mod temperature;
 pub mod throwing;
 pub mod tools;
 pub mod verbs;
@@ -102,6 +105,8 @@ pub mod dev_console;
 pub mod door_visuals;
 #[cfg(feature = "client")]
 pub mod explosion_visuals;
+#[cfg(feature = "client")]
+pub mod fire_visuals;
 #[cfg(feature = "client")]
 pub mod gas_overlay_visuals;
 #[cfg(feature = "client")]
@@ -206,6 +211,8 @@ pub fn install_content(world: &mut World, side: Side) {
     airtight::install(world, side);
     atmos::install(world, side);
     barotrauma::install(world, side);
+    temperature::install(world, side);
+    flammable::install(world, side);
     pipes::install(world, side);
     atmos_devices::install(world, side);
     weldable::install(world, side);

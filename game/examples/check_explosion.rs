@@ -78,6 +78,15 @@ fn main() -> Result<(), String> {
         .map(|(e, _)| e)
         .ok_or("нет точки появления")?;
     let at = world.map_coordinates(spawn).ok_or("точка вне карты")?;
+    if let Some(coords) = world.coordinates(spawn) {
+        let net = world
+            .get::<astrocore_net::NetEntity>(coords.parent)
+            .map(|n| n.0);
+        println!(
+            "Эпицентр: карта {:?} {:?}, грид {net:?} точка {:?}",
+            at.map, at.position, coords.position
+        );
+    }
     let (entities, tiles, pressurized) = counts(world);
     let floor_before = floor_types(world);
     let alive_before: Vec<Entity> = world.query::<Entity>().iter(world).collect();
