@@ -297,15 +297,7 @@ impl Default for Vocal {
     }
 }
 
-/// Призрак (`GhostComponent`): говорит в чат мёртвых. Поля переносятся в 6.5.
-#[derive(Component, Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
-#[serde(default)]
-pub struct Ghost {}
-
-/// Слышит всю речь на карте (`GhostHearingComponent`).
-#[derive(Component, Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
-#[serde(default)]
-pub struct GhostHearing {}
+pub use crate::ghost::{Ghost, GhostHearing};
 
 // События.
 
@@ -2467,9 +2459,6 @@ pub fn install(world: &mut World, side: Side) {
     world.register_data_component::<Speech>();
     world.register_net_serde::<Speech>();
     world.register_data_component::<Vocal>();
-    world.register_data_component::<Ghost>();
-    world.register_net_serde::<Ghost>();
-    world.register_data_component::<GhostHearing>();
     world.register_net_event::<ChatMessage>();
     if !side.is_server() {
         world.init_resource::<ClientChat>();

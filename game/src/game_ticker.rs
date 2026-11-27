@@ -1,4 +1,4 @@
-//! Раунд (ADR-0012): стадии `PreRoundLobby` → `InRound` → `PostRound`, лобби с готовностью
+//! Раунд (ADR-0012, ADR-0013): стадии `PreRoundLobby` → `InRound` → `PostRound`, лобби с готовностью
 //! и отсчётом, пресет режима и правила раунда, загрузка карты и станций к старту,
 //! распределение должностей, поздний вход и наблюдение, итоги раунда, перезапуск с удалением
 //! всех сущностей и новым номером раунда в базе. Образец — `GameTicker` и `ServerGameTicker`
@@ -6,9 +6,9 @@
 //! `GamePresetPrototype`, `GameRuleComponent`, команды `Content.Server/GameTicking/Commands`
 //! и перезапуск после итогов `RoundEndSystem` SS14 @ 2f4a2aad.
 //!
-//! Нет пока: сообщений сервера в чат и объявлений о прибытии (6.4), разума и призраков —
-//! вместо разума таблица «пользователь → тело», наблюдатель — сущность `MobObserver` (6.5),
-//! логики правил (антагонисты, события станции), выбора карты по числу игроков и пулам
+//! Игрок связан с телом через разум (`mind`), наблюдатель — призрак (`ghost`).
+//!
+//! Нет пока: логики правил (антагонисты, события станции), выбора карты по числу игроков и пулам
 //! карт, фона лобби, повторов, вебхуков Discord.
 
 use std::collections::{BTreeMap, BTreeSet};
@@ -21,10 +21,9 @@ use astrocore_data::DataNode;
 use astrocore_ecs::{
     EventWorldExt, GameTime, GameWorldExt, LifecycleWorldExt, MetaData, RegistryWorldExt, Update,
 };
-use astrocore_loc::LocArg;
+use astrocore_loc::{EntityNameWorldExt, LocArg};
 use astrocore_map::{
-    EntityCoordinates, Map, MapGrid, MapId, MapLoadWorldExt, MapWorldExt, SpawnWorldExt,
-    TransformWorldExt,
+    EntityCoordinates, Map, MapGrid, MapId, MapLoadWorldExt, MapWorldExt, TransformWorldExt,
 };
 use astrocore_net::{
     NetEvent, NetEventWorldExt, NetTarget, NetUserId, PlayerConnected, PlayerDisconnected, Session,
@@ -163,11 +162,7 @@ pub struct GameTicker {
     pub default_map: Option<MapId>,
     pub disallow_late_join: bool,
     starting: bool,
-    /// Тело игрока — до системы разума (ADR-0012).
-    pub bodies: BTreeMap<NetUserId, Entity>,
-    /// Наблюдатели среди тел.
-    pub observers: BTreeSet<NetUserId>,
-    /// Имена игроков для итогов.
+    /// Имена игроков для итогов (`ContentPlayerData.Name`): живут и после выхода.
     pub player_names: BTreeMap<NetUserId, String>,
     /// Когда перезапустить раунд после итогов.
     pub restart_at: Option<Duration>,
@@ -1376,15 +1371,16 @@ fn spawn_player_with(
         eprintln!("игрок {user} не получил тело");
         return;
     };
-    world.attach_player(session, mob);
+    // Новый разум с именем тела переносится в тело (`CreateMind`, `TransferTo`).
+    let character = world.entity_name(mob);
+    let new_mind = crate::mind::create_mind(world, Some(user), Some(&character));
+    crate::mind::transfer_to(world, new_mind, Some(mob), false, true);
     let name = world
         .get::<Session>(session)
         .map(|s| s.name.clone())
         .unwrap_or_default();
     {
         let mut ticker = ticker(world);
-        ticker.bodies.insert(user, mob);
-        ticker.observers.remove(&user);
         ticker.player_names.insert(user, name.clone());
         ticker.players_joined_normally += 1;
     }
@@ -1546,33 +1542,39 @@ pub fn join_as_observer(world: &mut World, session: Entity) {
         return;
     };
     player_join_game(world, session);
-    let Some(at) = observer_spawn_point(world) else {
-        eprintln!("нет места для наблюдателя");
+    spawn_observer(world, session, user);
+}
+
+/// Призрак-наблюдатель (`SpawnObserver`): без разума — новый разум с ролью наблюдателя,
+/// иначе разум переносится в призрака.
+pub fn spawn_observer(world: &mut World, session: Entity, user: NetUserId) {
+    if world.cvar(&GAME_DUMMY_TICKER) {
         return;
+    }
+    let mind = match crate::mind::mind_of_user(world, user) {
+        Some(mind) => mind,
+        None => {
+            let character = player_profile(world, user).name;
+            let mind = crate::mind::create_mind(world, Some(user), Some(&character));
+            if let Some(mut state) = world.get_mut::<crate::mind::Mind>(mind) {
+                state.observer = true;
+            }
+            mind
+        }
     };
-    let Ok(ghost) = world.spawn_attached(OBSERVER_PROTOTYPE, at) else {
-        eprintln!("нет прототипа {OBSERVER_PROTOTYPE}");
-        return;
-    };
+    let at = observer_spawn_point(world);
+    let ghost = crate::ghost::spawn_ghost(world, mind, at, false);
     let name = world
         .get::<Session>(session)
         .map(|s| s.name.clone())
         .unwrap_or_default();
-    if let Some(mut meta) = world.get_mut::<MetaData>(ghost) {
-        meta.name = Some(name.clone());
-    }
-    world.attach_player(session, ghost);
-    {
-        let mut ticker = ticker(world);
-        ticker.bodies.insert(user, ghost);
-        ticker.observers.insert(user);
-        ticker.player_names.insert(user, name.clone());
-    }
+    ticker(world).player_names.insert(user, name.clone());
+    let ghost = ghost.map(|g| world.entity_name(g)).unwrap_or_default();
     add_admin_log(
         world,
         LogType::LateJoin,
         LogImpact::Low,
-        &format!("{name} late joined the round as an Observer."),
+        &format!("{name} late joined the round as an Observer with {ghost}."),
         &[],
         &[],
     );
@@ -1583,12 +1585,7 @@ pub fn respawn(world: &mut World, session: Entity) {
     let Some(user) = session_user(world, session) else {
         return;
     };
-    {
-        let mut ticker = ticker(world);
-        ticker.bodies.remove(&user);
-        ticker.observers.remove(&user);
-    }
-    world.detach_player(session);
+    crate::mind::wipe_user_mind(world, user);
     add_admin_log(
         world,
         LogType::Respawn,
@@ -1657,33 +1654,37 @@ pub fn show_round_end_scoreboard(world: &mut World, text: &str) {
     world.raise_broadcast(&mut append);
     let round_end_text = format!("{text}\n{}", append.text);
     let online: BTreeSet<NetUserId> = sessions(world).into_iter().map(|(_, u)| u).collect();
-    let entries: Vec<(NetUserId, Entity, bool, String)> = {
-        let ticker = ticker(world);
-        ticker
-            .bodies
-            .iter()
-            .map(|(user, body)| {
-                (
-                    *user,
-                    *body,
-                    ticker.observers.contains(user),
-                    ticker.player_names.get(user).cloned().unwrap_or_default(),
-                )
-            })
-            .collect()
-    };
+    // Все разумы раунда, и вышедших игроков тоже.
+    let minds: Vec<crate::mind::Mind> = world
+        .query::<&crate::mind::Mind>()
+        .iter(world)
+        .cloned()
+        .collect();
     let unknown = crate::examine::loc(world, "game-ticker-unknown-role", &[]);
-    let mut players: Vec<RoundEndPlayerInfo> = entries
-        .into_iter()
-        .map(|(user, body, observer, ooc_name)| RoundEndPlayerInfo {
+    let mut players: Vec<RoundEndPlayerInfo> = Vec::new();
+    for mind in minds {
+        let Some(user) = mind.user_id.or(mind.original_owner_user_id) else {
+            continue;
+        };
+        let ic_name = mind
+            .character_name
+            .clone()
+            .or_else(|| mind.current_entity().map(|e| world.entity_name(e)))
+            .or_else(|| Some("Unknown".to_owned()));
+        let ooc_name = ticker(world)
+            .player_names
+            .get(&user)
+            .cloned()
+            .unwrap_or_else(|| "(IMPOSSIBLE: REGISTERED MIND WITH NO OWNER)".to_owned());
+        players.push(RoundEndPlayerInfo {
             ooc_name,
-            ic_name: world.get::<MetaData>(body).and_then(|m| m.name.clone()),
+            ic_name,
             role: job_title(world, user).unwrap_or_else(|| unknown.clone()),
             antag: false,
-            observer,
+            observer: mind.observer,
             connected: online.contains(&user),
-        })
-        .collect();
+        });
+    }
     players.sort_by(|a, b| a.ooc_name.cmp(&b.ooc_name));
     let message = RoundEndMessage {
         gamemode_title,
@@ -1724,8 +1725,6 @@ fn resetting_cleanup(world: &mut World) {
     ticker.current_preset = None;
     ticker.rules.clear();
     ticker.disallow_late_join = false;
-    ticker.bodies.clear();
-    ticker.observers.clear();
     ticker.player_names.clear();
     ticker.statuses.clear();
     ticker.restart_at = None;
@@ -1821,15 +1820,19 @@ fn send_jobs_available(world: &mut World) {
 /// Игрок с загруженными настройками (`PlayerStatusChanged` → `InGame`): прежнее тело,
 /// иначе лобби или сразу раунд.
 fn player_ready_to_play(world: &mut World, session: Entity, user: NetUserId) {
-    let body = ticker(world).bodies.get(&user).copied();
-    match body {
-        Some(body) if world.get_entity(body).is_ok() && world.get::<MetaData>(body).is_some() => {
-            world.attach_player(session, body);
+    let mind = crate::mind::mind_of_user(world, user);
+    let current = mind
+        .and_then(|m| world.get::<crate::mind::Mind>(m)?.current_entity())
+        .filter(|e| world.is_alive(*e));
+    match (mind, current) {
+        (Some(_), Some(entity)) => {
+            world.attach_player(session, entity);
             player_join_game(world, session);
         }
-        Some(_) => join_as_observer(world, session),
-        None if lobby_enabled(world) => player_join_lobby(world, session),
-        None => {
+        // Разум без сущности: тело удалено или игрок наблюдал — наблюдатель.
+        (Some(_), None) => join_as_observer(world, session),
+        (None, _) if lobby_enabled(world) => player_join_lobby(world, session),
+        (None, _) => {
             if run_level(world) == GameRunLevel::PreRoundLobby {
                 player_join_lobby(world, session);
             } else {

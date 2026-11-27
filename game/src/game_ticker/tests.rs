@@ -257,13 +257,14 @@ fn round_ends_and_restarts_with_new_lobby() {
     assert_eq!(ticker.run_level, GameRunLevel::PreRoundLobby);
     assert_eq!(ticker.round_id, round + 1);
     assert!(ticker.default_map.is_none());
-    assert!(ticker.bodies.is_empty());
     assert_eq!(
         ticker.statuses.get(&user),
         Some(&PlayerGameStatus::NotReadyToPlay)
     );
     assert!(ticker.round_start_time.is_some());
     assert!(world.get_entity(body).is_err());
+    // Разумы стёрты и удалены вместе с остальным; призраков не появилось.
+    assert!(world.resource::<crate::mind::Minds>().user_minds.is_empty());
     assert_eq!(world.query::<&MetaData>().iter(&world).count(), 0);
     assert!(world.get::<Session>(session).is_some());
     assert_eq!(attached(&world, session), None);
@@ -297,6 +298,12 @@ fn without_lobby_players_join_at_once_and_keep_bodies() {
         .id();
     world.raise_broadcast(&mut PlayerConnected { session: again });
     assert_eq!(attached(&world, again), Some(body));
+    // Тело связано с игроком разумом с именем персонажа.
+    let mind = crate::mind::mind_of(&world, body).unwrap();
+    let state = world.get::<crate::mind::Mind>(mind).unwrap();
+    assert_eq!(state.user_id, Some(user));
+    assert_eq!(state.original_owned_entity, Some(body));
+    assert!(state.character_name.is_some());
 }
 
 #[test]
@@ -312,7 +319,9 @@ fn late_join_ban_makes_observers() {
         prototype(&world, ghost).as_deref(),
         Some(OBSERVER_PROTOTYPE)
     );
-    assert!(world.resource::<GameTicker>().observers.contains(&user));
+    let mind = crate::mind::mind_of_user(&world, user).unwrap();
+    assert!(world.get::<crate::mind::Mind>(mind).unwrap().observer);
+    assert_eq!(crate::mind::mind_of(&world, ghost), Some(mind));
     let at = world.coordinates(ghost).unwrap().position;
     assert!((at.x - 12.5).abs() < 0.01);
 }
