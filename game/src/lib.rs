@@ -16,6 +16,7 @@ pub mod atmos;
 pub mod atmos_alarms;
 pub mod atmos_devices;
 pub mod atmos_portables;
+pub mod bans;
 pub mod barotrauma;
 pub mod body;
 pub mod cables;
@@ -230,6 +231,7 @@ pub fn install_content(world: &mut World, side: Side) {
     internals::install(world, side);
     pipes::install(world, side);
     database::install(world, side);
+    bans::install(world);
     connection::install(world, side);
     device_network::install(world, side);
     device_linking::install(world, side);

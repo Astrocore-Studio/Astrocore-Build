@@ -5,7 +5,9 @@
 //! Образец — `Content.Server.Database` (`Model.cs`), `ServerDbManager`, `ServerDbBase`,
 //! `ServerDbSqlite`, `ServerDbPostgres`, `ServerDbEntryManager` SS14 @ 2f4a2aad.
 //!
-//! Нет пока: профилей (6.2), банов и журнала действий администраторов (следующая часть 6.1),
+//! Баны — в `bans.rs`.
+//!
+//! Нет пока: профилей (6.2), журнала действий администраторов (следующая часть 6.1),
 //! заметок администраторов, белых списков, времени игры, искусственной задержки запросов
 //! (`database.sqlite_delay`).
 
@@ -104,7 +106,7 @@ pub const SERVER_NAME: CVarDef<&str> = CVarDef::new(
 /// Ошибка базы текстом.
 pub type DbResult<T> = Result<T, String>;
 
-fn db_error(error: impl std::fmt::Display) -> String {
+pub(crate) fn db_error(error: impl std::fmt::Display) -> String {
     format!("база данных: {error}")
 }
 
@@ -179,14 +181,14 @@ pub struct ConnectionLogRecord {
     pub server_id: i64,
 }
 
-fn parse_user_id(text: &str) -> DbResult<NetUserId> {
+pub(crate) fn parse_user_id(text: &str) -> DbResult<NetUserId> {
     uuid::Uuid::parse_str(text).map(NetUserId).map_err(db_error)
 }
 
 /// Доступ к базе: пул соединений. Дёшево клонируется в задачи.
 #[derive(Clone)]
 pub struct Db {
-    pool: AnyPool,
+    pub(crate) pool: AnyPool,
     pub engine: DbEngine,
     /// Запись этого сервера (`ServerDbEntryManager.ServerEntity`).
     server: Arc<OnceCell<i64>>,
@@ -608,11 +610,8 @@ pub fn apply_results(world: &mut World) {
 }
 
 /// Адрес игрока для базы: только IP, как `IPAddress` SS14.
-pub fn address_text(address: Option<std::net::SocketAddr>) -> String {
-    address.map_or_else(
-        || IpAddr::from([0, 0, 0, 0]).to_string(),
-        |a| a.ip().to_string(),
-    )
+pub fn address_text(address: Option<IpAddr>) -> String {
+    address.unwrap_or(IpAddr::from([0, 0, 0, 0])).to_string()
 }
 
 pub fn install(world: &mut World, side: Side) {
