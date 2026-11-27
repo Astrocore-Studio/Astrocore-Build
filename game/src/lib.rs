@@ -34,6 +34,7 @@ pub mod fixed_point;
 pub mod flatpack;
 pub mod floor_tile;
 pub mod friction;
+pub mod gas_tank;
 pub mod grammar;
 pub mod gravity;
 pub mod guns;
@@ -190,6 +191,7 @@ pub fn install_content(world: &mut World, side: Side) {
     projectiles::install(world, side);
     guns::install(world, side);
     containment::install(world, side);
+    gas_tank::install(world, side);
     radiation::install(world, side);
     singularity::install(world, side);
     multipart::install(world, side);
