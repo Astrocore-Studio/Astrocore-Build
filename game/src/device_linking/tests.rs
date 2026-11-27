@@ -269,3 +269,55 @@ fn links_from_map_are_adopted_and_invalid_ones_dropped() {
     invoke_port(&mut world, button, "Pressed");
     assert_eq!(inbox(&world, lamp), vec!["Toggle"]);
 }
+
+#[test]
+fn links_changed_in_game_are_saved() {
+    use astrocore_map::{MapSaveOptions, MapSaveWorldExt};
+    let mut world = setup();
+    let grid = station(&mut world);
+    let map = world.get::<Transform>(grid).unwrap().map().unwrap();
+    let button = spawn_at(&mut world, "Button", grid, 1, 1);
+    let lamp = spawn_at(&mut world, "Lamp", grid, 3, 1);
+    assert!(toggle_link(
+        &mut world, None, button, lamp, "Pressed", "Toggle"
+    ));
+    let save = |world: &mut World| {
+        let mut save = world
+            .save_map(
+                map,
+                MapSaveOptions {
+                    allow_initialized: true,
+                },
+            )
+            .unwrap();
+        write_references(world, &mut save);
+        save
+    };
+    let saved = save(&mut world);
+    let ports = crate::device_network::tests::saved_field(
+        &saved,
+        button,
+        "DeviceLinkSource",
+        "linkedPorts",
+    )
+    .unwrap();
+    let text = astrocore_data::to_yaml_string(&ports);
+    assert!(
+        text.contains(&format!("{}:", saved.uids[&lamp]))
+            && text.contains("- Pressed")
+            && text.contains("- Toggle"),
+        "{text}"
+    );
+    // Связь снята — поля нет.
+    remove_sink_from_source(&mut world, button, lamp);
+    let cleared = save(&mut world);
+    assert!(
+        crate::device_network::tests::saved_field(
+            &cleared,
+            button,
+            "DeviceLinkSource",
+            "linkedPorts"
+        )
+        .is_none()
+    );
+}

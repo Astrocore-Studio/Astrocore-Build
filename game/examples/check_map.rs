@@ -50,9 +50,12 @@ fn round_trip(document: &DataNode) -> Result<(String, usize, usize), String> {
         .sum();
     astrocore_game::decals::write_for_save(&mut world, map);
     astrocore_game::atmos::write_for_save(&mut world, map);
-    let saved = world
+    let mut saved = world
         .save_map(map, MapSaveOptions::default())
         .map_err(|error| error.to_string())?;
+    // Ссылки на устройства, как в `savemap` (ADR-0014): без правок поля остаются как в файле.
+    astrocore_game::device_network::write_references(&mut world, &mut saved);
+    astrocore_game::device_linking::write_references(&mut world, &mut saved);
     println!(
         "  загружено {} сущностей, сохранено {}, тайлов {tiles} за {:.1?}",
         loaded.entities,

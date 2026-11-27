@@ -765,6 +765,56 @@ pub fn clear_signal(world: &mut World, source: Entity, port: &str) {
 // Связи из карты.
 
 /// Связи источника из сохранённого поля `linkedPorts`: номер приёмника → пары портов.
+/// Связи, изменённые в игре, — в сохранённую карту номерами её сущностей (ADR-0014).
+/// Связи, совпадающие с загруженными, остаются как в файле.
+pub fn write_references(world: &mut World, save: &mut astrocore_map::MapSave) {
+    let mut sources: Vec<(Entity, BTreeMap<Entity, BTreeSet<DeviceLink>>)> = world
+        .query::<(Entity, &DeviceLinkSource)>()
+        .iter(world)
+        .filter(|(entity, _)| save.uids.contains_key(entity))
+        .map(|(entity, source)| (entity, source.linked_ports.clone()))
+        .collect();
+    sources.sort_by_key(|(entity, _)| *entity);
+    for (source, linked) in sources {
+        let current: BTreeMap<u32, BTreeSet<DeviceLink>> = linked
+            .into_iter()
+            .filter(|(_, links)| !links.is_empty())
+            .filter_map(|(sink, links)| Some((*save.uids.get(&sink)?, links)))
+            .collect();
+        let preserved: BTreeMap<u32, BTreeSet<DeviceLink>> = preserved_links(world, source)
+            .into_iter()
+            .map(|(uid, links)| (uid, links.into_iter().collect()))
+            .filter(|(_, links): &(u32, BTreeSet<DeviceLink>)| !links.is_empty())
+            .collect();
+        if current == preserved {
+            continue;
+        }
+        let value = (!current.is_empty()).then(|| {
+            let mut map = astrocore_data::DataMap::new();
+            for (uid, links) in &current {
+                let pairs = links
+                    .iter()
+                    .map(|link| {
+                        DataNode::seq(vec![
+                            DataNode::plain(link.source.clone()),
+                            DataNode::plain(link.sink.clone()),
+                        ])
+                    })
+                    .collect();
+                map.insert(uid.to_string(), DataNode::seq(pairs));
+            }
+            DataNode::map(map)
+        });
+        crate::map_commands::set_saved_component_field(
+            &mut save.document,
+            save.uids[&source],
+            "DeviceLinkSource",
+            "linkedPorts",
+            value,
+        );
+    }
+}
+
 fn preserved_links(world: &World, source: Entity) -> Vec<(u32, Vec<DeviceLink>)> {
     let Some(preserved) = world.get::<MapPreserved>(source) else {
         return Vec::new();

@@ -190,3 +190,110 @@ fn map_device_lists_are_adopted() {
 fn address_text_matches_ss14() {
     assert_eq!(address_string(0x1234_ABCD), "1234-ABCD");
 }
+
+/// Поле компонента записи сущности в сохранённом документе.
+pub(crate) fn saved_field(
+    save: &astrocore_map::MapSave,
+    entity: Entity,
+    component: &str,
+    field: &str,
+) -> Option<DataNode> {
+    let uid = save.uids[&entity].to_string();
+    save.document
+        .as_map()?
+        .get("entities")?
+        .as_seq()?
+        .iter()
+        .filter_map(|group| group.as_map()?.get("entities")?.as_seq())
+        .flatten()
+        .find(|e| {
+            e.as_map()
+                .and_then(|m| m.get("uid"))
+                .and_then(DataNode::as_str)
+                == Some(&uid)
+        })?
+        .as_map()?
+        .get("components")?
+        .as_seq()?
+        .iter()
+        .find(|c| {
+            c.as_map()
+                .and_then(|m| m.get("type"))
+                .and_then(DataNode::as_str)
+                == Some(component)
+        })?
+        .as_map()?
+        .get(field)
+        .cloned()
+}
+
+#[test]
+fn device_lists_changed_in_game_are_saved() {
+    use astrocore_map::{MapSaveOptions, MapSaveWorldExt};
+    let mut world = setup();
+    let grid = station(&mut world);
+    let map = world.get::<Transform>(grid).unwrap().map().unwrap();
+    let alarm = spawn_at(&mut world, "Alarm", grid, 1, 1);
+    let first = spawn_at(&mut world, "WiredDevice", grid, 2, 1);
+    let second = spawn_at(&mut world, "WiredDevice", grid, 3, 1);
+    update_device_list(&mut world, alarm, &[first, second], false);
+    let save = |world: &mut World| {
+        let mut save = world
+            .save_map(
+                map,
+                MapSaveOptions {
+                    allow_initialized: true,
+                },
+            )
+            .unwrap();
+        write_references(world, &mut save);
+        save
+    };
+    let saved = save(&mut world);
+    let devices: Vec<String> = saved_field(&saved, alarm, "DeviceList", "devices")
+        .unwrap()
+        .as_seq()
+        .unwrap()
+        .iter()
+        .map(|n| n.as_str().unwrap().to_owned())
+        .collect();
+    let mut expected = vec![
+        saved.uids[&first].to_string(),
+        saved.uids[&second].to_string(),
+    ];
+    expected.sort_by_key(|u| u.parse::<u32>().unwrap());
+    let mut sorted = devices.clone();
+    sorted.sort_by_key(|u| u.parse::<u32>().unwrap());
+    assert_eq!(sorted, expected);
+
+    // Как в файле — поле не трогается (порядок номеров файла сохраняется).
+    let reversed = astrocore_data::parse_yaml(&format!(
+        "devices:\n- {}\n- {}\n",
+        saved.uids[&second], saved.uids[&first]
+    ))
+    .unwrap();
+    world.entity_mut(alarm).insert(MapPreserved {
+        components: Vec::new(),
+        missing: Vec::new(),
+        fields: vec![("DeviceList".into(), reversed.as_map().unwrap().clone())],
+    });
+    let again = save(&mut world);
+    let kept: Vec<String> = saved_field(&again, alarm, "DeviceList", "devices")
+        .unwrap()
+        .as_seq()
+        .unwrap()
+        .iter()
+        .map(|n| n.as_str().unwrap().to_owned())
+        .collect();
+    assert_eq!(
+        kept,
+        [
+            again.uids[&second].to_string(),
+            again.uids[&first].to_string()
+        ]
+    );
+    // Очищенный список — поля нет.
+    update_device_list(&mut world, alarm, &[], false);
+    let cleared = save(&mut world);
+    assert!(saved_field(&cleared, alarm, "DeviceList", "devices").is_none());
+}

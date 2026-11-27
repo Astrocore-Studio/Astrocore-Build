@@ -318,6 +318,67 @@ fn savemap(world: &mut World, shell: &mut ConsoleShell, args: &[String]) {
     }
 }
 
+/// Задать поле компонента записи сущности `uid` в документе карты: `None` убирает поле.
+/// Компонента нет в записи — он добавляется, если поле задаётся.
+pub fn set_saved_component_field(
+    document: &mut astrocore_data::DataNode,
+    uid: u32,
+    component: &str,
+    field: &str,
+    value: Option<astrocore_data::DataNode>,
+) {
+    use astrocore_data::{DataMap, DataNode};
+    let uid = uid.to_string();
+    let Some(section) = document
+        .as_map_mut()
+        .and_then(|root| root.get_mut("entities"))
+        .and_then(DataNode::as_seq_mut)
+    else {
+        return;
+    };
+    let entry = section
+        .iter_mut()
+        .filter_map(|group| group.as_map_mut()?.get_mut("entities")?.as_seq_mut())
+        .flat_map(|entities| entities.iter_mut())
+        .find(|entity| {
+            entity
+                .as_map()
+                .and_then(|m| m.get("uid"))
+                .and_then(DataNode::as_str)
+                == Some(uid.as_str())
+        });
+    let Some(entry) = entry.and_then(DataNode::as_map_mut) else {
+        return;
+    };
+    if entry.get("components").is_none() {
+        entry.insert("components", DataNode::seq(Vec::new()));
+    }
+    let Some(components) = entry.get_mut("components").and_then(DataNode::as_seq_mut) else {
+        return;
+    };
+    let existing = components.iter_mut().find(|c| {
+        c.as_map()
+            .and_then(|m| m.get("type"))
+            .and_then(DataNode::as_str)
+            == Some(component)
+    });
+    match (existing.and_then(DataNode::as_map_mut), value) {
+        (Some(map), Some(value)) => {
+            map.insert(field, value);
+        }
+        (Some(map), None) => {
+            map.remove(field);
+        }
+        (None, Some(value)) => {
+            let mut map = DataMap::new();
+            map.insert("type", DataNode::plain(component));
+            map.insert(field, value);
+            components.push(DataNode::map(map));
+        }
+        (None, None) => {}
+    }
+}
+
 /// Почему карта не сохранилась.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SaveError {
@@ -336,7 +397,7 @@ pub fn save_map_file(
     let file = user_file(world, path).map_err(SaveError::Other)?;
     crate::decals::write_for_save(world, map);
     crate::atmos::write_for_save(world, map);
-    let saved = world
+    let mut saved = world
         .save_map(
             map,
             MapSaveOptions {
@@ -344,6 +405,9 @@ pub fn save_map_file(
             },
         )
         .map_err(|error| SaveError::Initialized(error.to_string()))?;
+    // Ссылки на сущности, изменённые в игре (ADR-0014): списки устройств и связи сигналов.
+    crate::device_network::write_references(world, &mut saved);
+    crate::device_linking::write_references(world, &mut saved);
     let text = to_yaml_string(&saved.document);
     file.parent()
         .map_or(Ok(()), std::fs::create_dir_all)

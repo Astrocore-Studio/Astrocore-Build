@@ -674,6 +674,46 @@ pub fn preserved_uids(world: &World, entity: Entity, component: &str, field: &st
         .collect()
 }
 
+/// Списки устройств, изменённые в игре, — в сохранённую карту номерами её сущностей
+/// (ADR-0014). Список, совпадающий с загруженным, остаётся как в файле (порядок номеров).
+pub fn write_references(world: &mut World, save: &mut astrocore_map::MapSave) {
+    let mut lists: Vec<(Entity, Vec<Entity>)> = world
+        .query::<(Entity, &DeviceList)>()
+        .iter(world)
+        .filter(|(entity, _)| save.uids.contains_key(entity))
+        .map(|(entity, list)| (entity, list.devices.iter().copied().collect()))
+        .collect();
+    lists.sort();
+    for (list, devices) in lists {
+        let current: Vec<u32> = devices
+            .iter()
+            .filter_map(|device| save.uids.get(device).copied())
+            .collect();
+        let preserved = preserved_uids(world, list, "DeviceList", "devices");
+        let same = |a: &[u32], b: &[u32]| {
+            a.iter().collect::<BTreeSet<_>>() == b.iter().collect::<BTreeSet<_>>()
+        };
+        if same(&current, &preserved) {
+            continue;
+        }
+        let value = (!current.is_empty()).then(|| {
+            DataNode::seq(
+                current
+                    .iter()
+                    .map(|uid| DataNode::plain(uid.to_string()))
+                    .collect(),
+            )
+        });
+        crate::map_commands::set_saved_component_field(
+            &mut save.document,
+            save.uids[&list],
+            "DeviceList",
+            "devices",
+            value,
+        );
+    }
+}
+
 /// Списки устройств из карты (ADR-0010): номера файла → сущности.
 fn adopt_device_lists(world: &mut World, loaded: &MapLoaded) {
     let mut lists: Vec<Entity> = loaded
@@ -816,4 +856,4 @@ pub fn install(world: &mut World, side: Side) {
 }
 
 #[cfg(test)]
-mod tests;
+pub(crate) mod tests;
