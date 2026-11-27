@@ -14,6 +14,7 @@ pub mod ame;
 pub mod anchorable;
 pub mod atmos;
 pub mod atmos_devices;
+pub mod atmos_portables;
 pub mod barotrauma;
 pub mod body;
 pub mod cables;
@@ -219,6 +220,7 @@ pub fn install_content(world: &mut World, side: Side) {
     internals::install(world, side);
     pipes::install(world, side);
     atmos_devices::install(world, side);
+    atmos_portables::install(world, side);
     weldable::install(world, side);
     status_effects::install(world, side);
     electrocution::install(world, side);

@@ -400,6 +400,8 @@ fn execute(world: &mut World, owner: Entity, behavior: &Behavior, cause: Option<
                 crate::atmos::merge_at(world, at, &gas);
             }
         }
+        // Разбитая канистра выпускает газ (`DumpCanisterBehavior`).
+        Behavior::DumpCanisterBehavior {} => crate::atmos_portables::purge_contents(world, owner),
         _ => {}
     }
 }

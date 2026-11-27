@@ -14,6 +14,7 @@ use std::collections::BTreeMap;
 use astrocore_audio::{AudioWorldExt, SoundSpecifier};
 use astrocore_ecs::{EntityTerminating, EventWorldExt, GameTime, MapInit, RegistryWorldExt};
 use astrocore_map::{ContainerWorldExt, EntParentChanged, TransformWorldExt};
+use astrocore_net::AppearanceWorldExt;
 use astrocore_physics::PhysicsWorldExt;
 use bevy_ecs::component::Component;
 use bevy_ecs::entity::Entity;
@@ -507,53 +508,122 @@ fn release_gas(world: &mut World, data: &crate::atmos::GasData, tank: Entity, dt
     crate::throwing::try_throw(world, tank, direction * strength, strength, None, false);
 }
 
-/// Прочность и предохранитель (`CheckStatus`). `false` — баллон взорвался.
-fn check_status(world: &mut World, data: &crate::atmos::GasData, tank: Entity, dt: f32) -> bool {
-    let Some(component) = world.get::<GasTank>(tank).cloned() else {
+/// Сосуд с газом под давлением (`IGasMaxPressureHolder`): баллон, канистра.
+pub trait PressureHolder:
+    bevy_ecs::component::Component<Mutability = bevy_ecs::component::Mutable> + Clone
+{
+    fn air(&self) -> Option<&GasMixture>;
+    fn integrity(&self) -> f32;
+    fn integrity_mut(&mut self) -> &mut f32;
+    fn max_integrity(&self) -> f32;
+    fn overpressure(&self) -> f32;
+    fn safety_pressure(&self) -> f32;
+    fn rupture_sound(&self) -> Option<SoundSpecifier>;
+}
+
+impl PressureHolder for GasTank {
+    fn air(&self) -> Option<&GasMixture> {
+        self.mixture.as_ref()
+    }
+    fn integrity(&self) -> f32 {
+        self.integrity
+    }
+    fn integrity_mut(&mut self) -> &mut f32 {
+        &mut self.integrity
+    }
+    fn max_integrity(&self) -> f32 {
+        self.max_integrity
+    }
+    fn overpressure(&self) -> f32 {
+        self.overpressure
+    }
+    fn safety_pressure(&self) -> f32 {
+        self.safety_pressure
+    }
+    fn rupture_sound(&self) -> Option<SoundSpecifier> {
+        self.rupture_sound.clone()
+    }
+}
+
+/// Ключи вида прочности (`GasIntegrity`).
+pub const INTEGRITY: &str = "enum.GasIntegrity.Integrity";
+pub const MAX_INTEGRITY: &str = "enum.GasIntegrity.MaxIntegrity";
+
+/// Прочность и предохранитель (`GasMaxPressureSystem.CheckStatus`): выше
+/// `overpressure × (прочность + 1)` сосуд разрывается со взрывом, выше `overpressure` теряет
+/// прочность, ниже — восстанавливает; выше `safety_pressure` вызывается `safety`. `false` —
+/// сосуд разорвался.
+pub fn check_status<T: PressureHolder>(
+    world: &mut World,
+    data: &crate::atmos::GasData,
+    entity: Entity,
+    dt: f32,
+    safety: fn(&mut World, Entity),
+) -> bool {
+    let Some(component) = world.get::<T>(entity).cloned() else {
         return false;
     };
-    let pressure = component.pressure();
-    if pressure > component.overpressure * (component.integrity + 1.0) {
-        // Разрыв: газ наружу, баллон разрушен, взрыв силой √(избыточного давления).
-        if let Some(air) = component.mixture.clone() {
-            crate::barotrauma::with_containing_mixture(world, tank, true, |outside| {
+    let pressure = component.air().map_or(0.0, GasMixture::pressure);
+    if pressure > component.overpressure() * (component.integrity() + 1.0) {
+        // Разрыв: газ наружу, сосуд разрушен, взрыв силой √(избыточного давления).
+        if let Some(air) = component.air().cloned() {
+            crate::barotrauma::with_containing_mixture(world, entity, true, |outside| {
                 data.merge(outside, &air)
             });
             let intensity = over_pressure(&air).sqrt();
-            if let Some(sound) = &component.rupture_sound
-                && let Some(at) = world.map_coordinates(tank)
+            if let Some(sound) = component.rupture_sound()
+                && let Some(at) = world.map_coordinates(entity)
             {
-                world.play_at(sound, at, None);
+                world.play_at(&sound, at, None);
             }
-            crate::destructible::destroy_entity(world, tank);
-            crate::explosion::trigger_explosive_with(world, tank, None, Some(intensity));
+            crate::destructible::destroy_entity(world, entity);
+            crate::explosion::trigger_explosive_with(world, entity, None, Some(intensity));
         }
         return false;
     }
-    if pressure > component.overpressure {
-        if let Some(mut component) = world.get_mut::<GasTank>(tank) {
-            component.integrity -= dt;
+    let mut changed = None;
+    if pressure > component.overpressure() {
+        if let Some(mut component) = world.get_mut::<T>(entity) {
+            *component.integrity_mut() -= dt;
+            changed = Some((component.integrity(), component.max_integrity()));
         }
-    } else if component.integrity < component.max_integrity
-        && let Some(mut component) = world.get_mut::<GasTank>(tank)
+    } else if component.integrity() < component.max_integrity()
+        && let Some(mut component) = world.get_mut::<T>(entity)
     {
-        component.integrity = (component.integrity + dt).min(component.max_integrity);
+        let max = component.max_integrity();
+        let value = (component.integrity() + dt).min(max);
+        *component.integrity_mut() = value;
+        changed = Some((value, max));
     }
-    // Предохранитель: открыть клапан (`SafetyMeasures`).
-    if pressure > component.safety_pressure && !component.release_valve_open {
-        set_valve(world, tank, true, None);
-        if let Some(alert) = &component.safety_alert {
-            let text = crate::examine::loc(world, alert, &[]);
-            world.popup_entity(&text, tank, PopupType::LargeCaution);
-        }
+    if let Some((integrity, max)) = changed {
+        world.set_appearance(entity, INTEGRITY, integrity);
+        world.set_appearance(entity, MAX_INTEGRITY, max);
+    }
+    if pressure > component.safety_pressure() {
+        safety(world, entity);
     }
     true
+}
+
+/// Предохранитель баллона (`SafetyMeasures`): открыть клапан.
+fn tank_safety(world: &mut World, tank: Entity) {
+    let Some(component) = world.get::<GasTank>(tank).cloned() else {
+        return;
+    };
+    if component.release_valve_open {
+        return;
+    }
+    set_valve(world, tank, true, None);
+    if let Some(alert) = &component.safety_alert {
+        let text = crate::examine::loc(world, alert, &[]);
+        world.popup_entity(&text, tank, PopupType::LargeCaution);
+    }
 }
 
 /// Шаг баллона как устройства атмосферы (`DeviceUpdated`).
 fn device_update(world: &mut World, tank: Entity, dt: f32) {
     let data = crate::atmos::gas_data(world);
-    if !check_status(world, &data, tank, dt) {
+    if !check_status::<GasTank>(world, &data, tank, dt, tank_safety) {
         return;
     }
     let Some(component) = world.get::<GasTank>(tank).cloned() else {

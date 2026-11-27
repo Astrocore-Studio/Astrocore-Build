@@ -3,14 +3,21 @@
 //! (`IdCardConsoleBoundUserInterface`, `IdCardConsoleWindow`), машина с зарядом — генератор
 //! гравитации (`PowerChargeBoundUserInterface`, `PowerChargeWindow`) и пульт ускорителя частиц
 //! (`ParticleAcceleratorBoundUserInterface`, `ParticleAcceleratorControlMenu`), газовый баллон
-//! (`GasTankBoundUserInterface`, `GasTankWindow`) SS14 @ 2f4a2aad. Поле ввода давления баллона
-//! заменено кнопками шага.
+//! (`GasTankBoundUserInterface`, `GasTankWindow`), канистра (`GasCanisterBoundUserInterface`,
+//! `GasCanisterWindow`) и термомашина (`GasThermomachineBoundUserInterface`,
+//! `GasThermomachineWindow`) SS14 @ 2f4a2aad. Поля ввода давления и температуры заменены
+//! кнопками шага.
 
 use astrocore_client::{UiAction, WindowKinds, spawn_button, spawn_label};
 use astrocore_ui::UiWorldExt;
 use bevy::prelude::*;
 
 use crate::ame::{AME_UI_KEY, AmeUiButton, AmeUiState};
+use crate::atmos_portables::{
+    CANISTER_UI_KEY, GasCanisterChangeReleasePressure, GasCanisterChangeReleaseValve,
+    GasCanisterHoldingTankEject, GasCanisterUiState, GasThermomachineChangeTemperature,
+    GasThermomachineToggle, THERMOMACHINE_UI_KEY, ThermoMachineUiState,
+};
 use crate::gas_tank::{
     GAS_TANK_UI_KEY, GasTankSetPressure, GasTankToggleInternals, GasTankUiState,
 };
@@ -359,6 +366,161 @@ impl Plugin for PowerUiPlugin {
                         }),
                     );
                 }
+            },
+        );
+        kinds.register(
+            "GasCanisterBoundUserInterface",
+            |commands, content, ui, _, style| {
+                let Some(state) = ui.state::<GasCanisterUiState>() else {
+                    spawn_label(commands, content, style, "Нет данных");
+                    return;
+                };
+                let mut lines = vec![
+                    format!("Давление в канистре: {:.1} кПа", state.canister_pressure),
+                    format!(
+                        "Порт: {}",
+                        if state.port_status {
+                            "подключён"
+                        } else {
+                            "не подключён"
+                        }
+                    ),
+                    format!("Давление выпуска: {:.1} кПа", state.release_pressure),
+                    format!(
+                        "Клапан: {}",
+                        if state.release_valve_open {
+                            "открыт"
+                        } else {
+                            "закрыт"
+                        }
+                    ),
+                ];
+                if state.has_tank {
+                    lines.push(format!("Баллон: {:.1} кПа", state.tank_pressure));
+                } else {
+                    lines.push("Баллона нет".to_owned());
+                }
+                for line in lines {
+                    spawn_label(commands, content, style, &line);
+                }
+                let entity = ui.entity;
+                for (text, step) in [("Выпуск −50 кПа", -50.0f32), ("Выпуск +50 кПа", 50.0)]
+                {
+                    let pressure = (state.release_pressure + step)
+                        .clamp(state.min_release_pressure, state.max_release_pressure);
+                    spawn_button(
+                        commands,
+                        content,
+                        style,
+                        text,
+                        UiAction::new(move |world| {
+                            world.send_ui_message(
+                                entity,
+                                CANISTER_UI_KEY,
+                                &GasCanisterChangeReleasePressure { pressure },
+                            );
+                        }),
+                    );
+                }
+                let valve = !state.release_valve_open;
+                spawn_button(
+                    commands,
+                    content,
+                    style,
+                    if valve {
+                        "Открыть клапан"
+                    } else {
+                        "Закрыть клапан"
+                    },
+                    UiAction::new(move |world| {
+                        world.send_ui_message(
+                            entity,
+                            CANISTER_UI_KEY,
+                            &GasCanisterChangeReleaseValve { valve },
+                        );
+                    }),
+                );
+                if state.has_tank {
+                    spawn_button(
+                        commands,
+                        content,
+                        style,
+                        "Вынуть баллон",
+                        UiAction::new(move |world| {
+                            world.send_ui_message(
+                                entity,
+                                CANISTER_UI_KEY,
+                                &GasCanisterHoldingTankEject,
+                            );
+                        }),
+                    );
+                }
+            },
+        );
+        kinds.register(
+            "GasThermomachineBoundUserInterface",
+            |commands, content, ui, _, style| {
+                let Some(state) = ui.state::<ThermoMachineUiState>() else {
+                    spawn_label(commands, content, style, "Нет данных");
+                    return;
+                };
+                let mut lines = vec![
+                    if state.heater {
+                        "Нагреватель".to_owned()
+                    } else {
+                        "Охладитель".to_owned()
+                    },
+                    format!(
+                        "Работа: {}",
+                        if state.enabled {
+                            "включён"
+                        } else {
+                            "выключен"
+                        }
+                    ),
+                    format!(
+                        "Цель: {:.1} K ({:.1} °C)",
+                        state.target_temperature,
+                        state.target_temperature - 273.15
+                    ),
+                ];
+                if let Some(t) = state.inlet_temperature {
+                    lines.push(format!("Сейчас: {t:.1} K"));
+                }
+                for line in lines {
+                    spawn_label(commands, content, style, &line);
+                }
+                let entity = ui.entity;
+                for (text, step) in [("−10 K", -10.0f32), ("+10 K", 10.0)] {
+                    let temperature = (state.target_temperature + step)
+                        .clamp(state.min_temperature, state.max_temperature);
+                    spawn_button(
+                        commands,
+                        content,
+                        style,
+                        text,
+                        UiAction::new(move |world| {
+                            world.send_ui_message(
+                                entity,
+                                THERMOMACHINE_UI_KEY,
+                                &GasThermomachineChangeTemperature { temperature },
+                            );
+                        }),
+                    );
+                }
+                spawn_button(
+                    commands,
+                    content,
+                    style,
+                    "Вкл/выкл",
+                    UiAction::new(move |world| {
+                        world.send_ui_message(
+                            entity,
+                            THERMOMACHINE_UI_KEY,
+                            &GasThermomachineToggle,
+                        );
+                    }),
+                );
             },
         );
         kinds.register(

@@ -39,6 +39,8 @@ struct Options {
     walk: bool,
     walk_up: bool,
     use_nearest: bool,
+    /// Прототип устройства для `--use-nearest` (`--device`).
+    device: Option<String>,
     examine_nearest: bool,
     storage_nearest: bool,
     hurt: bool,
@@ -59,6 +61,7 @@ fn options() -> Result<Options, String> {
         walk: false,
         walk_up: false,
         use_nearest: false,
+        device: None,
         examine_nearest: false,
         storage_nearest: false,
         hurt: false,
@@ -76,6 +79,7 @@ fn options() -> Result<Options, String> {
             "--walk" => options.walk = true,
             "--walk-up" => options.walk_up = true,
             "--use-nearest" => options.use_nearest = true,
+            "--device" => options.device = Some(value("прототип устройства")?),
             "--examine-nearest" => options.examine_nearest = true,
             "--storage-nearest" => options.storage_nearest = true,
             "--hurt" => options.hurt = true,
@@ -103,7 +107,7 @@ fn options() -> Result<Options, String> {
 }
 
 /// Проверка без человека: точка появления переносится к первому устройству с интерфейсом.
-fn stand_by_device(server: &mut bevy_ecs::world::World) {
+fn stand_by_device(server: &mut bevy_ecs::world::World, prototype: Option<&str>) {
     use astrocore_game::activatable_ui::ActivatableUi;
     use astrocore_map::{MapCoordinates, TransformWorldExt};
     let mut devices = server.query_filtered::<bevy_ecs::entity::Entity, (
@@ -111,6 +115,14 @@ fn stand_by_device(server: &mut bevy_ecs::world::World) {
         With<astrocore_ui::UserInterface>,
     )>();
     let mut found: Vec<_> = devices.iter(server).collect();
+    if let Some(prototype) = prototype {
+        found.retain(|device| {
+            server
+                .get::<astrocore_ecs::MetaData>(*device)
+                .and_then(|m| m.prototype.as_deref())
+                == Some(prototype)
+        });
+    }
     found.sort_unstable();
     if let Some(at) = found
         .first()
@@ -126,7 +138,11 @@ fn stand_by_device(server: &mut bevy_ecs::world::World) {
 
 /// Проверка без человека: через секунду после появления игрок нажимает «использовать в
 /// мире» на ближайшем устройстве с интерфейсом.
-fn use_nearest(mut game: ResMut<Game>, mut frames: Local<u32>) {
+/// Прототип устройства для `--use-nearest` (`--device`).
+#[derive(Resource, Default)]
+struct DeviceFilter(Option<String>);
+
+fn use_nearest(mut game: ResMut<Game>, filter: Res<DeviceFilter>, mut frames: Local<u32>) {
     use astrocore_game::activatable_ui::ActivatableUi;
     use astrocore_game::interaction::functions::ACTIVATE_IN_WORLD;
     use astrocore_input::{BoundKeyState, InputWorldExt};
@@ -145,6 +161,14 @@ fn use_nearest(mut game: ResMut<Game>, mut frames: Local<u32>) {
     let mut devices = world.query_filtered::<bevy_ecs::entity::Entity, With<ActivatableUi>>();
     let nearest = devices
         .iter(world)
+        .filter(|device| {
+            filter.0.as_deref().is_none_or(|wanted| {
+                world
+                    .get::<astrocore_ecs::MetaData>(*device)
+                    .and_then(|m| m.prototype.as_deref())
+                    == Some(wanted)
+            })
+        })
         .filter_map(|device| {
             Some((
                 world
@@ -431,7 +455,7 @@ fn run() -> Result<(), String> {
     let transport: Box<dyn ClientTransport> = if options.host {
         let mut start = server::start()?;
         if options.use_nearest {
-            stand_by_device(&mut start.world);
+            stand_by_device(&mut start.world, options.device.as_deref());
         }
         if options.storage_nearest {
             stand_by_storage(&mut start.world);
@@ -518,6 +542,7 @@ fn run() -> Result<(), String> {
         app.add_systems(Update, hold_up);
     }
     if options.use_nearest {
+        app.insert_resource(DeviceFilter(options.device.clone()));
         app.add_systems(Update, use_nearest);
     }
     if options.examine_nearest {
