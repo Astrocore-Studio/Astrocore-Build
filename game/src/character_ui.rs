@@ -460,7 +460,7 @@ fn keys(
 #[derive(Component)]
 struct EditorPanel;
 
-fn text_or(world: &GameWorld, key: &str, fallback: &str) -> String {
+pub(crate) fn text_or(world: &GameWorld, key: &str, fallback: &str) -> String {
     match world.get_resource::<Loc>() {
         Some(l) if l.has(key) => l.format(key, &[]),
         _ => fallback.to_owned(),
@@ -471,17 +471,17 @@ fn to_ui(color: GameColor) -> Color {
     Color::srgb(color.r, color.g, color.b)
 }
 
-struct Ui<'a, 'w, 's> {
-    commands: &'a mut Commands<'w, 's>,
-    style: &'a UiStyle,
+pub(crate) struct Ui<'a, 'w, 's> {
+    pub(crate) commands: &'a mut Commands<'w, 's>,
+    pub(crate) style: &'a UiStyle,
 }
 
 impl Ui<'_, '_, '_> {
-    fn node(&mut self, parent: Entity, node: Node) -> Entity {
+    pub(crate) fn node(&mut self, parent: Entity, node: Node) -> Entity {
         self.commands.spawn((ChildOf(parent), node)).id()
     }
 
-    fn row(&mut self, parent: Entity) -> Entity {
+    pub(crate) fn row(&mut self, parent: Entity) -> Entity {
         self.node(
             parent,
             Node {
@@ -494,7 +494,7 @@ impl Ui<'_, '_, '_> {
         )
     }
 
-    fn column(&mut self, parent: Entity, width: Option<f32>) -> Entity {
+    pub(crate) fn column(&mut self, parent: Entity, width: Option<f32>) -> Entity {
         self.node(
             parent,
             Node {
@@ -506,12 +506,12 @@ impl Ui<'_, '_, '_> {
         )
     }
 
-    fn label(&mut self, parent: Entity, text: impl Into<String>, size: f32) {
+    pub(crate) fn label(&mut self, parent: Entity, text: impl Into<String>, size: f32) {
         self.commands
             .spawn((ChildOf(parent), self.style.text(text, size)));
     }
 
-    fn chip_colored(
+    pub(crate) fn chip_colored(
         &mut self,
         parent: Entity,
         text: impl Into<String>,
@@ -536,7 +536,7 @@ impl Ui<'_, '_, '_> {
         button
     }
 
-    fn chip(
+    pub(crate) fn chip(
         &mut self,
         parent: Entity,
         text: impl Into<String>,
@@ -546,7 +546,13 @@ impl Ui<'_, '_, '_> {
         self.chip_colored(parent, text, if selected { SELECTED } else { ROW }, action)
     }
 
-    fn swatch(&mut self, parent: Entity, color: GameColor, selected: bool, action: UiAction) {
+    pub(crate) fn swatch(
+        &mut self,
+        parent: Entity,
+        color: GameColor,
+        selected: bool,
+        action: UiAction,
+    ) {
         self.commands.spawn((
             ChildOf(parent),
             Interaction::default(),
@@ -562,7 +568,7 @@ impl Ui<'_, '_, '_> {
         ));
     }
 
-    fn field(
+    pub(crate) fn field(
         &mut self,
         parent: Entity,
         label: &str,

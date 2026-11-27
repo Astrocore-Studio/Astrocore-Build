@@ -143,6 +143,8 @@ pub mod inventory_hud;
 #[cfg(feature = "client")]
 pub mod light_visuals;
 #[cfg(feature = "client")]
+pub mod lobby_ui;
+#[cfg(feature = "client")]
 pub mod mapping_ui;
 #[cfg(feature = "client")]
 pub mod mob_visuals;

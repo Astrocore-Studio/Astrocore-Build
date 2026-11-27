@@ -364,3 +364,42 @@ fn delaying_and_pausing_the_countdown() {
     let resumed = world.resource::<GameTicker>().round_start_time.unwrap();
     assert!(resumed > start + Duration::from_secs(60));
 }
+
+#[test]
+fn client_lobby_follows_ticker_messages() {
+    let mut world = World::new();
+    world.insert_resource(GameTime::default());
+    apply_ticker_message(&mut world, &TickerMessage::JoinLobby);
+    apply_ticker_message(
+        &mut world,
+        &TickerMessage::LobbyStatus {
+            is_round_started: false,
+            you_are_ready: true,
+            seconds_until_start: Some(90.0),
+            paused: false,
+            round_duration: 0.0,
+        },
+    );
+    let lobby = world.resource::<ClientLobby>().clone();
+    assert!(lobby.in_lobby && lobby.ready && !lobby.round_started);
+    // Отсчёт идёт по часам клиента.
+    world.resource_mut::<GameTime>().tick = GameTick(30 * 60);
+    let now = world.resource::<GameTime>().cur_time();
+    let left = lobby.seconds_left(now).unwrap();
+    assert!((left - 30.0).abs() < 0.1, "{left}");
+    apply_ticker_message(
+        &mut world,
+        &TickerMessage::RoundEnd(Box::new(RoundEndMessage {
+            gamemode_title: "Secret".into(),
+            round_end_text: String::new(),
+            round_duration: 600.0,
+            round_id: 7,
+            players: Vec::new(),
+        })),
+    );
+    apply_ticker_message(&mut world, &TickerMessage::JoinGame);
+    let lobby = world.resource::<ClientLobby>();
+    assert!(!lobby.in_lobby);
+    assert!(lobby.show_round_end);
+    assert_eq!(lobby.round_end.as_ref().unwrap().round_id, 7);
+}

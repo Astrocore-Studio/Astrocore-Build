@@ -1992,6 +1992,83 @@ fn commands() -> Vec<ConsoleCommand> {
     ]
 }
 
+// Клиент.
+
+/// Состояние лобби на клиенте: из сообщений раунда.
+#[derive(Resource, Debug, Clone, Default, PartialEq)]
+pub struct ClientLobby {
+    /// Игрок в лобби (`TickerJoinLobbyEvent`), а не в игре.
+    pub in_lobby: bool,
+    pub round_started: bool,
+    pub ready: bool,
+    /// Когда начнётся раунд по часам клиента.
+    pub start_at: Option<Duration>,
+    pub paused: bool,
+    /// Длительность раунда на момент `round_duration_at`.
+    pub round_duration: f32,
+    pub round_duration_at: Duration,
+    pub info: String,
+    pub late_join_disallowed: bool,
+    /// Последние итоги и показывать ли их.
+    pub round_end: Option<RoundEndMessage>,
+    pub show_round_end: bool,
+    pub version: u64,
+}
+
+impl ClientLobby {
+    /// Секунды до старта сейчас; `None` — отсчёта нет.
+    pub fn seconds_left(&self, now: Duration) -> Option<f32> {
+        self.start_at.map(|at| at.saturating_sub(now).as_secs_f32())
+    }
+
+    /// Длительность раунда сейчас.
+    pub fn round_time(&self, now: Duration) -> f32 {
+        self.round_duration + now.saturating_sub(self.round_duration_at).as_secs_f32()
+    }
+}
+
+/// Клиент применяет сообщение раунда.
+pub fn apply_ticker_message(world: &mut World, message: &TickerMessage) {
+    let time = now(world);
+    let mut lobby = world.get_resource_or_insert_with(ClientLobby::default);
+    match message {
+        TickerMessage::JoinLobby => lobby.in_lobby = true,
+        TickerMessage::JoinGame => lobby.in_lobby = false,
+        TickerMessage::LobbyStatus {
+            is_round_started,
+            you_are_ready,
+            seconds_until_start,
+            paused,
+            round_duration,
+        } => {
+            lobby.round_started = *is_round_started;
+            lobby.ready = *you_are_ready;
+            lobby.start_at = seconds_until_start.map(|s| time + Duration::from_secs_f32(s));
+            lobby.paused = *paused;
+            lobby.round_duration = *round_duration;
+            lobby.round_duration_at = time;
+        }
+        TickerMessage::LobbyInfo(text) => lobby.info = text.clone(),
+        TickerMessage::LobbyCountdown {
+            seconds_until_start,
+            paused,
+        } => {
+            lobby.start_at = seconds_until_start.map(|s| time + Duration::from_secs_f32(s));
+            lobby.paused = *paused;
+        }
+        TickerMessage::LateJoinStatus { disallowed } => lobby.late_join_disallowed = *disallowed,
+        TickerMessage::RoundEnd(end) => {
+            lobby.round_end = Some((**end).clone());
+            lobby.show_round_end = true;
+        }
+        TickerMessage::RestartCleanup => {
+            lobby.round_started = false;
+            lobby.ready = false;
+        }
+    }
+    lobby.version += 1;
+}
+
 pub fn install(world: &mut World, side: Side) {
     world.register_cvar(&GAME_LOBBY_ENABLED);
     world.register_cvar(&GAME_LOBBY_DURATION);
@@ -2006,6 +2083,11 @@ pub fn install(world: &mut World, side: Side) {
     world.register_net_event::<TickerMessage>();
     world.register_net_event::<LobbyRequest>();
     if !side.is_server() {
+        world.init_resource::<ClientLobby>();
+        world.subscribe_broadcast::<NetEvent<TickerMessage>>(|world, event| {
+            let message = event.event.clone();
+            apply_ticker_message(world, &message);
+        });
         return;
     }
     world.init_resource::<GameTicker>();

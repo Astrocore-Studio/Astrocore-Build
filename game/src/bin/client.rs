@@ -55,6 +55,10 @@ struct Options {
     character: Option<String>,
     /// С `--host`: сервер с лобби, как выделенный (без него — сразу в раунд).
     lobby: bool,
+    /// Секунды лобби (`--lobby-duration`), для проверки без человека.
+    lobby_duration: Option<String>,
+    /// Открыть окно позднего входа (`--late-join`).
+    late_join: bool,
 }
 
 fn options() -> Result<Options, String> {
@@ -79,6 +83,8 @@ fn options() -> Result<Options, String> {
         construct: None,
         character: None,
         lobby: false,
+        lobby_duration: None,
+        late_join: false,
     };
     let mut args = std::env::args().skip(1);
     while let Some(arg) = args.next() {
@@ -108,6 +114,8 @@ fn options() -> Result<Options, String> {
             "--construct" => options.construct = Some(value("рецепт")?),
             "--character" => options.character = Some(value("вкладка")?),
             "--lobby" => options.lobby = true,
+            "--lobby-duration" => options.lobby_duration = Some(value("секунды")?),
+            "--late-join" => options.late_join = true,
             other => {
                 return Err(format!(
                     "неизвестный параметр {other}. Параметры: --host, --connect <адрес>, --name <имя>, --capture <файл>, --walk, --walk-up"
@@ -560,7 +568,14 @@ fn run() -> Result<(), String> {
     let transport: Box<dyn ClientTransport> = if options.host {
         // Игра в одиночку — сразу в раунд, как `development.toml` SS14 (ADR-0012).
         let lobby = if options.lobby { "true" } else { "false" };
-        let mut start = server::start_with(&[("game.lobbyenabled", lobby)])?;
+        let duration = options
+            .lobby_duration
+            .clone()
+            .unwrap_or_else(|| "150".into());
+        let mut start = server::start_with(&[
+            ("game.lobbyenabled", lobby),
+            ("game.lobbyduration", &duration),
+        ])?;
         if options.use_nearest {
             stand_by_device(&mut start.world, options.device.as_deref());
         }
@@ -646,6 +661,7 @@ fn run() -> Result<(), String> {
     .add_plugins(astrocore_game::mapping_ui::MappingUiPlugin)
     .add_plugins(astrocore_game::construction_ui::ConstructionUiPlugin)
     .add_plugins(astrocore_game::character_ui::CharacterUiPlugin)
+    .add_plugins(astrocore_game::lobby_ui::LobbyUiPlugin)
     .add_plugins(astrocore_game::decal_visuals::DecalVisualsPlugin)
     .add_plugins(astrocore_game::power_ui::PowerUiPlugin)
     .add_plugins(astrocore_game::wires_ui::WiresUiPlugin);
@@ -710,6 +726,16 @@ fn run() -> Result<(), String> {
                 ..ConstructionMenu::default()
             });
         app.insert_resource(astrocore_game::mapping_ui::DemoCursor(Vec2::new(0.0, -2.0)));
+    }
+    if options.late_join {
+        use astrocore_game::lobby_ui::LobbyWindows;
+        app.world_mut()
+            .resource_mut::<Game>()
+            .0
+            .insert_resource(LobbyWindows {
+                late_join_open: true,
+                version: 1,
+            });
     }
     if let Some(tab) = &options.character {
         use astrocore_game::character_ui::{CharacterEditor, Tab};
