@@ -180,6 +180,24 @@ fn rotate_directions(directions: u8, rotation: f32) -> u8 {
         .fold(0, |acc, bit| acc | bit_of(quarter_of(bit) + turn))
 }
 
+/// Перекрытые сущностью направления с учётом её поворота; 0 — не перекрывает.
+pub fn entity_blocked_directions(world: &World, entity: Entity) -> u8 {
+    let Some(airtight) = world.get::<Airtight>(entity) else {
+        return 0;
+    };
+    if !airtight.air_blocked {
+        return 0;
+    }
+    let rotation = if airtight.rotate_air_blocked {
+        world
+            .get::<Transform>(entity)
+            .map_or(0.0, |t| t.local_rotation().0)
+    } else {
+        0.0
+    };
+    rotate_directions(initial_blocked_directions(airtight), rotation)
+}
+
 /// Непроницаемость клетки по привязанным сущностям (`GetAirtightData`).
 fn airtight_data(world: &World, grid: Entity, coord: TileCoord) -> AirtightData {
     let Some(map_grid) = world.get::<MapGrid>(grid) else {

@@ -240,6 +240,8 @@ pub struct NodeGroups {
     pub dirty: bool,
     /// Растёт при каждой пересборке: потребители групп (электросеть) узнают о переменах.
     pub generation: u64,
+    /// Пересборка отложена (`NodeGroupSystem.PauseUpdating`): например, на время взрыва.
+    pub pause_updating: bool,
 }
 
 impl NodeGroups {
@@ -513,7 +515,10 @@ pub fn mark_dirty(world: &mut World) {
 
 /// Система: пересобирает группы, если что-то изменилось.
 pub fn update_system(world: &mut World) {
-    if world.get_resource::<NodeGroups>().is_some_and(|g| g.dirty) {
+    if world
+        .get_resource::<NodeGroups>()
+        .is_some_and(|g| g.dirty && !g.pause_updating)
+    {
         rebuild(world);
     }
 }

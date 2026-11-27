@@ -532,7 +532,10 @@ fn on_damageable_irradiated(world: &mut World, entity: Entity, event: &mut Irrad
     };
     let value = FixedPoint2::from_f32(event.total_rads());
     let damage = DamageSpecifier {
-        types: types.into_iter().map(|t| (t, value)).collect::<BTreeMap<_, _>>(),
+        types: types
+            .into_iter()
+            .map(|t| (t, value))
+            .collect::<BTreeMap<_, _>>(),
     };
     world.change_damage(entity, &damage, false, false, event.origin);
 }

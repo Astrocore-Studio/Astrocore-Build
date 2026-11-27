@@ -101,6 +101,8 @@ pub mod dev_console;
 #[cfg(feature = "client")]
 pub mod door_visuals;
 #[cfg(feature = "client")]
+pub mod explosion_visuals;
+#[cfg(feature = "client")]
 pub mod gas_overlay_visuals;
 #[cfg(feature = "client")]
 pub mod hands_hud;

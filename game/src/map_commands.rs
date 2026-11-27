@@ -677,6 +677,64 @@ fn addgas(world: &mut World, shell: &mut ConsoleShell, args: &[String]) {
     }
 }
 
+/// Взрыв (`ExplosionCommand` SS14 @ 2f4a2aad):
+/// `explosion <сила> [наклон] [предел] [x y [карта]] [вид]`; без точки — у игрока.
+fn explosion(world: &mut World, shell: &mut ConsoleShell, args: &[String]) {
+    if args.is_empty() || args.len() == 4 || args.len() > 7 {
+        shell.write_error("неверное число аргументов");
+        return;
+    }
+    let float =
+        |i: usize, default: f32| args.get(i).map_or(Some(default), |v| v.parse::<f32>().ok());
+    let (Some(intensity), Some(slope), Some(max)) = (float(0, 0.0), float(1, 5.0), float(2, 100.0))
+    else {
+        shell.write_error("не число");
+        return;
+    };
+    let coords = if args.len() > 4 {
+        let (Some(x), Some(y)) = (float(3, 0.0), float(4, 0.0)) else {
+            shell.write_error("не координаты");
+            return;
+        };
+        let map = match args.get(5) {
+            Some(id) => match id.parse::<u32>() {
+                Ok(id) => MapId(id),
+                Err(_) => {
+                    shell.write_error("не номер карты");
+                    return;
+                }
+            },
+            None => match attached(world, shell).and_then(|e| world.map_coordinates(e)) {
+                Some(at) => at.map,
+                None => return,
+            },
+        };
+        MapCoordinates::new(map, Vec2::new(x, y))
+    } else {
+        let Some(at) = attached(world, shell).and_then(|e| world.map_coordinates(e)) else {
+            return;
+        };
+        at
+    };
+    let kind = args.get(6).map_or("Default", String::as_str);
+    if crate::explosion::explosion_prototype(world, kind).is_none() {
+        shell.write_error(format!("нет вида взрыва «{kind}»"));
+        return;
+    }
+    crate::explosion::queue_explosion(
+        world,
+        coords,
+        kind,
+        intensity,
+        slope,
+        max,
+        None,
+        1.0,
+        i32::MAX,
+        true,
+    );
+}
+
 pub fn install(world: &mut World, side: Side) {
     if !side.is_server() {
         return;
@@ -745,6 +803,13 @@ pub fn install(world: &mut World, side: Side) {
             false,
         ),
         command("lsmap", "Список карт.", "lsmap", lsmap, false),
+        command(
+            "explosion",
+            "Взрыв в точке или у игрока.",
+            "explosion <сила> [наклон] [предел] [x y [карта]] [вид]",
+            explosion,
+            false,
+        ),
         command(
             "tp",
             "Телепорт в точку карты.",
