@@ -24,6 +24,12 @@ pub fn world_with(prototypes: &str) -> World {
     world.add_plugin(astrocore_audio::AudioPlugin);
     world.add_plugin(astrocore_light::LightPlugin);
     install_content(&mut world, Side::Server);
+    // Без бюджета времени атмоса: под нагрузкой параллельных тестов обработка иначе
+    // обрывается по часам, и результат зависит от скорости машины.
+    world.insert_resource(crate::atmos::AtmosConfig {
+        max_process_time: f32::INFINITY,
+        ..crate::atmos::AtmosConfig::default()
+    });
     let mut loaded = Prototypes::default();
     let mut report = LoadReport::default();
     loaded.load_str("test.yml", DataFormat::Yaml, prototypes, &mut report);
