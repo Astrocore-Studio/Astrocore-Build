@@ -213,6 +213,7 @@ pub fn any_commands() -> Vec<&'static str> {
     list.extend(crate::chat::CHAT_COMMANDS);
     list.extend(crate::ghost::GHOST_COMMANDS);
     list.extend(crate::ghost_roles::GHOST_ROLE_COMMANDS);
+    list.extend(crate::voting::VOTE_COMMANDS);
     list
 }
 
@@ -233,7 +234,9 @@ pub fn command_flags(command: &str) -> Option<&'static [u32]> {
         | "forcepreset"
         | "golobby"
         | "toggledisallowlatejoin"
-        | "forcemap" => &[ROUND],
+        | "forcemap"
+        | "customvote"
+        | "cancelvote" => &[ROUND],
         "tp" | "tpto" | "aghost" | "makeghostrole" | "rejuvenate" => &[ADMIN],
         "addmap" | "loadmap" | "loadgrid" | "mapinit" | "savemap" | "savegrid" | "tpgrid"
         | "rmmap" => &[MAPPING],

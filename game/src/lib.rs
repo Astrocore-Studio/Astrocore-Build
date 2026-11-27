@@ -113,6 +113,7 @@ pub mod throwing;
 pub mod tools;
 pub mod verbs;
 pub mod virtual_item;
+pub mod voting;
 pub mod weldable;
 pub mod whitelist;
 pub mod wires;
@@ -284,6 +285,7 @@ pub fn install_content(world: &mut World, side: Side) {
     station_spawning::install(world);
     game_maps::install(world, side);
     game_ticker::install(world, side);
+    voting::install(world, side);
     mind::install(world, side);
     ghost::install(world, side);
     ghost_roles::install(world, side);
