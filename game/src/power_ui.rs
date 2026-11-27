@@ -1,7 +1,8 @@
 //! Окна электросети на клиенте: контроллер AME (`AmeControllerBoundUserInterface`,
 //! `AmeWindow`), АПЦ (`ApcBoundUserInterface`, `ApcMenu`) и консоль ID-карт
 //! (`IdCardConsoleBoundUserInterface`, `IdCardConsoleWindow`), машина с зарядом — генератор
-//! гравитации (`PowerChargeBoundUserInterface`, `PowerChargeWindow`) SS14 @ 2f4a2aad.
+//! гравитации (`PowerChargeBoundUserInterface`, `PowerChargeWindow`) и пульт ускорителя частиц
+//! (`ParticleAcceleratorBoundUserInterface`, `ParticleAcceleratorControlMenu`) SS14 @ 2f4a2aad.
 
 use astrocore_client::{UiAction, WindowKinds, spawn_button, spawn_label};
 use astrocore_ui::UiWorldExt;
@@ -12,6 +13,9 @@ use crate::gravity::{
     POWER_CHARGE_UI_KEY, PowerChargeStatus, PowerChargeUiState, SwitchChargingMachine,
 };
 use crate::id_console::{ID_CONSOLE_UI_KEY, IdConsoleState, WriteToTargetId};
+use crate::particle_accelerator::{
+    ParticleAcceleratorUiState, RescanParts, SetEnable, SetPowerState, UI_KEY as PA_UI_KEY,
+};
 use crate::power::{APC_UI_KEY, ApcExternalPower, ApcToggleMainBreaker, ApcUiState};
 
 fn yes_no(value: bool) -> &'static str {
@@ -145,6 +149,95 @@ impl Plugin for PowerUiPlugin {
                         }),
                     );
                 }
+            },
+        );
+        kinds.register(
+            "ParticleAcceleratorBoundUserInterface",
+            |commands, content, ui, _, style| {
+                let Some(state) = ui.state::<ParticleAcceleratorUiState>() else {
+                    spawn_label(commands, content, style, "Нет данных");
+                    return;
+                };
+                let parts = [
+                    ("торец", state.end_cap),
+                    ("топливная камера", state.fuel_chamber),
+                    ("силовой блок", state.power_box),
+                    ("левый излучатель", state.emitter_port),
+                    ("центральный излучатель", state.emitter_fore),
+                    ("правый излучатель", state.emitter_starboard),
+                ];
+                let missing: Vec<&str> = parts
+                    .iter()
+                    .filter(|(_, ok)| !ok)
+                    .map(|(n, _)| *n)
+                    .collect();
+                let level = match state.state {
+                    2..=5 => (state.state - 1).to_string(),
+                    _ => "ожидание".to_owned(),
+                };
+                for line in [
+                    format!("Собран: {}", yes_no(state.assembled)),
+                    format!("Включён: {}", yes_no(state.enabled)),
+                    format!("Сила: {level}"),
+                    format!(
+                        "Мощность: {} из {} Вт",
+                        state.power_receive, state.power_draw
+                    ),
+                ] {
+                    spawn_label(commands, content, style, &line);
+                }
+                if !missing.is_empty() {
+                    spawn_label(
+                        commands,
+                        content,
+                        style,
+                        &format!("Нет частей: {}", missing.join(", ")),
+                    );
+                }
+                if state.interface_block {
+                    spawn_label(commands, content, style, "Управление заблокировано");
+                    return;
+                }
+                let entity = ui.entity;
+                let enabled = !state.enabled;
+                spawn_button(
+                    commands,
+                    content,
+                    style,
+                    if state.enabled {
+                        "Выключить"
+                    } else {
+                        "Включить"
+                    },
+                    UiAction::new(move |world| {
+                        world.send_ui_message(entity, PA_UI_KEY, &SetEnable { enabled });
+                    }),
+                );
+                for (text, delta) in [("Сила −", -1i8), ("Сила +", 1)] {
+                    let target = (state.state as i8 + delta).clamp(1, state.max_level as i8) as u8;
+                    spawn_button(
+                        commands,
+                        content,
+                        style,
+                        text,
+                        UiAction::new(move |world| {
+                            world.send_ui_message(
+                                entity,
+                                PA_UI_KEY,
+                                &SetPowerState { state: target },
+                            );
+                        }),
+                    );
+                }
+                spawn_button(
+                    commands,
+                    content,
+                    style,
+                    "Найти части",
+                    UiAction::new(move |world| {
+                        world.send_ui_message(entity, PA_UI_KEY, &RescanParts);
+                    }),
+                );
             },
         );
         kinds.register(

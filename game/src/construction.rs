@@ -832,18 +832,39 @@ pub fn change_node(
     let Some(target) = graph.nodes.get(node) else {
         return false;
     };
+    let previous = world
+        .get::<Construction>(entity)
+        .map(|c| c.node.clone())
+        .unwrap_or_default();
     if let Some(mut construction) = world.get_mut::<Construction>(entity) {
         construction.node = node.to_owned();
     }
+    let mut changed = ConstructionNodeChanged {
+        graph: graph_id,
+        previous,
+        current: node.to_owned(),
+    };
     if let Some(prototype) = &target.entity
-        && change_entity(world, entity, user, prototype).is_some()
+        && let Some(new) = change_entity(world, entity, user, prototype)
     {
+        world.raise(new, &mut changed);
         return true;
     }
     if perform {
         perform_actions(world, entity, user, &target.actions);
     }
+    if world.is_alive(entity) {
+        world.raise(entity, &mut changed);
+    }
     world.is_alive(entity)
+}
+
+/// Узел графа сменился (`AfterConstructionChangeEntityEvent`). На сущности узла.
+#[derive(Debug, Clone)]
+pub struct ConstructionNodeChanged {
+    pub graph: String,
+    pub previous: String,
+    pub current: String,
 }
 
 /// Заменить сущность сущностью узла (`ChangeEntity`).
