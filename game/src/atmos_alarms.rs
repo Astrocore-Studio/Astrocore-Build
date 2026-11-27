@@ -10,8 +10,10 @@
 //! `GasVentPumpSystem` и `GasVentScrubberSystem`, `DeviceNetworkRequiresPower` SS14
 //! @ 2f4a2aad (ADR-0010).
 //!
-//! Нет пока: сигналов тревоги на порты (`DeviceLinkSource`: `AirDanger`, …), провода
-//! «паника» (`AirAlarmPanicWire`), взлома электромагнитом, пульта тревог станции.
+//! Воздушная тревога шлёт уровень на порт своего состояния (`AirDanger`, `AirWarning`,
+//! `AirNormal`): высокий на новый, низкий на прежний.
+//!
+//! Нет пока: провода «паника» (`AirAlarmPanicWire`), взлома электромагнитом, пульта тревог станции.
 
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -520,6 +522,20 @@ pub struct AirAlarm {
     pub state: AtmosAlarmType,
     #[serde(default)]
     pub panic_wire_cut: bool,
+}
+
+/// Порты воздушной тревоги (`DangerPort`, `WarningPort`, `NormalPort`).
+pub const AIR_DANGER_PORT: &str = "AirDanger";
+pub const AIR_WARNING_PORT: &str = "AirWarning";
+pub const AIR_NORMAL_PORT: &str = "AirNormal";
+
+/// Порт состояния (`GetPort`).
+pub fn alarm_port(state: AtmosAlarmType) -> &'static str {
+    match state {
+        AtmosAlarmType::Danger => AIR_DANGER_PORT,
+        AtmosAlarmType::Warning => AIR_WARNING_PORT,
+        _ => AIR_NORMAL_PORT,
+    }
 }
 
 /// Сеть устройства только с питанием (`DeviceNetworkRequiresPowerComponent`).
@@ -1385,10 +1401,32 @@ pub fn install(world: &mut World, side: Side) {
                 _ => {}
             }
         }
-        if let Some(mut a) = world.get_mut::<AirAlarm>(entity) {
-            a.state = event.alarm_type;
+        let previous = world.get::<AirAlarm>(entity).map(|a| a.state);
+        if let Some(previous) = previous
+            && previous != event.alarm_type
+        {
+            // Низкий — на порт прежнего состояния, высокий — на новый.
+            crate::device_linking::send_signal(world, entity, alarm_port(previous), false);
+            if let Some(mut a) = world.get_mut::<AirAlarm>(entity) {
+                a.state = event.alarm_type;
+            }
+            crate::device_linking::send_signal(world, entity, alarm_port(event.alarm_type), true);
         }
         update_air_alarm_ui(world, entity);
+    });
+    world.subscribe::<AirAlarm, astrocore_ecs::ComponentInit>(|world, entity, _| {
+        crate::device_linking::ensure_source_ports(
+            world,
+            entity,
+            &[AIR_DANGER_PORT, AIR_WARNING_PORT, AIR_NORMAL_PORT],
+        );
+    });
+    // Связанная на карте тревога начинает с высокого уровня: первая смена даст низкий.
+    world.subscribe::<AirAlarm, MapInit>(|world, entity, _| {
+        let Some(state) = world.get::<AirAlarm>(entity).map(|a| a.state) else {
+            return;
+        };
+        crate::device_linking::send_signal(world, entity, alarm_port(state), true);
     });
     world.subscribe::<AirAlarm, DeviceNetworkPacket<AirAlarmSetData>>(|world, entity, packet| {
         let address = packet.sender_address;

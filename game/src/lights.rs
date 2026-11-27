@@ -284,6 +284,11 @@ pub fn try_destroy_bulb(world: &mut World, light: Entity) -> bool {
     true
 }
 
+/// Входы светильника (`OnPort`, `OffPort`, `TogglePort`).
+pub const ON_PORT: &str = "On";
+pub const OFF_PORT: &str = "Off";
+pub const TOGGLE_PORT: &str = "Toggle";
+
 /// Включить или выключить светильник (`SetState`).
 pub fn set_light_on(world: &mut World, light: Entity, on: bool) {
     if let Some(mut component) = world.get_mut::<PoweredLight>(light) {
@@ -339,6 +344,21 @@ pub fn install(world: &mut World, side: Side) {
         return;
     }
     world.subscribe::<PoweredLight, MapInit>(|world, light, _| on_map_init(world, light));
+    // Сигналы: включить, выключить, переключить (`OnSignalReceived`).
+    world.subscribe::<PoweredLight, astrocore_ecs::ComponentInit>(|world, light, _| {
+        crate::device_linking::ensure_sink_ports(world, light, &[ON_PORT, OFF_PORT, TOGGLE_PORT]);
+    });
+    world.subscribe::<PoweredLight, crate::device_linking::SignalReceived>(
+        |world, light, event| match event.port.as_str() {
+            OFF_PORT => set_light_on(world, light, false),
+            ON_PORT => set_light_on(world, light, true),
+            TOGGLE_PORT => {
+                let on = world.get::<PoweredLight>(light).is_some_and(|l| l.on);
+                set_light_on(world, light, !on);
+            }
+            _ => {}
+        },
+    );
     world.subscribe::<PoweredLight, EntInsertedIntoContainer>(|world, light, event| {
         if &*event.container == BULB_CONTAINER {
             update_light(world, light);

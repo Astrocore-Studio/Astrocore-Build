@@ -554,12 +554,26 @@ pub struct GasVentPump {
     /// Связь с кнопками и датчиками (`CanLink`) — с устройствами связи.
     #[serde(default)]
     pub can_link: bool,
+    #[serde(default = "pressurize_port")]
+    pub pressurize_port: String,
+    #[serde(default = "depressurize_port")]
+    pub depressurize_port: String,
+    #[serde(default = "atmosphere")]
+    pub pressurize_pressure: f32,
+    #[serde(default)]
+    pub depressurize_pressure: f32,
     #[serde(skip)]
     pub under_pressure_lockout: bool,
     #[serde(skip)]
     pub manual_lockout_until: Option<f64>,
 }
 
+fn pressurize_port() -> String {
+    "Pressurize".into()
+}
+fn depressurize_port() -> String {
+    "Depressurize".into()
+}
 fn external_bound() -> String {
     "ExternalBound".into()
 }
@@ -860,6 +874,38 @@ pub fn install(world: &mut World, side: Side) {
         }
         event.handled = true;
     });
+    // Связь с кнопками: наддуть или откачать до порога снаружи (`OnSignalReceived`).
+    world.subscribe::<GasVentPump, astrocore_ecs::ComponentInit>(|world, entity, _| {
+        let Some(vent) = world.get::<GasVentPump>(entity).cloned() else {
+            return;
+        };
+        if vent.can_link {
+            crate::device_linking::ensure_sink_ports(
+                world,
+                entity,
+                &[&vent.pressurize_port, &vent.depressurize_port],
+            );
+        }
+    });
+    world.subscribe::<GasVentPump, crate::device_linking::SignalReceived>(
+        |world, entity, event| {
+            let Some(mut vent) = world.get_mut::<GasVentPump>(entity) else {
+                return;
+            };
+            if !vent.can_link {
+                return;
+            }
+            if event.port == vent.pressurize_port {
+                vent.pump_direction = VentPumpDirection::Releasing;
+                vent.external_pressure_bound = vent.pressurize_pressure;
+                vent.pressure_checks = external_bound();
+            } else if event.port == vent.depressurize_port {
+                vent.pump_direction = VentPumpDirection::Siphoning;
+                vent.external_pressure_bound = vent.depressurize_pressure;
+                vent.pressure_checks = external_bound();
+            }
+        },
+    );
     world.subscribe::<GasVentPump, Examined>(|world, entity, event| {
         let Some(vent) = world.get::<GasVentPump>(entity).cloned() else {
             return;

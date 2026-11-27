@@ -271,6 +271,9 @@ fn pry_failed() -> String {
     "airlock-component-cannot-pry-is-powered-message".into()
 }
 
+/// Вход отключения автозакрытия (`AutoClosePort`).
+pub const AUTO_CLOSE_PORT: &str = "AutoClose";
+
 /// Шлюз (`AirlockComponent`): питание, автозакрытие, безопасность, аварийный доступ.
 #[derive(Component, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -1478,6 +1481,17 @@ fn install_airlock(world: &mut World) {
             && let Some(mut airlock) = world.get_mut::<Airlock>(entity)
         {
             airlock.auto_close = true;
+        }
+    });
+    // Сигнал на `AutoClose` отключает автозакрытие (`OnSignalReceived`).
+    world.subscribe::<Airlock, crate::device_linking::SignalReceived>(|world, entity, event| {
+        if event.port != AUTO_CLOSE_PORT {
+            return;
+        }
+        if let Some(mut airlock) = world.get_mut::<Airlock>(entity)
+            && airlock.auto_close
+        {
+            airlock.auto_close = false;
         }
     });
     world.subscribe::<Airlock, DoorBoltsChanged>(|world, entity, event| {
