@@ -248,8 +248,13 @@ fn round_ends_and_restarts_with_new_lobby() {
     start_round(&mut world, false);
     let round = world.resource::<GameTicker>().round_id;
     let body = attached(&world, session).unwrap();
+    // Конец раунда тикера перезапуска не назначает (`GameTicker.EndRound`), а система
+    // конца раунда — назначает (`RoundEndSystem.EndRound`).
     end_round(&mut world, "Конец");
     assert_eq!(run_level(&world), GameRunLevel::PostRound);
+    assert!(world.resource::<GameTicker>().restart_at.is_none());
+    world.resource_mut::<GameTicker>().run_level = GameRunLevel::InRound;
+    crate::round_end::end_round(&mut world, None);
     let restart = world.resource::<GameTicker>().restart_at.unwrap();
     skip_to(&mut world, restart);
     // Новый раунд: лобби, всё удалено, сессия осталась и не готова, номер новый.

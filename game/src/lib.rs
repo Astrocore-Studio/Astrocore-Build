@@ -98,6 +98,7 @@ pub mod random;
 pub mod rate_limit;
 pub mod respawn;
 pub mod respiration;
+pub mod round_end;
 pub mod server;
 pub mod signal_devices;
 pub mod singularity;
@@ -288,6 +289,7 @@ pub fn install_content(world: &mut World, side: Side) {
     game_maps::install(world, side);
     game_ticker::install(world, side);
     voting::install(world, side);
+    round_end::install(world, side);
     mind::install(world, side);
     ghost::install(world, side);
     ghost_roles::install(world, side);

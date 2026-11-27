@@ -916,7 +916,7 @@ fn start_restart_vote(world: &mut World, initiator: Option<Entity>) {
                         format!("Restart vote succeeded: {yes}/{no}"),
                     );
                     announce(world, "ui-vote-restart-succeeded", &[]);
-                    game_ticker::end_round(world, "");
+                    crate::round_end::end_round(world, None);
                 }
             } else {
                 log(

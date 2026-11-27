@@ -236,7 +236,9 @@ pub fn command_flags(command: &str) -> Option<&'static [u32]> {
         | "toggledisallowlatejoin"
         | "forcemap"
         | "customvote"
-        | "cancelvote" => &[ROUND],
+        | "cancelvote"
+        | "callshuttle"
+        | "recallshuttle" => &[ROUND],
         "tp" | "tpto" | "aghost" | "makeghostrole" | "rejuvenate" => &[ADMIN],
         "addmap" | "loadmap" | "loadgrid" | "mapinit" | "savemap" | "savegrid" | "tpgrid"
         | "rmmap" => &[MAPPING],

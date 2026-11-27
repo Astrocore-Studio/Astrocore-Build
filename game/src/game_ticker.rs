@@ -1647,9 +1647,6 @@ pub fn end_round(world: &mut World, text: &str) {
     }
     set_run_level(world, GameRunLevel::PostRound);
     show_round_end_scoreboard(world, text);
-    let delay = world.cvar(&ROUND_RESTART_TIME).max(0.0);
-    let at = now(world) + Duration::from_secs_f32(delay);
-    ticker(world).restart_at = Some(at);
 }
 
 /// Должность игрока для итогов.
@@ -1948,7 +1945,7 @@ fn commands() -> Vec<ConsoleCommand> {
         ),
         command(
             "endround",
-            "Заканчивает раунд.",
+            "Заканчивает раунд (без перезапуска: потом `restartroundnow`).",
             "endround",
             |world, shell, _| {
                 if run_level(world) != GameRunLevel::InRound {
@@ -1967,7 +1964,7 @@ fn commands() -> Vec<ConsoleCommand> {
                     shell.write_error("раунд не идёт");
                     return;
                 }
-                end_round(world, "");
+                crate::round_end::end_round(world, None);
             },
         ),
         command(
