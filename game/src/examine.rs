@@ -107,6 +107,15 @@ pub fn strip_markup(text: &str) -> String {
     out
 }
 
+/// Сущности в пределах расстояния и без преград между ними (`InRangeUnOccluded`).
+pub fn entities_in_range_unoccluded(world: &World, a: Entity, b: Entity, range: f32) -> bool {
+    let (Some(from), Some(to)) = (world.map_coordinates(a), world.map_coordinates(b)) else {
+        return false;
+    };
+    let grid = world.get::<Transform>(a).and_then(Transform::grid);
+    in_range_unoccluded(world, from, to, range, grid)
+}
+
 /// Между точками нет непрозрачных преград (`InRangeUnOccluded`).
 fn in_range_unoccluded(
     world: &World,

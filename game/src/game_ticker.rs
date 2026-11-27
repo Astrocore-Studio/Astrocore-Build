@@ -729,6 +729,32 @@ fn update_game_rules(world: &mut World) {
     }
 }
 
+/// Сообщение сервера всем (`SendServerMessage`).
+fn send_server_message(world: &mut World, key: &str, args: &[(&str, LocArg)]) {
+    let text = crate::examine::loc(world, key, args);
+    crate::chat::dispatch_server_announcement(world, &text);
+}
+
+/// Сообщение сервера игроку (`DispatchServerMessage`).
+fn server_message_to(world: &mut World, session: Entity, key: &str, args: &[(&str, LocArg)]) {
+    let text = crate::examine::loc(world, key, args);
+    crate::chat::dispatch_server_message(world, session, &text);
+}
+
+/// Каждое слово с заглавной (`TextInfo.ToTitleCase`).
+fn title_case(text: &str) -> String {
+    text.split(' ')
+        .map(|word| {
+            let mut chars = word.chars();
+            match chars.next() {
+                Some(first) => first.to_uppercase().chain(chars).collect(),
+                None => String::new(),
+            }
+        })
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
 // Лобби.
 
 /// Текст лобби (`GetInfoText`).
@@ -868,6 +894,12 @@ pub fn delay_start(world: &mut World, time: Duration) -> bool {
     let base = ticker(world).round_start_time.unwrap_or_else(|| now(world));
     ticker(world).round_start_time = Some(base + time);
     send_countdown(world);
+    let text = crate::examine::loc(
+        world,
+        "game-ticker-delay-start",
+        &[("seconds", LocArg::from(time.as_secs_f64()))],
+    );
+    crate::chat::dispatch_server_announcement(world, &text);
     true
 }
 
@@ -887,6 +919,12 @@ pub fn pause_start(world: &mut World, pause: bool) -> bool {
         *start += time.saturating_sub(paused_at);
     }
     send_countdown(world);
+    let key = if pause {
+        "game-ticker-pause-start"
+    } else {
+        "game-ticker-pause-start-resumed"
+    };
+    send_server_message(world, key, &[]);
     true
 }
 
@@ -995,6 +1033,7 @@ pub fn player_join_game(world: &mut World, session: Entity) {
         .statuses
         .insert(user, PlayerGameStatus::JoinedGame);
     add_round_player(world, user);
+    server_message_to(world, session, "game-ticker-player-join-game-message", &[]);
     send(world, session, &TickerMessage::JoinGame);
 }
 
@@ -1111,6 +1150,7 @@ pub fn start_round(world: &mut World, force: bool) {
     if ticker(world).round_id == 0 {
         increment_round_number(world);
     }
+    send_server_message(world, "game-ticker-start-round", &[]);
     let lobby = lobby_enabled(world);
     let mut ready = Vec::new();
     let mut profiles = BTreeMap::new();
@@ -1229,6 +1269,9 @@ fn spawn_players(
     calc_extended_access(world, &counts);
     for (user, (job, station)) in &assigned {
         let Some(job) = job else {
+            if let Some(session) = session_by_user(world, *user) {
+                server_message_to(world, session, "job-not-available-wait-in-lobby", &[]);
+            }
             continue;
         };
         let Some(session) = session_by_user(world, *user) else {
@@ -1299,7 +1342,12 @@ fn spawn_player_with(
         if !lobby_enabled(world) {
             join_as_observer(world, session);
         }
-        eprintln!("игроку {user} не нашлось свободной должности");
+        server_message_to(
+            world,
+            session,
+            "game-ticker-player-no-jobs-available-when-joining",
+            &[],
+        );
         return;
     };
     player_join_game(world, session);
@@ -1360,6 +1408,66 @@ fn spawn_player_with(
         &[],
         &[user],
     );
+    // Объявление о прибытии и приветствие (`SpawnPlayer`).
+    let (job_name, notify_crew, has_extended) = {
+        let node = world
+            .get_resource::<Prototypes>()
+            .and_then(|p| p.resolved_node("job", &job));
+        let key = node
+            .and_then(|n| n.get("name"))
+            .and_then(DataNode::as_str)
+            .map(str::to_owned);
+        let notify = node
+            .and_then(|n| n.get("joinNotifyCrew"))
+            .and_then(DataNode::as_str)
+            .is_some_and(|t| t == "true");
+        let extended = node.is_some_and(|n| {
+            !strings(n.get("extendedAccess")).is_empty()
+                || !strings(n.get("extendedAccessGroups")).is_empty()
+        });
+        (key, notify, extended)
+    };
+    let job_name =
+        title_case(&job_name.map_or_else(|| job.clone(), |k| crate::examine::loc(world, &k, &[])));
+    if late_join && station.is_some() {
+        let character = LocArg::from(astrocore_loc::EntityNameWorldExt::entity_arg(world, mob));
+        let character_name = world
+            .get::<MetaData>(mob)
+            .and_then(|m| m.name.clone())
+            .unwrap_or_default();
+        let key = if notify_crew {
+            "latejoin-arrival-announcement-special"
+        } else {
+            "latejoin-arrival-announcement"
+        };
+        let text = crate::examine::loc(
+            world,
+            key,
+            &[
+                ("character", LocArg::from(character_name.as_str())),
+                ("entity", character),
+                ("job", LocArg::from(job_name.as_str())),
+            ],
+        );
+        let sender = crate::examine::loc(world, "latejoin-arrival-sender", &[]);
+        let color = notify_crew.then(|| "#FFD700".to_owned());
+        crate::chat::dispatch_station_announcement(world, mob, &text, Some(&sender), false, color);
+    }
+    if let Some(station) = station {
+        let extended = world
+            .get::<StationJobs>(station)
+            .is_some_and(|j| j.extended_access);
+        if extended && has_extended {
+            server_message_to(world, session, "job-greet-crew-shortages", &[]);
+        }
+        let station_name = entity_name(world, station);
+        server_message_to(
+            world,
+            session,
+            "job-greet-station-name",
+            &[("stationName", LocArg::from(station_name.as_str()))],
+        );
+    }
     let joined = ticker(world).players_joined_normally;
     world.raise_broadcast(&mut PlayerSpawnComplete {
         mob,
@@ -1639,6 +1747,7 @@ pub fn restart_round(world: &mut World) {
         return;
     }
     try_reset_preset(world);
+    send_server_message(world, "game-ticker-restart-round", &[]);
     ticker(world).players_joined_normally = 0;
     set_run_level(world, GameRunLevel::PreRoundLobby);
     resetting_cleanup(world);
@@ -2096,7 +2205,15 @@ pub fn install(world: &mut World, side: Side) {
     world.subscribe_broadcast::<PreferencesLoaded>(|world, event| {
         player_ready_to_play(world, event.session, event.user_id);
     });
-    world.subscribe_broadcast::<PlayerConnected>(|world, _| {
+    world.subscribe_broadcast::<PlayerConnected>(|world, event| {
+        if let Some(name) = world.get::<Session>(event.session).map(|s| s.name.clone()) {
+            let text = crate::examine::loc(
+                world,
+                "player-join-message",
+                &[("name", LocArg::from(name.as_str()))],
+            );
+            crate::chat::send_admin_announcement(world, &text);
+        }
         let start = {
             let ticker = ticker(world);
             ticker.waiting_for_players
@@ -2109,7 +2226,17 @@ pub fn install(world: &mut World, side: Side) {
             ticker.round_start_time = Some(at);
         }
     });
-    world.subscribe_broadcast::<PlayerDisconnected>(|world, _| update_info_text(world));
+    world.subscribe_broadcast::<PlayerDisconnected>(|world, event| {
+        if let Some(name) = world.get::<Session>(event.session).map(|s| s.name.clone()) {
+            let text = crate::examine::loc(
+                world,
+                "player-leave-message",
+                &[("name", LocArg::from(name.as_str()))],
+            );
+            crate::chat::send_admin_announcement(world, &text);
+        }
+        update_info_text(world);
+    });
     world.subscribe_broadcast::<astrocore_console::CVarChanged>(|world, event| {
         if event.name == crate::stations::GAME_DISALLOW_LATE_JOINS.name {
             let value = world.cvar(&crate::stations::GAME_DISALLOW_LATE_JOINS);

@@ -56,9 +56,27 @@ pub struct AdminGhost {
 }
 
 /// Права игрока: хост на своей машине может всё.
+/// Администратор ли игрок: пока прав нет (6.6), администратор — игрок с этой же машины при
+/// `login.local` (как хост SS14 в разработке).
+pub fn is_admin(world: &World, session: Entity) -> bool {
+    if !world.resource::<Config>().get(&LOGIN_LOCAL) {
+        return false;
+    }
+    let Some(conn) = world.get::<Session>(session).map(|s| s.conn) else {
+        return false;
+    };
+    world
+        .get_resource::<ServerNet>()
+        .and_then(|net| net.address(conn))
+        .is_some_and(|address| address.ip().is_loopback())
+}
+
 pub(crate) fn permission(world: &World, shell: &ConsoleShell, command: &str) -> bool {
     // Команды для всех игроков (`AnyCommand`): готовность, вход в раунд, наблюдение.
-    if shell.player.is_some() && crate::game_ticker::ANY_COMMANDS.contains(&command) {
+    if shell.player.is_some()
+        && (crate::game_ticker::ANY_COMMANDS.contains(&command)
+            || crate::chat::CHAT_COMMANDS.contains(&command))
+    {
         return true;
     }
     if !world.resource::<Config>().get(&LOGIN_LOCAL) {

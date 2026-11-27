@@ -23,6 +23,7 @@ pub mod barotrauma;
 pub mod body;
 pub mod cables;
 pub mod character_editor;
+pub mod chat;
 pub mod combat;
 pub mod connection;
 pub mod construction;
@@ -251,6 +252,7 @@ pub fn install_content(world: &mut World, side: Side) {
     stations::install(world, side);
     station_spawning::install(world);
     game_ticker::install(world, side);
+    chat::install(world, side);
     connection::install(world, side);
     device_network::install(world, side);
     device_linking::install(world, side);
