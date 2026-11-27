@@ -27,6 +27,7 @@ pub mod damage;
 pub mod damage_other_on_hit;
 pub mod decals;
 pub mod destructible;
+pub mod device_network;
 pub mod do_after;
 pub mod doors;
 pub mod electrocution;
@@ -220,6 +221,7 @@ pub fn install_content(world: &mut World, side: Side) {
     respiration::install(world, side);
     internals::install(world, side);
     pipes::install(world, side);
+    device_network::install(world, side);
     atmos_devices::install(world, side);
     atmos_portables::install(world, side);
     gas_analyzer::install(world, side);
