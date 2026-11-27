@@ -71,6 +71,9 @@ pub fn start() -> Result<ServerStart, String> {
             .load_config(&text)
             .map_err(|error| format!("server_config.toml: {error}"))?;
     }
+    // База данных (`ServerDbManager.Init`): без неё сервер не запускается, как в SS14.
+    let database = crate::database::Database::from_config(world.resource::<Config>())?;
+    world.insert_resource(database);
     let report = content::load_content(&mut world, &resources, &ss14);
     for error in report.errors.iter().take(20) {
         eprintln!("прототипы: {error}");

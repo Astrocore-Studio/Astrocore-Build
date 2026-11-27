@@ -1,0 +1,51 @@
+-- Игроки, выданные гостям идентификаторы, серверы, раунды, журнал подключений.
+-- Образец — Content.Server.Database/Model.cs SS14 @ 2f4a2aad (ADR-0011).
+
+CREATE TABLE server (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL UNIQUE
+);
+
+CREATE TABLE player (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id TEXT NOT NULL UNIQUE,
+    first_seen_time BIGINT NOT NULL,
+    last_seen_user_name TEXT NOT NULL,
+    last_seen_time BIGINT NOT NULL,
+    last_seen_address TEXT NOT NULL,
+    last_read_rules BIGINT
+);
+CREATE INDEX ix_player_last_seen_user_name ON player (last_seen_user_name);
+
+CREATE TABLE assigned_user_id (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_name TEXT NOT NULL UNIQUE,
+    user_id TEXT NOT NULL UNIQUE
+);
+
+CREATE TABLE round (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    start_date BIGINT,
+    server_id BIGINT NOT NULL REFERENCES server (id) ON DELETE CASCADE
+);
+CREATE INDEX ix_round_server_id ON round (server_id);
+
+CREATE TABLE player_round (
+    players_id BIGINT NOT NULL REFERENCES player (id) ON DELETE CASCADE,
+    rounds_id BIGINT NOT NULL REFERENCES round (id) ON DELETE CASCADE,
+    PRIMARY KEY (players_id, rounds_id)
+);
+CREATE INDEX ix_player_round_rounds_id ON player_round (rounds_id);
+
+CREATE TABLE connection_log (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id TEXT NOT NULL,
+    user_name TEXT NOT NULL,
+    time BIGINT NOT NULL,
+    address TEXT NOT NULL,
+    denied BIGINT,
+    server_id BIGINT NOT NULL REFERENCES server (id) ON DELETE CASCADE,
+    trust DOUBLE PRECISION NOT NULL DEFAULT 0
+);
+CREATE INDEX ix_connection_log_user_id ON connection_log (user_id);
+CREATE INDEX ix_connection_log_time ON connection_log (time);

@@ -585,6 +585,52 @@ fn hand_tooltips(
 }
 
 /// Слой поверх мира.
+/// Сервер отказал во входе: причина посреди экрана (окно отказа `DisconnectedWindow` SS14).
+fn show_rejection(
+    mut commands: Commands,
+    game: Res<Game>,
+    style: Res<UiStyle>,
+    mut shown: Local<bool>,
+) {
+    if *shown {
+        return;
+    }
+    let astrocore_net::ClientStatus::Rejected(reason) = &game.0.resource::<ClientNet>().status
+    else {
+        return;
+    };
+    *shown = true;
+    eprintln!("сервер отказал во входе: {reason}");
+    let root = commands
+        .spawn((
+            Node {
+                position_type: PositionType::Absolute,
+                width: Val::Percent(100.0),
+                height: Val::Percent(100.0),
+                justify_content: JustifyContent::Center,
+                align_items: AlignItems::Center,
+                ..default()
+            },
+            GlobalZIndex(1000),
+        ))
+        .id();
+    let panel = commands
+        .spawn((
+            ChildOf(root),
+            Node {
+                padding: UiRect::all(Val::Px(16.0)),
+                max_width: Val::Px(560.0),
+                ..default()
+            },
+            BackgroundColor(Color::srgba(0.08, 0.08, 0.1, 0.95)),
+        ))
+        .id();
+    commands.spawn((
+        ChildOf(panel),
+        style.text(format!("Сервер отказал во входе.\n{reason}"), 18.0),
+    ));
+}
+
 pub struct OverlaysPlugin;
 
 impl Plugin for OverlaysPlugin {
@@ -601,6 +647,7 @@ impl Plugin for OverlaysPlugin {
                 close_menu_after_choice,
                 build_menu,
                 hand_tooltips,
+                show_rejection,
             )
                 .chain(),
         );

@@ -45,6 +45,7 @@ fn player(world: &mut World, address: &str, body: Entity) -> Entity {
     let session = world
         .spawn(Session {
             conn,
+            user_id: astrocore_net::NetUserId::random(),
             name: "Mapper".into(),
             attached: None,
             last_input: 0,

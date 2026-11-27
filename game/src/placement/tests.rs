@@ -33,6 +33,7 @@ fn mapper(world: &mut World, address: &str) -> (Entity, Entity) {
     let session = world
         .spawn(Session {
             conn: ConnId(1),
+            user_id: astrocore_net::NetUserId::random(),
             name: "Mapper".into(),
             attached: None,
             last_input: 0,
