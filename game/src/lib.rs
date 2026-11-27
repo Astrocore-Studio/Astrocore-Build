@@ -11,6 +11,7 @@ pub mod actions;
 pub mod activatable_ui;
 pub mod airtight;
 pub mod ame;
+pub mod anchorable;
 pub mod atmos;
 pub mod atmos_devices;
 pub mod barotrauma;
@@ -195,6 +196,7 @@ pub fn install_content(world: &mut World, side: Side) {
     doors::install(world, side);
     wires::install(world, side);
     construction::install(world, side);
+    anchorable::install(world, side);
     floor_tile::install(world, side);
 }
 
