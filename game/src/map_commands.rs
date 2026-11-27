@@ -194,7 +194,7 @@ fn teleport(world: &mut World, entity: Entity, map: MapId, position: Vec2) -> Re
 }
 
 /// Сущность по сетевому номеру или по имени игрока.
-fn find_target(world: &mut World, text: &str) -> Option<Entity> {
+pub(crate) fn find_target(world: &mut World, text: &str) -> Option<Entity> {
     if let Ok(number) = text.parse::<u32>()
         && let Some(entity) = world.resource::<NetEntities>().entity(NetEntity(number))
         && world.get::<Map>(entity).is_none()

@@ -966,6 +966,31 @@ pub fn send_admin_announcement(world: &mut World, message: &str) {
     );
 }
 
+/// Тревога администраторам (`SendAdminAlert`): канал оповещений, без автора.
+pub fn send_admin_alert(world: &mut World, message: &str) {
+    let channel_name = loc(world, "chat-manager-admin-channel-name", &[]);
+    let wrapped = loc(
+        world,
+        "chat-manager-send-admin-announcement-wrap-message",
+        &[
+            ("adminChannelName", LocArg::from(channel_name)),
+            ("message", LocArg::from(escape_text(message))),
+        ],
+    );
+    let recipients = crate::admin_manager::active_admins(world);
+    chat_message_to_many(
+        world,
+        ChatChannel::ADMIN_ALERT,
+        &wrapped,
+        &wrapped,
+        None,
+        false,
+        &recipients,
+        None,
+        None,
+    );
+}
+
 /// Сообщение длиннее предела (`MessageCharacterLimit`): игрок узнаёт об этом.
 fn over_limit(world: &mut World, session: Option<Entity>, message: &str) -> bool {
     let Some(session) = session else {

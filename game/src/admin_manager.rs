@@ -130,9 +130,9 @@ pub const USE_CUSTOM_NAMES: CVarDef<bool> = CVarDef::new(
     CVarFlags::SERVERONLY,
     "Своё звание администратора вместо имени ранга.",
 );
-pub const LOGIN_HOST_USER: CVarDef<String> = CVarDef::new(
+pub const LOGIN_HOST_USER: CVarDef<&str> = CVarDef::new(
     "console.login_host_user",
-    String::new(),
+    "",
     CVarFlags::SERVERONLY.union(CVarFlags::ARCHIVE),
     "Игрок с этим именем получает права хоста.",
 );
@@ -326,11 +326,12 @@ fn is_host(world: &World, session: Entity) -> bool {
         return false;
     };
     let config = world.resource::<Config>();
+    let host_user = config.get_text(&LOGIN_HOST_USER);
     (is_local(world, session) && config.get(&crate::map_commands::LOGIN_LOCAL))
         || world
             .get_resource::<Admins>()
             .is_some_and(|a| a.promoted.contains(&state.user_id))
-        || (!config.get(&LOGIN_HOST_USER).is_empty() && state.name == config.get(&LOGIN_HOST_USER))
+        || (!host_user.is_empty() && state.name == host_user)
 }
 
 fn host_data(world: &World) -> AdminData {
