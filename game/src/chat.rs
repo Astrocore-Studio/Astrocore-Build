@@ -2475,6 +2475,8 @@ pub fn install(world: &mut World, side: Side) {
         world.init_resource::<ClientChat>();
         world.subscribe_broadcast::<astrocore_net::NetEvent<ChatMessage>>(|world, event| {
             let message = event.event.clone();
+            #[cfg(feature = "client")]
+            crate::chat_ui::on_message(world, &message);
             let mut chat = world.resource_mut::<ClientChat>();
             chat.messages.push(message);
             if chat.messages.len() > CLIENT_CHAT_HISTORY {

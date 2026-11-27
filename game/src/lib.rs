@@ -118,6 +118,8 @@ pub mod cable_visuals;
 #[cfg(feature = "client")]
 pub mod character_ui;
 #[cfg(feature = "client")]
+pub mod chat_ui;
+#[cfg(feature = "client")]
 pub mod client;
 #[cfg(feature = "client")]
 pub mod clothing_visuals;
