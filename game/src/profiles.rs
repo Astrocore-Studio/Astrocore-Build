@@ -8,8 +8,9 @@
 //! `RoleLoadout`, `NamingSystem`, `SpeciesPrototype`, `LocalizedDatasetPrototype` SS14
 //! @ 2f4a2aad.
 //!
-//! Нет пока: проверки меток и окраски кожи по виду (`MarkingManager`, `SkinColoration` — 6.2б),
-//! проверки снаряжения по прототипам групп (`RoleLoadout.EnsureValid` — вместе со
+//! Метки и окраска кожи — в `markings.rs`.
+//!
+//! Нет пока: проверки снаряжения по прототипам групп (`RoleLoadout.EnsureValid` — вместе со
 //! снаряжением), голосов (`EmoteSoundsPrototype`) — берётся голос вида по полу.
 
 use std::collections::{BTreeMap, BTreeSet};
@@ -583,7 +584,15 @@ pub fn random_profile(world: &mut World, ignored: &BTreeSet<String>) -> Humanoid
     let gender = gender_for_sex(sex);
     let name = random_name(world, &species.id, Some(gender));
     let age = with_random(world, |r| r.range(species.min_age, species.old_age));
-    let appearance = random_appearance(world, &species);
+    let appearance = if world.contains_resource::<Prototypes>() {
+        world.resource_scope(|world, prototypes: bevy_ecs::world::Mut<Prototypes>| {
+            with_random(world, |r| {
+                crate::markings::random_appearance(&prototypes, r, &species.id, sex)
+            })
+        })
+    } else {
+        random_appearance(world, &species)
+    };
     HumanoidCharacterProfile {
         name,
         species: species.id.clone(),
@@ -710,9 +719,17 @@ pub fn ensure_valid(world: &mut World, profile: &mut HumanoidCharacterProfile) {
         .take(max_flavor)
         .collect();
 
-    // Внешность: цвета без прозрачности. Метки и окраска кожи по виду — 6.2б.
+    // Внешность: цвета без прозрачности, кожа по окраске вида, метки по органам вида.
     profile.appearance.eye_color = clamp_color(profile.appearance.eye_color);
     profile.appearance.skin_color = clamp_color(profile.appearance.skin_color);
+    if let Some(prototypes) = prototypes(world) {
+        profile.appearance = crate::markings::ensure_valid_appearance(
+            prototypes,
+            &profile.appearance,
+            &profile.species,
+            profile.sex,
+        );
+    }
 
     let Some(prototypes) = prototypes(world) else {
         return;

@@ -187,10 +187,6 @@ fn random_profiles_respect_species_rules() {
         let profile = random_profile(&mut world, &BTreeSet::new());
         if profile.species == "Reptilian" {
             assert!((20..50).contains(&profile.age));
-            assert_eq!(
-                profile.appearance.skin_color,
-                Color::parse("#34a223").unwrap()
-            );
             // Имя у ящеров — одно слово.
             assert!(profile.name.starts_with("namepreset-first"));
         }

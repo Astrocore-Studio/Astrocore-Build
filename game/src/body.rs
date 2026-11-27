@@ -3,8 +3,8 @@
 //! Образец — `Content.Shared/Body` SS14 @ 2f4a2aad (`BodyComponent`, `OrganComponent`,
 //! `InitialBodySystem`, `HandOrganSystem`, `VisualOrganComponent`, `SharedVisualBodySystem`)
 //! и `HumanoidCharacterAppearance.DefaultWithSpecies`, `HumanTonedSkinColoration`.
-//! Метки внешности (волосы, бельё — `VisualOrganMarkings`) и связи органов пока не
-//! переносятся; профиль из лобби — фаза 6.
+//! Профиль персонажа ложится на тело при появлении (`apply_character_profile`), метки
+//! внешности — `markings.rs`. Связи органов пока не переносятся.
 
 use std::collections::BTreeMap;
 
@@ -238,17 +238,52 @@ impl BodyWorldExt for World {
     }
 }
 
-/// Цвета профиля органам (`ApplyOrganProfileDataEvent`): кожа, глаза, состояние по полу.
+/// Цвета профиля органам по умолчанию для вида тела (появление без профиля игрока).
 fn apply_profile(world: &mut World, body: Entity) {
     let Some(profile) = world.get::<HumanoidProfile>(body).cloned() else {
         return;
     };
     let skin = default_skin_color(world, &profile.species);
-    let data = OrganProfileData {
-        sex: profile.sex,
-        eye_color: Color::BLACK,
-        skin_color: skin,
-    };
+    apply_organ_profile(
+        world,
+        body,
+        OrganProfileData {
+            sex: profile.sex,
+            eye_color: Color::BLACK,
+            skin_color: skin,
+        },
+    );
+}
+
+/// Профиль персонажа на тело (`SharedVisualBodySystem.ApplyProfileTo` и
+/// `HumanoidProfileSystem.ApplyProfileTo`): вид, пол, возраст, имя, цвета органов, метки.
+pub fn apply_character_profile(
+    world: &mut World,
+    body: Entity,
+    profile: &crate::profiles::HumanoidCharacterProfile,
+) {
+    if let Some(mut humanoid) = world.get_mut::<HumanoidProfile>(body) {
+        humanoid.species = profile.species.clone();
+        humanoid.sex = profile.sex;
+        humanoid.age = Some(profile.age);
+    }
+    if let Some(mut meta) = world.get_mut::<astrocore_ecs::MetaData>(body) {
+        meta.name = Some(profile.name.clone());
+    }
+    apply_organ_profile(
+        world,
+        body,
+        OrganProfileData {
+            sex: profile.sex,
+            eye_color: profile.appearance.eye_color,
+            skin_color: profile.appearance.skin_color,
+        },
+    );
+    crate::markings::apply_markings(world, body, &profile.appearance.markings);
+}
+
+/// Цвета профиля органам (`ApplyOrganProfileDataEvent`): кожа, глаза, состояние по полу.
+pub fn apply_organ_profile(world: &mut World, body: Entity, data: OrganProfileData) {
     for organ in world.organs(body) {
         if world
             .get::<Organ>(organ)

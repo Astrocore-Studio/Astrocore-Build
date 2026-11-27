@@ -64,6 +64,7 @@ pub mod item_slots;
 pub mod lights;
 pub mod lock;
 pub mod map_commands;
+pub mod markings;
 pub mod mobs;
 pub mod movement_speed;
 pub mod multipart;
@@ -238,6 +239,7 @@ pub fn install_content(world: &mut World, side: Side) {
     bans::install(world);
     admin_logs::install(world, side);
     profiles::install(world);
+    markings::install(world);
     preferences::install(world, side);
     connection::install(world, side);
     device_network::install(world, side);

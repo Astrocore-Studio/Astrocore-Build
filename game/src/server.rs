@@ -7,9 +7,7 @@ use astrocore_map::{
 };
 use astrocore_math::Vec2;
 use astrocore_movement::MovementServerPlugin;
-use astrocore_net::{
-    NetServerPlugin, PlayerConnected, PlayerDisconnected, Session, SessionWorldExt,
-};
+use astrocore_net::{NetServerPlugin, PlayerDisconnected, Session, SessionWorldExt};
 use astrocore_physics::PhysicsPlugin;
 use bevy_ecs::entity::Entity;
 use bevy_ecs::resource::Resource;
@@ -102,15 +100,37 @@ pub fn start() -> Result<ServerStart, String> {
     world.insert_resource(ArrivalPoint(arrival));
     world.init_resource::<Bodies>();
 
-    // Вошедший игрок получает тело у точки появления.
-    world.subscribe_broadcast::<PlayerConnected>(|world, event| {
-        let prototype = world.resource::<Config>().get_text(&PLAYER_PROTOTYPE);
+    // Игрок с загруженными настройками получает тело выбранного персонажа у точки появления
+    // (до раунда и лобби — сразу после входа, `StationSpawningSystem.SpawnPlayerMob`).
+    world.subscribe_broadcast::<crate::preferences::PreferencesLoaded>(|world, event| {
+        if world.resource::<Bodies>().0.contains_key(&event.session) {
+            return;
+        }
+        let profile = world
+            .resource::<crate::preferences::PreferencesCache>()
+            .selected_profile(event.user_id)
+            .cloned();
+        let species_prototype = profile.as_ref().and_then(|p| {
+            world
+                .get_resource::<astrocore_prototypes::Prototypes>()?
+                .resolved_node("species", &p.species)?
+                .get("prototype")?
+                .as_str()
+                .map(str::to_owned)
+        });
+        let prototype = species_prototype
+            .unwrap_or_else(|| world.resource::<Config>().get_text(&PLAYER_PROTOTYPE));
         let arrival = world.resource::<ArrivalPoint>().0;
         match world.spawn_on_map(&prototype, arrival) {
             Ok(body) => {
-                let name = world.get::<Session>(event.session).map(|s| s.name.clone());
-                if let Some(mut meta) = world.get_mut::<MetaData>(body) {
-                    meta.name = name;
+                match &profile {
+                    Some(profile) => crate::body::apply_character_profile(world, body, profile),
+                    None => {
+                        let name = world.get::<Session>(event.session).map(|s| s.name.clone());
+                        if let Some(mut meta) = world.get_mut::<MetaData>(body) {
+                            meta.name = name;
+                        }
+                    }
                 }
                 world.attach_player(event.session, body);
                 world.resource_mut::<Bodies>().0.insert(event.session, body);

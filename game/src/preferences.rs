@@ -520,6 +520,7 @@ fn load(world: &mut World, session: Entity) {
         finish_load(world, user, prefs, false);
         return;
     }
+    let fallback = fresh.clone();
     spawn_db(
         world,
         move |db| async move {
@@ -539,7 +540,16 @@ fn load(world: &mut World, session: Entity) {
         },
         move |world, result: DbResult<PlayerPreferences>| match result {
             Ok(prefs) => finish_load(world, user, prefs, true),
-            Err(error) => eprintln!("настройки игрока {user}: {error}"),
+            Err(error) => {
+                // Без настроек игрок не появится: даётся случайный персонаж без сохранения.
+                eprintln!("настройки игрока {user}: {error}");
+                let prefs = PlayerPreferences {
+                    characters: BTreeMap::from([(0, fallback)]),
+                    selected_character_index: 0,
+                    admin_ooc_color: default_admin_ooc_color(),
+                };
+                finish_load(world, user, prefs, false);
+            }
         },
     );
 }
