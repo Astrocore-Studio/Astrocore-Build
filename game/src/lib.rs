@@ -13,6 +13,7 @@ pub mod airtight;
 pub mod ame;
 pub mod anchorable;
 pub mod atmos;
+pub mod atmos_alarms;
 pub mod atmos_devices;
 pub mod atmos_portables;
 pub mod barotrauma;
@@ -34,6 +35,7 @@ pub mod electrocution;
 pub mod entity_storage;
 pub mod examine;
 pub mod explosion;
+pub mod firelock;
 pub mod fixed_point;
 pub mod flammable;
 pub mod flatpack;
@@ -92,6 +94,8 @@ pub(crate) mod testing;
 
 #[cfg(feature = "client")]
 pub mod action_bar;
+#[cfg(feature = "client")]
+pub mod alarm_visuals;
 #[cfg(feature = "client")]
 pub mod body_visuals;
 #[cfg(feature = "client")]
@@ -225,6 +229,8 @@ pub fn install_content(world: &mut World, side: Side) {
     atmos_devices::install(world, side);
     atmos_portables::install(world, side);
     gas_analyzer::install(world, side);
+    atmos_alarms::install(world, side);
+    firelock::install(world, side);
     weldable::install(world, side);
     status_effects::install(world, side);
     electrocution::install(world, side);

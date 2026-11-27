@@ -397,18 +397,59 @@ pub struct PryUnpowered {
     pub pry_modifier: f32,
 }
 
-/// Пожарный шлюз (`FirelockComponent`): закрытый открывает любой. Давление, температура и
-/// автозакрытие по тревоге — вместе с атмосферной техникой (5.6).
-#[derive(Component, Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
-#[serde(default, rename_all = "camelCase")]
+fn pry_modifier() -> f32 {
+    1.5
+}
+fn pressure_threshold() -> f32 {
+    20.0
+}
+fn temperature_threshold() -> f32 {
+    330.0
+}
+fn close_cooldown() -> f64 {
+    2.0
+}
+
+/// Пожарный шлюз (`FirelockComponent`): закрытый открывает любой; держит давление и огонь,
+/// закрывается по тревоге (поведение — `firelock.rs`).
+#[derive(Component, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Firelock {
-    pub locked_pry_time_modifier: Option<f32>,
-    pub pressure_threshold: Option<f32>,
-    pub temperature_threshold: Option<f32>,
-    pub alarm_auto_close: Option<bool>,
+    #[serde(default = "pry_modifier")]
+    pub locked_pry_time_modifier: f32,
+    #[serde(default = "pressure_threshold")]
+    pub pressure_threshold: f32,
+    #[serde(default = "temperature_threshold")]
+    pub temperature_threshold: f32,
+    #[serde(default = "yes")]
+    pub alarm_auto_close: bool,
+    /// Секунды (`EmergencyCloseCooldownDuration`).
+    #[serde(default = "close_cooldown")]
+    pub emergency_close_cooldown_duration: f64,
+    #[serde(skip)]
+    pub emergency_close_cooldown: Option<f64>,
+    #[serde(default)]
     pub pressure: bool,
+    #[serde(default)]
     pub temperature: bool,
+    #[serde(default)]
     pub powered: bool,
+}
+
+impl Default for Firelock {
+    fn default() -> Self {
+        astrocore_data::from_node(&astrocore_data::DataNode::map(
+            astrocore_data::DataMap::new(),
+        ))
+        .expect("пустой пожарный шлюз разбирается")
+    }
+}
+
+impl Firelock {
+    /// Держит давление или огонь (`IsLocked`).
+    pub fn is_locked(&self) -> bool {
+        self.pressure || self.temperature
+    }
 }
 
 /// Двери, у которых назначена смена состояния. Ресурс сервера.
@@ -714,7 +755,7 @@ pub fn start_closing(world: &mut World, entity: Entity) {
 }
 
 /// Середина закрытия: дверь снова твёрдая и давит оставшихся (`OnPartialClose`).
-fn on_partial_close(world: &mut World, entity: Entity) -> bool {
+pub(crate) fn on_partial_close(world: &mut World, entity: Entity) -> bool {
     let time = now(world);
     if !can_close(world, entity, None, true) {
         with_door(world, entity, |d| {

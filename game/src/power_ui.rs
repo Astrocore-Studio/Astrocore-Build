@@ -6,7 +6,9 @@
 //! (`GasTankBoundUserInterface`, `GasTankWindow`), канистра (`GasCanisterBoundUserInterface`,
 //! `GasCanisterWindow`) и термомашина (`GasThermomachineBoundUserInterface`,
 //! `GasThermomachineWindow`), газоанализатор (`GasAnalyzerBoundUserInterface`,
-//! `GasAnalyzerWindow`, без схемы устройства) SS14 @ 2f4a2aad. Поля ввода давления и температуры заменены
+//! `GasAnalyzerWindow`, без схемы устройства), воздушная тревога (`AirAlarmBoundUserInterface`,
+//! `AirAlarmWindow`: режимы и показания; пороги и настройка отдельных устройств — позже)
+//! SS14 @ 2f4a2aad. Поля ввода давления и температуры заменены
 //! кнопками шага.
 
 use astrocore_client::{UiAction, WindowKinds, spawn_button, spawn_label};
@@ -14,6 +16,10 @@ use astrocore_ui::UiWorldExt;
 use bevy::prelude::*;
 
 use crate::ame::{AME_UI_KEY, AmeUiButton, AmeUiState};
+use crate::atmos_alarms::{
+    AIR_ALARM_UI_KEY, AirAlarmMode, AirAlarmResyncAllDevices, AirAlarmUiState,
+    AirAlarmUpdateAlarmMode, AirAlarmUpdateAutoMode, AtmosAlarmType,
+};
 use crate::atmos_portables::{
     CANISTER_UI_KEY, GasCanisterChangeReleasePressure, GasCanisterChangeReleaseValve,
     GasCanisterHoldingTankEject, GasCanisterUiState, GasThermomachineChangeTemperature,
@@ -589,6 +595,105 @@ impl Plugin for PowerUiPlugin {
                         );
                     }
                 }
+            },
+        );
+        kinds.register(
+            "AirAlarmBoundUserInterface",
+            |commands, content, ui, _, style| {
+                let Some(state) = ui.state::<AirAlarmUiState>() else {
+                    spawn_label(commands, content, style, "Нет данных");
+                    return;
+                };
+                let alarm = match state.alarm_type {
+                    AtmosAlarmType::Danger => "опасность",
+                    AtmosAlarmType::Warning => "предупреждение",
+                    AtmosAlarmType::Emagged => "взломана",
+                    _ => "норма",
+                };
+                let mode = |m: AirAlarmMode| match m {
+                    AirAlarmMode::None => "выключено",
+                    AirAlarmMode::Filtering => "фильтрация",
+                    AirAlarmMode::WideFiltering => "широкая фильтрация",
+                    AirAlarmMode::Fill => "наполнение",
+                    AirAlarmMode::Panic => "паника",
+                };
+                for line in [
+                    format!("Адрес: {}", state.address),
+                    format!("Состояние: {alarm}"),
+                    format!(
+                        "Режим: {}{}",
+                        mode(state.mode),
+                        if state.auto_mode { " (авто)" } else { "" }
+                    ),
+                    format!(
+                        "Устройства: вентиляций {}, скрубберов {}, датчиков {}",
+                        state.vents.len(),
+                        state.scrubbers.len(),
+                        state.sensors.len()
+                    ),
+                ] {
+                    spawn_label(commands, content, style, &line);
+                }
+                for (address, sensor) in &state.sensors {
+                    spawn_label(
+                        commands,
+                        content,
+                        style,
+                        &format!(
+                            "Датчик {address}: {:.1} кПа, {:.1} K",
+                            sensor.pressure, sensor.temperature
+                        ),
+                    );
+                }
+                let entity = ui.entity;
+                for m in [
+                    AirAlarmMode::Filtering,
+                    AirAlarmMode::WideFiltering,
+                    AirAlarmMode::Fill,
+                    AirAlarmMode::Panic,
+                    AirAlarmMode::None,
+                ] {
+                    spawn_button(
+                        commands,
+                        content,
+                        style,
+                        &format!("Режим: {}", mode(m)),
+                        UiAction::new(move |world| {
+                            world.send_ui_message(
+                                entity,
+                                AIR_ALARM_UI_KEY,
+                                &AirAlarmUpdateAlarmMode { mode: m },
+                            );
+                        }),
+                    );
+                }
+                let enabled = !state.auto_mode;
+                spawn_button(
+                    commands,
+                    content,
+                    style,
+                    if enabled {
+                        "Включить авторежим"
+                    } else {
+                        "Выключить авторежим"
+                    },
+                    UiAction::new(move |world| {
+                        world.send_ui_message(
+                            entity,
+                            AIR_ALARM_UI_KEY,
+                            &AirAlarmUpdateAutoMode { enabled },
+                        );
+                    }),
+                );
+                spawn_button(
+                    commands,
+                    content,
+                    style,
+                    "Опросить устройства",
+                    UiAction::new(move |world| {
+                        world.send_ui_message(entity, AIR_ALARM_UI_KEY, &AirAlarmResyncAllDevices);
+                    }),
+                );
             },
         );
         kinds.register(

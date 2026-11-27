@@ -124,12 +124,15 @@ fn stand_by_device(server: &mut bevy_ecs::world::World, prototype: Option<&str>)
         });
     }
     found.sort_unstable();
-    if let Some(at) = found
+    if let Some((device, at)) = found
         .first()
-        .and_then(|device| server.map_coordinates(*device))
+        .and_then(|device| Some((*device, server.map_coordinates(*device)?)))
     {
+        // Перед лицевой стороной устройства: настенные смотрят «вниз» в своём повороте.
+        let rotation = server.world_transform(device).map_or(0.0, |t| t.rotation.0);
+        let front = astrocore_math::Vec2::new(rotation.sin(), -rotation.cos());
         let beside = MapCoordinates {
-            position: at.position + astrocore_math::Vec2::new(0.0, -1.0),
+            position: at.position + front,
             ..at
         };
         server.insert_resource(server::ArrivalPoint(beside));

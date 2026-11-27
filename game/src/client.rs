@@ -52,6 +52,7 @@ pub fn start(name: &str) -> Result<(World, Resources), String> {
     crate::light_visuals::install(&mut world);
     crate::explosion_visuals::install(&mut world);
     crate::fire_visuals::install(&mut world);
+    crate::alarm_visuals::install(&mut world);
     crate::light_visuals::install_generator(&mut world);
     crate::light_visuals::install_power_state(&mut world);
     crate::gas_overlay_visuals::install(&mut world);
