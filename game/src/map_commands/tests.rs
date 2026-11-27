@@ -139,8 +139,31 @@ fn saved_map_loads_back_under_another_id() {
     assert_eq!(state.grids().len(), 1);
     assert_eq!(
         run(&mut world, "loadmap 9 Maps/test.yml").1,
-        ["Maps/test.yml: карта 9 уже существует"]
+        ["карта 9 уже есть"]
     );
+    // Сдвиг и поворот (радианы): грид поворачивается вокруг начала карты и сдвигается.
+    let (_, errors) = run(&mut world, "loadmap 10 Maps/test.yml 5 -2 1.5707964");
+    assert!(errors.is_empty(), "{errors:?}");
+    let original = world.get::<Map>(loaded).unwrap().grids()[0];
+    let moved_map = world.map_entity(MapId(10)).unwrap();
+    let moved = world.get::<Map>(moved_map).unwrap().grids()[0];
+    let before = world
+        .get::<astrocore_map::Transform>(original)
+        .unwrap()
+        .clone();
+    let after = world
+        .get::<astrocore_map::Transform>(moved)
+        .unwrap()
+        .clone();
+    let expected = astrocore_math::Angle(std::f32::consts::FRAC_PI_2)
+        .rotate(before.local_position())
+        + astrocore_math::Vec2::new(5.0, -2.0);
+    assert!((after.local_position() - expected).length() < 1e-4);
+    assert!(
+        (after.local_rotation().0 - before.local_rotation().0 - std::f32::consts::FRAC_PI_2).abs()
+            < 1e-4
+    );
+    assert!(!run(&mut world, "loadmap 11 Maps/test.yml x").1.is_empty());
     let _ = std::fs::remove_dir_all(dir);
 }
 

@@ -20,7 +20,7 @@ use astrocore_map::{
     EntityCoordinates, Map, MapCoordinates, MapId, MapLoadOptions, MapLoadWorldExt, MapSaveOptions,
     MapSaveWorldExt, MapWorldExt, Maps, SpawnWorldExt, TransformWorldExt,
 };
-use astrocore_math::Vec2;
+use astrocore_math::{Angle, Vec2};
 use astrocore_net::{NetEntities, NetEntity, ServerNet, Session, SessionWorldExt};
 use astrocore_resources::{Resources, normalize_path};
 use bevy_ecs::component::Component;
@@ -228,19 +228,64 @@ fn addmap(world: &mut World, shell: &mut ConsoleShell, args: &[String]) {
     }
 }
 
+/// Сдвиг и поворот загруженной карты (`ApplyTransform` загрузчика Robust): сущности прямо
+/// на карте поворачиваются вокруг её начала и сдвигаются; карта-грид не трогается.
+pub fn apply_load_transform(world: &mut World, id: MapId, offset: Vec2, rotation: Angle) {
+    if rotation.0 == 0.0 && offset == Vec2::ZERO {
+        return;
+    }
+    let Some(map) = world.map_entity(id) else {
+        return;
+    };
+    if world.get::<astrocore_map::MapGrid>(map).is_some() {
+        return;
+    }
+    let children: Vec<Entity> = world
+        .get::<bevy_ecs::hierarchy::Children>(map)
+        .map(|c| c.iter().copied().collect())
+        .unwrap_or_default();
+    for child in children {
+        let Some((position, local)) = world
+            .get::<astrocore_map::Transform>(child)
+            .map(|t| (t.local_position(), t.local_rotation()))
+        else {
+            continue;
+        };
+        let _ = world.set_local_position(child, rotation.rotate(position) + offset);
+        let _ = world.set_local_rotation(child, Angle(local.0 + rotation.0));
+    }
+}
+
+/// `loadmap` Robust: номер новой карты, путь, сдвиг и поворот (радианы).
 fn loadmap(world: &mut World, shell: &mut ConsoleShell, args: &[String]) {
-    let [id, path] = args else {
-        shell.write_line("loadmap <номер> <путь>");
+    if args.len() < 2 || args.len() > 5 {
+        shell.write_line("loadmap <номер> <путь> [x] [y] [поворот, радианы]");
+        return;
+    }
+    let Some(id) = map_id(shell, &args[0]) else {
         return;
     };
-    let Some(id) = map_id(shell, id) else {
+    if world.map_entity(id).is_some() {
+        shell.write_error(format!("карта {} уже есть", id.0));
         return;
-    };
+    }
+    let mut values = [0.0f32; 3];
+    for (value, text) in values.iter_mut().zip(&args[2..]) {
+        match number(shell, text) {
+            Some(parsed) => *value = parsed,
+            None => return,
+        }
+    }
+    let [x, y, rotation] = values;
+    let path = &args[1];
     match load_map_file(world, id, path) {
-        Ok(entities) => shell.write_line(format!(
-            "карта {} загружена из {path}: сущностей {entities}",
-            id.0
-        )),
+        Ok(entities) => {
+            apply_load_transform(world, id, Vec2::new(x, y), Angle(rotation));
+            shell.write_line(format!(
+                "карта {} загружена из {path}: сущностей {entities}",
+                id.0
+            ));
+        }
         Err(error) => shell.write_error(error),
     }
 }
@@ -736,7 +781,7 @@ pub fn install(world: &mut World, side: Side) {
         command(
             "loadmap",
             "Загружает карту из файла.",
-            "loadmap <номер> <путь>",
+            "loadmap <номер> <путь> [x] [y] [поворот, радианы]",
             loadmap,
             false,
         ),
