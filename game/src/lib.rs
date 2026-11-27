@@ -36,6 +36,7 @@ pub mod construction;
 pub mod container_fill;
 pub mod containment;
 pub mod content;
+pub mod content_eye;
 pub mod damage;
 pub mod damage_other_on_hit;
 pub mod database;
@@ -150,6 +151,8 @@ pub mod clothing_visuals;
 pub mod communications_ui;
 #[cfg(feature = "client")]
 pub mod construction_ui;
+#[cfg(feature = "client")]
+pub mod content_eye_view;
 #[cfg(feature = "client")]
 pub mod decal_visuals;
 #[cfg(feature = "client")]
@@ -298,6 +301,7 @@ pub fn install_content(world: &mut World, side: Side) {
     round_end::install(world, side);
     emergency_shuttle::install(world, side);
     communications::install(world, side);
+    content_eye::install(world, side);
     mind::install(world, side);
     ghost::install(world, side);
     ghost_roles::install(world, side);
