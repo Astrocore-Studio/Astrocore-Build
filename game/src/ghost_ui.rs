@@ -4,8 +4,11 @@
 //! `NightVisionComponent` наблюдателя, `GhostUIController`, `GhostGui`, `GhostTargetWindow`
 //! SS14 @ 2f4a2aad.
 //!
-//! Нет пока: кнопки ролей призрака (6.5г), поиска в окне телепорта, «самый популярный» и
-//! «случайный, за кем следят» — нет следования.
+//! Кнопка «Роли призраков (N)» и окно ролей с розыгрышами — `GhostRolesWindow`,
+//! `GhostRoleEntryButtons` SS14.
+//!
+//! Нет пока: поиска в окне телепорта, «самый популярный» и «случайный, за кем следят» —
+//! нет следования; окна правил роли с задержкой.
 
 use astrocore_client::{Game, Lighting, Sprite, UiAction, UiStyle};
 use astrocore_net::{ClientNet, NetEventWorldExt};
@@ -15,6 +18,7 @@ use bevy_ecs::world::World as GameWorld;
 
 use crate::examine::loc;
 use crate::ghost::{Ghost, GhostLighting, GhostMessage, GhostView, GhostVisibilityMode};
+use crate::ghost_roles::{ClientGhostRoles, GhostRoleKind, GhostRolesMessage};
 
 const PANEL: Color = Color::srgba(0.08, 0.09, 0.12, 0.92);
 const BUTTON: Color = Color::srgba(0.16, 0.18, 0.24, 1.0);
@@ -93,6 +97,9 @@ fn apply_view(mut game: ResMut<Game>, mut lighting: ResMut<Lighting>) {
 #[derive(Component)]
 struct GhostPanel;
 
+/// Что нарисовано: призрак, можно ли вернуться, версии вида и ролей, секунда отсчёта.
+type Shown = (Option<bevy_ecs::entity::Entity>, bool, u64, u64, u64);
+
 fn button(
     commands: &mut Commands,
     style: &UiStyle,
@@ -122,7 +129,7 @@ fn draw(
     mut game: ResMut<Game>,
     style: Res<UiStyle>,
     panels: Query<Entity, With<GhostPanel>>,
-    mut shown: Local<Option<(Option<bevy_ecs::entity::Entity>, bool, u64)>>,
+    mut shown: Local<Option<Shown>>,
 ) {
     let world = &mut game.0;
     let ghost = local_ghost(world);
@@ -130,7 +137,16 @@ fn draw(
     let view = world
         .get_resource_or_insert_with(GhostView::default)
         .clone();
-    let now = (ghost, can_return, view.version);
+    let roles = world
+        .get_resource_or_insert_with(ClientGhostRoles::default)
+        .clone();
+    let clock = world
+        .get_resource::<astrocore_ecs::GameTime>()
+        .map(astrocore_ecs::GameTime::cur_time)
+        .unwrap_or_default();
+    // Отсчёт розыгрышей перерисовывается раз в секунду.
+    let second = if roles.open { clock.as_secs() } else { 0 };
+    let now = (ghost, can_return, view.version, roles.version, second);
     if shown.as_ref() == Some(&now) {
         return;
     }
@@ -181,6 +197,32 @@ fn draw(
             }
         }),
     );
+    let open_roles = roles.open;
+    button(
+        &mut commands,
+        &style,
+        bar,
+        loc(
+            world,
+            "ghost-gui-ghost-roles-button",
+            &[("count", astrocore_loc::LocArg::from(roles.count))],
+        ),
+        true,
+        UiAction::new(move |world| {
+            if open_roles {
+                world.send_net_event_to_server(&GhostRolesMessage::Close);
+                let mut state = world.get_resource_or_insert_with(ClientGhostRoles::default);
+                state.open = false;
+                state.version += 1;
+            } else {
+                world.send_net_event_to_server(&GhostRolesMessage::Open);
+            }
+        }),
+    );
+    if roles.open {
+        let elapsed = clock.saturating_sub(roles.received_at).as_secs_f32();
+        roles_window(&mut commands, &style, world, &roles, elapsed);
+    }
     if !view.warp_window {
         return;
     }
@@ -262,6 +304,99 @@ fn draw(
                 world.send_net_event_to_server(&GhostMessage::WarpToTarget(target));
             }),
         );
+    }
+}
+
+/// Текст кнопки роли (`GhostRoleEntryButtons`).
+pub fn role_button_text(world: &GameWorld, kind: GhostRoleKind, players: u32, left: f32) -> String {
+    let time = crate::lobby_ui::clock(left);
+    let args = [
+        ("time", astrocore_loc::LocArg::from(time)),
+        ("players", astrocore_loc::LocArg::from(players)),
+    ];
+    match kind {
+        GhostRoleKind::FirstComeFirstServe => {
+            loc(world, "ghost-roles-window-request-role-button", &[])
+        }
+        GhostRoleKind::RaffleReady => loc(world, "ghost-roles-window-join-raffle-button", &[]),
+        GhostRoleKind::RaffleInProgress => {
+            loc(world, "ghost-roles-window-raffle-in-progress-button", &args)
+        }
+        GhostRoleKind::RaffleJoined => loc(world, "ghost-roles-window-leave-raffle-button", &args),
+    }
+}
+
+/// Окно ролей призраков (`GhostRolesWindow`).
+fn roles_window(
+    commands: &mut Commands,
+    style: &UiStyle,
+    world: &GameWorld,
+    roles: &ClientGhostRoles,
+    elapsed: f32,
+) {
+    let window = commands
+        .spawn((
+            Node {
+                position_type: PositionType::Absolute,
+                top: Val::Px(60.0),
+                left: Val::Px(12.0),
+                width: Val::Px(420.0),
+                max_height: Val::Percent(75.0),
+                flex_direction: FlexDirection::Column,
+                row_gap: Val::Px(8.0),
+                padding: UiRect::all(Val::Px(10.0)),
+                overflow: Overflow::clip(),
+                ..default()
+            },
+            BackgroundColor(PANEL),
+            GlobalZIndex(57),
+            Interaction::default(),
+            GhostPanel,
+        ))
+        .id();
+    commands.spawn((
+        ChildOf(window),
+        style.text(loc(world, "ghost-roles-window-title", &[]), 16.0),
+    ));
+    if roles.roles.is_empty() {
+        commands.spawn((
+            ChildOf(window),
+            style.text(
+                loc(world, "ghost-roles-window-no-roles-available-label", &[]),
+                13.0,
+            ),
+        ));
+        return;
+    }
+    for role in &roles.roles {
+        let entry = commands
+            .spawn((
+                ChildOf(window),
+                Node {
+                    flex_direction: FlexDirection::Column,
+                    row_gap: Val::Px(3.0),
+                    ..default()
+                },
+            ))
+            .id();
+        commands.spawn((ChildOf(entry), style.text(role.name.clone(), 15.0)));
+        commands.spawn((
+            ChildOf(entry),
+            style.text(crate::examine::strip_markup(&role.description), 12.0),
+        ));
+        let left = (role.raffle_seconds_left - elapsed).max(0.0);
+        let text = role_button_text(world, role.kind, role.raffle_player_count, left);
+        let id = role.identifier;
+        let action = if role.kind == GhostRoleKind::RaffleJoined {
+            UiAction::new(move |world| {
+                world.send_net_event_to_server(&GhostRolesMessage::LeaveRaffle(id));
+            })
+        } else {
+            UiAction::new(move |world| {
+                world.send_net_event_to_server(&GhostRolesMessage::Request(id));
+            })
+        };
+        button(commands, style, entry, text, true, action);
     }
 }
 

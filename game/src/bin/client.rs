@@ -54,7 +54,7 @@ struct Options {
     /// Открыть экран персонажа на вкладке (`--character appearance|markings|jobs|antags`).
     character: Option<String>,
     /// Когда игрок станет призраком: окно телепорта или режим света
-    /// (`--ghost-view warp|halfbright|fullbright`).
+    /// (`--ghost-view warp|roles|halfbright|fullbright`).
     ghost_view: Option<String>,
     /// С `--host`: сервер с лобби, как выделенный (без него — сразу в раунд).
     lobby: bool,
@@ -562,9 +562,16 @@ fn apply_pending_ghost_view(mut game: ResMut<Game>, mut pending: ResMut<PendingG
     match view.as_str() {
         "halfbright" => state.lighting = GhostLighting::HalfBright,
         "fullbright" => state.lighting = GhostLighting::Fullbright,
+        "roles" => {}
         _ => state.warp_window = true,
     }
     state.version += 1;
+    if view == "roles" {
+        astrocore_net::NetEventWorldExt::send_net_event_to_server(
+            world,
+            &astrocore_game::ghost_roles::GhostRolesMessage::Open,
+        );
+    }
     if view == "warp" {
         astrocore_net::NetEventWorldExt::send_net_event_to_server(
             world,
