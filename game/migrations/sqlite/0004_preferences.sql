@@ -1,0 +1,73 @@
+-- Настройки игроков и профили персонажей: должности, антагонисты, черты, снаряжение.
+-- Образец — Content.Server.Database/Model.cs SS14 @ 2f4a2aad (ADR-0011). Метки внешности —
+-- JSON в organ_markings, как OrganMarkings SS14.
+
+CREATE TABLE preference (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id TEXT NOT NULL UNIQUE,
+    selected_character_slot BIGINT NOT NULL,
+    admin_ooc_color TEXT NOT NULL
+);
+
+CREATE TABLE profile (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    preference_id BIGINT NOT NULL REFERENCES preference (id) ON DELETE CASCADE,
+    slot BIGINT NOT NULL,
+    char_name TEXT NOT NULL,
+    flavor_text TEXT NOT NULL,
+    age BIGINT NOT NULL,
+    sex TEXT NOT NULL,
+    voice TEXT,
+    gender TEXT NOT NULL,
+    species TEXT NOT NULL,
+    organ_markings TEXT,
+    eye_color TEXT NOT NULL,
+    skin_color TEXT NOT NULL,
+    spawn_priority BIGINT NOT NULL DEFAULT 0,
+    pref_unavailable BIGINT NOT NULL DEFAULT 0,
+    UNIQUE (preference_id, slot)
+);
+
+CREATE TABLE job (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    profile_id BIGINT NOT NULL REFERENCES profile (id) ON DELETE CASCADE,
+    job_name TEXT NOT NULL,
+    priority BIGINT NOT NULL,
+    UNIQUE (profile_id, job_name)
+);
+
+CREATE TABLE antag (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    profile_id BIGINT NOT NULL REFERENCES profile (id) ON DELETE CASCADE,
+    antag_name TEXT NOT NULL,
+    UNIQUE (profile_id, antag_name)
+);
+
+CREATE TABLE trait (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    profile_id BIGINT NOT NULL REFERENCES profile (id) ON DELETE CASCADE,
+    trait_name TEXT NOT NULL,
+    UNIQUE (profile_id, trait_name)
+);
+
+CREATE TABLE profile_role_loadout (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    profile_id BIGINT NOT NULL REFERENCES profile (id) ON DELETE CASCADE,
+    role_name TEXT NOT NULL,
+    entity_name TEXT
+);
+CREATE INDEX ix_profile_role_loadout_profile_id ON profile_role_loadout (profile_id);
+
+CREATE TABLE profile_loadout_group (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    profile_role_loadout_id BIGINT NOT NULL REFERENCES profile_role_loadout (id) ON DELETE CASCADE,
+    group_name TEXT NOT NULL
+);
+CREATE INDEX ix_profile_loadout_group_role ON profile_loadout_group (profile_role_loadout_id);
+
+CREATE TABLE profile_loadout (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    profile_loadout_group_id BIGINT NOT NULL REFERENCES profile_loadout_group (id) ON DELETE CASCADE,
+    loadout_name TEXT NOT NULL
+);
+CREATE INDEX ix_profile_loadout_group_id ON profile_loadout (profile_loadout_group_id);

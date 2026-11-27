@@ -74,6 +74,8 @@ pub mod pipes;
 pub mod placement;
 pub mod popups;
 pub mod power;
+pub mod preferences;
+pub mod profiles;
 pub mod projectiles;
 pub mod pulling;
 pub mod radiation;
@@ -235,6 +237,8 @@ pub fn install_content(world: &mut World, side: Side) {
     database::install(world, side);
     bans::install(world);
     admin_logs::install(world, side);
+    profiles::install(world);
+    preferences::install(world, side);
     connection::install(world, side);
     device_network::install(world, side);
     device_linking::install(world, side);
