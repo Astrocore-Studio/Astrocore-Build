@@ -1103,6 +1103,16 @@ pub fn invalidate_tile(world: &mut World, grid: Entity, coord: TileCoord) {
     }
 }
 
+/// Добавить газ в клетку под точкой карты (`Merge` в `GetContainingMixture`).
+pub fn merge_at(world: &mut World, at: astrocore_map::MapCoordinates, gas: &GasMixture) {
+    let Some(tile) = astrocore_map::MapWorldExt::tile_at(world, at) else {
+        return;
+    };
+    let data = gas_data(world);
+    with_tile_mixture(world, tile.grid, tile.coord, |air| data.merge(air, gas));
+    invalidate_tile(world, tile.grid, tile.coord);
+}
+
 /// Пересчитать всё (`InvalidateAllTiles`).
 pub fn invalidate_all_tiles(world: &mut World, grid: Entity) {
     let mut coords: Vec<TileCoord> = world

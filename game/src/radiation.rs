@@ -524,11 +524,15 @@ fn collectors_post_sync(world: &mut World) {
 
 /// Облучение живого (`DamageableSystem.OnIrradiated`): урон «Radiation» в радах.
 fn on_damageable_irradiated(world: &mut World, entity: Entity, event: &mut Irradiated) {
+    let Some(types) = world
+        .get::<Damageable>(entity)
+        .map(|d| d.radiation_damage_types.clone())
+    else {
+        return;
+    };
+    let value = FixedPoint2::from_f32(event.total_rads());
     let damage = DamageSpecifier {
-        types: BTreeMap::from([(
-            "Radiation".to_owned(),
-            FixedPoint2::from_f32(event.total_rads()),
-        )]),
+        types: types.into_iter().map(|t| (t, value)).collect::<BTreeMap<_, _>>(),
     };
     world.change_damage(entity, &damage, false, false, event.origin);
 }
