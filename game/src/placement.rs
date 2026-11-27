@@ -47,6 +47,9 @@ pub enum PlacementRequest {
         corner: Vec2,
         rotation: f32,
         color: Option<String>,
+        /// Слой (`ZIndex`) и смываемость (`Cleanable`) из окна декалей.
+        z_index: i32,
+        cleanable: bool,
     },
     /// Удалить декали в прямоугольнике карты (`RequestDecalRemovalEvent`).
     EraseDecals { map: u32, min: Vec2, max: Vec2 },
@@ -214,6 +217,8 @@ pub fn handle(world: &mut World, session: Entity, request: &PlacementRequest) {
             corner,
             rotation,
             color,
+            z_index,
+            cleanable,
         } => {
             let known = world
                 .get_resource::<astrocore_prototypes::Prototypes>()
@@ -238,8 +243,8 @@ pub fn handle(world: &mut World, session: Entity, request: &PlacementRequest) {
                     id: id.clone(),
                     color: color.clone(),
                     angle: *rotation,
-                    z_index: 0,
-                    cleanable: false,
+                    z_index: *z_index,
+                    cleanable: *cleanable,
                 },
             );
         }

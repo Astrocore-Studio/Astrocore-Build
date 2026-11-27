@@ -63,8 +63,109 @@ pub struct MappingTools {
     pub search: String,
     /// Клавиатура пишет в поле поиска.
     pub typing: bool,
+    /// Настройки декали (`DecalPlacerWindow`).
+    pub decal: DecalOptions,
     /// Растёт с каждым изменением: окно перерисовывается.
     pub version: u64,
+}
+
+/// Настройки окна декалей: цвет, смываемость, слой; «авто» берёт их из прототипа.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DecalOptions {
+    pub auto: bool,
+    pub use_color: bool,
+    /// RGBA.
+    pub color: [u8; 4],
+    pub cleanable: bool,
+    pub z_index: i32,
+    /// Открытая палитра цветов (`PaletteColorPicker`): номер в списке палитр.
+    pub palette: Option<usize>,
+}
+
+impl Default for DecalOptions {
+    fn default() -> Self {
+        Self {
+            auto: false,
+            use_color: false,
+            color: [255; 4],
+            cleanable: false,
+            z_index: 0,
+            palette: None,
+        }
+    }
+}
+
+impl DecalOptions {
+    /// Цвет декали для сервера: `#RRGGBBAA`, если цвет включён.
+    pub fn color_hex(&self) -> Option<String> {
+        let [r, g, b, a] = self.color;
+        self.use_color
+            .then(|| format!("#{r:02X}{g:02X}{b:02X}{a:02X}"))
+    }
+}
+
+/// Умолчания декали (`DefaultCleanable`, `DefaultCustomColor`, `DefaultSnap`).
+pub fn decal_defaults(prototypes: &Prototypes, id: &str) -> (bool, bool, bool) {
+    let flag = |key: &str, default: bool| {
+        prototypes
+            .resolved_node("decal", id)
+            .and_then(|node| node.get(key))
+            .and_then(astrocore_data::DataNode::as_str)
+            .map_or(default, |text| text.eq_ignore_ascii_case("true"))
+    };
+    (
+        flag("defaultCleanable", false),
+        flag("defaultCustomColor", false),
+        flag("defaultSnap", true),
+    )
+}
+
+/// Палитра цветов (`ColorPalettePrototype`): имя и цвета (название, RGBA) по порядку файла.
+pub type ColorPalette = (String, Vec<(String, [u8; 4])>);
+
+/// Палитры цветов прототипов по идентификаторам.
+pub fn color_palettes(prototypes: &Prototypes) -> Vec<ColorPalette> {
+    let mut ids: Vec<&str> = prototypes.ids("palette").collect();
+    ids.sort_unstable();
+    ids.into_iter()
+        .filter_map(|id| {
+            let node = prototypes.resolved_node("palette", id)?;
+            let name = node
+                .get("name")
+                .and_then(astrocore_data::DataNode::as_str)
+                .unwrap_or(id)
+                .to_owned();
+            let colors = node
+                .get("colors")
+                .and_then(astrocore_data::DataNode::as_map)
+                .map(|map| {
+                    map.iter()
+                        .filter_map(|(key, value)| {
+                            let color = astrocore_math::Color::parse(value.as_str()?)?;
+                            Some((key.to_owned(), color.to_bytes()))
+                        })
+                        .collect()
+                })
+                .unwrap_or_default();
+            Some((name, colors))
+        })
+        .collect()
+}
+
+/// Выбрать декаль (`SelectDecal`): с «авто» настройки берутся из прототипа.
+pub fn select_decal(world: &mut bevy_ecs::world::World, id: &str) {
+    let defaults = world
+        .get_resource::<Prototypes>()
+        .map(|p| decal_defaults(p, id));
+    let mut tools = tools_of(world);
+    if tools.decal.auto
+        && let Some((cleanable, custom_color, snap)) = defaults
+    {
+        tools.decal.cleanable = cleanable;
+        tools.decal.use_color = custom_color;
+        tools.free = !snap;
+    }
+    tools.select(Tool::Decal(id.to_owned()));
 }
 
 impl MappingTools {
@@ -186,6 +287,7 @@ struct Catalog {
     entities: Vec<(String, String)>,
     tiles: Vec<(String, String)>,
     decals: Vec<(String, String)>,
+    palettes: Vec<ColorPalette>,
 }
 
 /// Декали для палитры: без скрытых из меню (`showMenu: false`).
@@ -347,7 +449,7 @@ fn pointer(
                     }),
                 }
             }
-            tool => send_place(world, tool, map, at, current.rotation),
+            tool => send_place(world, tool, map, at, current.rotation, &current.decal),
         }
     }
     if mouse.just_released(MouseButton::Left)
@@ -363,12 +465,26 @@ fn pointer(
             return;
         }
         for cell in fill_cells(start, at, rectangle) {
-            send_place(world, &current.tool, map, cell, current.rotation);
+            send_place(
+                world,
+                &current.tool,
+                map,
+                cell,
+                current.rotation,
+                &current.decal,
+            );
         }
     }
 }
 
-fn send_place(world: &mut bevy_ecs::world::World, tool: &Tool, map: MapId, at: Vec2, rotation: u8) {
+fn send_place(
+    world: &mut bevy_ecs::world::World,
+    tool: &Tool,
+    map: MapId,
+    at: Vec2,
+    rotation: u8,
+    decal: &DecalOptions,
+) {
     let position = astrocore_math::Vec2::new(at.x, at.y);
     let request = match tool {
         Tool::Entity(prototype) => PlacementRequest::Entity {
@@ -388,7 +504,9 @@ fn send_place(world: &mut bevy_ecs::world::World, tool: &Tool, map: MapId, at: V
             map: map.0,
             corner: position - astrocore_math::Vec2::splat(0.5),
             rotation: f32::from(rotation) * std::f32::consts::FRAC_PI_2,
-            color: None,
+            color: decal.color_hex(),
+            z_index: decal.z_index,
+            cleanable: decal.cleanable,
         },
         Tool::None | Tool::Erase => return,
     };
@@ -469,6 +587,11 @@ fn ghost(
     };
     if let Some((mut sprite, at)) = image {
         sprite.color = GHOST;
+        // Декаль под курсором — выбранным цветом.
+        if matches!(current.tool, Tool::Decal(_)) && current.decal.use_color {
+            let [r, g, b, a] = current.decal.color;
+            sprite.color = Color::srgba_u8(r, g, b, a).with_alpha(f32::from(a) / 255.0 * 0.55);
+        }
         commands.spawn((
             sprite,
             Transform::from_xyz(at.x, at.y, 900.0).with_rotation(rotation),
@@ -575,6 +698,10 @@ fn palette(
             .get_resource::<Prototypes>()
             .map(decal_ids)
             .unwrap_or_default(),
+        palettes: world
+            .get_resource::<Prototypes>()
+            .map(color_palettes)
+            .unwrap_or_default(),
     });
     let panel = commands
         .spawn((
@@ -669,6 +796,15 @@ fn palette(
             tools.changed();
         }),
     );
+    if kind == Palette::Decals {
+        decal_options(
+            &mut commands,
+            &style,
+            panel,
+            &current.decal,
+            &catalog.palettes,
+        );
+    }
     let items = match kind {
         Palette::Entities => &catalog.entities,
         Palette::Tiles => &catalog.tiles,
@@ -695,10 +831,160 @@ fn palette(
                     ..default()
                 },
                 BackgroundColor(if selected { SELECTED } else { ROW }),
-                UiAction::new(move |world| tools_of(world).select(tool.clone())),
+                UiAction::new(move |world| match &tool {
+                    Tool::Decal(id) => select_decal(world, id),
+                    tool => tools_of(world).select(tool.clone()),
+                }),
             ))
             .id();
         commands.spawn((ChildOf(button), style.text(label, 13.0)));
+    }
+}
+
+fn decal_change(change: impl Fn(&mut DecalOptions) + Send + Sync + 'static) -> UiAction {
+    UiAction::new(move |world| {
+        let mut tools = tools_of(world);
+        change(&mut tools.decal);
+        tools.changed();
+    })
+}
+
+/// Настройки окна декалей (`DecalPlacerWindow`, `ColorSelectorSliders`, `PaletteColorPicker`).
+fn decal_options(
+    commands: &mut Commands,
+    style: &UiStyle,
+    panel: Entity,
+    options: &DecalOptions,
+    palettes: &[ColorPalette],
+) {
+    let row = |commands: &mut Commands| {
+        commands
+            .spawn((
+                ChildOf(panel),
+                Node {
+                    column_gap: Val::Px(6.0),
+                    flex_wrap: FlexWrap::Wrap,
+                    align_items: AlignItems::Center,
+                    ..default()
+                },
+            ))
+            .id()
+    };
+    let toggles = row(commands);
+    let on = |flag: bool, text: &str| format!("{text}: {}", if flag { "да" } else { "нет" });
+    spawn_button(
+        commands,
+        toggles,
+        style,
+        &on(options.auto, "Авто"),
+        decal_change(|o| o.auto = !o.auto),
+    );
+    spawn_button(
+        commands,
+        toggles,
+        style,
+        &on(options.use_color, "Цвет"),
+        decal_change(|o| o.use_color = !o.use_color),
+    );
+    spawn_button(
+        commands,
+        toggles,
+        style,
+        &on(options.cleanable, "Смываемая"),
+        decal_change(|o| o.cleanable = !o.cleanable),
+    );
+    let layer = row(commands);
+    spawn_button(
+        commands,
+        layer,
+        style,
+        "Z −",
+        decal_change(|o| o.z_index -= 1),
+    );
+    commands.spawn((
+        ChildOf(layer),
+        style.text(format!("слой {}", options.z_index), 13.0),
+    ));
+    spawn_button(
+        commands,
+        layer,
+        style,
+        "Z +",
+        decal_change(|o| o.z_index += 1),
+    );
+    // Каналы цвета: шаг 17 — 16 ступеней от 0 до 255.
+    let channels = row(commands);
+    let [r, g, b, a] = options.color;
+    commands.spawn((
+        ChildOf(channels),
+        Node {
+            width: Val::Px(22.0),
+            height: Val::Px(22.0),
+            ..default()
+        },
+        BackgroundColor(Color::srgba_u8(r, g, b, a)),
+    ));
+    for (index, label) in ["R", "G", "B", "A"].into_iter().enumerate() {
+        let value = options.color[index];
+        spawn_button(
+            commands,
+            channels,
+            style,
+            &format!("{label}−"),
+            decal_change(move |o| o.color[index] = o.color[index].saturating_sub(17)),
+        );
+        commands.spawn((ChildOf(channels), style.text(format!("{value}"), 12.0)));
+        spawn_button(
+            commands,
+            channels,
+            style,
+            &format!("{label}+"),
+            decal_change(move |o| o.color[index] = o.color[index].saturating_add(17)),
+        );
+    }
+    // Палитры: кнопка открывает, повторное нажатие листает, образец задаёт цвет.
+    let picker = row(commands);
+    let count = palettes.len();
+    let title = match options.palette.and_then(|i| palettes.get(i)) {
+        Some((name, _)) => format!("Палитра: {name}"),
+        None => "Палитра".to_owned(),
+    };
+    spawn_button(
+        commands,
+        picker,
+        style,
+        &title,
+        decal_change(move |o| {
+            o.palette = match o.palette {
+                None if count > 0 => Some(0),
+                Some(i) if i + 1 < count => Some(i + 1),
+                _ => None,
+            };
+        }),
+    );
+    let Some((_, colors)) = options.palette.and_then(|i| palettes.get(i)) else {
+        return;
+    };
+    let swatches = row(commands);
+    for (name, color) in colors {
+        let color = *color;
+        let [r, g, b, a] = color;
+        let swatch = commands
+            .spawn((
+                ChildOf(swatches),
+                Node {
+                    padding: UiRect::axes(Val::Px(4.0), Val::Px(1.0)),
+                    ..default()
+                },
+                BackgroundColor(Color::srgba_u8(r, g, b, a.max(96))),
+                Interaction::default(),
+                decal_change(move |o| {
+                    o.color = color;
+                    o.use_color = true;
+                }),
+            ))
+            .id();
+        commands.spawn((ChildOf(swatch), style.text(name.clone(), 11.0)));
     }
 }
 
@@ -715,6 +1001,75 @@ impl Plugin for MappingUiPlugin {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    const DECALS: &str = r##"
+- type: decal
+  id: Dirt
+  defaultCleanable: true
+  defaultCustomColor: true
+  defaultSnap: false
+- type: decal
+  id: Arrows
+- type: palette
+  id: Departmental
+  name: Departmental
+  colors:
+    command: "#334E6DC8"
+    medical: "#52B4E996"
+"##;
+
+    fn prototypes() -> Prototypes {
+        let mut prototypes = Prototypes::default();
+        let mut report = astrocore_prototypes::LoadReport::default();
+        prototypes.load_str(
+            "test.yml",
+            astrocore_data::DataFormat::Yaml,
+            DECALS,
+            &mut report,
+        );
+        prototypes.resolve(&astrocore_ecs::ComponentRegistry::default(), &mut report);
+        assert!(report.errors.is_empty(), "{:?}", report.errors);
+        prototypes
+    }
+
+    #[test]
+    fn decal_defaults_palettes_and_colors() {
+        let prototypes = prototypes();
+        assert_eq!(decal_defaults(&prototypes, "Dirt"), (true, true, false));
+        assert_eq!(decal_defaults(&prototypes, "Arrows"), (false, false, true));
+        let palettes = color_palettes(&prototypes);
+        assert_eq!(palettes.len(), 1);
+        assert_eq!(palettes[0].0, "Departmental");
+        assert_eq!(
+            palettes[0].1,
+            [
+                ("command".to_owned(), [0x33, 0x4E, 0x6D, 0xC8]),
+                ("medical".to_owned(), [0x52, 0xB4, 0xE9, 0x96])
+            ]
+        );
+        let mut options = DecalOptions::default();
+        assert_eq!(options.color_hex(), None);
+        options.use_color = true;
+        options.color = [0x33, 0x4E, 0x6D, 0xC8];
+        assert_eq!(options.color_hex().as_deref(), Some("#334E6DC8"));
+    }
+
+    #[test]
+    fn auto_takes_settings_from_the_decal() {
+        let mut world = bevy_ecs::world::World::new();
+        world.insert_resource(prototypes());
+        select_decal(&mut world, "Dirt");
+        // Без «авто» настройки не меняются.
+        assert!(!world.resource::<MappingTools>().decal.cleanable);
+        world.resource_mut::<MappingTools>().decal.auto = true;
+        select_decal(&mut world, "Dirt");
+        let tools = world.resource::<MappingTools>();
+        assert_eq!(tools.tool, Tool::Decal("Dirt".into()));
+        assert!(tools.decal.cleanable && tools.decal.use_color && tools.free);
+        select_decal(&mut world, "Arrows");
+        let tools = world.resource::<MappingTools>();
+        assert!(!tools.decal.cleanable && !tools.decal.use_color && !tools.free);
+    }
 
     #[test]
     fn fills_lines_along_the_longer_axis_and_rectangles() {

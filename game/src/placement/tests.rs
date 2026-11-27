@@ -193,6 +193,8 @@ fn decals_are_placed_on_the_grid_and_erased() {
         corner: Vec2::new(3.0, 4.0),
         rotation: 0.0,
         color: Some("#FF0000FF".into()),
+        z_index: 2,
+        cleanable: true,
     };
     handle(&mut world, session, &place("Bot"));
     // Неизвестная декаль не ставится.
@@ -202,6 +204,7 @@ fn decals_are_placed_on_the_grid_and_erased() {
     let decal = decals.decals.values().next().unwrap();
     assert_eq!(decal.coordinates, Vec2::new(3.0, 4.0));
     assert_eq!(decal.color.as_deref(), Some("#FF0000FF"));
+    assert_eq!((decal.z_index, decal.cleanable), (2, true));
 
     handle(
         &mut world,

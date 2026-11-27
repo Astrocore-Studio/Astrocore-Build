@@ -824,6 +824,13 @@ fn run() -> Result<(), String> {
             }),
             search: search.to_owned(),
             tool: first.unwrap_or_default(),
+            // Для снимка окна декалей: цвет и первая палитра открыты.
+            decal: astrocore_game::mapping_ui::DecalOptions {
+                use_color: decals,
+                color: [0x52, 0xB4, 0xE9, 0xC8],
+                palette: decals.then_some(0),
+                ..Default::default()
+            },
             version: 1,
             ..MappingTools::default()
         };
