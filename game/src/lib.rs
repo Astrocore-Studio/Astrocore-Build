@@ -38,8 +38,10 @@ pub mod container_fill;
 pub mod containment;
 pub mod content;
 pub mod content_eye;
+pub mod crit_actions;
 pub mod damage;
 pub mod damage_other_on_hit;
+pub mod damage_overlay;
 pub mod database;
 pub mod decals;
 pub mod destructible;
@@ -97,6 +99,7 @@ pub mod preferences;
 pub mod profiles;
 pub mod projectiles;
 pub mod pulling;
+pub mod quick_dialog;
 pub mod radiation;
 pub mod radio;
 pub mod random;
@@ -157,6 +160,8 @@ pub mod construction_ui;
 #[cfg(feature = "client")]
 pub mod content_eye_view;
 #[cfg(feature = "client")]
+pub mod damage_overlay_view;
+#[cfg(feature = "client")]
 pub mod decal_visuals;
 #[cfg(feature = "client")]
 pub mod dev_console;
@@ -190,6 +195,8 @@ pub mod network_configurator_ui;
 pub mod overlays;
 #[cfg(feature = "client")]
 pub mod power_ui;
+#[cfg(feature = "client")]
+pub mod quick_dialog_ui;
 #[cfg(feature = "client")]
 pub mod smooth;
 #[cfg(feature = "client")]
@@ -306,6 +313,9 @@ pub fn install_content(world: &mut World, side: Side) {
     communications::install(world, side);
     alerts::install(world, side);
     content_eye::install(world, side);
+    quick_dialog::install(world, side);
+    crit_actions::install(world, side);
+    damage_overlay::install(world, side);
     mind::install(world, side);
     ghost::install(world, side);
     ghost_roles::install(world, side);

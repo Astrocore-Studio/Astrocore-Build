@@ -2094,13 +2094,27 @@ pub fn try_emote_with_chat(
     emote_id: &str,
     range: ChatTransmitRange,
 ) -> bool {
+    try_emote_with_chat_ext(world, source, emote_id, range, false)
+}
+
+/// Эмоция со строкой чата, в том числе без проверки, может ли сущность действовать
+/// (`ignoreActionBlocker`: предсмертный вздох в крите).
+pub fn try_emote_with_chat_ext(
+    world: &mut World,
+    source: Entity,
+    emote_id: &str,
+    range: ChatTransmitRange,
+    ignore_action_blocker: bool,
+) -> bool {
     let Some(emote) = world
         .get_resource::<Prototypes>()
         .and_then(|p| emote(p, emote_id))
     else {
         return false;
     };
-    if !allowed_to_use_emote(world, source, &emote) || !can_emote(world, source) {
+    if !allowed_to_use_emote(world, source, &emote)
+        || (!ignore_action_blocker && !can_emote(world, source))
+    {
         return false;
     }
     if !try_invoke_emote(world, source, &emote) {

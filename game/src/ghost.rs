@@ -874,24 +874,45 @@ fn toggle_hearing(world: &mut World, ghost: Entity, action: Entity) {
 
 // Команда.
 
-fn ghost_command(world: &mut World, shell: &mut ConsoleShell, _args: &[String]) {
-    let Some(session) = shell.player else {
-        shell.write_line(loc(world, "ghost-command-no-session", &[]));
-        return;
-    };
+/// Почему команда `ghost` не сработала.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum GhostCommandError {
+    NoUser,
+    Lobby,
+    Denied,
+}
+
+/// Команда `ghost` от имени сессии (`GhostCommand.Execute`): стать призраком, если можно.
+pub fn ghost_for_session(world: &mut World, session: Entity) -> Result<(), GhostCommandError> {
     let Some(user) = world.get::<Session>(session).map(|s| s.user_id) else {
-        return;
+        return Err(GhostCommandError::NoUser);
     };
     if !crate::game_ticker::user_has_joined_game(world, user) {
-        shell.write_line(loc(world, "ghost-command-error-lobby", &[]));
-        return;
+        return Err(GhostCommandError::Lobby);
     }
     let mind_id = match mind::mind_of_user(world, user) {
         Some(mind_id) => mind_id,
         None => mind::create_mind(world, Some(user), None),
     };
     if !on_ghost_attempt(world, mind_id, true, true, false) {
-        shell.write_line(loc(world, "ghost-command-denied", &[]));
+        return Err(GhostCommandError::Denied);
+    }
+    Ok(())
+}
+
+fn ghost_command(world: &mut World, shell: &mut ConsoleShell, _args: &[String]) {
+    let Some(session) = shell.player else {
+        shell.write_line(loc(world, "ghost-command-no-session", &[]));
+        return;
+    };
+    match ghost_for_session(world, session) {
+        Ok(()) | Err(GhostCommandError::NoUser) => {}
+        Err(GhostCommandError::Lobby) => {
+            shell.write_line(loc(world, "ghost-command-error-lobby", &[]));
+        }
+        Err(GhostCommandError::Denied) => {
+            shell.write_line(loc(world, "ghost-command-denied", &[]));
+        }
     }
 }
 

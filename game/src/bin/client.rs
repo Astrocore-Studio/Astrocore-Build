@@ -10,7 +10,7 @@
 //! `--examine-nearest` осматривает ближайшую сущность и показывает всплывающее сообщение,
 //! `--storage-nearest` (только с `--host`) ставит игрока у ящика с инструментами, кладёт в него
 //! инструменты, открывает его окно и ближайший шкаф, `--hurt` (только с `--host`) через секунду
-//! наносит игроку смертельный урон, `--dress` (только с `--host`) надевает на игрока
+//! наносит игроку смертельный урон (`--hurt-amount <урон>` — заданный), `--dress` (только с `--host`) надевает на игрока
 //! комбинезон, ботинки и рюкзак, `--console "<команда>"` (можно несколько раз) после входа
 //! открывает консоль и выполняет команды на сервере, `--palette entities:<поиск>` или
 //! `tiles:<поиск>` открывает палитру маппинга и берёт первую найденную строку, курсор при
@@ -44,6 +44,7 @@ struct Options {
     examine_nearest: bool,
     storage_nearest: bool,
     hurt: bool,
+    hurt_amount: i32,
     ignite: bool,
     /// Проверка вида пожарного шлюза: игрок у шлюза, который держит давление и огонь.
     firelock: bool,
@@ -83,6 +84,7 @@ fn options() -> Result<Options, String> {
         examine_nearest: false,
         storage_nearest: false,
         hurt: false,
+        hurt_amount: 500,
         ignite: false,
         firelock: false,
         dress: false,
@@ -109,6 +111,12 @@ fn options() -> Result<Options, String> {
             "--examine-nearest" => options.examine_nearest = true,
             "--storage-nearest" => options.storage_nearest = true,
             "--hurt" => options.hurt = true,
+            "--hurt-amount" => {
+                options.hurt = true;
+                options.hurt_amount = value("урон")?
+                    .parse()
+                    .map_err(|_| "--hurt-amount: нужно целое число".to_owned())?;
+            }
             "--ignite" => options.ignite = true,
             "--firelock" => options.firelock = true,
             "--dress" => options.dress = true,
@@ -368,6 +376,10 @@ fn open_storage_nearest(world: &mut bevy_ecs::world::World, mut ticks: Local<u32
 }
 
 /// Проверка без человека: через секунду игрок получает смертельный тупой урон.
+/// Сколько урона наносит `--hurt`.
+#[derive(Resource, Clone, Copy)]
+struct HurtAmount(i32);
+
 fn hurt_player(world: &mut bevy_ecs::world::World, mut ticks: Local<u32>) {
     use astrocore_game::damage::{DamageSpecifier, DamageableWorldExt};
     use astrocore_game::fixed_point::FixedPoint2;
@@ -380,7 +392,8 @@ fn hurt_player(world: &mut bevy_ecs::world::World, mut ticks: Local<u32>) {
     };
     *ticks += 1;
     if *ticks == 30 {
-        let damage = DamageSpecifier::new([("Blunt", FixedPoint2::new(500))]);
+        let amount = world.get_resource::<HurtAmount>().map_or(500, |h| h.0);
+        let damage = DamageSpecifier::new([("Blunt", FixedPoint2::new(amount))]);
         world.change_damage(player, &damage, true, true, None);
     }
 }
@@ -710,6 +723,7 @@ fn run() -> Result<(), String> {
         }
         if options.hurt {
             use astrocore_ecs::GameWorldExt;
+            start.world.insert_resource(HurtAmount(options.hurt_amount));
             start
                 .world
                 .add_game_systems(astrocore_ecs::Update, hurt_player);
@@ -790,6 +804,8 @@ fn run() -> Result<(), String> {
     .add_plugins(astrocore_game::communications_ui::CommunicationsUiPlugin)
     .add_plugins(astrocore_game::content_eye_view::ContentEyeViewPlugin)
     .add_plugins(astrocore_game::alerts_ui::AlertsUiPlugin)
+    .add_plugins(astrocore_game::quick_dialog_ui::QuickDialogUiPlugin)
+    .add_plugins(astrocore_game::damage_overlay_view::DamageOverlayViewPlugin)
     .add_plugins(astrocore_game::ghost_ui::GhostUiPlugin)
     .add_plugins(astrocore_game::decal_visuals::DecalVisualsPlugin)
     .add_plugins(astrocore_game::power_ui::PowerUiPlugin)
