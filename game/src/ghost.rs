@@ -151,6 +151,76 @@ impl Default for NavMapBeacon {
 #[serde(default)]
 pub struct ConfigurableNavMapBeacon {}
 
+/// Ближе этого к маяку — «у маяка» (`CloseDistance`).
+const BEACON_CLOSE_DISTANCE: f32 = 15.0;
+/// Дальше этого — «далеко» (`FarDistance`).
+const BEACON_FAR_DISTANCE: f32 = 30.0;
+
+/// Где точка относительно ближайшего включённого настраиваемого маяка
+/// (`NavMapSystem.GetNearestBeaconString`): «у мостика», «к северу от бара».
+pub fn nearest_beacon_string(
+    world: &mut World,
+    coordinates: astrocore_map::MapCoordinates,
+) -> String {
+    use astrocore_map::{MapWorldExt, Transform};
+    let beacons: Vec<(String, String, astrocore_math::Vec2)> = world
+        .query_filtered::<(Entity, &NavMapBeacon), bevy_ecs::query::With<ConfigurableNavMapBeacon>>(
+        )
+        .iter(world)
+        .filter(|(_, beacon)| beacon.enabled)
+        .filter_map(|(entity, beacon)| {
+            let text = beacon.text.clone()?;
+            let position = world.map_coordinates(entity)?;
+            (position.map == coordinates.map)
+                .then(|| (text, beacon.color.clone(), position.position))
+        })
+        .collect();
+    let nearest = beacons.into_iter().min_by(|a, b| {
+        a.2.distance_squared(coordinates.position)
+            .total_cmp(&b.2.distance_squared(coordinates.position))
+    });
+    let Some((text, color, position)) = nearest else {
+        return loc(world, "nav-beacon-pos-no-beacons", &[]);
+    };
+    // Направление — с поправкой на поворот грида под маяком.
+    let grid_rotation = world
+        .find_grid_at(astrocore_map::MapCoordinates::new(
+            coordinates.map,
+            position,
+        ))
+        .and_then(|grid| world.get::<Transform>(grid))
+        .map_or(astrocore_math::Angle::ZERO, Transform::local_rotation);
+    let offset = coordinates.position - position;
+    let direction = (astrocore_math::Angle::from_world_vec(offset) - grid_rotation).direction();
+    let length = offset.length();
+    if length < BEACON_CLOSE_DISTANCE {
+        return loc(
+            world,
+            "nav-beacon-pos-format",
+            &[
+                ("color", LocArg::from(color)),
+                ("marker", LocArg::from(text)),
+            ],
+        );
+    }
+    let modifier = if length > BEACON_FAR_DISTANCE {
+        loc(world, "nav-beacon-pos-format-direction-mod-far", &[])
+    } else {
+        String::new()
+    };
+    let direction = crate::examine::format_direction(world, direction).to_lowercase();
+    loc(
+        world,
+        "nav-beacon-pos-format-direction",
+        &[
+            ("modifier", LocArg::from(modifier)),
+            ("direction", LocArg::from(direction)),
+            ("color", LocArg::from(color)),
+            ("marker", LocArg::from(text)),
+        ],
+    )
+}
+
 /// Сила «Бу!» (`GhostBooIntensity`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, Default)]
 pub enum GhostBooIntensity {

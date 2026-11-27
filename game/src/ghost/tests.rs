@@ -273,3 +273,36 @@ fn ghosts_toggle_their_field_of_view() {
     message(&mut scene.world, session, GhostMessage::ToggleFov);
     assert_eq!(scene.world.get::<Eye>(ghost).unwrap().draw_fov, !before);
 }
+
+#[test]
+fn location_is_described_by_the_nearest_enabled_beacon() {
+    use astrocore_map::{MapCoordinates, TransformWorldExt};
+    use astrocore_math::Vec2;
+    let mut world = crate::testing::world_with(
+        r#"
+- type: entity
+  id: TestBeacon
+  components:
+  - type: ConfigurableNavMapBeacon
+  - type: NavMapBeacon
+    text: Bridge
+"#,
+    );
+    let grid = crate::testing::station(&mut world);
+    let map = world.map_coordinates(grid).unwrap().map;
+    let here = MapCoordinates::new(map, Vec2::new(2.0, 2.0));
+    assert_eq!(
+        nearest_beacon_string(&mut world, here),
+        "nav-beacon-pos-no-beacons"
+    );
+    crate::testing::spawn_at(&mut world, "TestBeacon", grid, 1, 1);
+    assert_eq!(
+        nearest_beacon_string(&mut world, here),
+        "nav-beacon-pos-format"
+    );
+    let far = MapCoordinates::new(map, Vec2::new(60.0, 2.0));
+    assert_eq!(
+        nearest_beacon_string(&mut world, far),
+        "nav-beacon-pos-format-direction"
+    );
+}

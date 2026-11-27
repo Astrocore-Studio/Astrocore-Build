@@ -92,6 +92,11 @@ pub struct ExamineResult {
     pub revision: u64,
 }
 
+/// Направление словами (`ContentLocalizationManager.FormatDirection`).
+pub fn format_direction(world: &World, direction: astrocore_math::Direction) -> String {
+    loc(world, &format!("zzzz-fmt-direction-{direction:?}"), &[])
+}
+
 /// Убирает разметку SS14 (`[color=red]…[/color]`) для простого текста.
 pub fn strip_markup(text: &str) -> String {
     let mut out = String::with_capacity(text.len());
