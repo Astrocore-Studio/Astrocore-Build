@@ -114,6 +114,8 @@ pub struct GasData {
     pub colors: [Option<String>; GAS_COUNT],
     /// Вид газа на клетке (`GasOverlaySprite`): набор RSI и состояние.
     pub overlay: [Option<(String, String)>; GAS_COUNT],
+    /// Реагент газа (`GasPrototype.Reagent`, `GasReagents`): во что газ превращается в лёгких.
+    pub reagents: [Option<String>; GAS_COUNT],
     /// С какого количества газ виден (`GasMolesVisible`) и множитель полной видимости
     /// (`GasVisibilityFactor`).
     pub moles_visible: [f32; GAS_COUNT],
@@ -135,6 +137,7 @@ impl Default for GasData {
             oxidizer: [true, false, false, false, false, false, false, false, false],
             colors: Default::default(),
             overlay: Default::default(),
+            reagents: Default::default(),
             moles_visible: [0.25; GAS_COUNT],
             visibility_factor: [20.0; GAS_COUNT],
         }
@@ -166,6 +169,10 @@ impl GasData {
             data.oxidizer[i] = flag(node, "isOxidizer");
             data.colors[i] = node
                 .get("color")
+                .and_then(DataNode::as_str)
+                .map(str::to_owned);
+            data.reagents[i] = node
+                .get("reagent")
                 .and_then(DataNode::as_str)
                 .map(str::to_owned);
             data.overlay[i] = node.get("gasOverlaySprite").and_then(|sprite| {

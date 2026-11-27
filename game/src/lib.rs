@@ -66,6 +66,7 @@ pub mod projectiles;
 pub mod pulling;
 pub mod radiation;
 pub mod random;
+pub mod respiration;
 pub mod server;
 pub mod singularity;
 pub mod stack;
@@ -213,6 +214,7 @@ pub fn install_content(world: &mut World, side: Side) {
     barotrauma::install(world, side);
     temperature::install(world, side);
     flammable::install(world, side);
+    respiration::install(world, side);
     pipes::install(world, side);
     atmos_devices::install(world, side);
     weldable::install(world, side);
