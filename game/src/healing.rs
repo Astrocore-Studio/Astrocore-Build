@@ -112,11 +112,11 @@ pub fn try_heal(world: &mut World, item: Entity, target: Entity, user: Entity) -
         return false;
     }
     if !has_damage(world, &healing, target) {
-        let name = world.entity_name(item);
+        let name = world.entity_arg(item);
         let text = loc(
             world,
             "medical-item-cant-use",
-            &[("item", name.as_str().into())],
+            &[("item", name.clone().into())],
         );
         world.popup_entity_for(&text, item, user, PopupType::Small);
         return false;
@@ -126,14 +126,14 @@ pub fn try_heal(world: &mut World, item: Entity, target: Entity, user: Entity) -
     }
     let not_self = user != target;
     if not_self {
-        let user_name = world.entity_name(user);
-        let item_name = world.entity_name(item);
+        let user_name = world.entity_arg(user);
+        let item_name = world.entity_arg(item);
         let text = loc(
             world,
             "medical-item-popup-target",
             &[
-                ("user", user_name.as_str().into()),
-                ("item", item_name.as_str().into()),
+                ("user", user_name.clone().into()),
+                ("item", item_name.clone().into()),
             ],
         );
         world.popup_entity_for(&text, target, target, PopupType::Medium);

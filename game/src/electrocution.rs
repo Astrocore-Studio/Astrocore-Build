@@ -290,16 +290,16 @@ fn common_electrocution(
         "electrocuted-component-mob-shocked-popup-player",
         &[],
     );
-    let mob = world.entity_name(target);
+    let mob = world.entity_arg(target);
     let others = match source {
         Some(source) => {
-            let source_name = world.entity_name(source);
+            let source_name = world.entity_arg(source);
             loc(
                 world,
                 "electrocuted-component-mob-shocked-by-source-popup-others",
                 &[
-                    ("mob", LocArg::from(mob)),
-                    ("source", LocArg::from(source_name)),
+                    ("mob", LocArg::from(mob.clone())),
+                    ("source", LocArg::from(source_name.clone())),
                 ],
             )
         }

@@ -656,7 +656,7 @@ fn thermomachine_examined(world: &mut World, entity: Entity, event: &mut crate::
     let Some(machine) = world.get::<GasThermoMachine>(entity).cloned() else {
         return;
     };
-    let name = astrocore_loc::EntityNameWorldExt::entity_name(world, entity);
+    let name = astrocore_loc::EntityNameWorldExt::entity_arg(world, entity);
     let color = if machine.is_heater() {
         "red"
     } else {
@@ -667,7 +667,7 @@ fn thermomachine_examined(world: &mut World, entity: Entity, event: &mut crate::
         world,
         "gas-thermomachine-system-examined",
         &[
-            ("machineName", astrocore_loc::LocArg::from(name.as_str())),
+            ("machineName", astrocore_loc::LocArg::from(name.clone())),
             ("tempColor", astrocore_loc::LocArg::from(color)),
             ("temp", astrocore_loc::LocArg::from(f64::from(temperature))),
         ],

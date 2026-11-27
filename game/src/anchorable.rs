@@ -267,7 +267,7 @@ pub fn install(world: &mut World, side: Side) {
         if event.cancelled || event.anchoring || !crate::lock::is_locked(world, entity) {
             return;
         }
-        let name = astrocore_loc::EntityNameWorldExt::entity_name(world, entity);
+        let name = astrocore_loc::EntityNameWorldExt::entity_arg(world, entity);
         event.fail_message = Some(loc(
             world,
             "lock-comp-generic-fail",

@@ -184,11 +184,11 @@ fn pockets(world: &World, user: Entity) -> Vec<Entity> {
 }
 
 fn popup(world: &mut World, key: &str, target: Entity, user: Entity) {
-    let name = astrocore_loc::EntityNameWorldExt::entity_name(world, target);
+    let name = astrocore_loc::EntityNameWorldExt::entity_arg(world, target);
     let text = crate::examine::loc(
         world,
         key,
-        &[("ent", astrocore_loc::LocArg::from(name.as_str()))],
+        &[("ent", astrocore_loc::LocArg::from(name.clone()))],
     );
     world.popup_entity_for(&text, target, user, crate::popups::PopupType::Small);
 }

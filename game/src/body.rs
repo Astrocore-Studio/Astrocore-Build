@@ -270,6 +270,10 @@ pub fn apply_character_profile(
     if let Some(mut meta) = world.get_mut::<astrocore_ecs::MetaData>(body) {
         meta.name = Some(profile.name.clone());
     }
+    // Род тела — по местоимениям персонажа (`HumanoidProfileSystem.ApplyProfileTo`).
+    if let Some(mut grammar) = world.get_mut::<astrocore_loc::Grammar>(body) {
+        grammar.set_gender(Some(profile.gender.name()));
+    }
     apply_organ_profile(
         world,
         body,

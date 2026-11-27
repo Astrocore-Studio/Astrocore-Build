@@ -322,11 +322,11 @@ impl PullingWorldExt for World {
         let mut started = PullStarted { puller, pulled };
         self.raise(puller, &mut started);
         self.raise(pulled, &mut started);
-        let name = self.entity_name(puller);
+        let name = self.entity_arg(puller);
         let text = loc(
             self,
             "getting-pulled-popup",
-            &[("puller", name.as_str().into())],
+            &[("puller", name.clone().into())],
         );
         self.popup_entity_for(&text, pulled, pulled, PopupType::Small);
         true

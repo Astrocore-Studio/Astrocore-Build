@@ -386,13 +386,13 @@ fn on_activate(world: &mut World, gun: Entity, event: &mut ActivateInWorld) {
     }
     let user = event.user;
     if crate::lock::is_locked(world, gun) {
-        let name = astrocore_loc::EntityNameWorldExt::entity_name(world, gun);
+        let name = astrocore_loc::EntityNameWorldExt::entity_arg(world, gun);
         let text = loc(world, "gun-access-locked", &[("target", name.into())]);
         world.popup_entity_for(&text, gun, user, PopupType::Small);
         return;
     }
     event.handled = true;
-    let name = astrocore_loc::EntityNameWorldExt::entity_name(world, gun);
+    let name = astrocore_loc::EntityNameWorldExt::entity_arg(world, gun);
     if !is_static(world, gun) {
         let text = loc(world, "gun-not-anchored", &[("target", name.into())]);
         world.popup_entity_for(&text, gun, user, PopupType::Small);

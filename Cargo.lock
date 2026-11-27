@@ -605,6 +605,8 @@ dependencies = [
  "bevy_ecs",
  "fluent-bundle",
  "fluent-syntax",
+ "intl-memoizer",
+ "serde",
  "thiserror 2.0.21",
  "unic-langid",
 ]

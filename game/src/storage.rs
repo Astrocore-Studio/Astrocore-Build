@@ -572,11 +572,11 @@ impl StorageWorldExt for World {
             return false;
         }
         if !self.can_drop(user) {
-            let name = astrocore_loc::EntityNameWorldExt::entity_name(self, held);
+            let name = astrocore_loc::EntityNameWorldExt::entity_arg(self, held);
             let text = loc(
                 self,
                 "comp-storage-cant-drop",
-                &[("entity", name.as_str().into())],
+                &[("entity", name.clone().into())],
             );
             self.popup_entity_for(&text, storage, user, PopupType::Small);
             return false;

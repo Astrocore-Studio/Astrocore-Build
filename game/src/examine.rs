@@ -268,6 +268,9 @@ fn receive(world: &mut World, event: &mut NetEvent<ExamineMessage>) {
 pub(crate) fn install(world: &mut World, side: crate::Side) {
     world.register_data_component::<Examiner>();
     world.register_net_serde::<Examiner>();
+    // Род и имена собственные сущностей для сообщений (`GrammarComponent` Robust).
+    world.register_data_component::<astrocore_loc::Grammar>();
+    world.register_net_serde::<astrocore_loc::Grammar>();
     world.register_net_event::<ExamineMessage>();
     world.subscribe_net_event::<ExamineMessage>(receive);
     world.init_resource::<ExamineResult>();
@@ -310,20 +313,20 @@ pub(crate) fn install(world: &mut World, side: crate::Side) {
             .held_items(user)
             .into_iter()
             .map(|item| {
-                let name = world.entity_name(item);
+                let name = world.entity_arg(item);
                 loc(
                     world,
                     "comp-hands-examine-wrapper",
-                    &[("item", name.as_str().into())],
+                    &[("item", name.clone().into())],
                 )
             })
             .collect();
-        let name = world.entity_name(user);
+        let name = world.entity_arg(user);
         let text = if held.is_empty() {
             loc(
                 world,
                 "comp-hands-examine-empty",
-                &[("user", name.as_str().into())],
+                &[("user", name.clone().into())],
             )
         } else {
             let items = held.join(", ");
@@ -331,7 +334,7 @@ pub(crate) fn install(world: &mut World, side: crate::Side) {
                 world,
                 "comp-hands-examine",
                 &[
-                    ("user", name.as_str().into()),
+                    ("user", name.clone().into()),
                     ("items", items.as_str().into()),
                 ],
             )

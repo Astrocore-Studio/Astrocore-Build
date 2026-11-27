@@ -826,7 +826,7 @@ pub fn particle_hit_generator(world: &mut World, particle: Entity, generator: En
         if let Some(mut g) = world.get_mut::<SingularityGenerator>(generator) {
             g.next_failsafe = time + g.failsafe_cooldown;
         }
-        let name = astrocore_loc::EntityNameWorldExt::entity_name(world, generator);
+        let name = astrocore_loc::EntityNameWorldExt::entity_arg(world, generator);
         let text = loc(world, "comp-generator-failsafe", &[("target", name.into())]);
         world.popup_entity(&text, generator, PopupType::LargeCaution);
     } else {

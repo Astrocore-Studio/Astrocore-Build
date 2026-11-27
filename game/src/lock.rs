@@ -115,13 +115,13 @@ fn set_locked(world: &mut World, entity: Entity, user: Option<Entity>, locked: b
         return;
     }
     if let Some(user) = user {
-        let name = world.entity_name(entity);
+        let name = world.entity_arg(entity);
         let key = if locked {
             "lock-comp-do-lock-success"
         } else {
             "lock-comp-do-unlock-success"
         };
-        let text = loc(world, key, &[("entityName", LocArg::from(name))]);
+        let text = loc(world, key, &[("entityName", LocArg::from(name.clone()))]);
         world.popup_entity_for(&text, entity, user, PopupType::Small);
     }
     let sound = if locked {
@@ -245,13 +245,13 @@ pub fn install(world: &mut World, side: Side) {
         if !lock.show_examine {
             return;
         }
-        let name = world.entity_name(entity);
+        let name = world.entity_arg(entity);
         let key = if lock.locked {
             "lock-comp-on-examined-is-locked"
         } else {
             "lock-comp-on-examined-is-unlocked"
         };
-        let text = loc(world, key, &[("entityName", LocArg::from(name))]);
+        let text = loc(world, key, &[("entityName", LocArg::from(name.clone()))]);
         event.push_markup(text, 0);
     });
     world.subscribe::<Lock, GetVerbs>(|world, entity, event| {

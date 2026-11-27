@@ -437,7 +437,7 @@ fn on_field_collide(world: &mut World, field: Entity, event: &mut StartCollide) 
     if component.destroy_garbage
         && crate::whitelist::has_component_named(world, other, "SpaceGarbage")
     {
-        let name = astrocore_loc::EntityNameWorldExt::entity_name(world, other);
+        let name = astrocore_loc::EntityNameWorldExt::entity_arg(world, other);
         let text = loc(world, "comp-field-vaporized", &[("entity", name.into())]);
         world.popup_entity(&text, field, PopupType::LargeCaution);
         world.queue_delete(other);
