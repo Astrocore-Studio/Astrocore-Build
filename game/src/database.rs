@@ -5,9 +5,9 @@
 //! Образец — `Content.Server.Database` (`Model.cs`), `ServerDbManager`, `ServerDbBase`,
 //! `ServerDbSqlite`, `ServerDbPostgres`, `ServerDbEntryManager` SS14 @ 2f4a2aad.
 //!
-//! Баны — в `bans.rs`.
+//! Баны — в `bans.rs`, администраторы — в `admins.rs`, журнал действий — в `admin_logs.rs`.
 //!
-//! Нет пока: профилей (6.2), журнала действий администраторов (следующая часть 6.1),
+//! Нет пока: профилей (6.2),
 //! заметок администраторов, белых списков, времени игры, искусственной задержки запросов
 //! (`database.sqlite_delay`).
 

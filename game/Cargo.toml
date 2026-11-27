@@ -32,6 +32,7 @@ bevy = { version = "=0.20.1", default-features = false, optional = true }
 bevy_ecs = { version = "=0.20.1", default-features = false, features = ["std", "multi_threaded", "async_executor"] }
 postcard = { version = "1", features = ["use-std"] }
 serde.workspace = true
+serde_json = "1"
 sqlx = { version = "0.9", default-features = false, features = ["runtime-tokio", "any", "sqlite", "postgres", "migrate", "macros"] }
 tokio = { version = "1", features = ["rt-multi-thread", "time"] }
 uuid = { version = "1", features = ["v4"] }

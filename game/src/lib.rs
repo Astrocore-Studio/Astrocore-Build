@@ -9,6 +9,8 @@ pub mod access;
 pub mod action_blocker;
 pub mod actions;
 pub mod activatable_ui;
+pub mod admin_logs;
+pub mod admins;
 pub mod airtight;
 pub mod ame;
 pub mod anchorable;
@@ -232,6 +234,7 @@ pub fn install_content(world: &mut World, side: Side) {
     pipes::install(world, side);
     database::install(world, side);
     bans::install(world);
+    admin_logs::install(world, side);
     connection::install(world, side);
     device_network::install(world, side);
     device_linking::install(world, side);

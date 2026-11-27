@@ -73,7 +73,14 @@ pub fn start() -> Result<ServerStart, String> {
     }
     // База данных (`ServerDbManager.Init`): без неё сервер не запускается, как в SS14.
     let database = crate::database::Database::from_config(world.resource::<Config>())?;
+    // Раунд в базе с запуска сервера, пока нет `GameTicker` (6.3): к нему привязан журнал.
+    let db = database.db().clone();
+    let round = database.block_on(async {
+        let server = db.server_id().await?;
+        db.add_new_round(server, &[]).await
+    })?;
     world.insert_resource(database);
+    crate::admin_logs::round_starting(&mut world, round);
     let report = content::load_content(&mut world, &resources, &ss14);
     for error in report.errors.iter().take(20) {
         eprintln!("прототипы: {error}");
