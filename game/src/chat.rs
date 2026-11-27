@@ -8,7 +8,7 @@
 //! `MsgChatMessage`, `ChatChannel`, команды `say`, `whisper`, `me`, `ooc`, `looc`, `asay`,
 //! `dsay` SS14 @ 2f4a2aad.
 //!
-//! Радио (сообщения с каналом) доставляет `radio`. Нет пока: акцентов, личности под маской
+//! Радио (сообщения с каналом) доставляет `radio`, слушающие устройства — там же. Нет пока: акцентов, личности под маской
 //! (`Identity`), ссылок на имена в чате, крика по действию эмоций, повторов, связи с Discord,
 //! уведомлений чата.
 
@@ -788,7 +788,7 @@ pub fn rate_limit_allows(world: &mut World, session: Entity) -> bool {
 }
 
 #[allow(clippy::too_many_arguments)]
-fn chat_message(
+pub(crate) fn chat_message(
     world: &mut World,
     channel: ChatChannel,
     message: &str,
@@ -831,6 +831,17 @@ pub fn chat_message_to_one(
     world.raise_broadcast(&mut ChatMessageSent {
         message: msg,
         recipients: vec![session],
+    });
+}
+
+/// Готовое сообщение игрокам (`ServerSendMessage`).
+pub fn deliver(world: &mut World, message: ChatMessage, sessions: &[Entity]) {
+    for session in sessions {
+        world.send_net_event(NetTarget::Session(*session), &message);
+    }
+    world.raise_broadcast(&mut ChatMessageSent {
+        message,
+        recipients: sessions.to_vec(),
     });
 }
 
@@ -1232,7 +1243,8 @@ pub fn transform_speech(world: &mut World, sender: Entity, message: &str) -> Str
     event.message
 }
 
-fn speaker_name(world: &mut World, source: Entity) -> TransformSpeakerName {
+/// Имя говорящего после подмен (`TransformSpeakerNameEvent`).
+pub fn speaker_name(world: &mut World, source: Entity) -> TransformSpeakerName {
     let mut event = TransformSpeakerName {
         sender: source,
         voice_name: world.entity_name(source),
@@ -1262,7 +1274,7 @@ pub fn get_speech_verb(world: &World, source: Entity, message: &str) -> Option<S
     current.or_else(|| speech_verb(prototypes, &speech.speech_verb))
 }
 
-fn pick<'a>(world: &mut World, items: &'a [String]) -> Option<&'a String> {
+pub(crate) fn pick<'a>(world: &mut World, items: &'a [String]) -> Option<&'a String> {
     if items.is_empty() {
         return None;
     }
@@ -1339,7 +1351,7 @@ fn send_entity_speak(
         range,
         None,
     );
-    world.raise(
+    world.raise_and_broadcast(
         source,
         &mut EntitySpoke {
             source,
@@ -1464,7 +1476,7 @@ fn send_entity_whisper(
             );
         }
     }
-    world.raise(
+    world.raise_and_broadcast(
         source,
         &mut EntitySpoke {
             source,

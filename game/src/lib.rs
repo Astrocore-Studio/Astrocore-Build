@@ -82,6 +82,7 @@ pub mod profiles;
 pub mod projectiles;
 pub mod pulling;
 pub mod radiation;
+pub mod radio;
 pub mod random;
 pub mod respiration;
 pub mod server;
@@ -253,6 +254,7 @@ pub fn install_content(world: &mut World, side: Side) {
     station_spawning::install(world);
     game_ticker::install(world, side);
     chat::install(world, side);
+    radio::install(world, side);
     connection::install(world, side);
     device_network::install(world, side);
     device_linking::install(world, side);
