@@ -108,6 +108,13 @@ pub struct PowerConsumer {
     pub received_power: f32,
 }
 
+/// Потребитель на сети получает другую мощность (`PowerConsumerReceivedChanged`).
+#[derive(Debug, Clone, Copy)]
+pub struct PowerConsumerReceivedChanged {
+    pub received_power: f32,
+    pub draw_rate: f32,
+}
+
 /// Заряд (`BatteryComponent`), в джоулях.
 #[derive(Component, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -584,8 +591,20 @@ pub fn update(world: &mut World) {
     }
     for (entity, id) in consumer_ids {
         let received = state.loads[id].receiving_power;
-        if let Some(mut consumer) = world.get_mut::<PowerConsumer>(entity) {
-            consumer.received_power = received;
+        let Some(mut consumer) = world.get_mut::<PowerConsumer>(entity) else {
+            continue;
+        };
+        let last = consumer.received_power;
+        consumer.received_power = received;
+        let draw_rate = consumer.draw_rate;
+        if !close_to_percent(last, received) {
+            world.raise(
+                entity,
+                &mut PowerConsumerReceivedChanged {
+                    received_power: received,
+                    draw_rate,
+                },
+            );
         }
     }
     for (entity, id) in battery_ids {

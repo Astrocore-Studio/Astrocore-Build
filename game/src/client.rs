@@ -51,6 +51,7 @@ pub fn start(name: &str) -> Result<(World, Resources), String> {
     crate::door_visuals::install(&mut world);
     crate::light_visuals::install(&mut world);
     crate::light_visuals::install_generator(&mut world);
+    crate::light_visuals::install_power_state(&mut world);
     crate::gas_overlay_visuals::install(&mut world);
     let report = content::load_content(&mut world, &resources, &ss14);
     for error in report.errors.iter().take(20) {

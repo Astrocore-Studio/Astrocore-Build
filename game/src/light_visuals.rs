@@ -167,3 +167,48 @@ pub(crate) fn install_generator(world: &mut World) {
         update_generator(world, entity)
     });
 }
+
+// Устройство с рабочим и холостым режимом (`ClientPowerStateSystem`).
+
+/// Слой огней (`PowerStateDeviceVisualLayers.Lights`).
+pub const POWER_STATE_LIGHTS: &str = "enum.PowerStateDeviceVisualLayers.Lights";
+
+fn update_power_state(world: &mut World, entity: Entity) {
+    let Some(component) = world.get::<crate::guns::PowerState>(entity).cloned() else {
+        return;
+    };
+    let state =
+        text(world, entity, crate::guns::POWER_STATE_VISUALS).unwrap_or_else(|| "Off".into());
+    let Some(mut sprite) = world.get::<Sprite>(entity).cloned() else {
+        return;
+    };
+    let Some(index) = sprite.layer_index(POWER_STATE_LIGHTS) else {
+        return;
+    };
+    let before = sprite.clone();
+    let layer = &mut sprite.layers[index];
+    let rsi_state = match state.as_str() {
+        "On" => component.working_state.clone(),
+        "Underpowered" => component.underpowered_state.clone(),
+        _ => None,
+    };
+    match rsi_state {
+        Some(rsi_state) => {
+            layer.visible = true;
+            layer.state = Some(rsi_state);
+        }
+        None if state == "Off" => layer.visible = false,
+        None => {}
+    }
+    if sprite != before
+        && let Some(mut current) = world.get_mut::<Sprite>(entity)
+    {
+        *current = sprite;
+    }
+}
+
+pub(crate) fn install_power_state(world: &mut World) {
+    world.subscribe::<crate::guns::PowerState, AppearanceChange>(|world, entity, _| {
+        update_power_state(world, entity)
+    });
+}
