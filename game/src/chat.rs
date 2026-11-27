@@ -47,6 +47,12 @@ pub const CHAT_MAX_MESSAGE_LENGTH: CVarDef<i32> = CVarDef::new(
     CVarFlags::SERVER.union(CVarFlags::REPLICATED),
     "Наибольшая длина сообщения чата.",
 );
+pub const CHAT_MAX_ANNOUNCEMENT_LENGTH: CVarDef<i32> = CVarDef::new(
+    "chat.max_announcement_length",
+    256,
+    CVarFlags::SERVER.union(CVarFlags::REPLICATED),
+    "Наибольшая длина объявления с консоли.",
+);
 pub const CHAT_RATE_LIMIT_PERIOD: CVarDef<f32> = CVarDef::new(
     "chat.rate_limit_period",
     2.0,
@@ -2209,16 +2215,57 @@ fn wrap_announcement(
     }
 }
 
-fn announcement_sound(world: &mut World, recipients: &[Entity]) {
-    let sound = SoundSpecifier::Path {
+fn announcement_sound(world: &mut World, recipients: &[Entity], sound: Option<&SoundSpecifier>) {
+    let default = SoundSpecifier::Path {
         path: ANNOUNCEMENT_SOUND.into(),
         params: Default::default(),
     };
+    let sound = sound.unwrap_or(&default);
     for session in recipients {
         if let Some(listener) = world.get::<Session>(*session).and_then(|s| s.attached) {
-            world.play_entity(&sound, listener, None);
+            world.play_entity(sound, listener, None);
         }
     }
+}
+
+/// Текст объявления (`SanitizeAnnouncement`): без пробелов по краям, длиннее `max_length`
+/// символов — обрезан с «...», переводов строки не больше `max_newlines` (лишние — пробелы).
+pub fn sanitize_announcement(message: &str, max_length: usize, max_newlines: usize) -> String {
+    let trimmed = message.trim();
+    let mut text = if max_length > 0 && trimmed.chars().count() > max_length {
+        // Как в SS14: обрезается исходный текст, а не обрезанный по краям.
+        format!(
+            "{}...",
+            message.chars().take(max_length).collect::<String>()
+        )
+    } else {
+        trimmed.to_owned()
+    };
+    if max_newlines > 0 {
+        let mut newlines = 0;
+        text = text
+            .chars()
+            .map(|c| {
+                if c != '\n' {
+                    return c;
+                }
+                newlines += 1;
+                if newlines > max_newlines { ' ' } else { c }
+            })
+            .collect();
+    }
+    text
+}
+
+/// Как подать объявление: отправитель, звук, цвет, подпись (`Sent by …`).
+#[derive(Debug, Clone, Default)]
+pub struct Announcement<'a> {
+    pub sender: Option<&'a str>,
+    pub play_sound: bool,
+    /// Свой звук вместо обычного (`announcementSound`).
+    pub sound: Option<SoundSpecifier>,
+    pub color: Option<String>,
+    pub signature: Option<&'a str>,
 }
 
 /// Объявление всем (`DispatchGlobalAnnouncement`).
@@ -2229,11 +2276,26 @@ pub fn dispatch_global_announcement(
     play_sound: bool,
     color: Option<String>,
 ) {
-    let sender = sender.map_or_else(
+    announce_global(
+        world,
+        message,
+        &Announcement {
+            sender,
+            play_sound,
+            color,
+            ..Announcement::default()
+        },
+    );
+}
+
+/// Объявление всем с подписью и своим звуком (`DispatchGlobalAnnouncement`).
+pub fn announce_global(world: &mut World, message: &str, options: &Announcement) {
+    let color = options.color.clone();
+    let sender = options.sender.map_or_else(
         || loc(world, "chat-manager-sender-announcement", &[]),
         str::to_owned,
     );
-    let wrapped = wrap_announcement(world, &sender, message, None);
+    let wrapped = wrap_announcement(world, &sender, message, options.signature);
     chat_message_to_all(
         world,
         ChatChannel::RADIO,
@@ -2244,9 +2306,9 @@ pub fn dispatch_global_announcement(
         color,
         None,
     );
-    if play_sound {
+    if options.play_sound {
         let all = sessions(world);
-        announcement_sound(world, &all);
+        announcement_sound(world, &all, options.sound.as_ref());
     }
     add_admin_log(
         world,
@@ -2267,6 +2329,22 @@ pub fn dispatch_station_announcement(
     play_sound: bool,
     color: Option<String>,
 ) {
+    announce_station(
+        world,
+        source,
+        message,
+        &Announcement {
+            sender,
+            play_sound,
+            color,
+            ..Announcement::default()
+        },
+    );
+}
+
+/// Объявление станции с подписью и своим звуком (`DispatchStationAnnouncement`).
+pub fn announce_station(world: &mut World, source: Entity, message: &str, options: &Announcement) {
+    let color = options.color.clone();
     let Some(station) = crate::stations::owning_station(world, source) else {
         return;
     };
@@ -2274,11 +2352,11 @@ pub fn dispatch_station_announcement(
         .get::<crate::stations::StationData>(station)
         .map(|d| d.grids.iter().copied().collect())
         .unwrap_or_default();
-    let sender = sender.map_or_else(
+    let sender = options.sender.map_or_else(
         || loc(world, "chat-manager-sender-announcement", &[]),
         str::to_owned,
     );
-    let wrapped = wrap_announcement(world, &sender, message, None);
+    let wrapped = wrap_announcement(world, &sender, message, options.signature);
     let recipients: Vec<Entity> = sessions(world)
         .into_iter()
         .filter(|s| {
@@ -2301,8 +2379,8 @@ pub fn dispatch_station_announcement(
         color,
         None,
     );
-    if play_sound {
-        announcement_sound(world, &recipients);
+    if options.play_sound {
+        announcement_sound(world, &recipients, options.sound.as_ref());
     }
     add_admin_log(
         world,
@@ -2481,6 +2559,7 @@ pub const CLIENT_CHAT_HISTORY: usize = 500;
 
 pub fn install(world: &mut World, side: Side) {
     world.register_cvar(&CHAT_MAX_MESSAGE_LENGTH);
+    world.register_cvar(&CHAT_MAX_ANNOUNCEMENT_LENGTH);
     world.register_cvar(&CHAT_RATE_LIMIT_PERIOD);
     world.register_cvar(&CHAT_RATE_LIMIT_COUNT);
     world.register_cvar(&CHAT_RATE_LIMIT_ANNOUNCE_ADMINS_DELAY);

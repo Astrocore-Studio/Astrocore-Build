@@ -220,3 +220,85 @@ fn transit_time_is_rolled_in_tens_each_round() {
         assert_eq!(state(&mut world).console_accumulator, f32::MIN);
     }
 }
+
+mod console {
+    use super::super::*;
+    use crate::communications::tests::{Scene, scene};
+    use crate::testing::spawn_at;
+
+    fn arrived(world: &mut World) {
+        let mut state = world.resource_mut::<Evacuation>();
+        state.arrived = true;
+        state.console_accumulator = 180.0;
+    }
+
+    fn authorized(world: &World, console: Entity) -> usize {
+        world
+            .get::<EmergencyShuttleConsole>(console)
+            .unwrap()
+            .authorized
+            .len()
+    }
+
+    #[test]
+    fn three_command_cards_launch_early_and_each_counts_once() {
+        let Scene { mut world, grid } = scene();
+        arrived(&mut world);
+        let console = spawn_at(&mut world, "TestEvacConsole", grid, 1, 1);
+        let cards: Vec<Entity> = ["TestCaptain", "TestCommandCard", "TestCommandCard"]
+            .iter()
+            .enumerate()
+            .map(|(i, p)| spawn_at(&mut world, p, grid, 2 + i as i32, 1))
+            .collect();
+        authorize(&mut world, console, cards[0]);
+        authorize(&mut world, console, cards[0]);
+        assert_eq!(authorized(&world, console), 1);
+        authorize(&mut world, console, cards[1]);
+        assert!(!state(&mut world).early_launch_authorized);
+        authorize(&mut world, console, cards[2]);
+        assert!(state(&mut world).early_launch_authorized);
+        assert_eq!(state(&mut world).console_accumulator, 10.0);
+    }
+
+    #[test]
+    fn cards_without_access_are_denied_and_repeals_undo() {
+        let Scene { mut world, grid } = scene();
+        arrived(&mut world);
+        let console = spawn_at(&mut world, "TestEvacConsole", grid, 1, 1);
+        let assistant = spawn_at(&mut world, "TestAssistant", grid, 2, 1);
+        let captain = spawn_at(&mut world, "TestCaptain", grid, 3, 1);
+        let other = spawn_at(&mut world, "TestCommandCard", grid, 4, 1);
+        authorize(&mut world, console, assistant);
+        assert_eq!(authorized(&world, console), 0);
+        authorize(&mut world, console, captain);
+        authorize(&mut world, console, other);
+        repeal(&mut world, console, other);
+        assert_eq!(authorized(&world, console), 1);
+        // Отменить все — только с доступом `EmergencyShuttleRepealAll`.
+        authorize(&mut world, console, other);
+        repeal_all(&mut world, console, other);
+        assert_eq!(authorized(&world, console), 2);
+        repeal_all(&mut world, console, captain);
+        assert_eq!(authorized(&world, console), 0);
+        assert!(!state(&mut world).early_launch_authorized);
+    }
+
+    #[test]
+    fn window_opens_only_when_early_launch_is_allowed() {
+        let Scene { mut world, grid } = scene();
+        let console = spawn_at(&mut world, "TestEvacConsole", grid, 1, 1);
+        let user = spawn_at(&mut world, "TestCaptain", grid, 2, 1);
+        let mut attempt = crate::activatable_ui::ActivatableUiOpenAttempt {
+            user,
+            cancelled: false,
+        };
+        world.raise(console, &mut attempt);
+        assert!(attempt.cancelled);
+        world
+            .set_cvar(&EMERGENCY_EARLY_LAUNCH_ALLOWED, true)
+            .unwrap();
+        attempt.cancelled = false;
+        world.raise(console, &mut attempt);
+        assert!(!attempt.cancelled);
+    }
+}

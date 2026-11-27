@@ -28,6 +28,7 @@ use astrocore_loc::LocArg;
 use astrocore_map::{EntityCoordinates, Map, MapGrid, MapWorldExt, Transform, TransformWorldExt};
 use astrocore_math::{Angle, Vec2};
 use astrocore_net::NetTarget;
+use astrocore_ui::{BoundUiMessage, UiWorldExt};
 use bevy_ecs::component::Component;
 use bevy_ecs::entity::Entity;
 use bevy_ecs::resource::Resource;
@@ -38,6 +39,7 @@ use crate::Side;
 use crate::admin_logs::{LogImpact, LogType, add_admin_log};
 use crate::examine::loc;
 use crate::game_ticker::{self, GameRunLevel};
+use crate::popups::{PopupType, PopupWorldExt};
 use crate::{docking, round_end, shuttles, stations};
 
 pub const EMERGENCY_SHUTTLE_ENABLED: CVarDef<bool> = CVarDef::new(
@@ -82,6 +84,17 @@ pub const EMERGENCY_SHUTTLE_MAX_TRANSIT_TIME: CVarDef<f32> = CVarDef::new(
     CVarFlags::SERVERONLY,
     "Наибольшее время перехода шаттла эвакуации к ЦК, секунды.",
 );
+
+pub const EMERGENCY_EARLY_LAUNCH_ALLOWED: CVarDef<bool> = CVarDef::new(
+    "shuttle.emergency_early_launch_allowed",
+    false,
+    CVarFlags::SERVER.union(CVarFlags::REPLICATED),
+    "Можно ли досрочно запустить шаттл эвакуации с его консоли.",
+);
+
+pub const EMERGENCY_CONSOLE_UI_KEY: &str = "enum.EmergencyConsoleUiKey.Key";
+/// Уровень доступа «отменить все разрешения» (`EmergencyRepealAllAccess`).
+const EMERGENCY_REPEAL_ALL_ACCESS: &str = "EmergencyShuttleRepealAll";
 
 /// Тег шлюзов станции для шаттла эвакуации (`DockTag`).
 pub const DOCK_TAG: &str = "DockEmergency";
@@ -156,6 +169,43 @@ impl Default for StationEmergencyShuttle {
 /// Грид — шаттл эвакуации (`EmergencyShuttleComponent`).
 #[derive(Component, Debug, Clone, Copy, Default)]
 pub struct EmergencyShuttle;
+
+/// Консоль шаттла эвакуации (`EmergencyShuttleConsoleComponent`).
+#[derive(Component, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(default, rename_all = "camelCase")]
+pub struct EmergencyShuttleConsole {
+    /// Карты, разрешившие запуск, и имя карты в момент разрешения (`AuthorizedEntities`).
+    #[serde(skip)]
+    pub authorized: Vec<(Entity, String)>,
+    pub authorizations_required: i32,
+}
+
+impl Default for EmergencyShuttleConsole {
+    fn default() -> Self {
+        Self {
+            authorized: Vec::new(),
+            authorizations_required: 3,
+        }
+    }
+}
+
+/// Состояние окна консоли (`EmergencyConsoleBoundUserInterfaceState`).
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+pub struct EmergencyConsoleState {
+    /// Когда шаттл улетит после досрочного запуска, по часам игры.
+    pub early_launch_time: Option<Duration>,
+    pub authorizations: Vec<String>,
+    pub authorizations_required: i32,
+}
+
+/// Действия в окне консоли (`EmergencyShuttleAuthorizeMessage`, `EmergencyShuttleRepealMessage`,
+/// `EmergencyShuttleRepealAllMessage`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum EmergencyConsoleMessage {
+    Authorize,
+    Repeal,
+    RepealAll,
+}
 
 /// Состояние эвакуации раунда. Ресурс сервера.
 #[derive(Resource, Debug, Clone, PartialEq)]
@@ -657,6 +707,7 @@ pub fn early_launch(world: &mut World) -> bool {
     }
     world.raise_broadcast(&mut EmergencyShuttleAuthorized);
     announce_launch(world);
+    update_all_emergency_consoles(world);
     world.raise_broadcast(&mut round_end::RoundEndChanged);
     true
 }
@@ -768,6 +819,176 @@ pub fn update(world: &mut World) {
     }
 }
 
+// Консоль досрочного запуска.
+
+fn emergency_consoles(world: &mut World) -> Vec<Entity> {
+    with_component::<EmergencyShuttleConsole>(world)
+}
+
+/// Обновить окно консоли (`UpdateConsoleState`).
+pub fn update_console_state(world: &mut World, console: Entity) {
+    let Some(comp) = world.get::<EmergencyShuttleConsole>(console).cloned() else {
+        return;
+    };
+    let state = state(world).clone();
+    let early_launch_time = state
+        .early_launch_authorized
+        .then(|| now(world) + Duration::from_secs_f32(state.console_accumulator.max(0.0)));
+    world.set_ui_state(
+        console,
+        EMERGENCY_CONSOLE_UI_KEY,
+        &EmergencyConsoleState {
+            early_launch_time,
+            authorizations: comp
+                .authorized
+                .iter()
+                .map(|(_, name)| name.clone())
+                .collect(),
+            authorizations_required: comp.authorizations_required,
+        },
+    );
+}
+
+/// Обновить окна всех консолей (`UpdateAllEmergencyConsoles`).
+pub fn update_all_emergency_consoles(world: &mut World) {
+    for console in emergency_consoles(world) {
+        update_console_state(world, console);
+    }
+}
+
+fn console_denied(world: &mut World, user: Entity) {
+    let text = loc(world, "emergency-shuttle-console-denied", &[]);
+    world.popup_cursor(&text, user, PopupType::Medium);
+}
+
+/// Разрешений хватает — досрочный запуск (`CheckForLaunch`).
+fn check_for_launch(world: &mut World, console: Entity) -> bool {
+    let Some(comp) = world.get::<EmergencyShuttleConsole>(console) else {
+        return false;
+    };
+    if (comp.authorized.len() as i32) < comp.authorizations_required
+        || state(world).early_launch_authorized
+    {
+        return false;
+    }
+    early_launch(world);
+    true
+}
+
+/// Разрешить запуск своей ID-картой (`OnEmergencyAuthorize`).
+fn authorize(world: &mut World, console: Entity, user: Entity) {
+    let Some(card) = crate::access::find_id_card(world, user)
+        .filter(|card| crate::access::is_allowed(world, *card, console))
+    else {
+        console_denied(world, user);
+        return;
+    };
+    let Some(comp) = world.get::<EmergencyShuttleConsole>(console) else {
+        return;
+    };
+    if comp.authorized.iter().any(|(entity, _)| *entity == card) {
+        return;
+    }
+    let name = stations::entity_name(world, card);
+    let remaining = {
+        let Some(mut comp) = world.get_mut::<EmergencyShuttleConsole>(console) else {
+            return;
+        };
+        comp.authorized.push((card, name));
+        comp.authorizations_required - comp.authorized.len() as i32
+    };
+    let player = stations::entity_name(world, user);
+    log(
+        world,
+        LogImpact::High,
+        &format!("Emergency shuttle early launch AUTH by {player}"),
+    );
+    if remaining > 0 {
+        let text = loc(
+            world,
+            "emergency-shuttle-console-auth-left",
+            &[("remaining", LocArg::from(i64::from(remaining)))],
+        );
+        crate::chat::dispatch_global_announcement(
+            world,
+            &text,
+            None,
+            false,
+            Some(DANGER_COLOR.into()),
+        );
+    }
+    if !check_for_launch(world, console) {
+        world.play_global(&SoundSpecifier::path(ANNOUNCE_START_SOUND), NetTarget::All);
+    }
+    update_all_emergency_consoles(world);
+}
+
+/// Отозвать своё разрешение (`OnEmergencyRepeal`).
+fn repeal(world: &mut World, console: Entity, user: Entity) {
+    let Some(card) = crate::access::find_id_card(world, user)
+        .filter(|card| crate::access::is_allowed(world, *card, console))
+    else {
+        console_denied(world, user);
+        return;
+    };
+    let remaining = {
+        let Some(mut comp) = world.get_mut::<EmergencyShuttleConsole>(console) else {
+            return;
+        };
+        let before = comp.authorized.len();
+        comp.authorized.retain(|(entity, _)| *entity != card);
+        if comp.authorized.len() == before {
+            return;
+        }
+        comp.authorizations_required - comp.authorized.len() as i32
+    };
+    let player = stations::entity_name(world, user);
+    log(
+        world,
+        LogImpact::High,
+        &format!("Emergency shuttle early launch REPEAL by {player}"),
+    );
+    let text = loc(
+        world,
+        "emergency-shuttle-console-auth-revoked",
+        &[("remaining", LocArg::from(i64::from(remaining)))],
+    );
+    crate::chat::dispatch_global_announcement(world, &text, None, true, None);
+    check_for_launch(world, console);
+    update_all_emergency_consoles(world);
+}
+
+/// Отозвать все разрешения (`OnEmergencyRepealAll`): нужен доступ `EmergencyShuttleRepealAll`.
+fn repeal_all(world: &mut World, console: Entity, user: Entity) {
+    if !crate::access::access_tags(world, user).contains(EMERGENCY_REPEAL_ALL_ACCESS) {
+        console_denied(world, user);
+        return;
+    }
+    let required = {
+        let Some(mut comp) = world.get_mut::<EmergencyShuttleConsole>(console) else {
+            return;
+        };
+        if comp.authorized.is_empty() {
+            return;
+        }
+        comp.authorized.clear();
+        comp.authorizations_required
+    };
+    let player = stations::entity_name(world, user);
+    log(
+        world,
+        LogImpact::High,
+        &format!("Emergency shuttle early launch REPEAL ALL by {player}"),
+    );
+    let text = loc(
+        world,
+        "emergency-shuttle-console-auth-revoked",
+        &[("remaining", LocArg::from(i64::from(required)))],
+    );
+    crate::chat::dispatch_global_announcement(world, &text, None, true, None);
+    update_all_emergency_consoles(world);
+}
+
 // Команды.
 
 fn dockemergencyshuttle(world: &mut World, _: &mut ConsoleShell, _: &[String]) {
@@ -791,10 +1012,34 @@ pub fn install(world: &mut World, side: Side) {
     use astrocore_ecs::RegistryWorldExt;
     world.register_data_component::<StationCentcomm>();
     world.register_data_component::<StationEmergencyShuttle>();
+    world.register_data_component::<EmergencyShuttleConsole>();
+    world.register_cvar(&EMERGENCY_EARLY_LAUNCH_ALLOWED);
     if !side.is_server() {
         return;
     }
     world.register_cvar(&EMERGENCY_SHUTTLE_ENABLED);
+    world.register_ui_message::<EmergencyConsoleMessage>();
+    world.subscribe::<EmergencyShuttleConsole, astrocore_ecs::ComponentStartup>(
+        |world, console, _| update_console_state(world, console),
+    );
+    world.subscribe::<EmergencyShuttleConsole, BoundUiMessage<EmergencyConsoleMessage>>(
+        |world, console, event| match event.message {
+            EmergencyConsoleMessage::Authorize => authorize(world, console, event.actor),
+            EmergencyConsoleMessage::Repeal => repeal(world, console, event.actor),
+            EmergencyConsoleMessage::RepealAll => repeal_all(world, console, event.actor),
+        },
+    );
+    // Окно не открывается, если досрочный запуск запрещён (`OnEmergencyOpenAttempt`).
+    world.subscribe::<EmergencyShuttleConsole, crate::activatable_ui::ActivatableUiOpenAttempt>(
+        |world, console, event| {
+            if world.cvar(&EMERGENCY_EARLY_LAUNCH_ALLOWED) {
+                return;
+            }
+            event.cancelled = true;
+            let text = loc(world, "emergency-shuttle-console-no-early-launches", &[]);
+            world.popup_entity_for(&text, console, event.user, PopupType::Small);
+        },
+    );
     for def in [
         &EMERGENCY_SHUTTLE_DOCK_TIME,
         &DOCK_TIME_MULTIPLIER_OTHER_DOCK,

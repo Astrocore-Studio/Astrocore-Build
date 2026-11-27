@@ -119,6 +119,56 @@ pub fn potential_access_items(world: &World, user: Entity) -> HashSet<Entity> {
     items
 }
 
+/// Карта из сущности или вставленная в КПК (`TryGetIdCard`).
+pub fn get_id_card(world: &World, entity: Entity) -> Option<Entity> {
+    if world.get::<IdCard>(entity).is_some() {
+        return Some(entity);
+    }
+    if world.get::<Pda>(entity).is_some() {
+        return slot_item(world, entity, PDA_ID_SLOT)
+            .filter(|card| world.get::<IdCard>(*card).is_some());
+    }
+    None
+}
+
+/// ID-карта действующего (`TryFindIdCard`): в активной руке, он сам, слот `id`.
+pub fn find_id_card(world: &World, user: Entity) -> Option<Entity> {
+    world
+        .active_item(user)
+        .and_then(|item| get_id_card(world, item))
+        .or_else(|| get_id_card(world, user))
+        .or_else(|| {
+            world
+                .slot_entity(user, "id")
+                .and_then(|id| get_id_card(world, id))
+        })
+}
+
+/// «Имя (Должность)» по ID-карте (`GetIdentityShortInfo`, `ExtractFullTitle`).
+pub fn identity_short_info(world: &World, user: Entity) -> Option<String> {
+    let card = world.get::<IdCard>(find_id_card(world, user)?)?;
+    let job = card.job_title.clone().unwrap_or_default();
+    let job: String = job
+        .split(' ')
+        .map(|word| {
+            let mut chars = word.chars();
+            match chars.next() {
+                Some(first) => first
+                    .to_uppercase()
+                    .chain(chars.flat_map(char::to_lowercase))
+                    .collect(),
+                None => String::new(),
+            }
+        })
+        .collect::<Vec<String>>()
+        .join(" ");
+    Some(
+        format!("{} ({job})", card.full_name.clone().unwrap_or_default())
+            .trim()
+            .to_owned(),
+    )
+}
+
 /// Уровни доступа действующего (`FindAccessTags`).
 pub fn access_tags(world: &World, user: Entity) -> BTreeSet<String> {
     potential_access_items(world, user)

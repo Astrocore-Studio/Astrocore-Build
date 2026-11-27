@@ -30,6 +30,7 @@ pub mod cables;
 pub mod character_editor;
 pub mod chat;
 pub mod combat;
+pub mod communications;
 pub mod connection;
 pub mod construction;
 pub mod container_fill;
@@ -145,6 +146,8 @@ pub mod chat_ui;
 pub mod client;
 #[cfg(feature = "client")]
 pub mod clothing_visuals;
+#[cfg(feature = "client")]
+pub mod communications_ui;
 #[cfg(feature = "client")]
 pub mod construction_ui;
 #[cfg(feature = "client")]
@@ -294,6 +297,7 @@ pub fn install_content(world: &mut World, side: Side) {
     voting::install(world, side);
     round_end::install(world, side);
     emergency_shuttle::install(world, side);
+    communications::install(world, side);
     mind::install(world, side);
     ghost::install(world, side);
     ghost_roles::install(world, side);
