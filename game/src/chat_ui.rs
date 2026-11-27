@@ -593,7 +593,7 @@ const INPUT: Color = Color::srgba(0.10, 0.11, 0.15, 0.95);
 /// Сколько последних сообщений строится в окне.
 const SHOWN_MESSAGES: usize = 60;
 
-fn bevy_color(color: GameColor) -> Color {
+pub(crate) fn bevy_color(color: GameColor) -> Color {
     Color::srgba(color.r, color.g, color.b, color.a)
 }
 
@@ -603,7 +603,13 @@ struct ChatPanel;
 #[derive(Component)]
 struct BubbleView(u64);
 
-fn spans_text(commands: &mut Commands, style: &UiStyle, parent: Entity, spans: &[Span], size: f32) {
+pub(crate) fn spans_text(
+    commands: &mut Commands,
+    style: &UiStyle,
+    parent: Entity,
+    spans: &[Span],
+    size: f32,
+) {
     let text = commands
         .spawn((
             ChildOf(parent),

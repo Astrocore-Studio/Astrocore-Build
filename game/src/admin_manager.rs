@@ -173,6 +173,9 @@ pub struct Admins {
 pub struct AdminStatus {
     pub admin: Option<AdminData>,
     pub available_commands: Vec<String>,
+    /// Идентификатор игрока: клиенту он нужен, чтобы узнавать свои сообщения (в Robust он
+    /// приходит при рукопожатии).
+    pub user_id: Option<NetUserId>,
 }
 
 /// Статус прав на клиенте. Ресурс мира клиента.
@@ -180,6 +183,7 @@ pub struct AdminStatus {
 pub struct ClientAdmin {
     pub admin: Option<AdminData>,
     pub available_commands: Vec<String>,
+    pub user_id: Option<NetUserId>,
     pub version: u64,
 }
 
@@ -385,6 +389,7 @@ pub fn update_admin_status(world: &mut World, session: Entity) {
     let status = AdminStatus {
         admin: admin_data(world, session, true),
         available_commands: available_commands(world, session),
+        user_id: world.get::<Session>(session).map(|s| s.user_id),
     };
     world.send_net_event(NetTarget::Session(session), &status);
 }
@@ -680,6 +685,7 @@ pub fn install(world: &mut World, side: Side) {
             let mut admin = world.resource_mut::<ClientAdmin>();
             admin.admin = status.admin;
             admin.available_commands = status.available_commands;
+            admin.user_id = status.user_id;
             admin.version += 1;
         });
         return;

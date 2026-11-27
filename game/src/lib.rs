@@ -23,6 +23,7 @@ pub mod atmos_portables;
 pub mod bans;
 pub mod barotrauma;
 pub mod body;
+pub mod bwoink;
 pub mod cables;
 pub mod character_editor;
 pub mod chat;
@@ -115,6 +116,8 @@ pub(crate) mod testing;
 
 #[cfg(feature = "client")]
 pub mod action_bar;
+#[cfg(feature = "client")]
+pub mod ahelp_ui;
 #[cfg(feature = "client")]
 pub mod alarm_visuals;
 #[cfg(feature = "client")]
@@ -259,6 +262,7 @@ pub fn install_content(world: &mut World, side: Side) {
     admin_logs::install(world, side);
     admin_manager::install(world, side);
     admin_commands::install(world, side);
+    bwoink::install(world, side);
     profiles::install(world);
     markings::install(world);
     preferences::install(world, side);
