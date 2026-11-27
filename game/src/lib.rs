@@ -140,6 +140,8 @@ pub mod fire_visuals;
 #[cfg(feature = "client")]
 pub mod gas_overlay_visuals;
 #[cfg(feature = "client")]
+pub mod ghost_ui;
+#[cfg(feature = "client")]
 pub mod hands_hud;
 #[cfg(feature = "client")]
 pub mod inhands;

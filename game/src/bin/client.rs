@@ -53,6 +53,9 @@ struct Options {
     construct: Option<String>,
     /// Открыть экран персонажа на вкладке (`--character appearance|markings|jobs|antags`).
     character: Option<String>,
+    /// Когда игрок станет призраком: окно телепорта или режим света
+    /// (`--ghost-view warp|halfbright|fullbright`).
+    ghost_view: Option<String>,
     /// С `--host`: сервер с лобби, как выделенный (без него — сразу в раунд).
     lobby: bool,
     /// Секунды лобби (`--lobby-duration`), для проверки без человека.
@@ -82,6 +85,7 @@ fn options() -> Result<Options, String> {
         palette: None,
         construct: None,
         character: None,
+        ghost_view: None,
         lobby: false,
         lobby_duration: None,
         late_join: false,
@@ -113,6 +117,7 @@ fn options() -> Result<Options, String> {
             "--palette" => options.palette = Some(value("палитра:поиск")?),
             "--construct" => options.construct = Some(value("рецепт")?),
             "--character" => options.character = Some(value("вкладка")?),
+            "--ghost-view" => options.ghost_view = Some(value("вид призрака")?),
             "--lobby" => options.lobby = true,
             "--lobby-duration" => options.lobby_duration = Some(value("секунды")?),
             "--late-join" => options.late_join = true,
@@ -540,6 +545,34 @@ fn run_startup_commands(
     }
 }
 
+/// Вид призрака из `--ghost-view`: применяется, когда игрок стал призраком.
+#[derive(Resource)]
+struct PendingGhostView(Option<String>);
+
+fn apply_pending_ghost_view(mut game: ResMut<Game>, mut pending: ResMut<PendingGhostView>) {
+    use astrocore_game::ghost::{GhostLighting, GhostMessage, GhostView};
+    let world = &mut game.0;
+    if pending.0.is_none() || astrocore_game::ghost_ui::local_ghost(world).is_none() {
+        return;
+    }
+    let Some(view) = pending.0.take() else {
+        return;
+    };
+    let mut state = world.get_resource_or_insert_with(GhostView::default);
+    match view.as_str() {
+        "halfbright" => state.lighting = GhostLighting::HalfBright,
+        "fullbright" => state.lighting = GhostLighting::Fullbright,
+        _ => state.warp_window = true,
+    }
+    state.version += 1;
+    if view == "warp" {
+        astrocore_net::NetEventWorldExt::send_net_event_to_server(
+            world,
+            &GhostMessage::WarpsRequest,
+        );
+    }
+}
+
 /// Тайлы игры по идентификаторам.
 fn game_world_tiles(app: &App) -> Vec<String> {
     app.world()
@@ -663,6 +696,7 @@ fn run() -> Result<(), String> {
     .add_plugins(astrocore_game::character_ui::CharacterUiPlugin)
     .add_plugins(astrocore_game::lobby_ui::LobbyUiPlugin)
     .add_plugins(astrocore_game::chat_ui::ChatUiPlugin)
+    .add_plugins(astrocore_game::ghost_ui::GhostUiPlugin)
     .add_plugins(astrocore_game::decal_visuals::DecalVisualsPlugin)
     .add_plugins(astrocore_game::power_ui::PowerUiPlugin)
     .add_plugins(astrocore_game::wires_ui::WiresUiPlugin);
@@ -761,6 +795,10 @@ fn run() -> Result<(), String> {
                 version: 1,
                 ..CharacterEditor::default()
             });
+    }
+    if let Some(view) = &options.ghost_view {
+        app.insert_resource(PendingGhostView(Some(view.clone())));
+        app.add_systems(Update, apply_pending_ghost_view);
     }
     if !options.console.is_empty() {
         app.insert_resource(StartupCommands(options.console.clone()));

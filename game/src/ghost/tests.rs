@@ -262,3 +262,14 @@ fn station_beacons_name_their_warp_points() {
     assert_eq!(warps.len(), 1);
     assert_eq!(warps[0].display_name, "station-beacon-bridge");
 }
+
+#[test]
+fn ghosts_toggle_their_field_of_view() {
+    let mut scene = scene(&prototypes());
+    let (session, _, _, mind_id) = scene.player(1);
+    on_ghost_attempt(&mut scene.world, mind_id, true, false, false);
+    let ghost = scene.attached(session).unwrap();
+    let before = scene.world.get::<Eye>(ghost).unwrap().draw_fov;
+    message(&mut scene.world, session, GhostMessage::ToggleFov);
+    assert_eq!(scene.world.get::<Eye>(ghost).unwrap().draw_fov, !before);
+}

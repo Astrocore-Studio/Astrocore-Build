@@ -247,6 +247,101 @@ pub enum GhostMessage {
     WarpToTarget(NetEntity),
     WarpToRandom,
     ReturnToBody,
+    /// Переключить поле зрения (`RequestToggleFovEvent` `ContentEyeSystem`).
+    ToggleFov,
+}
+
+/// Освещение призрака на клиенте (`OnToggleLighting`): обычное, ночное зрение
+/// (`NightVision`), полный свет.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum GhostLighting {
+    #[default]
+    Normal,
+    HalfBright,
+    Fullbright,
+}
+
+/// Кого из призраков видно (`GhostVisibilityMode`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum GhostVisibilityMode {
+    #[default]
+    ShowAllGhosts,
+    HideOtherGhosts,
+    HideOtherGhostsAndSelf,
+}
+
+/// Состояние призрака на клиенте. Ресурс мира клиента.
+#[derive(bevy_ecs::resource::Resource, Debug, Clone, Default)]
+pub struct GhostView {
+    pub lighting: GhostLighting,
+    pub visibility: GhostVisibilityMode,
+    pub warps: Vec<GhostWarp>,
+    pub warp_window: bool,
+    pub version: u64,
+}
+
+/// Клиентские действия призрака (`OnToggleLighting`, `OnToggleFoV`, `OnToggleGhosts`).
+pub fn client_action(world: &mut World, performer: Entity, kind: &str) {
+    if world.get::<Ghost>(performer).is_none() {
+        return;
+    }
+    let key = {
+        let mut view = world.get_resource_or_insert_with(GhostView::default);
+        let key = match kind {
+            "ToggleLightingActionEvent" => {
+                let (next, key) = match view.lighting {
+                    GhostLighting::Normal => (
+                        GhostLighting::HalfBright,
+                        "ghost-gui-toggle-lighting-manager-popup-half-bright",
+                    ),
+                    GhostLighting::HalfBright => (
+                        GhostLighting::Fullbright,
+                        "ghost-gui-toggle-lighting-manager-popup-fullbright",
+                    ),
+                    GhostLighting::Fullbright => (
+                        GhostLighting::Normal,
+                        "ghost-gui-toggle-lighting-manager-popup-normal",
+                    ),
+                };
+                view.lighting = next;
+                key
+            }
+            "ToggleGhostsActionEvent" => {
+                let (next, key) = match view.visibility {
+                    GhostVisibilityMode::ShowAllGhosts => (
+                        GhostVisibilityMode::HideOtherGhosts,
+                        "ghost-gui-toggle-ghost-visibility-popup-off",
+                    ),
+                    GhostVisibilityMode::HideOtherGhosts => (
+                        GhostVisibilityMode::HideOtherGhostsAndSelf,
+                        "ghost-gui-toggle-all-ghosts-visibility-popup-off",
+                    ),
+                    GhostVisibilityMode::HideOtherGhostsAndSelf => (
+                        GhostVisibilityMode::ShowAllGhosts,
+                        "ghost-gui-toggle-ghost-visibility-popup-on",
+                    ),
+                };
+                view.visibility = next;
+                key
+            }
+            "ToggleFoVActionEvent" => "ghost-gui-toggle-fov-popup",
+            _ => return,
+        };
+        view.version += 1;
+        key
+    };
+    if kind == "ToggleFoVActionEvent" {
+        world.send_net_event_to_server(&GhostMessage::ToggleFov);
+    }
+    let text = loc(world, key, &[]);
+    world
+        .get_resource_or_insert_with(crate::popups::PopupQueue::default)
+        .0
+        .push(crate::popups::Popup {
+            message: text,
+            kind: PopupType::Small,
+            place: crate::popups::PopupPlace::Entity(performer),
+        });
 }
 
 /// Команды призрака, доступные всем игрокам (`[AnyCommand]`).
@@ -579,6 +674,11 @@ fn receive(world: &mut World, event: &mut NetEvent<GhostMessage>) {
                 mind::unvisit(world, mind_id);
             }
         }
+        GhostMessage::ToggleFov => {
+            if let Some(mut eye) = world.get_mut::<Eye>(ghost) {
+                eye.draw_fov = !eye.draw_fov;
+            }
+        }
         GhostMessage::Warps(_) => {}
     }
 }
@@ -795,6 +895,23 @@ pub fn install(world: &mut World, side: Side) {
     world.register_data_component::<SpookyExtinguishable>();
     world.register_net_event::<GhostMessage>();
     if !side.is_server() {
+        world.init_resource::<GhostView>();
+        world.subscribe_net_event::<GhostMessage>(|world, event| {
+            if let GhostMessage::Warps(warps) = &event.event {
+                let mut warps = warps.clone();
+                // Сначала игроки, потом точки; по имени (`UpdateWarps`).
+                warps.sort_by(|a, b| {
+                    (a.is_warp_point, &a.display_name).cmp(&(b.is_warp_point, &b.display_name))
+                });
+                let mut view = world.resource_mut::<GhostView>();
+                view.warps = warps;
+                view.version += 1;
+            }
+        });
+        world.subscribe_broadcast::<crate::actions::ClientAction>(|world, event| {
+            let (performer, kind) = (event.performer, event.kind.clone());
+            client_action(world, performer, &kind);
+        });
         return;
     }
     world.register_command(ConsoleCommand {

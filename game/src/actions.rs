@@ -763,6 +763,30 @@ pub fn request_action(
         coordinates_target: at.map(|at| (at.map, at.position, at.z)),
     };
     world.send_net_event_to_server(&request);
+    // Клиентские действия (свет призрака, поле зрения) выполняются здесь же, как
+    // предсказание `PerformAction` на клиенте SS14.
+    let performer = world
+        .get_resource::<astrocore_net::ClientNet>()
+        .and_then(|n| n.attached);
+    let node = world
+        .get::<InstantAction>(action)
+        .and_then(|a| a.event.clone());
+    if let (Some(performer), Some(node)) = (performer, node) {
+        world.raise_broadcast(&mut ClientAction {
+            performer,
+            action,
+            kind: event_kind(&node),
+        });
+    }
+}
+
+/// Игрок выполнил действие на клиенте: для действий, которые выполняет сам клиент.
+/// Широковещательно на клиенте.
+#[derive(Debug, Clone)]
+pub struct ClientAction {
+    pub performer: Entity,
+    pub action: Entity,
+    pub kind: String,
 }
 
 fn receive(world: &mut World, event: &mut NetEvent<RequestPerformAction>) {
