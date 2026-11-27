@@ -7,7 +7,7 @@
 //! `ThermalRegulatorSystem`, `AtmosExposedComponent` и `AtmosphereSystem.Update` SS14
 //! @ 2f4a2aad.
 //!
-//! Нет пока: значков тревоги (`Alerts`) — вместе с интерфейсом состояния; порогов от
+//! Значки «холодно» и «жарко» по уровням (`ServerAlert`). Нет пока: порогов от
 //! контейнера (`ContainerTemperature`) и внутренней температуры (`InternalTemperature`) —
 //! их используют криокапсулы и готовка.
 
@@ -99,6 +99,70 @@ pub struct TemperatureDamage {
     pub taking_damage: bool,
     #[serde(skip)]
     pub last_update: Duration,
+    #[serde(default = "cold_alert")]
+    pub cold_alert: String,
+    #[serde(default = "hot_alert")]
+    pub hot_alert: String,
+}
+
+fn cold_alert() -> String {
+    "Cold".into()
+}
+
+fn hot_alert() -> String {
+    "Hot".into()
+}
+
+/// Категория значков температуры (`TemperatureAlertCategory`).
+pub const TEMPERATURE_ALERT_CATEGORY: &str = "Temperature";
+/// Наибольший уровень значка (`MaxTemperatureAlertSeverity`).
+const MAX_TEMPERATURE_ALERT_SEVERITY: i32 = 3;
+/// Доля пути к порогу урона, с которой появляется значок (`MinAlertTemperatureScale`).
+const MIN_ALERT_TEMPERATURE_SCALE: f32 = 0.33;
+
+/// Уровень на шкале от 0 до `max` из `levels` ступеней (`ContentHelpers.RoundToLevels`).
+pub fn round_to_levels(actual: f64, max: f64, levels: i32) -> i32 {
+    if actual >= max {
+        return levels - 1;
+    }
+    if actual <= 0.0 {
+        return 0;
+    }
+    ((actual / max) * f64::from(levels - 2)).ceil() as i32
+}
+
+/// Значок температуры (`ServerAlert`): «холодно» или «жарко» по доле пути от идеальной
+/// температуры к порогу урона.
+fn temperature_alert(world: &mut World, entity: Entity, current: f32) {
+    use crate::alerts::{clear_alert_category, show_alert};
+    if world.get::<crate::alerts::Alerts>(entity).is_none() {
+        return;
+    }
+    let Some(thresholds) = world.get::<TemperatureDamage>(entity).cloned() else {
+        clear_alert_category(world, entity, TEMPERATURE_ALERT_CATEGORY);
+        return;
+    };
+    let ideal = world
+        .get::<ThermalRegulator>(entity)
+        .map(|r| r.normal_body_temperature)
+        .filter(|t| *t > thresholds.cold_damage_threshold && *t < thresholds.heat_damage_threshold)
+        .unwrap_or((thresholds.cold_damage_threshold + thresholds.heat_damage_threshold) / 2.0);
+    let (alert, threshold) = if current <= ideal {
+        (thresholds.cold_alert, thresholds.cold_damage_threshold)
+    } else {
+        (thresholds.hot_alert, thresholds.heat_damage_threshold)
+    };
+    let scale = (current - ideal) / (threshold - ideal);
+    let level = round_to_levels(
+        f64::from(scale - MIN_ALERT_TEMPERATURE_SCALE),
+        f64::from(1.0 - MIN_ALERT_TEMPERATURE_SCALE),
+        MAX_TEMPERATURE_ALERT_SEVERITY + 1,
+    );
+    if level > 0 {
+        show_alert(world, entity, &alert, Some(level as i16));
+    } else {
+        clear_alert_category(world, entity, TEMPERATURE_ALERT_CATEGORY);
+    }
 }
 
 /// Замедление на холоде (`TemperatureSpeedComponent`): порог температуры → множитель.
@@ -650,6 +714,9 @@ pub fn install(world: &mut World, side: Side) {
         }
     });
     world.subscribe::<TemperatureSpeed, TemperatureChanged>(on_speed_temperature_changed);
+    world.subscribe::<crate::alerts::Alerts, TemperatureChanged>(|world, entity, event| {
+        temperature_alert(world, entity, event.current);
+    });
     world.subscribe::<TemperatureSpeed, RefreshMovementSpeedModifiers>(|world, entity, event| {
         let Some(speed) = world.get::<TemperatureSpeed>(entity) else {
             return;

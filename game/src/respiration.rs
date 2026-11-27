@@ -122,6 +122,13 @@ pub struct Lung {
     /// Реагенты лёгких (раствор `Lung` в SS14, ADR-0009).
     #[serde(skip)]
     pub reagents: BTreeMap<String, FixedPoint2>,
+    /// Значок удушья (`Alert`): у людей — нехватка кислорода, у вокса — азота.
+    #[serde(default = "low_oxygen_alert")]
+    pub alert: String,
+}
+
+fn low_oxygen_alert() -> String {
+    "LowOxygen".into()
 }
 
 impl Default for Lung {
@@ -129,6 +136,22 @@ impl Default for Lung {
         Self {
             air: lung_air(),
             reagents: BTreeMap::new(),
+            alert: low_oxygen_alert(),
+        }
+    }
+}
+
+/// Значок удушья лёгких тела (`OnSuffocation`, `OnStopSuffocating`).
+fn suffocation_alert(world: &mut World, body: Entity, show: bool) {
+    let alerts: Vec<String> = lungs_of(world, body)
+        .into_iter()
+        .filter_map(|lung| world.get::<Lung>(lung).map(|l| l.alert.clone()))
+        .collect();
+    for alert in alerts {
+        if show {
+            crate::alerts::show_alert(world, body, &alert, None);
+        } else {
+            crate::alerts::clear_alert(world, body, &alert);
         }
     }
 }
@@ -651,6 +674,12 @@ pub fn install(world: &mut World, side: Side) {
     if !side.is_server() {
         return;
     }
+    world.subscribe::<Respirator, Suffocation>(|world, entity, _| {
+        suffocation_alert(world, entity, true);
+    });
+    world.subscribe::<Respirator, StopSuffocating>(|world, entity, _| {
+        suffocation_alert(world, entity, false);
+    });
     world.subscribe::<Respirator, MapInit>(|world, entity, _| {
         let time = now(world);
         if let Some(mut respirator) = world.get_mut::<Respirator>(entity) {

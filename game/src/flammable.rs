@@ -5,8 +5,9 @@
 //! `IgniteOnCollideComponent`, `IgniteOnMeleeHitComponent`, `IgniteOnHeatDamageComponent`,
 //! `FireProtectionComponent` и `GetFireProtectionEvent` SS14 @ 2f4a2aad.
 //!
-//! Нет пока: сопротивления огню (кнопка тревоги `ResistFireAlert` и оглушение) — вместе с
-//! интерфейсом состояния; тушения огнетушителем и водой (`ExtinguishOnInteract`, реакции
+//! Значок «горит» и сопротивление огню нажатием на него (`ResistFireAlert`: две секунды огонь
+//! гаснет в 15 раз быстрее). Нет пока: оглушения при сопротивлении (оглушений нет — с
+//! безопасностью); тушения огнетушителем и водой (`ExtinguishOnInteract`, реакции
 //! реагентов) — с химией; включаемых горячих предметов (`ItemToggleHot`: сварка, зажигалки).
 
 use std::collections::BTreeMap;
@@ -112,6 +113,47 @@ pub struct Flammable {
     pub firestack_fade: f32,
     #[serde(skip)]
     pub next_update: Duration,
+    /// Когда кончится сопротивление (`ResistCompleteTime`).
+    #[serde(skip)]
+    pub resist_complete_time: Option<Duration>,
+    #[serde(default = "fire_alert")]
+    pub fire_alert: String,
+}
+
+fn fire_alert() -> String {
+    "Fire".into()
+}
+
+impl Flammable {
+    /// Сопротивляется огню (`Resisting`).
+    pub fn resisting(&self) -> bool {
+        self.resist_complete_time.is_some()
+    }
+}
+
+/// Сопротивляться огню (`Resist`): если горит, ещё не сопротивляется и может действовать.
+pub fn resist(world: &mut World, entity: Entity) {
+    let Some(flammable) = world.get::<Flammable>(entity).cloned() else {
+        return;
+    };
+    if !flammable.on_fire
+        || flammable.resisting()
+        || !crate::action_blocker::ActionBlockerWorldExt::can_interact(world, entity, None)
+    {
+        return;
+    }
+    let end = now(world) + Duration::from_secs_f32(flammable.resist_time.max(0.0));
+    if let Some(mut flammable) = world.get_mut::<Flammable>(entity) {
+        flammable.resist_complete_time = Some(end);
+    }
+    let text = crate::examine::loc(world, "flammable-component-resist-message", &[]);
+    crate::popups::PopupWorldExt::popup_entity_for(
+        world,
+        &text,
+        entity,
+        entity,
+        crate::popups::PopupType::Small,
+    );
 }
 
 fn ignition_temperature() -> f32 {
@@ -435,14 +477,20 @@ fn update(world: &mut World) {
         if flammable.next_update < time {
             flammable.next_update = time + UPDATE_TIME;
         }
+        // Сопротивление закончилось.
+        if flammable.resist_complete_time.is_some_and(|end| time > end) {
+            flammable.resist_complete_time = None;
+        }
         // Мокрое понемногу сохнет.
         if flammable.fire_stacks < 0.0 {
             flammable.fire_stacks = (flammable.fire_stacks + 1.0).min(0.0);
         }
+        let flammable = flammable.clone();
         if !flammable.on_fire {
+            crate::alerts::clear_alert(world, entity, &flammable.fire_alert);
             continue;
         }
-        let flammable = flammable.clone();
+        crate::alerts::show_alert(world, entity, &flammable.fire_alert, None);
         if flammable.fire_stacks <= 0.0 {
             try_extinguish(world, entity);
             continue;
@@ -472,7 +520,9 @@ fn update(world: &mut World) {
             .damage
             .scale(flammable.fire_stacks * protection.multiplier);
         world.change_damage(entity, &damage, false, false, None);
-        adjust_fire_stacks(world, entity, flammable.firestack_fade, true);
+        // Сопротивление гасит огонь в 15 раз быстрее.
+        let fade = flammable.firestack_fade * if flammable.resisting() { 15.0 } else { 1.0 };
+        adjust_fire_stacks(world, entity, fade, true);
     }
 }
 
@@ -494,6 +544,13 @@ pub fn install(world: &mut World, side: Side) {
         }
         add_flammable_fixture(world, entity);
         update_appearance(world, entity);
+    });
+    world.subscribe::<Flammable, crate::alerts::AlertClicked>(|world, entity, event| {
+        if event.handled || event.event != "ResistFireAlertEvent" {
+            return;
+        }
+        resist(world, entity);
+        event.handled = true;
     });
     world.subscribe::<Flammable, InteractUsing>(|world, entity, event| {
         if event.handled {

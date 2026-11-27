@@ -3,11 +3,13 @@
 //! `PressureProtectionComponent`, `PressureImmunityComponent`, `BarotraumaSystem` и
 //! `AtmosphereSystem.GetContainingMixture` SS14 @ 2f4a2aad.
 //!
-//! Значки тревоги (`Alerts`) — вместе с интерфейсом состояния; здесь только урон.
+//! Значки тревоги: низкое и высокое давление, уровень 1 — предупреждение, 2 — урон.
 
 use astrocore_ecs::{EventWorldExt, GameTime, GameWorldExt, MapInit, RegistryWorldExt, Update};
 use astrocore_map::{ContainerWorldExt, TileCoord, Transform, TransformWorldExt};
 use bevy_ecs::component::Component;
+
+use crate::alerts::{clear_alert_category, show_alert};
 use bevy_ecs::entity::Entity;
 use bevy_ecs::world::World;
 use serde::{Deserialize, Serialize};
@@ -27,6 +29,15 @@ fn protection_slots() -> Vec<String> {
 }
 fn one() -> f32 {
     1.0
+}
+fn low_pressure_alert() -> String {
+    "LowPressure".into()
+}
+fn high_pressure_alert() -> String {
+    "HighPressure".into()
+}
+fn pressure_alert_category() -> String {
+    "Pressure".into()
 }
 
 /// Получает урон от давления (`BarotraumaComponent`).
@@ -50,6 +61,12 @@ pub struct Barotrauma {
     pub low_pressure_modifier: f32,
     #[serde(skip)]
     pub has_immunity: bool,
+    #[serde(default = "low_pressure_alert")]
+    pub low_pressure_alert: String,
+    #[serde(default = "high_pressure_alert")]
+    pub high_pressure_alert: String,
+    #[serde(default = "pressure_alert_category")]
+    pub pressure_alert_category: String,
 }
 
 /// Защищает от давления (`PressureProtectionComponent`).
@@ -265,6 +282,18 @@ fn update(world: &mut World, mut timer: bevy_ecs::system::Local<f32>) {
         let taking = damage.is_some();
         if let Some(damage) = damage {
             world.change_damage(entity, &damage, true, false, None);
+        }
+        // Значок: в опасном давлении — 2, в предупредительном — 1, иначе снят.
+        if pressure <= HAZARD_LOW_PRESSURE {
+            show_alert(world, entity, &barotrauma.low_pressure_alert, Some(2));
+        } else if pressure >= HAZARD_HIGH_PRESSURE {
+            show_alert(world, entity, &barotrauma.high_pressure_alert, Some(2));
+        } else if pressure <= WARNING_LOW_PRESSURE {
+            show_alert(world, entity, &barotrauma.low_pressure_alert, Some(1));
+        } else if pressure >= WARNING_HIGH_PRESSURE {
+            show_alert(world, entity, &barotrauma.high_pressure_alert, Some(1));
+        } else {
+            clear_alert_category(world, entity, &barotrauma.pressure_alert_category);
         }
         if let Some(mut component) = world.get_mut::<Barotrauma>(entity) {
             component.taking_damage = taking;

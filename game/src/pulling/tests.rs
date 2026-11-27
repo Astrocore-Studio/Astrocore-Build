@@ -172,3 +172,42 @@ fn moving_the_pulled_object_to_a_point() {
     );
     assert!(world.get::<PullMoving>(crate_).is_none());
 }
+
+#[test]
+fn pull_alerts_show_on_both_sides_and_clicking_releases() {
+    let prototypes = format!(
+        "{PROTOTYPES}{}",
+        r#"
+- type: alert
+  id: Pulling
+  icons: [ /Textures/Interface/Alerts/Pull/pulling.png ]
+  clickEvent: !type:StopPullingAlertEvent
+- type: alert
+  id: Pulled
+  icons: [ /Textures/Interface/Alerts/Pull/pulled.png ]
+  clickEvent: !type:StopBeingPulledAlertEvent
+"#
+    );
+    let mut world = world_with(&prototypes);
+    let grid = station(&mut world);
+    let human = spawn_at(&mut world, "Human", grid, 3, 5);
+    let other = spawn_at(&mut world, "Human", grid, 2, 5);
+    for entity in [human, other] {
+        world
+            .entity_mut(entity)
+            .insert(crate::alerts::Alerts::default());
+    }
+    world.run_tick();
+    assert!(world.try_start_pull(human, other));
+    assert!(crate::alerts::is_showing_alert(&world, human, "Pulling"));
+    assert!(crate::alerts::is_showing_alert(&world, other, "Pulled"));
+    // Тот, кого тащат, вырывается нажатием на значок.
+    assert!(crate::alerts::activate_alert(&mut world, other, "Pulled"));
+    assert!(!world.is_pulled(other));
+    assert!(!crate::alerts::is_showing_alert(&world, human, "Pulling"));
+    assert!(!crate::alerts::is_showing_alert(&world, other, "Pulled"));
+    // Тянущий отпускает нажатием на свой значок.
+    assert!(world.try_start_pull(human, other));
+    assert!(crate::alerts::activate_alert(&mut world, human, "Pulling"));
+    assert!(!world.is_pulled(other));
+}

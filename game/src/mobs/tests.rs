@@ -145,3 +145,52 @@ fn moving_a_threshold_rechecks_the_state() {
         Some(FixedPoint2::new(50))
     );
 }
+
+const HEALTH_ALERTS: &str = r#"
+- type: alert
+  id: HumanHealth
+  category: Health
+  icons:
+  - { sprite: /Textures/Interface/Alerts/human_alive.rsi, state: health0 }
+  - { sprite: /Textures/Interface/Alerts/human_alive.rsi, state: health1 }
+  - { sprite: /Textures/Interface/Alerts/human_alive.rsi, state: health2 }
+  - { sprite: /Textures/Interface/Alerts/human_alive.rsi, state: health3 }
+  - { sprite: /Textures/Interface/Alerts/human_alive.rsi, state: health4 }
+  minSeverity: 0
+  maxSeverity: 4
+- type: alert
+  id: HumanCrit
+  category: Health
+  icons: [ { sprite: /Textures/Interface/Alerts/human_critical.rsi, state: critical } ]
+- type: alert
+  id: HumanDead
+  category: Health
+  icons: [ { sprite: /Textures/Interface/Alerts/human_dead.rsi, state: dead } ]
+"#;
+
+#[test]
+fn health_alert_follows_damage_towards_the_next_threshold() {
+    use crate::alerts::{Alerts, active_alerts};
+    let prototypes = format!(
+        "{}{ENTITIES}{HEALTH_ALERTS}",
+        crate::damage::tests::DAMAGE_PROTOTYPES
+    );
+    let mut world = world_with(&prototypes);
+    let grid = station(&mut world);
+    let mob = spawn_at(&mut world, "Mob", grid, 2, 2);
+    world.entity_mut(mob).insert(Alerts::default());
+    let health = |world: &World| {
+        active_alerts(world, mob)
+            .and_then(|a| a.get("category:Health").cloned())
+            .map(|s| (s.alert_type, s.severity))
+    };
+    world.change_damage(mob, &blunt(1), true, true, None);
+    assert_eq!(health(&world), Some(("HumanHealth".into(), Some(0))));
+    // 60 из 100 до крита — уровень round(0.6 × 4) = 2.
+    world.change_damage(mob, &blunt(59), true, true, None);
+    assert_eq!(health(&world), Some(("HumanHealth".into(), Some(2))));
+    world.change_damage(mob, &blunt(60), true, true, None);
+    assert_eq!(health(&world), Some(("HumanCrit".into(), None)));
+    world.change_damage(mob, &blunt(100), true, true, None);
+    assert_eq!(health(&world), Some(("HumanDead".into(), None)));
+}

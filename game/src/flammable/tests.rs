@@ -184,3 +184,45 @@ fn plasma_fire_on_tile_sets_body_alight() {
     assert!(is_hotspot_active(&world, grid, TileCoord::new(3, 3, 0)));
     assert!(flammable(&world, mob).on_fire);
 }
+
+#[test]
+fn fire_alert_shows_while_burning_and_resisting_puts_it_out_faster() {
+    let prototypes = format!(
+        "{PROTOTYPES}{}",
+        r#"
+- type: alert
+  id: Fire
+  icons: [ /Textures/Interface/Alerts/Fire/fire.png ]
+  clickEvent: !type:ResistFireAlertEvent
+"#
+    );
+    let mut world = world_with(&prototypes);
+    let grid = station(&mut world);
+    ensure_grid_atmosphere(&mut world, grid);
+    ticks(&mut world, 10);
+    fill(
+        &mut world,
+        grid,
+        3,
+        3,
+        GasMixture::standard_air(CELL_VOLUME),
+    );
+    let mob = spawn_at(&mut world, "Mob", grid, 3, 3);
+    world
+        .entity_mut(mob)
+        .insert(crate::alerts::Alerts::default());
+    adjust_fire_stacks(&mut world, mob, 5.0, true);
+    ticks(&mut world, 31);
+    assert!(crate::alerts::is_showing_alert(&world, mob, "Fire"));
+    let before = flammable(&world, mob).fire_stacks;
+    // Нажатие на значок: две секунды «стопки» уходят в 15 раз быстрее.
+    assert!(crate::alerts::activate_alert(&mut world, mob, "Fire"));
+    assert!(flammable(&world, mob).resisting());
+    ticks(&mut world, 31);
+    let after = flammable(&world, mob).fire_stacks;
+    assert!((before - after - 1.5).abs() < 0.01, "{before} → {after}");
+    // Погас — значок снят.
+    try_extinguish(&mut world, mob);
+    ticks(&mut world, 31);
+    assert!(!crate::alerts::is_showing_alert(&world, mob, "Fire"));
+}

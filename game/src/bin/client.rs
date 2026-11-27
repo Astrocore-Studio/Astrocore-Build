@@ -789,6 +789,7 @@ fn run() -> Result<(), String> {
     .add_plugins(astrocore_game::vote_ui::VoteUiPlugin)
     .add_plugins(astrocore_game::communications_ui::CommunicationsUiPlugin)
     .add_plugins(astrocore_game::content_eye_view::ContentEyeViewPlugin)
+    .add_plugins(astrocore_game::alerts_ui::AlertsUiPlugin)
     .add_plugins(astrocore_game::ghost_ui::GhostUiPlugin)
     .add_plugins(astrocore_game::decal_visuals::DecalVisualsPlugin)
     .add_plugins(astrocore_game::power_ui::PowerUiPlugin)

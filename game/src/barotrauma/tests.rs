@@ -14,6 +14,7 @@ const PROTOTYPES: &str = r#"
   components:
   - type: Damageable
   - type: Injurable
+  - type: Alerts
   - type: Barotrauma
     damage:
       types:
@@ -24,6 +25,20 @@ const PROTOTYPES: &str = r#"
   components:
   - type: PressureProtection
     lowPressureMultiplier: 1000
+- type: alert
+  id: LowPressure
+  category: Pressure
+  icons:
+  - { sprite: /Textures/Interface/Alerts/pressure.rsi, state: lowpressure1 }
+  - { sprite: /Textures/Interface/Alerts/pressure.rsi, state: lowpressure2 }
+  maxSeverity: 2
+- type: alert
+  id: HighPressure
+  category: Pressure
+  icons:
+  - { sprite: /Textures/Interface/Alerts/pressure.rsi, state: highpressure1 }
+  - { sprite: /Textures/Interface/Alerts/pressure.rsi, state: highpressure2 }
+  maxSeverity: 2
 "#;
 
 fn blunt(world: &World, entity: Entity) -> f32 {
@@ -53,6 +68,15 @@ fn vacuum_hurts_and_air_does_not() {
     // Вакуум: 0,5 × 4 = 2 за секунду.
     assert_eq!(blunt(&world, outside), 2.0);
     assert_eq!(blunt(&world, suited), 0.0);
+    // Значки: в вакууме — низкое давление уровня 2; воздух клетки уже расходится в вакуум —
+    // давление падает, и там лишь предупреждение без урона.
+    let pressure = |entity| {
+        crate::alerts::active_alerts(&world, entity)
+            .and_then(|a| a.get("category:Pressure").cloned())
+            .map(|s| (s.alert_type, s.severity))
+    };
+    assert_eq!(pressure(outside), Some(("LowPressure".into(), Some(2))));
+    assert_ne!(pressure(inside).and_then(|(_, level)| level), Some(2));
 }
 
 #[test]

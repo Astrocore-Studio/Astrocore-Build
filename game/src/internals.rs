@@ -4,7 +4,8 @@
 //! `BreathToolComponent` (`BreathMask`), `SharedInternalsSystem`, `InternalsSystem` и
 //! `LungSystem.OnGotEquipped` SS14 @ 2f4a2aad.
 //!
-//! Нет пока: значка тревоги (`InternalsAlert`), опускаемой маски (`MaskComponent`),
+//! Значок баллона с уровнем (работает, мало давления, не работает), нажатие включает баллон.
+//! Нет пока: опускаемой маски (`MaskComponent`),
 //! автоподключения со стартовым снаряжением (фаза 6) и реактивных ранцев.
 
 use std::collections::BTreeSet;
@@ -38,6 +39,43 @@ pub struct Internals {
     /// Задержка подключения другому, с.
     #[serde(default = "three")]
     pub delay: f32,
+    #[serde(default = "internals_alert")]
+    pub internals_alert: String,
+}
+
+fn internals_alert() -> String {
+    "Internals".into()
+}
+
+/// Уровень значка баллона (`GetSeverity`): 2 — не работает, 0 — давление в баллоне низкое,
+/// 1 — дышит из баллона.
+pub fn internals_severity(world: &World, entity: Entity) -> i16 {
+    let Some(internals) = world.get::<Internals>(entity) else {
+        return 2;
+    };
+    if internals.breath_tools.is_empty() || !are_internals_working(world, entity) {
+        return 2;
+    }
+    if internals
+        .gas_tank_entity
+        .and_then(|tank| world.get::<GasTank>(tank))
+        .is_some_and(GasTank::is_low_pressure)
+    {
+        return 0;
+    }
+    1
+}
+
+/// Показать значок баллона с текущим уровнем.
+pub fn update_internals_alert(world: &mut World, entity: Entity) {
+    let Some(alert) = world
+        .get::<Internals>(entity)
+        .map(|i| i.internals_alert.clone())
+    else {
+        return;
+    };
+    let severity = internals_severity(world, entity);
+    crate::alerts::show_alert(world, entity, &alert, Some(severity));
 }
 
 fn mask_or_head() -> SlotFlags {
@@ -102,6 +140,7 @@ pub fn connect_breath_tool(world: &mut World, entity: Entity, tool: Entity) {
     if let Some(mut breath) = world.get_mut::<BreathTool>(tool) {
         breath.connected_internals_entity = Some(entity);
     }
+    update_internals_alert(world, entity);
 }
 
 /// Отключить маску (`DisconnectBreathTool`); без масок отключается и баллон.
@@ -119,6 +158,7 @@ pub fn disconnect_breath_tool(world: &mut World, entity: Entity, tool: Entity, f
     if empty {
         disconnect_tank(world, entity, forced);
     }
+    update_internals_alert(world, entity);
 }
 
 /// Отключить баллон (`DisconnectTank`).
@@ -131,6 +171,7 @@ pub fn disconnect_tank(world: &mut World, entity: Entity, forced: bool) {
     {
         crate::gas_tank::disconnect_from_internals(world, tank, None, forced);
     }
+    update_internals_alert(world, entity);
 }
 
 /// Подключить баллон (`TryConnectTank`): нужна маска.
@@ -149,6 +190,7 @@ pub fn try_connect_tank(world: &mut World, entity: Entity, tank: Entity) -> bool
     if let Some(mut internals) = world.get_mut::<Internals>(entity) {
         internals.gas_tank_entity = Some(tank);
     }
+    update_internals_alert(world, entity);
     true
 }
 
@@ -301,7 +343,18 @@ pub fn install(world: &mut World, side: Side) {
             event.tank = world
                 .get::<Internals>(entity)
                 .and_then(|i| i.gas_tank_entity);
+            update_internals_alert(world, entity);
         }
+    });
+    // Значок при появлении (`OnInternalsStartup`) и нажатие на него (`OnToggleInternalsAlert`).
+    world.subscribe::<Internals, astrocore_ecs::ComponentStartup>(|world, entity, _| {
+        update_internals_alert(world, entity);
+    });
+    world.subscribe::<Internals, crate::alerts::AlertClicked>(|world, entity, event| {
+        if event.handled || event.event != "ToggleInternalsAlertEvent" {
+            return;
+        }
+        event.handled |= toggle_internals(world, entity, entity, false, ToggleMode::Toggle);
     });
     // Маска надета или снята (`OnGotEquipped`, `OnGotUnequipped`).
     world.subscribe::<BreathTool, Equipped>(|world, tool, event| {

@@ -16,6 +16,7 @@ pub mod admin_manager;
 pub mod admin_system;
 pub mod admins;
 pub mod airtight;
+pub mod alerts;
 pub mod ame;
 pub mod anchorable;
 pub mod atmos;
@@ -135,6 +136,8 @@ pub mod admin_ui;
 pub mod ahelp_ui;
 #[cfg(feature = "client")]
 pub mod alarm_visuals;
+#[cfg(feature = "client")]
+pub mod alerts_ui;
 #[cfg(feature = "client")]
 pub mod body_visuals;
 #[cfg(feature = "client")]
@@ -301,6 +304,7 @@ pub fn install_content(world: &mut World, side: Side) {
     round_end::install(world, side);
     emergency_shuttle::install(world, side);
     communications::install(world, side);
+    alerts::install(world, side);
     content_eye::install(world, side);
     mind::install(world, side);
     ghost::install(world, side);

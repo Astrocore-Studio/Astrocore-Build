@@ -2,7 +2,8 @@
 //! рука занята виртуальным предметом; Ctrl+клик тянет и отпускает, H отпускает,
 //! Ctrl+правый клик подтаскивает к точке. Образец — `Content.Shared/Movement/Pulling`
 //! (`PullingSystem`, `PullableComponent`, `PullerComponent`) и `Content.Server/Movement/
-//! Systems/PullController.cs` SS14 @ 2f4a2aad. Значков-тревог (`Alerts`) пока нет.
+//! Systems/PullController.cs` SS14 @ 2f4a2aad. Значки «тащу» и «меня тащат»; нажатие на
+//! них отпускает (`StopPullingAlert`, `StopBeingPulledAlert`).
 
 use astrocore_ecs::{
     EventWorldExt, GameTime, GameWorldExt, LifecycleWorldExt, RegistryWorldExt, Update,
@@ -319,6 +320,14 @@ impl PullingWorldExt for World {
             body.fixed_rotation = fixed_on_pull;
         }
         refresh_speed(self, puller);
+        let pulling_alert = self.get::<Puller>(puller).map(|p| p.pulling_alert.clone());
+        let pulled_alert = self.get::<Pullable>(pulled).map(|p| p.pulled_alert.clone());
+        if let Some(alert) = pulling_alert {
+            crate::alerts::show_alert(self, puller, &alert, None);
+        }
+        if let Some(alert) = pulled_alert {
+            crate::alerts::show_alert(self, pulled, &alert, None);
+        }
         let mut started = PullStarted { puller, pulled };
         self.raise(puller, &mut started);
         self.raise(pulled, &mut started);
@@ -379,11 +388,14 @@ fn stop_pulling(world: &mut World, pulled: Entity) {
     }
     world.remove_comp::<ActivePuller>(puller);
     world.remove_comp::<PullMoving>(pulled);
-    if let Some(mut puller_component) = world.get_mut::<Puller>(puller) {
+    crate::alerts::clear_alert(world, pulled, &component.pulled_alert);
+    let Some(pulling_alert) = world.get_mut::<Puller>(puller).map(|mut puller_component| {
         puller_component.pulling = None;
-    } else {
+        puller_component.pulling_alert.clone()
+    }) else {
         return;
-    }
+    };
+    crate::alerts::clear_alert(world, puller, &pulling_alert);
     refresh_speed(world, puller);
     let mut stopped = PullStopped { puller, pulled };
     world.raise(puller, &mut stopped);
@@ -581,6 +593,21 @@ pub(crate) fn install(world: &mut World, side: crate::Side) {
     if !side.is_server() {
         return;
     }
+    // Нажатия на значки (`OnStopPullingAlert`, `OnStopBeingPulledAlert`).
+    world.subscribe::<Puller, crate::alerts::AlertClicked>(|world, entity, event| {
+        if event.handled || event.event != "StopPullingAlertEvent" {
+            return;
+        }
+        if let Some(pulled) = world.pulling_of(entity) {
+            event.handled = world.try_stop_pull(pulled, Some(entity));
+        }
+    });
+    world.subscribe::<Pullable, crate::alerts::AlertClicked>(|world, entity, event| {
+        if event.handled || event.event != "StopBeingPulledAlertEvent" {
+            return;
+        }
+        event.handled = world.try_stop_pull(entity, Some(entity));
+    });
     world.subscribe::<Pullable, GetVerbs>(pull_verbs);
     // Сочленение убрали (удаление тела, физика) — перетаскивание кончилось.
     world.subscribe::<Pullable, JointRemoved>(|world, pulled, event| {

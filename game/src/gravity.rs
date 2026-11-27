@@ -197,6 +197,9 @@ fn weightless_of(world: &World, entity: Entity) -> (bool, bool) {
     (!has_gravity(world, entity), true)
 }
 
+/// Значок невесомости (`WeightlessAlert`).
+pub const WEIGHTLESS_ALERT: &str = "Weightless";
+
 /// Пересчитать невесомость сущности (`RefreshWeightless`).
 pub fn refresh_weightless(world: &mut World, entity: Entity) {
     let (weightless, from_grid) = weightless_of(world, entity);
@@ -205,6 +208,12 @@ pub fn refresh_weightless(world: &mut World, entity: Entity) {
     {
         affected.weightless = weightless;
         affected.grid_weightless_status = from_grid;
+    }
+    // Значок невесомости (`OnWeightlessnessChanged`).
+    if is_weightless(world, entity) {
+        crate::alerts::show_alert(world, entity, WEIGHTLESS_ALERT, None);
+    } else {
+        crate::alerts::clear_alert(world, entity, WEIGHTLESS_ALERT);
     }
 }
 

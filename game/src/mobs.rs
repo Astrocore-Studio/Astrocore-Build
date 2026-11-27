@@ -279,6 +279,62 @@ fn on_enter(world: &mut World, entity: Entity, state: MobState) {
     world.set_appearance(entity, VISUALS_STATE, state.name().to_owned());
 }
 
+/// Следующее, худшее состояние по порогам (`TryGetNextState`).
+pub fn next_state(world: &World, entity: Entity, state: MobState) -> Option<MobState> {
+    world
+        .get::<MobThresholds>(entity)?
+        .thresholds
+        .values()
+        .copied()
+        .filter(|candidate| *candidate > state)
+        .min()
+}
+
+/// Значок здоровья по состоянию (`UpdateAlerts`): у живого — уровень по доле урона до
+/// следующего порога.
+fn update_alerts(world: &mut World, entity: Entity) {
+    let (Some(thresholds), Some(state)) = (
+        world.get::<MobThresholds>(entity).cloned(),
+        world.mob_state(entity),
+    ) else {
+        return;
+    };
+    if !thresholds.triggers_alerts {
+        return;
+    }
+    let Some(alert_type) = thresholds.state_alert_dict.get(&state).cloned() else {
+        eprintln!("нет значка здоровья для состояния {}", state.name());
+        return;
+    };
+    let Some(alert) = world
+        .get_resource::<astrocore_prototypes::Prototypes>()
+        .and_then(|p| crate::alerts::alert_prototype(p, &alert_type))
+    else {
+        return;
+    };
+    if !alert.supports_severity() {
+        crate::alerts::show_alert(world, entity, &alert_type, None);
+        return;
+    }
+    let mut severity = alert.min_severity();
+    let total = world
+        .get::<Damageable>(entity)
+        .map(|d| d.damage.total())
+        .unwrap_or_default();
+    if let Some(next) = next_state(world, entity, state)
+        && let Some(threshold) = world.threshold_for_state(entity, next)
+        && threshold > FixedPoint2::default()
+    {
+        let percentage = (total.float() / threshold.float()).clamp(0.0, 1.0);
+        let (min, max) = (
+            f32::from(alert.min_severity()),
+            f32::from(alert.max_severity),
+        );
+        severity = (min + (max - min) * percentage).round() as i16;
+    }
+    crate::alerts::show_alert(world, entity, &alert_type, Some(severity));
+}
+
 /// Крит и смерть отменяют действие (`CheckAct`).
 fn blocks(world: &World, entity: Entity) -> bool {
     world.is_incapacitated(entity)
@@ -330,9 +386,14 @@ pub(crate) fn install(world: &mut World, side: crate::Side) {
     });
     world.subscribe::<MobThresholds, DamageChanged>(|world, entity, event| {
         check_thresholds(world, entity, event.origin);
+        update_alerts(world, entity);
     });
     world.subscribe::<MobThresholds, ComponentInit>(|world, entity, _| {
         check_thresholds(world, entity, None);
+        update_alerts(world, entity);
+    });
+    world.subscribe::<MobThresholds, MobStateChanged>(|world, entity, _| {
+        update_alerts(world, entity);
     });
 }
 
