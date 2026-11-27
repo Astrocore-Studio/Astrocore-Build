@@ -232,7 +232,8 @@ pub fn command_flags(command: &str) -> Option<&'static [u32]> {
         | "setgamepreset"
         | "forcepreset"
         | "golobby"
-        | "toggledisallowlatejoin" => &[ROUND],
+        | "toggledisallowlatejoin"
+        | "forcemap" => &[ROUND],
         "tp" | "tpto" | "aghost" | "makeghostrole" | "rejuvenate" => &[ADMIN],
         "addmap" | "loadmap" | "loadgrid" | "mapinit" | "savemap" | "savegrid" | "tpgrid"
         | "rmmap" => &[MAPPING],

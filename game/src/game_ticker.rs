@@ -383,6 +383,10 @@ pub struct GamePreset {
     pub min_players: Option<i32>,
     pub max_players: Option<i32>,
     pub rules: Vec<String>,
+    /// Предлагается в голосовании за режим (`ShowInVote`).
+    pub show_in_vote: bool,
+    /// Пул карт режима (`supportedMaps`).
+    pub map_pool: Option<String>,
 }
 
 fn strings(node: Option<&DataNode>) -> Vec<String> {
@@ -410,6 +414,8 @@ pub fn game_preset(prototypes: &Prototypes, id: &str) -> Option<GamePreset> {
         min_players: text(node, "minPlayers").and_then(|t| t.trim().parse().ok()),
         max_players: text(node, "maxPlayers").and_then(|t| t.trim().parse().ok()),
         rules: strings(node.get("rules")),
+        show_in_vote: text(node, "showInVote").is_some_and(|t| t.eq_ignore_ascii_case("true")),
+        map_pool: text(node, "supportedMaps"),
     })
 }
 
@@ -425,7 +431,7 @@ pub fn find_game_preset(prototypes: &Prototypes, name: &str) -> Option<GamePrese
         .find(|p| p.alias.iter().any(|a| a.eq_ignore_ascii_case(name)))
 }
 
-fn preset_of(world: &World, id: Option<&str>) -> Option<GamePreset> {
+pub fn preset_of(world: &World, id: Option<&str>) -> Option<GamePreset> {
     game_preset(world.get_resource::<Prototypes>()?, id?)
 }
 
@@ -453,6 +459,7 @@ pub fn set_game_preset(
         });
         ticker.preset = Some(preset.id);
     }
+    crate::game_maps::validate_map(world);
     update_info_text(world);
     if force {
         start_round(world, true);
@@ -816,8 +823,27 @@ pub fn info_text(world: &mut World) -> String {
 }
 
 fn selected_map_name(world: &World) -> Option<String> {
-    let setting = world.resource::<Config>().get_text(&crate::content::MAP);
-    crate::stations::game_map(world.get_resource::<Prototypes>()?, &setting).map(|m| m.map_name)
+    crate::game_maps::selected_map(world).map(|m| m.map_name)
+}
+
+/// Можно ли ещё сменить карту раунда (`CanUpdateMap`): лобби, и карта ещё не загружается.
+pub fn can_update_map(world: &World) -> bool {
+    let Some(ticker) = world.get_resource::<GameTicker>() else {
+        return false;
+    };
+    if ticker.run_level != GameRunLevel::PreRoundLobby {
+        return false;
+    }
+    if ticker
+        .default_map
+        .is_some_and(|map| world.map_entity(map).is_some())
+    {
+        return false;
+    }
+    let time = now(world);
+    ticker
+        .round_start_time
+        .is_none_or(|start| start.saturating_sub(ROUND_PRELOAD_TIME) > time)
 }
 
 /// Разослать текст лобби (`UpdateInfoText`).
@@ -1043,13 +1069,26 @@ pub fn load_maps(world: &mut World) {
         return;
     }
     add_game_preset_rules(world);
+    // Карта: из `game.map` (прототип или путь файла), выбранная голосованием или командой,
+    // иначе — по правилам пула и ротации (`SelectMapByConfigRules`).
+    crate::game_maps::ensure_rotation_memory(world);
     let setting = world.resource::<Config>().get_text(&crate::content::MAP);
-    let game_map = world
-        .get_resource::<Prototypes>()
-        .and_then(|p| crate::stations::game_map(p, &setting));
+    let is_path = !setting.is_empty() && !crate::game_maps::check_map_exists(world, &setting);
+    let game_map = if is_path {
+        None
+    } else {
+        if crate::game_maps::selected_map(world).is_none() {
+            crate::game_maps::select_map_by_config_rules(world);
+        }
+        crate::game_maps::selected_map(world)
+    };
     let path = game_map
         .as_ref()
         .map_or(setting, |m| crate::stations::resource_path(&m.map_path));
+    if path.is_empty() {
+        eprintln!("карта раунда не выбрана");
+        return;
+    }
     let Some(resources) = world.get_resource::<Resources>().cloned() else {
         eprintln!("карта {path}: нет ресурсов");
         return;
