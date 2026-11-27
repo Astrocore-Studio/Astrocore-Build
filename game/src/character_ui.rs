@@ -45,6 +45,8 @@ const ROW: Color = Color::srgba(0.15, 0.16, 0.20, 0.95);
 const DANGER: Color = Color::srgb(0.60, 0.20, 0.20);
 const BORDER: Color = Color::srgb(0.25, 0.27, 0.32);
 const WHITE: Color = Color::WHITE;
+/// Высота колонок должностей.
+const JOBS_HEIGHT: f32 = 500.0;
 /// Меток на странице списка.
 const MARKINGS_PER_PAGE: usize = 24;
 
@@ -629,7 +631,7 @@ fn window(
                 position_type: PositionType::Absolute,
                 top: Val::Px(8.0),
                 left: Val::Px(8.0),
-                width: Val::Px(1080.0),
+                width: Val::Px(1264.0),
                 max_height: Val::Px(704.0),
                 column_gap: Val::Px(8.0),
                 padding: UiRect::all(Val::Px(8.0)),
@@ -646,7 +648,7 @@ fn window(
         style: &style,
     };
     slots(world, &mut ui, panel, &state);
-    let main = ui.column(panel, Some(830.0));
+    let main = ui.column(panel, Some(1020.0));
     let Some(profile) = state.profile.clone() else {
         ui.label(main, "Настройки персонажей ещё не пришли с сервера.", 13.0);
         return;
@@ -1081,8 +1083,6 @@ fn appearance(
                 }),
             );
         }
-    } else {
-        ui.label(row, "цвет — палитрой ниже", 11.0);
     }
     let row = ui.row(content);
     ui.label(
@@ -1138,6 +1138,38 @@ fn layer_title(world: &GameWorld, layer: &str, group: &str) -> String {
     match world.get_resource::<Loc>() {
         Some(l) if l.has(&special) => l.format(&special, &[]),
         _ => text_or(world, &format!("markings-layer-{layer}"), layer),
+    }
+}
+
+/// Подсказка о пределе меток слоя (`markings-limits`). Сообщение SS14 передаёт переменную в
+/// именованный аргумент термина — так умеет Linguini Robust, но не fluent-rs, и сообщение
+/// не загружается; тогда — свой текст с теми же числами.
+fn limits_text(world: &GameWorld, required: bool, count: i32, selectable: i32) -> String {
+    if world
+        .get_resource::<Loc>()
+        .is_some_and(|l| l.has("markings-limits"))
+    {
+        return loc(
+            world,
+            "markings-limits",
+            &[
+                (
+                    "required",
+                    LocArg::from(if required { "true" } else { "false" }),
+                ),
+                ("count", LocArg::from(count)),
+                ("selectable", LocArg::from(selectable)),
+            ],
+        );
+    }
+    let need = if required {
+        "Нужна хотя бы одна метка. "
+    } else {
+        ""
+    };
+    match count {
+        -1 => format!("{need}Меток — сколько угодно."),
+        _ => format!("{need}Не больше {count}, можно добавить ещё {selectable}."),
     }
 }
 
@@ -1216,18 +1248,7 @@ fn markings(
     };
     ui.label(
         content,
-        loc(
-            world,
-            "markings-limits",
-            &[
-                (
-                    "required",
-                    LocArg::from(if choice.required { "true" } else { "false" }),
-                ),
-                ("count", LocArg::from(limit)),
-                ("selectable", LocArg::from(selectable)),
-            ],
-        ),
+        limits_text(world, choice.required, limit, selectable),
         12.0,
     );
     let row = ui.row(content);
@@ -1416,12 +1437,15 @@ fn jobs(
     content: Entity,
     profile: &HumanoidCharacterProfile,
 ) {
+    // Отделы текут по колонкам: так все должности помещаются в окно без прокрутки.
     let grid = ui.row(content);
     ui.commands.entity(grid).insert(Node {
+        flex_direction: FlexDirection::Column,
         flex_wrap: FlexWrap::Wrap,
-        align_items: AlignItems::FlexStart,
+        align_content: AlignContent::FlexStart,
+        height: Val::Px(JOBS_HEIGHT),
         column_gap: Val::Px(12.0),
-        row_gap: Val::Px(4.0),
+        row_gap: Val::Px(6.0),
         ..default()
     });
     for DepartmentEntry {
@@ -1431,7 +1455,7 @@ fn jobs(
         if jobs.is_empty() {
             continue;
         }
-        let block = ui.column(grid, Some(395.0));
+        let block = ui.column(grid, Some(320.0));
         let title = loc(
             world,
             "humanoid-profile-editor-department-jobs-label",
@@ -1447,7 +1471,7 @@ fn jobs(
             let label = ui.node(
                 row,
                 Node {
-                    width: Val::Px(150.0),
+                    width: Val::Px(130.0),
                     ..default()
                 },
             );

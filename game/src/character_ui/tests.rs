@@ -156,3 +156,16 @@ fn randomize_keeps_jobs() {
     assert_eq!(profile.job_priorities["Captain"], JobPriority::High);
     assert!(profile.name.starts_with("namepreset-"));
 }
+
+#[test]
+fn limits_hint_falls_back_without_message() {
+    let world = world();
+    assert_eq!(
+        limits_text(&world, true, 2, 1),
+        "Нужна хотя бы одна метка. Не больше 2, можно добавить ещё 1."
+    );
+    assert_eq!(
+        limits_text(&world, false, -1, -1),
+        "Меток — сколько угодно."
+    );
+}
