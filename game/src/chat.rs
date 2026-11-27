@@ -743,7 +743,7 @@ fn sessions(world: &mut World) -> Vec<Entity> {
 }
 
 fn is_admin(world: &World, session: Entity) -> bool {
-    crate::map_commands::is_admin(world, session)
+    crate::admin_manager::is_admin(world, session)
 }
 
 fn admins(world: &mut World) -> Vec<Entity> {
@@ -2319,7 +2319,7 @@ fn ic_command(
 }
 
 /// Команды, доступные любому игроку.
-pub const CHAT_COMMANDS: [&str; 6] = ["say", "whisper", "me", "ooc", "looc", "dsay"];
+pub const CHAT_COMMANDS: [&str; 5] = ["say", "whisper", "me", "ooc", "looc"];
 
 fn command(
     name: &'static str,

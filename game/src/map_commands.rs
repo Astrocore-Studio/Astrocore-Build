@@ -12,8 +12,7 @@
 use std::path::PathBuf;
 
 use astrocore_console::{
-    CVarDef, CVarFlags, Config, ConfigWorldExt, Console, ConsoleCommand, ConsoleShell,
-    ConsoleWorldExt,
+    CVarDef, CVarFlags, Config, ConfigWorldExt, ConsoleCommand, ConsoleShell, ConsoleWorldExt,
 };
 use astrocore_data::{parse_yaml, to_yaml_string};
 use astrocore_ecs::{LifecycleWorldExt, MetaData};
@@ -53,48 +52,6 @@ pub const ADMIN_OBSERVER: &str = "AdminObserver";
 #[derive(Component, Debug, Clone, Copy)]
 pub struct AdminGhost {
     pub body: Option<Entity>,
-}
-
-/// Права игрока: хост на своей машине может всё.
-/// Администратор ли игрок: пока прав нет (6.6), администратор — игрок с этой же машины при
-/// `login.local` (как хост SS14 в разработке).
-pub fn is_admin(world: &World, session: Entity) -> bool {
-    if !world.resource::<Config>().get(&LOGIN_LOCAL) {
-        return false;
-    }
-    let Some(conn) = world.get::<Session>(session).map(|s| s.conn) else {
-        return false;
-    };
-    world
-        .get_resource::<ServerNet>()
-        .and_then(|net| net.address(conn))
-        .is_some_and(|address| address.ip().is_loopback())
-}
-
-pub(crate) fn permission(world: &World, shell: &ConsoleShell, command: &str) -> bool {
-    // Команды для всех игроков (`AnyCommand`): готовность, вход в раунд, наблюдение.
-    if shell.player.is_some()
-        && (crate::game_ticker::ANY_COMMANDS.contains(&command)
-            || crate::chat::CHAT_COMMANDS.contains(&command)
-            || crate::ghost::GHOST_COMMANDS.contains(&command)
-            || crate::ghost_roles::GHOST_ROLE_COMMANDS.contains(&command))
-    {
-        return true;
-    }
-    if !world.resource::<Config>().get(&LOGIN_LOCAL) {
-        return false;
-    }
-    let Some(conn) = shell
-        .player
-        .and_then(|session| world.get::<Session>(session))
-        .map(|session| session.conn)
-    else {
-        return false;
-    };
-    world
-        .get_resource::<ServerNet>()
-        .and_then(|net| net.address(conn))
-        .is_some_and(|address| address.ip().is_loopback())
 }
 
 fn map_id(shell: &mut ConsoleShell, text: &str) -> Option<MapId> {
@@ -768,9 +725,6 @@ pub fn install(world: &mut World, side: Side) {
     }
     world.register_cvar(&USER_DATA);
     world.register_cvar(&LOGIN_LOCAL);
-    world
-        .get_resource_or_insert_with(Console::default)
-        .permission = Some(permission);
     for command in [
         command(
             "addmap",

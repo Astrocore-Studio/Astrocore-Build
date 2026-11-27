@@ -10,6 +10,7 @@ pub mod action_blocker;
 pub mod actions;
 pub mod activatable_ui;
 pub mod admin_logs;
+pub mod admin_manager;
 pub mod admins;
 pub mod airtight;
 pub mod ame;
@@ -255,6 +256,7 @@ pub fn install_content(world: &mut World, side: Side) {
     database::install(world, side);
     bans::install(world);
     admin_logs::install(world, side);
+    admin_manager::install(world, side);
     profiles::install(world);
     markings::install(world);
     preferences::install(world, side);

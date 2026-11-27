@@ -41,6 +41,7 @@ fn mapper(world: &mut World, address: &str) -> (Entity, Entity) {
         })
         .id();
     world.attach_player(session, body);
+    crate::admin_manager::load_admin(world, session);
     (session, grid)
 }
 

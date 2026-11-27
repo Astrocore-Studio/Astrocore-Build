@@ -193,6 +193,21 @@ impl Db {
         Ok(())
     }
 
+    /// Запомнить, что права сняты на время (`UpdateAdminDeadminnedAsync`).
+    pub async fn update_admin_deadminned(
+        &self,
+        user_id: NetUserId,
+        deadminned: bool,
+    ) -> DbResult<()> {
+        sqlx::query("UPDATE admin SET deadminned = $1 WHERE user_id = $2")
+            .bind(i64::from(deadminned))
+            .bind(user_id.to_string())
+            .execute(&self.pool)
+            .await
+            .map_err(db_error)?;
+        Ok(())
+    }
+
     /// Снять администратора (`RemoveAdminAsync`).
     pub async fn remove_admin(&self, user_id: NetUserId) -> DbResult<()> {
         sqlx::query("DELETE FROM admin WHERE user_id = $1")

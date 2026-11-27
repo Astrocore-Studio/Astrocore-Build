@@ -6,8 +6,7 @@
 //! `ChatBox`, `ChannelSelectorButton`, `ChatChannelExtensions.TextColor`, `SpeechBubble`
 //! клиента SS14 @ 2f4a2aad.
 //!
-//! Нет пока: фильтров каналов и счётчиков непрочитанного, админ-чата и чата мёртвых для
-//! администраторов (клиент не знает прав, 6.6), подсветки слов и кодовых слов, цветных имён,
+//! Нет пока: фильтров каналов и счётчиков непрочитанного, подсветки слов и кодовых слов, цветных имён,
 //! предпросмотра набора, индикатора набора, скрытия облачков за стенами, жирного и курсива
 //! (у интерфейса пока один шрифт).
 
@@ -144,6 +143,16 @@ pub fn can_send_channels(world: &GameWorld) -> Vec<SelectChannel> {
                 SelectChannel::Emotes,
             ]);
         }
+    }
+    // Мёртвые — призракам и администраторам, админ-чат — с правом на него.
+    let admin = world.get_resource::<crate::admin_manager::ClientAdmin>();
+    if admin.is_some_and(|a| a.has_flag(crate::admin_manager::flags::ADMIN))
+        && !channels.contains(&SelectChannel::Dead)
+    {
+        channels.push(SelectChannel::Dead);
+    }
+    if admin.is_some_and(|a| a.has_flag(crate::admin_manager::flags::ADMINCHAT)) {
+        channels.push(SelectChannel::Admin);
     }
     channels
 }

@@ -55,7 +55,7 @@ pub enum PlacementRequest {
 /// Может ли сессия мапить: те же права, что у консольной команды `mapping`.
 pub fn can_place(world: &World, session: Entity) -> bool {
     let shell = ConsoleShell::player(session);
-    crate::map_commands::permission(world, &shell, "mapping")
+    crate::admin_manager::permission(world, &shell, "mapping")
 }
 
 /// Сущность на карте: прямой потомок грида или карты (вложенное уходит с владельцем).

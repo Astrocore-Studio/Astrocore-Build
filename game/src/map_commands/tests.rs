@@ -53,6 +53,8 @@ fn player(world: &mut World, address: &str, body: Entity) -> Entity {
         })
         .id();
     world.attach_player(session, body);
+    // Права загружаются при входе (`LoginAdminMaybe`).
+    crate::admin_manager::load_admin(world, session);
     session
 }
 
@@ -155,6 +157,7 @@ fn only_players_on_the_server_machine_may_run_commands() {
         .resource_mut::<ServerNet>()
         .addresses
         .insert(ConnId(1), "127.0.0.1:5000".parse().unwrap());
+    crate::admin_manager::load_admin(&mut world, session);
     let mut shell = ConsoleShell::player(session);
     assert!(world.execute_command(&mut shell, "lsmap").is_ok());
 }
