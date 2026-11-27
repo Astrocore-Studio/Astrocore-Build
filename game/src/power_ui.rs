@@ -2,13 +2,18 @@
 //! `AmeWindow`), АПЦ (`ApcBoundUserInterface`, `ApcMenu`) и консоль ID-карт
 //! (`IdCardConsoleBoundUserInterface`, `IdCardConsoleWindow`), машина с зарядом — генератор
 //! гравитации (`PowerChargeBoundUserInterface`, `PowerChargeWindow`) и пульт ускорителя частиц
-//! (`ParticleAcceleratorBoundUserInterface`, `ParticleAcceleratorControlMenu`) SS14 @ 2f4a2aad.
+//! (`ParticleAcceleratorBoundUserInterface`, `ParticleAcceleratorControlMenu`), газовый баллон
+//! (`GasTankBoundUserInterface`, `GasTankWindow`) SS14 @ 2f4a2aad. Поле ввода давления баллона
+//! заменено кнопками шага.
 
 use astrocore_client::{UiAction, WindowKinds, spawn_button, spawn_label};
 use astrocore_ui::UiWorldExt;
 use bevy::prelude::*;
 
 use crate::ame::{AME_UI_KEY, AmeUiButton, AmeUiState};
+use crate::gas_tank::{
+    GAS_TANK_UI_KEY, GasTankSetPressure, GasTankToggleInternals, GasTankUiState,
+};
 use crate::gravity::{
     POWER_CHARGE_UI_KEY, PowerChargeStatus, PowerChargeUiState, SwitchChargingMachine,
 };
@@ -296,6 +301,64 @@ impl Plugin for PowerUiPlugin {
                         );
                     }),
                 );
+            },
+        );
+        kinds.register(
+            "GasTankBoundUserInterface",
+            |commands, content, ui, _, style| {
+                let Some(state) = ui.state::<GasTankUiState>() else {
+                    spawn_label(commands, content, style, "Нет данных");
+                    return;
+                };
+                for line in [
+                    format!("Давление в баллоне: {:.1} кПа", state.tank_pressure),
+                    format!("Давление выпуска: {:.1} кПа", state.release_pressure),
+                    format!(
+                        "Дыхание из баллона: {}",
+                        if state.connected {
+                            "подключено"
+                        } else {
+                            "отключено"
+                        }
+                    ),
+                ] {
+                    spawn_label(commands, content, style, &line);
+                }
+                let entity = ui.entity;
+                for (text, step) in [("Выпуск −10 кПа", -10.0f32), ("Выпуск +10 кПа", 10.0)]
+                {
+                    let pressure = (state.release_pressure + step)
+                        .clamp(state.min_release_pressure, state.max_release_pressure);
+                    spawn_button(
+                        commands,
+                        content,
+                        style,
+                        text,
+                        UiAction::new(move |world| {
+                            world.send_ui_message(
+                                entity,
+                                GAS_TANK_UI_KEY,
+                                &GasTankSetPressure { pressure },
+                            );
+                        }),
+                    );
+                }
+                if state.connected || state.can_connect {
+                    let text = if state.connected {
+                        "Отключить дыхание"
+                    } else {
+                        "Подключить дыхание"
+                    };
+                    spawn_button(
+                        commands,
+                        content,
+                        style,
+                        text,
+                        UiAction::new(move |world| {
+                            world.send_ui_message(entity, GAS_TANK_UI_KEY, &GasTankToggleInternals);
+                        }),
+                    );
+                }
             },
         );
         kinds.register(

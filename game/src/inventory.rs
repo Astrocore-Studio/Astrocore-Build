@@ -40,6 +40,8 @@ impl SlotFlags {
     pub const NONE: SlotFlags = SlotFlags(0);
     pub const PREVENTEQUIP: SlotFlags = SlotFlags(1 << 0);
     pub const POCKET: SlotFlags = SlotFlags(1 << 12);
+    pub const HEAD: SlotFlags = SlotFlags(1 << 1);
+    pub const MASK: SlotFlags = SlotFlags(1 << 4);
     pub const GLOVES: SlotFlags = SlotFlags(1 << 10);
 
     const NAMES: [(&'static str, u32); 18] = [

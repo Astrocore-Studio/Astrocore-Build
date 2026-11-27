@@ -46,6 +46,7 @@ pub mod healing;
 pub mod id_console;
 pub mod input_contexts;
 pub mod interaction;
+pub mod internals;
 pub mod inventory;
 pub mod item;
 pub mod item_slots;
@@ -215,6 +216,7 @@ pub fn install_content(world: &mut World, side: Side) {
     temperature::install(world, side);
     flammable::install(world, side);
     respiration::install(world, side);
+    internals::install(world, side);
     pipes::install(world, side);
     atmos_devices::install(world, side);
     weldable::install(world, side);

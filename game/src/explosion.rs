@@ -841,11 +841,24 @@ pub fn queue_explosion(
 
 /// Взорвать взрывчатку сущности (`TriggerExplosive`).
 pub fn trigger_explosive(world: &mut World, entity: Entity, user: Option<Entity>) {
-    let Some(explosive) = world.get::<Explosive>(entity).cloned() else {
+    trigger_explosive_with(world, entity, user, None);
+}
+
+/// Взорвать с другой общей силой (`TriggerExplosive(totalIntensity:)`): разрыв баллона.
+pub fn trigger_explosive_with(
+    world: &mut World,
+    entity: Entity,
+    user: Option<Entity>,
+    total_intensity: Option<f32>,
+) {
+    let Some(mut explosive) = world.get::<Explosive>(entity).cloned() else {
         return;
     };
     if explosive.exploded {
         return;
+    }
+    if let Some(total) = total_intensity {
+        explosive.total_intensity = total;
     }
     if let Some(mut component) = world.get_mut::<Explosive>(entity) {
         component.exploded = !explosive.repeatable;

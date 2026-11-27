@@ -228,6 +228,80 @@ pub struct RequestPerformAction {
     pub coordinates_target: Option<(MapId, Vec2, i16)>,
 }
 
+/// Действие в контейнере источника (`ActionContainerSystem.EnsureAction`): готовое, если
+/// оно ещё есть, иначе новое из прототипа. Владельцу не выдаётся.
+pub fn ensure_action(
+    world: &mut World,
+    source: Entity,
+    existing: Option<Entity>,
+    prototype: &str,
+) -> Option<Entity> {
+    if let Some(action) = existing
+        && world.get_entity(action).is_ok()
+        && world.get::<Action>(action).is_some()
+    {
+        return Some(action);
+    }
+    world.ensure_container(source, ACTIONS_CONTAINER, ContainerKind::List);
+    let at = world.coordinates(source)?;
+    let action = world.spawn_attached(prototype, at).ok()?;
+    if world.get::<Action>(action).is_none() {
+        world.delete_entity(action);
+        return None;
+    }
+    if world
+        .force_insert_into_container(action, source, ACTIONS_CONTAINER)
+        .is_err()
+    {
+        world.delete_entity(action);
+        return None;
+    }
+    if let Some(mut component) = world.get_mut::<Action>(action) {
+        component.container = Some(source);
+    }
+    Some(action)
+}
+
+/// Какие действия даёт предмет надевшему или взявшему его (`GetItemActionsEvent`).
+/// Поднимается на предмете; обработчик кладёт действия через [`ensure_action`].
+#[derive(Debug, Clone)]
+pub struct GetItemActions {
+    pub user: Entity,
+    /// Флаги слота; `None` — предмет в руке (`InHands`).
+    pub slot_flags: Option<crate::inventory::SlotFlags>,
+    pub actions: Vec<Entity>,
+}
+
+/// Выдать действия предмета (`OnDidEquip`, `OnHandEquipped`, `GrantActions`).
+fn grant_item_actions(
+    world: &mut World,
+    user: Entity,
+    item: Entity,
+    slot_flags: Option<crate::inventory::SlotFlags>,
+) {
+    let mut event = GetItemActions {
+        user,
+        slot_flags,
+        actions: Vec::new(),
+    };
+    world.raise(item, &mut event);
+    for action in event.actions {
+        world.add_action_direct(user, action);
+    }
+}
+
+/// Убрать действия, которые дал предмет (`RemoveProvidedActions`).
+pub fn remove_provided_actions(world: &mut World, performer: Entity, container: Entity) {
+    for action in world.actions_of(performer) {
+        if world
+            .get::<Action>(action)
+            .is_some_and(|a| a.container == Some(container))
+        {
+            world.remove_action(performer, action);
+        }
+    }
+}
+
 fn event_kind(node: &DataNode) -> String {
     node.tag
         .as_deref()
@@ -278,23 +352,7 @@ impl ActionsWorldExt for World {
         container: Option<Entity>,
     ) -> Option<Entity> {
         let source = container.unwrap_or(performer);
-        self.ensure_container(source, ACTIONS_CONTAINER, ContainerKind::List);
-        let at = self.coordinates(source)?;
-        let action = self.spawn_attached(prototype, at).ok()?;
-        if self.get::<Action>(action).is_none() {
-            self.delete_entity(action);
-            return None;
-        }
-        if self
-            .force_insert_into_container(action, source, ACTIONS_CONTAINER)
-            .is_err()
-        {
-            self.delete_entity(action);
-            return None;
-        }
-        if let Some(mut component) = self.get_mut::<Action>(action) {
-            component.container = Some(source);
-        }
+        let action = ensure_action(self, source, None, prototype)?;
         self.add_action_direct(performer, action).then_some(action)
     }
 
@@ -743,6 +801,28 @@ pub(crate) fn install(world: &mut World, side: crate::Side) {
         world.set_appearance(action, VISUALS_TOGGLED, toggled);
     });
     world.subscribe_net_event::<RequestPerformAction>(receive);
+    // Выдача и отзыв действий предметов (`OnDidEquip` и др.): на носящем и держащем, даже
+    // если действий у него ещё нет.
+    world.subscribe::<crate::inventory::Inventory, crate::inventory::Equipped>(
+        |world, wearer, event| {
+            if event.wearer == wearer {
+                grant_item_actions(world, wearer, event.item, Some(event.slot_flags));
+            }
+        },
+    );
+    world.subscribe::<crate::hands::Hands, crate::hands::DidEquipHand>(|world, user, event| {
+        grant_item_actions(world, user, event.item, None);
+    });
+    world.subscribe::<crate::inventory::Inventory, crate::inventory::Unequipped>(
+        |world, wearer, event| {
+            if event.wearer == wearer {
+                remove_provided_actions(world, wearer, event.item);
+            }
+        },
+    );
+    world.subscribe::<crate::hands::Hands, crate::hands::DidUnequipHand>(|world, user, event| {
+        remove_provided_actions(world, user, event.item);
+    });
 }
 
 #[cfg(test)]
