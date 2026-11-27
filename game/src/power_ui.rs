@@ -1,12 +1,16 @@
 //! Окна электросети на клиенте: контроллер AME (`AmeControllerBoundUserInterface`,
 //! `AmeWindow`), АПЦ (`ApcBoundUserInterface`, `ApcMenu`) и консоль ID-карт
-//! (`IdCardConsoleBoundUserInterface`, `IdCardConsoleWindow`) SS14 @ 2f4a2aad.
+//! (`IdCardConsoleBoundUserInterface`, `IdCardConsoleWindow`), машина с зарядом — генератор
+//! гравитации (`PowerChargeBoundUserInterface`, `PowerChargeWindow`) SS14 @ 2f4a2aad.
 
 use astrocore_client::{UiAction, WindowKinds, spawn_button, spawn_label};
 use astrocore_ui::UiWorldExt;
 use bevy::prelude::*;
 
 use crate::ame::{AME_UI_KEY, AmeUiButton, AmeUiState};
+use crate::gravity::{
+    POWER_CHARGE_UI_KEY, PowerChargeStatus, PowerChargeUiState, SwitchChargingMachine,
+};
 use crate::id_console::{ID_CONSOLE_UI_KEY, IdConsoleState, WriteToTargetId};
 use crate::power::{APC_UI_KEY, ApcExternalPower, ApcToggleMainBreaker, ApcUiState};
 
@@ -141,6 +145,64 @@ impl Plugin for PowerUiPlugin {
                         }),
                     );
                 }
+            },
+        );
+        kinds.register(
+            "PowerChargeBoundUserInterface",
+            |commands, content, ui, _, style| {
+                let Some(state) = ui.state::<PowerChargeUiState>() else {
+                    spawn_label(commands, content, style, "Нет данных");
+                    return;
+                };
+                let status = match state.status {
+                    PowerChargeStatus::Off => "выключен",
+                    PowerChargeStatus::Discharging => "разряжается",
+                    PowerChargeStatus::Charging => "заряжается",
+                    PowerChargeStatus::FullyCharged => "заряжен",
+                };
+                let eta = if state.eta_seconds >= 0 {
+                    format!("{} с", state.eta_seconds)
+                } else {
+                    "—".to_owned()
+                };
+                for line in [
+                    format!(
+                        "Питание: {}",
+                        if state.on {
+                            "включено"
+                        } else {
+                            "выключено"
+                        }
+                    ),
+                    format!(
+                        "Потребление: {} из {} Вт",
+                        state.power_draw, state.power_draw_max
+                    ),
+                    format!("Заряд: {:.0} %", f32::from(state.charge) / 255.0 * 100.0),
+                    format!("Состояние: {status}"),
+                    format!("До цели: {eta}"),
+                ] {
+                    spawn_label(commands, content, style, &line);
+                }
+                let entity = ui.entity;
+                let on = !state.on;
+                spawn_button(
+                    commands,
+                    content,
+                    style,
+                    if state.on {
+                        "Выключить"
+                    } else {
+                        "Включить"
+                    },
+                    UiAction::new(move |world| {
+                        world.send_ui_message(
+                            entity,
+                            POWER_CHARGE_UI_KEY,
+                            &SwitchChargingMachine { on },
+                        );
+                    }),
+                );
             },
         );
         kinds.register(

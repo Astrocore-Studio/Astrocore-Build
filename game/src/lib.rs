@@ -33,6 +33,7 @@ pub mod flatpack;
 pub mod floor_tile;
 pub mod friction;
 pub mod grammar;
+pub mod gravity;
 pub mod hands;
 pub mod healing;
 pub mod id_console;
@@ -177,6 +178,7 @@ pub fn install_content(world: &mut World, side: Side) {
     access::install(world, side);
     lock::install(world, side);
     lights::install(world, side);
+    gravity::install(world, side);
     id_console::install(world, side);
     airtight::install(world, side);
     atmos::install(world, side);

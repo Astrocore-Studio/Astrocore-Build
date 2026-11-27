@@ -2,12 +2,13 @@
 //! Образец — `Content.Shared/Friction/TileFrictionController.cs` SS14 @ 2f4a2aad.
 //!
 //! Каждый такт перед шагом физики телу задаётся затухание скорости: на полу — трение тайла
-//! (поле `friction` прототипа тайла) на множитель `physics.tile_friction`, в воздухе —
+//! (поле `friction` прототипа тайла) на множитель `physics.tile_friction`, в воздухе и без
+//! гравитации —
 //! `physics.air_friction`, в космосе — `physics.offgrid_friction`.
 
 use std::collections::HashMap;
 
-use astrocore_console::{CVarDef, CVarFlags, ConfigWorldExt};
+use astrocore_console::ConfigWorldExt;
 use astrocore_ecs::{EventWorldExt, GameTime, GameWorldExt, RegistryWorldExt, Update};
 use astrocore_map::{MapGrid, MapWorldExt, TileDefinitions, Transform, TransformWorldExt};
 use astrocore_movement::{InputMover, TILE_FRICTION};
@@ -19,27 +20,7 @@ use bevy_ecs::resource::Resource;
 use bevy_ecs::world::World;
 use serde::{Deserialize, Serialize};
 
-const FLAGS: CVarFlags = CVarFlags::SERVER
-    .union(CVarFlags::REPLICATED)
-    .union(CVarFlags::ARCHIVE);
-
-/// Наименьшее затухание (`physics.min_friction`).
-pub const MIN_FRICTION: CVarDef<f32> = CVarDef::new(
-    "physics.min_friction",
-    0.0,
-    FLAGS,
-    "Наименьшее трение тела.",
-);
-/// Трение в воздухе (`physics.air_friction`).
-pub const AIR_FRICTION: CVarDef<f32> =
-    CVarDef::new("physics.air_friction", 0.2, FLAGS, "Трение тела в воздухе.");
-/// Трение в космосе вне гридов (`physics.offgrid_friction`).
-pub const OFFGRID_FRICTION: CVarDef<f32> = CVarDef::new(
-    "physics.offgrid_friction",
-    0.05,
-    FLAGS,
-    "Трение тела в космосе вне гридов.",
-);
+pub use astrocore_movement::{AIR_FRICTION, MIN_FRICTION, OFFGRID_FRICTION};
 
 /// Множитель трения сущности или стоящего на тайле предмета (ковёр, лёд). В данных —
 /// компонент `TileFrictionModifier`.
@@ -145,8 +126,9 @@ fn update(world: &mut World) {
         ) else {
             continue;
         };
-        let in_air =
-            body.body_status != BodyStatus::OnGround && world.get::<CanMoveInAir>(entity).is_none();
+        let in_air = body.body_status != BodyStatus::OnGround
+            && world.get::<CanMoveInAir>(entity).is_none()
+            || crate::gravity::is_weightless(world, entity);
         let mut friction = if in_air {
             if transform.grid().is_some() {
                 air
@@ -179,9 +161,6 @@ pub(crate) fn install(world: &mut World, side: crate::Side) {
     world.register_data_component::<CanMoveInAir>();
     world.register_net_serde::<TileFrictionModifier>();
     world.register_net_serde::<CanMoveInAir>();
-    world.register_cvar(&MIN_FRICTION);
-    world.register_cvar(&AIR_FRICTION);
-    world.register_cvar(&OFFGRID_FRICTION);
     world.init_resource::<TileFrictions>();
     if side.is_server() {
         world.add_game_systems(Update, update);

@@ -103,5 +103,19 @@ fn main() -> Result<(), String> {
         println!("  без питания: {proto} × {count}");
     }
     println!("Такт сервера: {per_tick:.1?}");
+    let gravity: Vec<(bool, bool)> = world
+        .query::<&astrocore_game::gravity::Gravity>()
+        .iter(world)
+        .map(|g| (g.enabled, g.inherent))
+        .collect();
+    let generators: Vec<(bool, f32)> = world
+        .query::<(
+            &astrocore_game::gravity::GravityGenerator,
+            &astrocore_game::gravity::PowerCharge,
+        )>()
+        .iter(world)
+        .map(|(g, c)| (g.gravity_active, c.charge))
+        .collect();
+    println!("Гравитация (вкл, своя): {gravity:?}; генераторы (работает, заряд): {generators:?}");
     Ok(())
 }
