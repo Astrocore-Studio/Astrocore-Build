@@ -305,39 +305,51 @@ fn savemap(world: &mut World, shell: &mut ConsoleShell, args: &[String]) {
         },
         None => false,
     };
-    let file = match user_file(world, &args[1]) {
-        Ok(file) => file,
-        Err(error) => return shell.write_error(error),
-    };
-    crate::decals::write_for_save(world, map);
-    crate::atmos::write_for_save(world, map);
-    let saved = match world.save_map(
-        map,
-        MapSaveOptions {
-            allow_initialized: force,
-        },
-    ) {
-        Ok(saved) => saved,
-        Err(error) => {
-            return shell.write_error(format!(
-                "{error}; сохранить всё равно: savemap <номер> <путь> true"
-            ));
-        }
-    };
-    let text = to_yaml_string(&saved.document);
-    let written = file
-        .parent()
-        .map_or(Ok(()), std::fs::create_dir_all)
-        .and_then(|()| std::fs::write(&file, text));
-    match written {
-        Ok(()) => shell.write_line(format!(
-            "карта {} сохранена в {}: сущностей {}",
+    match save_map_file(world, map, &args[1], force) {
+        Ok((file, entities)) => shell.write_line(format!(
+            "карта {} сохранена в {}: сущностей {entities}",
             id.0,
             file.display(),
-            saved.entities
         )),
-        Err(error) => shell.write_error(format!("{}: {error}", file.display())),
+        Err(SaveError::Initialized(error)) => shell.write_error(format!(
+            "{error}; сохранить всё равно: savemap <номер> <путь> true"
+        )),
+        Err(SaveError::Other(error)) => shell.write_error(error),
     }
+}
+
+/// Почему карта не сохранилась.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum SaveError {
+    /// Карта уже инициализирована, а сохранение без `force`.
+    Initialized(String),
+    Other(String),
+}
+
+/// Сохраняет карту в файл данных пользователя (`TrySaveMap`): путь и число сущностей.
+pub fn save_map_file(
+    world: &mut World,
+    map: Entity,
+    path: &str,
+    force: bool,
+) -> Result<(PathBuf, usize), SaveError> {
+    let file = user_file(world, path).map_err(SaveError::Other)?;
+    crate::decals::write_for_save(world, map);
+    crate::atmos::write_for_save(world, map);
+    let saved = world
+        .save_map(
+            map,
+            MapSaveOptions {
+                allow_initialized: force,
+            },
+        )
+        .map_err(|error| SaveError::Initialized(error.to_string()))?;
+    let text = to_yaml_string(&saved.document);
+    file.parent()
+        .map_or(Ok(()), std::fs::create_dir_all)
+        .and_then(|()| std::fs::write(&file, text))
+        .map_err(|error| SaveError::Other(format!("{}: {error}", file.display())))?;
+    Ok((file, saved.entities))
 }
 
 fn rmmap(world: &mut World, shell: &mut ConsoleShell, args: &[String]) {
@@ -643,6 +655,9 @@ fn mapping(world: &mut World, shell: &mut ConsoleShell, args: &[String]) {
     {
         shell.write_error(error);
     }
+    // Автосохранение карты маппинга (`ToggleAutosave` в `MappingCommand`).
+    let name = args.get(1).map_or("NEWMAP", String::as_str);
+    crate::mapping_autosave::toggle_autosave(world, id, Some(name));
     match args.get(1) {
         Some(path) => shell.write_line(format!("маппинг карты {} из {path}", id.0)),
         None => shell.write_line(format!("маппинг новой карты {}", id.0)),

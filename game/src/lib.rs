@@ -73,6 +73,7 @@ pub mod item_slots;
 pub mod lights;
 pub mod lock;
 pub mod map_commands;
+pub mod mapping_autosave;
 pub mod markings;
 pub mod mind;
 pub mod mobs;
@@ -230,6 +231,7 @@ pub fn install_content(world: &mut World, side: Side) {
     body::install(world, side);
     damage_other_on_hit::install(world, side);
     map_commands::install(world, side);
+    mapping_autosave::install(world, side);
     placement::install(world, side);
     decals::install(world, side);
     node_container::install(world, side);

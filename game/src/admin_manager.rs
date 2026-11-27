@@ -237,7 +237,7 @@ pub fn command_flags(command: &str) -> Option<&'static [u32]> {
         "addmap" | "loadmap" | "mapinit" | "savemap" | "tpgrid" | "rmmap" => &[MAPPING],
         "querymappaused" => &[DEBUG, MAPPING],
         "lsmap" => &[DEBUG],
-        "mapping" => &[SERVER, MAPPING],
+        "mapping" | "toggleautosave" => &[SERVER, MAPPING],
         "pausemap" | "unpausemap" => &[SERVER, MAPPING],
         "explosion" => &[FUN],
         "addgas" | "echo" => &[DEBUG],
