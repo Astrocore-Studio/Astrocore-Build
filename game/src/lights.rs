@@ -3,8 +3,7 @@
 //! броском. Образец — `SharedPoweredLightSystem`, `PoweredLightSystem`, `SharedLightBulbSystem`
 //! и `LitOnPoweredSystem` SS14 @ 2f4a2aad.
 //!
-//! Нет пока: сигналов включения (связь устройств, 5.6б), жжения руки о горящую лампу,
-//! гула и мигания по событиям станции.
+//! Нет пока: жжения руки о горящую лампу, гула и мигания по событиям станции.
 
 use astrocore_audio::{AudioWorldExt, SoundSpecifier};
 use astrocore_ecs::{EventWorldExt, GameTime, MapInit, RegistryWorldExt};

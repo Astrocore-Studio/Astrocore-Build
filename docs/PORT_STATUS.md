@@ -56,28 +56,41 @@
 
 | SS14 | Astrocore | Статус | Примечание |
 |---|---|---|---|
-| `Content.Server/Atmos` (смеси, тайловая атмосфера) | `crates/atmos`, `2d/src/environment.rs` | частично | Работает в Relay Two; перенос на компоненты — задача 5.5. |
-| Трубы, насосы, фильтры, вентиляция | `2d/src/piping.rs` | частично | Задача 5.6. |
-| `Content.Server/Power` (сети, SMES, подстанции) | `crates/power`, `2d/src/electricity.rs`, `wiring.rs` | частично | Задача 5.4. |
-| Доступ и ID-карты | `2d/src/access.rs`, `id_console.rs` | частично | Задача 5.2. |
+| `SharedDoorSystem`, `SharedAirlockSystem`, `DoorBoltSystem`, `PryingSystem`, `WeldableSystem`, `FirelockSystem` | `game/src/doors.rs`, `firelock.rs`, `weldable.rs`, `door_visuals.rs` | частично | Двери, шлюзы, болты, аварийный доступ, взлом, сварка, автозакрытие, пожарные шлюзы по тревоге и перепаду. Нет топлива сварки (7.2), стыковочных шлюзов (7.8), вида огней пожарного шлюза на клиенте. |
+| `AccessReaderSystem`, `IdCardSystem`, `IdCardConsoleSystem`, `LockSystem` | `game/src/access.rs`, `id_console.rs`, `lock.rs` | частично | Уровни доступа из прототипов, ID-карты и ПДА, консоль ID-карт, замки шкафов и ящиков. Ключи записей станции — с записями (фаза 6). |
+| `WiresSystem` и действия проводов | `game/src/wires.rs`, `wires_ui.rs` | частично | Панели, провода по прототипам, кусачки и мультитул, действия дверей и питания. Нет провода «паника» воздушной тревоги (7.9). |
+| `PowerNetSystem`, `NodeGroupSystem`, `ApcSystem`, `BatterySystem`, кабели | `game/src/power.rs`, `node_container.rs`, `cables.rs`, `cable_visuals.rs`, `power_ui.rs` | частично | Сети HV/MV/LV, решатель, SMES, подстанции, APC с окном, потребители, удар током. Сеть узлов пересобирается целиком (долг — 8.1). |
+| `AmeControllerSystem` и двигатели | `game/src/ame.rs` | частично | AME с топливом и окном. Солнечные панели, ТЭГ и Тесла — после фазы 6. |
+| `AtmosphereSystem` (смеси, тайловая атмосфера, `Monstermos`, огонь, реакции), `AirtightSystem`, `BarotraumaSystem` | `game/src/atmos/`, `airtight.rs`, `barotrauma.rs`, `gas_overlay_visuals.rs` | частично | Газы и реакции из прототипов, разгерметизация, огонь, баротравма, газовый слой на клиенте. Взрыв и атмосфера — только на гридах. |
+| Трубы и атмосферные устройства (`PipeNet`, насосы, клапаны, фильтры, вентиляции, скрубберы) | `game/src/pipes.rs`, `atmos_devices.rs` | частично | Нет смесителей, радиаторов, теплообменников. |
+| Канистры, порты, термомашины, баллоны, газоанализатор | `game/src/atmos_portables.rs`, `gas_tank.rs`, `gas_analyzer.rs` | частично | Нет космонагревателя, вида прочности баллона. |
+| `TemperatureSystem`, `FlammableSystem`, `RespiratorSystem`, `LungSystem`, `InternalsSystem` | `game/src/temperature.rs`, `flammable.rs`, `respiration.rs`, `internals.rs`, `fire_visuals.rs` | частично | Температура тел, горение, дыхание, баллон через маску (ADR-0009). Нет значков тревог (7.1), тушения (7.2), реактивных ранцев. |
+| `AtmosMonitorSystem`, `AtmosAlarmableSystem`, `AirAlarmSystem`, `FireAlarmSystem` | `game/src/atmos_alarms.rs`, `alarm_visuals.rs` | частично | Датчики, тревоги, режимы воздушной тревоги с окном, порты сигналов. Нет взлома электромагнитом (7.7), пульта тревог станции. |
+| `DeviceNetworkSystem`, `DeviceListSystem` | `game/src/device_network.rs` | частично | Сети по номеру, адреса, частоты, проводная, беспроводная и APC, списки из карты (ADR-0010). Нет настройщика сети (6.6), маршрутизаторов, глушилок. |
+| `DeviceLinkSystem`, `DoorSignalControlSystem`, `SignalSwitchSystem`, `TwoWayLeverSystem`, `LogicGateSystem` | `game/src/device_linking.rs`, `signal_devices.rs` | частично | Порты, связи из карты, импульсы и уровни, перегрузка, двери, кнопки, рычаги, логические элементы. Нет таймеров (7.3), конвейеров (7.5), настройщика (6.6). |
+| `ConstructionSystem`, `FloorTileSystem`, `AnchorableSystem` | `game/src/construction.rs`, `construction_ui.rs`, `floor_tile.rs`, `anchorable.rs` | частично | Графы конструкций SS14, меню строительства, плитки, закрепление. Неперенесённые действия графов пропускаются. |
+| `PoweredLightSystem`, `GravityGeneratorSystem` | `game/src/lights.rs`, `gravity.rs`, `light_visuals.rs` | частично | Светильники с лампами и сигналами, генератор гравитации, невесомость. Нет тряски грида, магнитных ботинок. |
+| Сингулярность, сдерживающее поле, эмиттеры, ускоритель частиц, излучение | `game/src/singularity.rs`, `containment.rs`, `particle_accelerator.rs`, `radiation.rs` | частично | Нет искажения пространства, счётчика Гейгера, проводов пульта ускорителя. |
+| `ExplosionSystem` | `game/src/explosion.rs`, `explosion_visuals.rs` | частично | Интенсивность по клеткам, обработка по тактам, урон и разрушение, вид огня. Нет нескольких гридов и открытого космоса (7.8). |
+| Атмос, трубы, питание, доступ (Relay Two) | `crates/atmos`, `crates/power`, `2d/src/` | заменено | В игре на ядре — системы выше; Relay Two не переносится (решение владельца, 4.5). |
 | Должности, лобби, поздний вход | `2d/src/jobs.rs`, `2d/src/lib.rs` | частично | Задача 6.3. |
 | `Content.Client/IconSmoothing` | `game/src/smooth.rs` | готово | Все правила SS14: `Corner`, `CardinalCorner`, `Diagonal`, `AltDiagonal`, `Direction`, `Edge`. Нет шейдера слоёв и `RandomIconSmooth`. |
 | `MarkerComponent`, `MarkerSystem` | `game/src/client.rs` | частично | Метки скрыты; показа для мапперов нет. |
 | `CollisionGroup`, `DrawDepth`, `VisibilityFlags` | `game/src/content.rs` | готово | Таблицы имён SS14. |
 | Вход игрока на карту | `game/src/server.rs` | частично | Человек (`MobHuman`, настройка `game.player_prototype`) у точки появления. Должности и лобби — задача 6.3. |
-| `ActivatableUISystem` | `game/src/activatable_ui.rs` | частично | Открытие окна устройства «использовать», только в руке, одним пользователем, глагол. Нет проверки питания (5.4). |
+| `ActivatableUISystem` | `game/src/activatable_ui.rs` | частично | Открытие окна устройства «использовать», только в руке, одним пользователем, глагол. Нет проверки питания (`ActivatableUIRequiresPower`). |
 | `ContentContexts` (контексты ввода) | `game/src/input_contexts.rs` | готово | Таблица получена из исходника SS14. |
 | `SharedInteractionSystem` (клик, клик предметом, «использовать», дальность и преграды, доступ сквозь контейнеры) | `game/src/interaction.rs` | готово | Настенные предметы, обход дальности по тегу, поворот к цели. Нет ретрансляции управления (`InteractionRelay`). |
 | `ActionBlockerSystem` | `game/src/action_blocker.rs` | готово | События попытки: сознание, взаимодействие, использование, подбор, выброс, бросок, движение, удар. |
 | `TagSystem`, `EntityWhitelistSystem` | `game/src/tag.rs`, `whitelist.rs` | готово | Непереносённые компоненты в белых списках проверяются по прототипу сущности (ADR-0005). |
 | `SharedHandsSystem`, `ItemComponent`, `ThrowingSystem`, `TileFrictionController` | `game/src/hands.rs`, `item.rs`, `throwing.rs`, `friction.rs` | частично | Руки, подбор, выброс, бросок с полётом и приземлением, трение тайлов. Нет смещений спрайтов в руках (`displacement`). |
 | `InventorySystem`, `ClothingSystem` | `game/src/inventory.rs`, `clothing_visuals.rs`, `inventory_hud.rs` | частично | Слоты по шаблону, одевание с задержкой, звуки, вид одежды на теле. Нет снятия с другого (`Stripping`), маски для женского силуэта. |
-| `SharedStorageSystem`, `SharedEntityStorageSystem` | `game/src/storage.rs`, `entity_storage.rs`, `storage_hud.rs` | частично | Сетка с формами и поворотами, окно рюкзака, шкафы и ящики. Нет быстрой укладки с пола (`AreaInsert`), вложенных окон, замков (5.2). |
+| `SharedStorageSystem`, `SharedEntityStorageSystem` | `game/src/storage.rs`, `entity_storage.rs`, `storage_hud.rs` | частично | Сетка с формами и поворотами, окно рюкзака, шкафы и ящики. Нет быстрой укладки с пола (`AreaInsert`), вложенных окон. Замки — в `lock.rs`. |
 | `ExamineSystem`, `SharedVerbSystem`, `SharedPopupSystem`, `SharedDoAfterSystem` | `game/src/examine.rs`, `verbs.rs`, `popups.rs`, `do_after.rs`, `overlays.rs` | готово | Осмотр с подробностями по дальности, контекстное меню, всплывающие сообщения, действия с прогрессом и отменой. |
 | `DamageableSystem`, `MobStateSystem`, `MobThresholdSystem`, `StandingStateSystem` | `game/src/damage.rs`, `mobs.rs`, `standing.rs`, `mob_visuals.rs` | частично | Урон в сотых, типы, группы, контейнеры, сопротивления, пороги из данных, крит и смерть, лёжа и стоя, спрайт мёртвого. Нет брони одежды и вспышки урона (7.3), значков здоровья (7.1). |
 | `HealingSystem`, `DamageOtherOnHitSystem` | `game/src/healing.rs`, `damage_other_on_hit.rs` | частично | Лечение предметами стопками, урон от брошенного. Кровь — 7.1. |
 | `SharedStackSystem` | `game/src/stack.rs`, `stack_visuals.rs` | готово | Число, слияние, разделение, вид по числу. |
-| `SharedToolSystem` | `game/src/tools.rs` | частично | Качества, действие с задержкой, мультитул. Сварка — 7.2, плитки — 5.7. |
+| `SharedToolSystem` | `game/src/tools.rs` | частично | Качества, действие с задержкой, мультитул, плитки (`floor_tile.rs`). Топливо сварки — 7.2. |
 | `PullingSystem`, `PullController`, `SharedVirtualItemSystem` | `game/src/pulling.rs`, `virtual_item.rs` | частично | Тяга на сочленении, занятая рука, подтаскивание к точке. Нет значков-тревог (7.1). |
 | `SharedActionsSystem` | `game/src/actions.rs`, `action_bar.rs` | частично | Действия без цели, на сущность и на точку, перезарядка, горячая панель. Нет действий с задержкой (`DoAfterArgs`), повышения уровня действий, перетаскивания по ячейкам. |
 | `SharedCombatModeSystem`, `SharedMeleeWeaponSystem` | `game/src/combat.rs` | частично | Режим боя действием, лёгкий удар оружием, перчатками или кулаком. Остальное — 7.3. |
@@ -86,7 +99,7 @@
 | `Decal`, `DecalChunkComponent`, `DecalGridComponent`, `DecalOverlay` | `game/src/decals.rs`, `decal_visuals.rs` | частично | Чтение обоих форматов, отрисовка, размещение и удаление, сохранение в формат SS14 (ADR-0006). Нет выбора цвета и очистки декалей (`cleanable`). |
 | Урон и лечение (Relay Two) | `2d/src/medical.rs` | заменено | В игре на ядре — системы урона и лечения выше; Relay Two не переносится (решение владельца, 4.5). |
 | Инвентарь, рюкзаки, перетаскивание (Relay Two) | `2d/src/inventory.rs`, `pulling.rs` | заменено | В игре на ядре — системы выше. |
-| Остальные системы `Content.*` | — | нет | Фазы 5–7. |
+| Остальные системы `Content.*` | — | нет | Фазы 6–7. |
 
 ## Данные SS14
 

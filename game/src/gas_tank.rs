@@ -6,7 +6,7 @@
 //! `GasMaxPressureSystem` и `AtmosphereSystem.FlowGas`/`RemoveVolumeAtPressure` SS14
 //! @ 2f4a2aad.
 //!
-//! Нет пока: вида прочности (`MaxPressureVisuals`), анализатора газа, цены. Баллоны вне
+//! Нет пока: вида прочности (`MaxPressureVisuals`), цены. Баллоны вне
 //! грида (в открытом космосе) не обновляются: устройства атмосферы работают на гридах.
 
 use std::collections::BTreeMap;

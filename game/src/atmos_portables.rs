@@ -6,9 +6,8 @@
 //! `GasThermoMachineComponent`, `SharedGasThermoMachineSystem`, `GasThermoMachineSystem`,
 //! `DumpCanisterBehavior` и `UIRequiresLockComponent` (`LockSystem`) SS14 @ 2f4a2aad.
 //!
-//! Нет пока: обмена данными термомашины по сети устройств (`AtmosSyncPayload` — с
-//! устройствами связи), обогревателя-«космонагревателя» (`SpaceHeater`), цены и
-//! анализатора газа.
+//! Нет пока: обмена данными термомашины по сети устройств (`AtmosSyncPayload`),
+//! обогревателя-«космонагревателя» (`SpaceHeater`), цены.
 
 use astrocore_audio::{AudioWorldExt, SoundSpecifier};
 use astrocore_ecs::{EventWorldExt, MapInit, RegistryWorldExt};
