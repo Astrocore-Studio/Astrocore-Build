@@ -1614,7 +1614,7 @@ pub fn end_round(world: &mut World, text: &str) {
 }
 
 /// Должность игрока для итогов.
-fn job_title(world: &mut World, user: NetUserId) -> Option<String> {
+pub(crate) fn job_title(world: &mut World, user: NetUserId) -> Option<String> {
     let stations = spawnable_stations(world);
     let job = stations.iter().find_map(|s| {
         world

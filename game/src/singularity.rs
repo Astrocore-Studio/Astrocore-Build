@@ -446,7 +446,7 @@ fn hard_collidable(world: &World, horizon: Entity, other: Entity) -> bool {
 }
 
 /// Сущности в радиусе: тела по широкой фазе и закреплённые в клетках.
-fn entities_in_range(world: &World, entity: Entity, range: f32) -> Vec<Entity> {
+pub(crate) fn entities_in_range(world: &World, entity: Entity, range: f32) -> Vec<Entity> {
     let Some(at) = world.map_coordinates(entity) else {
         return Vec::new();
     };

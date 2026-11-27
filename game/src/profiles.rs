@@ -453,7 +453,7 @@ fn with_random<T>(world: &mut World, f: impl FnOnce(&mut GameRandom) -> T) -> T 
 // Имена.
 
 /// Случайная строка набора `localizedDataset`: ключ перевода `префикс` + номер с единицы.
-fn random_dataset_value(world: &mut World, dataset: &str) -> String {
+pub(crate) fn random_dataset_value(world: &mut World, dataset: &str) -> String {
     let (prefix, count) = prototypes(world)
         .and_then(|p| p.resolved_node("localizedDataset", dataset))
         .and_then(|n| n.get("values"))

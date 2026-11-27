@@ -709,4 +709,4 @@ pub fn install(world: &mut World, side: Side) {
 }
 
 #[cfg(test)]
-mod tests;
+pub(crate) mod tests;

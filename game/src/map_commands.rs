@@ -75,7 +75,8 @@ pub(crate) fn permission(world: &World, shell: &ConsoleShell, command: &str) -> 
     // Команды для всех игроков (`AnyCommand`): готовность, вход в раунд, наблюдение.
     if shell.player.is_some()
         && (crate::game_ticker::ANY_COMMANDS.contains(&command)
-            || crate::chat::CHAT_COMMANDS.contains(&command))
+            || crate::chat::CHAT_COMMANDS.contains(&command)
+            || crate::ghost::GHOST_COMMANDS.contains(&command))
     {
         return true;
     }
