@@ -86,6 +86,26 @@ const PROTOTYPES: &str = r#"
     supplyRampTolerance: 1000
     supplyRampRate: 500
 - type: entity
+  parent: Generator
+  id: BigGenerator
+  components:
+  - type: PowerSupplier
+    supplyRate: 40000
+- type: entity
+  parent: APC
+  id: APCFull
+  components:
+  - type: Battery
+    maxCharge: 50000
+    startingCharge: 50000
+- type: entity
+  parent: Anchored
+  id: Server
+  components:
+  - type: ApcPowerReceiver
+    powerLoad: 1500
+  - type: ExtensionCableReceiver
+- type: entity
   parent: Anchored
   id: Lamp
   components:
@@ -137,6 +157,44 @@ fn lamp_gets_power_through_substation_and_apc() {
     world.run_tick();
     assert!(!is_powered(&world, lamp));
     assert_eq!(world.resource::<Changes>().0, [true, false]);
+}
+
+/// Как комната связи Saltern: на одном АПЦ больше `maxSupply` (10 кВт). Недостающее приходит
+/// сквозь АПЦ с сети СН (`supplyAndPassthrough` в `BatteryRampPegSolver`).
+#[test]
+fn apc_passes_medium_voltage_power_through_beyond_its_max_supply() {
+    let mut world = world_with(PROTOTYPES);
+    let grid = station(&mut world);
+    spawn_at(&mut world, "BigGenerator", grid, 1, 1);
+    for x in 1..=3 {
+        spawn_at(&mut world, "CableHV", grid, x, 1);
+    }
+    spawn_at(&mut world, "Substation", grid, 3, 1);
+    for x in 3..=6 {
+        spawn_at(&mut world, "CableMV", grid, x, 1);
+    }
+    let apc = spawn_at(&mut world, "APCFull", grid, 6, 1);
+    let mut servers = Vec::new();
+    for dx in -2..=2 {
+        for dy in 1..=2 {
+            servers.push(spawn_at(&mut world, "Server", grid, 6 + dx, 1 + dy));
+        }
+    }
+    servers.push(spawn_at(&mut world, "Server", grid, 6, 4));
+    assert_eq!(servers.len(), 11);
+    for _ in 0..900 {
+        world.run_tick();
+    }
+    let battery = world.get::<PowerNetworkBattery>(apc).unwrap();
+    assert!(
+        battery.current_supply > 16000.0,
+        "{}",
+        battery.current_supply
+    );
+    assert!(battery.current_receiving > 0.0);
+    for server in servers {
+        assert!(is_powered(&world, server));
+    }
 }
 
 #[test]

@@ -531,6 +531,10 @@ pub fn update(world: &mut World) {
         net_battery.efficiency = battery.efficiency;
         net_battery.supply_ramp_position = battery.supply_ramp_position;
         net_battery.current_supply = battery.current_supply;
+        // Между тактами живут, как у объекта аккумулятора SS14: получаемое с сети выше
+        // проходит сквозь АПЦ сверх `max_supply`, а спрос сети ниже входит в запрос зарядки.
+        net_battery.current_receiving = battery.current_receiving;
+        net_battery.loading_network_demand = battery.loading_network_demand;
         let charging = charging.map(|g| net(&mut state, g));
         let discharging = discharging.map(|g| net(&mut state, g));
         battery_ids.push((
