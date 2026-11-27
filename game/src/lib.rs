@@ -88,6 +88,8 @@ pub mod signal_devices;
 pub mod singularity;
 pub mod stack;
 pub mod standing;
+pub mod station_spawning;
+pub mod stations;
 pub mod status_effects;
 pub mod storage;
 pub mod tag;
@@ -244,6 +246,8 @@ pub fn install_content(world: &mut World, side: Side) {
     profiles::install(world);
     markings::install(world);
     preferences::install(world, side);
+    stations::install(world, side);
+    station_spawning::install(world);
     connection::install(world, side);
     device_network::install(world, side);
     device_linking::install(world, side);

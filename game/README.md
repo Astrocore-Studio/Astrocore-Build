@@ -80,7 +80,7 @@ cargo client -- --connect 127.0.0.1:7783 --name Urist
 | Язык | `ASTRO_LANG`, по умолчанию `en-US` (язык контента SS14); свой перевод кладётся в `Resources/Locale/<язык>` игры |
 | Адрес сервера | `ASTRO_ADDR`, по умолчанию `127.0.0.1:7783` |
 | Ключ соединений | `ASTRO_KEY`, 64 шестнадцатеричных символа; одинаковый у сервера и клиентов |
-| Карта раунда | `game.map` в `server_config.toml`, например `"Maps/bagel.yml"` |
+| Карта раунда | `game.map` в `server_config.toml`: прототип карты (`"Saltern"`) или путь файла, например `"Maps/bagel.yml"` |
 | Тело игрока | `game.player_prototype` в `server_config.toml` |
 | Каталог данных (сохранённые карты) | `game.user_data`, по умолчанию `data` |
 | Все команды игроку с той же машины | `console.loginlocal`, по умолчанию `true` |

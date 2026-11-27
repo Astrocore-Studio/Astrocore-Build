@@ -15,9 +15,9 @@ use bevy_ecs::world::{Mut, World};
 /// Карта раунда: путь от каталога ресурсов.
 pub const MAP: CVarDef<&str> = CVarDef::new(
     "game.map",
-    "Maps/saltern.yml",
+    "Saltern",
     CVarFlags::SERVERONLY.union(CVarFlags::ARCHIVE),
-    "Карта раунда: путь от каталога ресурсов.",
+    "Карта раунда: прототип gameMap (Saltern) или путь файла карты от каталога ресурсов.",
 );
 
 /// Прототип сущности, которую получает вошедший игрок.

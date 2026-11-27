@@ -2,9 +2,7 @@
 
 use astrocore_console::{Config, ConfigWorldExt};
 use astrocore_ecs::{EventWorldExt, GameWorldExt, LifecycleWorldExt, MetaData};
-use astrocore_map::{
-    MapCoordinates, MapLoadReport, MapLoadWorldExt, SpawnWorldExt, TransformWorldExt,
-};
+use astrocore_map::{MapCoordinates, MapLoadReport, MapLoadWorldExt, MapWorldExt, SpawnWorldExt};
 use astrocore_math::Vec2;
 use astrocore_movement::MovementServerPlugin;
 use astrocore_net::{NetServerPlugin, PlayerDisconnected, Session, SessionWorldExt};
@@ -15,7 +13,8 @@ use bevy_ecs::world::World;
 
 use crate::content::{self, MAP, PLAYER_PROTOTYPE};
 
-/// Где появляются вошедшие игроки.
+/// Место появления вошедших игроков для проверок без человека: тело ставится сюда, а не
+/// на точку появления станции.
 #[derive(Resource, Debug, Clone, Copy)]
 pub struct ArrivalPoint(pub MapCoordinates);
 
@@ -30,26 +29,61 @@ pub struct ServerStart {
     pub prototype_errors: usize,
 }
 
-/// Точка появления: первая сущность-маркер позднего входа, иначе любая точка появления.
-fn arrival_point(world: &mut World, report: &MapLoadReport) -> MapCoordinates {
-    let mut markers: Vec<(bool, Entity)> = world
-        .query::<(Entity, &MetaData)>()
+/// Тело вошедшего игрока: должность станции и точка появления, для проверок — заданное
+/// место; без станции и профиля — прототип игрока по умолчанию.
+fn spawn_player(
+    world: &mut World,
+    user: astrocore_net::NetUserId,
+    profile: Option<&crate::profiles::HumanoidCharacterProfile>,
+) -> Option<Entity> {
+    use crate::stations::{pick_best_available_job, stations, try_assign_job};
+    let station = stations(world).first().copied();
+    let job = match (station, profile) {
+        (Some(station), Some(profile)) => {
+            let job = pick_best_available_job(
+                world,
+                station,
+                &profile.job_priorities,
+                true,
+                &Default::default(),
+            );
+            if let Some(job) = &job {
+                try_assign_job(world, station, job, user);
+            }
+            job
+        }
+        _ => None,
+    };
+    if let Some(ArrivalPoint(point)) = world.get_resource::<ArrivalPoint>().copied() {
+        let at = world.snap_to_grid_or_map(point)?;
+        return crate::station_spawning::spawn_player_mob(
+            world,
+            at,
+            job.as_deref(),
+            profile,
+            station,
+        );
+    }
+    if (profile.is_some() || station.is_some())
+        && let Some(body) = crate::station_spawning::spawn_player_character_on_station(
+            world,
+            station,
+            job.as_deref(),
+            profile,
+            true,
+        )
+    {
+        return Some(body);
+    }
+    let prototype = world.resource::<Config>().get_text(&PLAYER_PROTOTYPE);
+    let map = world
+        .query::<&astrocore_map::Map>()
         .iter(world)
-        .filter_map(|(entity, meta)| {
-            let prototype = meta.prototype.as_deref()?;
-            prototype
-                .starts_with("SpawnPoint")
-                .then_some((prototype != "SpawnPointLatejoin", entity))
-        })
-        .collect();
-    markers.sort_unstable();
-    markers
-        .first()
-        .and_then(|(_, entity)| world.map_coordinates(*entity))
-        .unwrap_or_else(|| {
-            let id = report.maps.first().map(|(_, id)| *id).unwrap_or_default();
-            MapCoordinates::new(id, Vec2::ZERO)
-        })
+        .map(|m| m.id)
+        .min()?;
+    world
+        .spawn_on_map(&prototype, MapCoordinates::new(map, Vec2::ZERO))
+        .ok()
 }
 
 /// Создаёт мир сервера: плагины движка, контент, карта раунда и правила входа игроков.
@@ -84,7 +118,14 @@ pub fn start() -> Result<ServerStart, String> {
         eprintln!("прототипы: {error}");
     }
 
-    let map = world.resource::<Config>().get_text(&MAP);
+    // Карта раунда — прототип `gameMap` или путь файла (`GameMapManager`).
+    let setting = world.resource::<Config>().get_text(&MAP);
+    let game_map = world
+        .get_resource::<astrocore_prototypes::Prototypes>()
+        .and_then(|p| crate::stations::game_map(p, &setting));
+    let map = game_map
+        .as_ref()
+        .map_or(setting, |m| crate::stations::resource_path(&m.map_path));
     let text = resources
         .read_to_string(&map)
         .map_err(|error| format!("карта {map}: {error}"))?;
@@ -96,12 +137,14 @@ pub fn start() -> Result<ServerStart, String> {
     for error in loaded.errors.iter().take(20) {
         eprintln!("карта: {error}");
     }
-    let arrival = arrival_point(&mut world, &loaded);
-    world.insert_resource(ArrivalPoint(arrival));
+    if let Some(game_map) = &game_map {
+        crate::stations::setup_stations(&mut world, game_map, &loaded.grids, None);
+    }
     world.init_resource::<Bodies>();
 
-    // Игрок с загруженными настройками получает тело выбранного персонажа у точки появления
-    // (до раунда и лобби — сразу после входа, `StationSpawningSystem.SpawnPlayerMob`).
+    // Игрок с загруженными настройками сразу входит в раунд, как при позднем входе
+    // (`SpawnPlayer`): лучшая свободная должность станции по приоритетам, точка позднего
+    // входа, снаряжение должности. Лобби и раунд — `GameTicker` (6.3).
     world.subscribe_broadcast::<crate::preferences::PreferencesLoaded>(|world, event| {
         if world.resource::<Bodies>().0.contains_key(&event.session) {
             return;
@@ -110,32 +153,19 @@ pub fn start() -> Result<ServerStart, String> {
             .resource::<crate::preferences::PreferencesCache>()
             .selected_profile(event.user_id)
             .cloned();
-        let species_prototype = profile.as_ref().and_then(|p| {
-            world
-                .get_resource::<astrocore_prototypes::Prototypes>()?
-                .resolved_node("species", &p.species)?
-                .get("prototype")?
-                .as_str()
-                .map(str::to_owned)
-        });
-        let prototype = species_prototype
-            .unwrap_or_else(|| world.resource::<Config>().get_text(&PLAYER_PROTOTYPE));
-        let arrival = world.resource::<ArrivalPoint>().0;
-        match world.spawn_on_map(&prototype, arrival) {
-            Ok(body) => {
-                match &profile {
-                    Some(profile) => crate::body::apply_character_profile(world, body, profile),
-                    None => {
-                        let name = world.get::<Session>(event.session).map(|s| s.name.clone());
-                        if let Some(mut meta) = world.get_mut::<MetaData>(body) {
-                            meta.name = name;
-                        }
+        let body = spawn_player(world, event.user_id, profile.as_ref());
+        match body {
+            Some(body) => {
+                if profile.is_none() {
+                    let name = world.get::<Session>(event.session).map(|s| s.name.clone());
+                    if let Some(mut meta) = world.get_mut::<MetaData>(body) {
+                        meta.name = name;
                     }
                 }
                 world.attach_player(event.session, body);
                 world.resource_mut::<Bodies>().0.insert(event.session, body);
             }
-            Err(error) => eprintln!("игрок не получил тело {prototype}: {error}"),
+            None => eprintln!("игрок не получил тело"),
         }
     });
     world.subscribe_broadcast::<PlayerDisconnected>(|world, event| {
