@@ -53,6 +53,8 @@ struct Options {
     construct: Option<String>,
     /// Открыть экран персонажа на вкладке (`--character appearance|markings|jobs|antags`).
     character: Option<String>,
+    /// С `--host`: сервер с лобби, как выделенный (без него — сразу в раунд).
+    lobby: bool,
 }
 
 fn options() -> Result<Options, String> {
@@ -76,6 +78,7 @@ fn options() -> Result<Options, String> {
         palette: None,
         construct: None,
         character: None,
+        lobby: false,
     };
     let mut args = std::env::args().skip(1);
     while let Some(arg) = args.next() {
@@ -104,6 +107,7 @@ fn options() -> Result<Options, String> {
             "--palette" => options.palette = Some(value("палитра:поиск")?),
             "--construct" => options.construct = Some(value("рецепт")?),
             "--character" => options.character = Some(value("вкладка")?),
+            "--lobby" => options.lobby = true,
             other => {
                 return Err(format!(
                     "неизвестный параметр {other}. Параметры: --host, --connect <адрес>, --name <имя>, --capture <файл>, --walk, --walk-up"
@@ -554,7 +558,9 @@ fn hold_up(mut game: ResMut<Game>) {
 fn run() -> Result<(), String> {
     let options = options()?;
     let transport: Box<dyn ClientTransport> = if options.host {
-        let mut start = server::start()?;
+        // Игра в одиночку — сразу в раунд, как `development.toml` SS14 (ADR-0012).
+        let lobby = if options.lobby { "true" } else { "false" };
+        let mut start = server::start_with(&[("game.lobbyenabled", lobby)])?;
         if options.use_nearest {
             stand_by_device(&mut start.world, options.device.as_deref());
         }
@@ -588,10 +594,7 @@ fn run() -> Result<(), String> {
                     .add_game_systems(astrocore_ecs::Update, hold_firelock);
             }
         }
-        println!(
-            "Игра в одиночку: сущностей на карте {}.",
-            start.map.entities
-        );
+        println!("Игра в одиночку: сущностей на карте {}.", start.entities);
         Box::new(LocalHost::new(start.world))
     } else {
         let address = match &options.connect {

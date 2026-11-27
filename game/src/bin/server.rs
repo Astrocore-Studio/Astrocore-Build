@@ -20,10 +20,10 @@ fn run() -> Result<(), String> {
     let tick_rate = u32::from(start.world.resource::<GameTime>().tick_rate);
     let mut link = ServerLink::start(address, key, tick_rate);
     println!(
-        "Сервер слушает {}: карта загружена за {:.1?}, сущностей {}, ошибок в прототипах {}.",
+        "Сервер слушает {}: запуск за {:.1?}, сущностей {}, ошибок в прототипах {}.",
         link.local_addr(),
         started.elapsed(),
-        start.map.entities,
+        start.entities,
         start.prototype_errors
     );
     let console = stdin_lines();

@@ -48,6 +48,7 @@ pub mod flammable;
 pub mod flatpack;
 pub mod floor_tile;
 pub mod friction;
+pub mod game_ticker;
 pub mod gas_analyzer;
 pub mod gas_tank;
 pub mod grammar;
@@ -248,6 +249,7 @@ pub fn install_content(world: &mut World, side: Side) {
     preferences::install(world, side);
     stations::install(world, side);
     station_spawning::install(world);
+    game_ticker::install(world, side);
     connection::install(world, side);
     device_network::install(world, side);
     device_linking::install(world, side);

@@ -625,4 +625,4 @@ pub fn install(world: &mut World) {
 }
 
 #[cfg(test)]
-mod tests;
+pub(crate) mod tests;

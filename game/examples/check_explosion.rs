@@ -54,7 +54,7 @@ fn main() -> Result<(), String> {
         .nth(1)
         .and_then(|s| s.parse().ok())
         .unwrap_or(2000.0);
-    let mut start = server::start()?;
+    let mut start = server::start_with(&[("game.lobbyenabled", "false")])?;
     let world = &mut start.world;
     for _ in 0..30 {
         world.run_tick();

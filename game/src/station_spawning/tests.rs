@@ -5,7 +5,7 @@ use crate::profiles::Gender;
 use crate::stations::tests::test_station;
 use crate::testing::{spawn_at, world_with};
 
-const PROTOTYPES: &str = r#"
+pub(crate) const PROTOTYPES: &str = r#"
 - type: inventoryTemplate
   id: human
   slots:

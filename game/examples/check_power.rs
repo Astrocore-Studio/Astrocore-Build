@@ -19,7 +19,7 @@ fn main() -> Result<(), String> {
         .nth(1)
         .and_then(|s| s.parse().ok())
         .unwrap_or(10.0);
-    let mut start = server::start()?;
+    let mut start = server::start_with(&[("game.lobbyenabled", "false")])?;
     let world = &mut start.world;
     let ticks = (seconds * f32::from(world.resource::<GameTime>().tick_rate)) as u32;
     let started = Instant::now();
@@ -30,7 +30,7 @@ fn main() -> Result<(), String> {
     let total = world.query::<&MetaData>().iter(world).count();
     println!(
         "Сущностей в мире: {total} (в файле карты {})",
-        start.map.entities
+        start.entities
     );
     let groups = world.resource::<NodeGroups>();
     let mut kinds: BTreeMap<String, usize> = BTreeMap::new();

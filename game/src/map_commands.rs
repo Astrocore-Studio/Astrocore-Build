@@ -56,7 +56,11 @@ pub struct AdminGhost {
 }
 
 /// Права игрока: хост на своей машине может всё.
-pub(crate) fn permission(world: &World, shell: &ConsoleShell, _command: &str) -> bool {
+pub(crate) fn permission(world: &World, shell: &ConsoleShell, command: &str) -> bool {
+    // Команды для всех игроков (`AnyCommand`): готовность, вход в раунд, наблюдение.
+    if shell.player.is_some() && crate::game_ticker::ANY_COMMANDS.contains(&command) {
+        return true;
+    }
     if !world.resource::<Config>().get(&LOGIN_LOCAL) {
         return false;
     }

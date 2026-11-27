@@ -112,7 +112,7 @@ fn main() -> Result<(), String> {
         .nth(1)
         .and_then(|s| s.parse().ok())
         .unwrap_or(20.0);
-    let mut start = server::start()?;
+    let mut start = server::start_with(&[("game.lobbyenabled", "false")])?;
     let world = &mut start.world;
     // Где появится игрок: номер грида и клетка — для `addgas` в консоли.
     if let Some((entity, _)) = world
