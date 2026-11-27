@@ -1,7 +1,7 @@
 //! Вид дверей на клиенте: кадры открытия и закрытия, мигание отказа, огни шлюза (питание,
-//! болты, аварийный доступ), заварка и панель техобслуживания. Образец — клиентские
-//! `DoorSystem`, `AirlockSystem`, `WeldableVisualizerSystem` и `WiresVisualizerSystem`
-//! SS14 @ 2f4a2aad.
+//! болты, аварийный доступ), огни пожарного шлюза («держит давление», «держит огонь»),
+//! заварка и панель техобслуживания. Образец — клиентские `DoorSystem`, `AirlockSystem`,
+//! `FirelockSystem`, `WeldableVisualizerSystem` и `WiresVisualizerSystem` SS14 @ 2f4a2aad.
 //!
 //! Анимация SS14 (`AnimationTrackSpriteFlick`) — смена состояния слоя на время анимации с
 //! перезапуском кадров; по окончании слой получает состояние открытой или закрытой двери.
@@ -15,7 +15,9 @@ use bevy_ecs::world::World;
 
 use crate::doors::{
     Airlock, BOLT_LIGHTS, CLOSED_LIGHTS, DOOR_STATE, DepthName, Door, DoorState, EMERGENCY_LIGHTS,
+    Firelock,
 };
+use crate::firelock::{PRESSURE_WARNING, TEMPERATURE_WARNING};
 use crate::power::POWERED_VISUALS as POWERED;
 use crate::weldable::{WELDED_VISUALS, Weldable};
 
@@ -27,6 +29,9 @@ pub const LAYER_EMERGENCY: &str = "enum.DoorVisualLayers.BaseEmergencyAccess";
 pub const LAYER_EMAGGING: &str = "enum.DoorVisualLayers.BaseEmagging";
 /// Слой заварки (`WeldableLayers.BaseWelded`).
 pub const LAYER_WELDED: &str = "enum.WeldableLayers.BaseWelded";
+/// Огни пожарного шлюза (`FirelockVisualLayersPressure`, `FirelockVisualLayersTemperature`).
+pub const LAYER_PRESSURE: &str = "enum.FirelockVisualLayersPressure.Base";
+pub const LAYER_TEMPERATURE: &str = "enum.FirelockVisualLayersTemperature.Base";
 /// Слой панели (`WiresVisualLayers.MaintenancePanel`).
 pub const LAYER_PANEL: &str = "enum.WiresVisualLayers.MaintenancePanel";
 /// Панель открыта (`WiresVisuals.MaintenancePanelState`).
@@ -91,6 +96,7 @@ fn depth(name: &Option<DepthName>) -> Option<astrocore_client::DrawDepth> {
 fn rest_states(
     door: &Door,
     airlock: Option<&Airlock>,
+    firelock: Option<&Firelock>,
     open: bool,
 ) -> Vec<(&'static str, Option<String>)> {
     let mut states = vec![(
@@ -123,6 +129,20 @@ fn rest_states(
             ));
         }
     }
+    // Пожарный шлюз добавляет огни и панель (`FirelockSystem.OnComponentStartup`).
+    if let Some(firelock) = firelock {
+        states.push((LAYER_UNLIT, firelock.warning_light_sprite_state.clone()));
+        if firelock.animate_panel {
+            states.push((
+                LAYER_PANEL,
+                if open {
+                    None
+                } else {
+                    firelock.open_panel_sprite_state.clone()
+                },
+            ));
+        }
+    }
     states
 }
 
@@ -130,6 +150,7 @@ fn rest_states(
 fn flick_states(
     door: &Door,
     airlock: Option<&Airlock>,
+    firelock: Option<&Firelock>,
     state: DoorState,
 ) -> (Vec<(&'static str, Option<String>)>, f64) {
     match state {
@@ -147,6 +168,12 @@ fn flick_states(
                     ));
                 }
             }
+            if let Some(firelock) = firelock {
+                states.push((LAYER_UNLIT, firelock.opening_light_sprite_state.clone()));
+                if firelock.animate_panel {
+                    states.push((LAYER_PANEL, firelock.opening_panel_sprite_state.clone()));
+                }
+            }
             (states, door.opening_animation_time)
         }
         DoorState::Closing => {
@@ -161,6 +188,12 @@ fn flick_states(
                         LAYER_PANEL,
                         airlock.sprite_states.closing_panel_sprite_state.clone(),
                     ));
+                }
+            }
+            if let Some(firelock) = firelock {
+                states.push((LAYER_UNLIT, firelock.closing_light_sprite_state.clone()));
+                if firelock.animate_panel {
+                    states.push((LAYER_PANEL, firelock.closing_panel_sprite_state.clone()));
                 }
             }
             (states, door.closing_animation_time)
@@ -186,6 +219,7 @@ fn apply_door(world: &mut World, entity: Entity) {
         return;
     };
     let airlock = world.get::<Airlock>(entity).cloned();
+    let firelock = world.get::<Firelock>(entity).cloned();
     let state = door_state(world, entity);
     let running = world.get::<DoorAnimation>(entity).copied();
     let time = now(world);
@@ -220,9 +254,12 @@ fn apply_door(world: &mut World, entity: Entity) {
                     if running.is_some_and(|r| r.state == opposite) {
                         animation = None;
                     }
-                    for (key, layer_state) in
-                        rest_states(&door, airlock.as_ref(), state == DoorState::Open)
-                    {
+                    for (key, layer_state) in rest_states(
+                        &door,
+                        airlock.as_ref(),
+                        firelock.as_ref(),
+                        state == DoorState::Open,
+                    ) {
                         set_layer(&mut sprite, key, layer_state.as_deref(), false);
                     }
                     animation = animation.filter(|a| a.state == same);
@@ -231,7 +268,8 @@ fn apply_door(world: &mut World, entity: Entity) {
         }
         _ => {
             if running.is_none_or(|r| r.state != state) {
-                let (states, length) = flick_states(&door, airlock.as_ref(), state);
+                let (states, length) =
+                    flick_states(&door, airlock.as_ref(), firelock.as_ref(), state);
                 if length > 0.0 && !states.is_empty() {
                     for (key, layer_state) in states {
                         set_layer(&mut sprite, key, layer_state.as_deref(), true);
@@ -246,6 +284,9 @@ fn apply_door(world: &mut World, entity: Entity) {
     }
     if let Some(airlock) = &airlock {
         apply_airlock_lights(world, entity, airlock, state, &mut sprite);
+    }
+    if firelock.is_some() {
+        apply_firelock_lights(world, entity, state, &mut sprite);
     }
     if world.get::<Sprite>(entity) != Some(&sprite) {
         world.entity_mut(entity).insert(sprite);
@@ -325,6 +366,23 @@ fn apply_airlock_lights(
     }
 }
 
+/// Огни пожарного шлюза (`FirelockSystem.OnAppearanceChange`): огни движения, отказа и
+/// «держит» горят, если не опущены болты; предупреждения — только у закрытого.
+fn apply_firelock_lights(world: &World, entity: Entity, state: DoorState, sprite: &mut Sprite) {
+    let bolted = appearance_bool(world, entity, BOLT_LIGHTS).unwrap_or(false);
+    let unlit = matches!(
+        state,
+        DoorState::Closing | DoorState::Opening | DoorState::Denying
+    ) || appearance_bool(world, entity, CLOSED_LIGHTS).unwrap_or(false);
+    set_visible(sprite, LAYER_UNLIT, unlit && !bolted);
+    set_visible(sprite, LAYER_BOLTED, bolted);
+    let warning = matches!(state, DoorState::Closed | DoorState::Denying);
+    let pressure = appearance_bool(world, entity, PRESSURE_WARNING).unwrap_or(false);
+    let temperature = appearance_bool(world, entity, TEMPERATURE_WARNING).unwrap_or(false);
+    set_visible(sprite, LAYER_PRESSURE, pressure && warning);
+    set_visible(sprite, LAYER_TEMPERATURE, temperature && warning);
+}
+
 /// Заварка и панель (`WeldableVisualizerSystem`, `WiresVisualizerSystem`).
 fn apply_weld_and_panel(world: &mut World, entity: Entity) {
     let welded = appearance_bool(world, entity, WELDED_VISUALS).unwrap_or(false);
@@ -362,11 +420,15 @@ fn finish_animations(world: &mut World) {
             continue;
         };
         let airlock = world.get::<Airlock>(entity).cloned();
+        let firelock = world.get::<Firelock>(entity).cloned();
         match state {
             DoorState::Open | DoorState::Closed => {
-                for (key, layer_state) in
-                    rest_states(&door, airlock.as_ref(), state == DoorState::Open)
-                {
+                for (key, layer_state) in rest_states(
+                    &door,
+                    airlock.as_ref(),
+                    firelock.as_ref(),
+                    state == DoorState::Open,
+                ) {
                     set_layer(&mut sprite, key, layer_state.as_deref(), false);
                 }
             }
@@ -374,6 +436,9 @@ fn finish_animations(world: &mut World) {
         }
         if let Some(airlock) = &airlock {
             apply_airlock_lights(world, entity, airlock, state, &mut sprite);
+        }
+        if firelock.is_some() {
+            apply_firelock_lights(world, entity, state, &mut sprite);
         }
         world.entity_mut(entity).insert(sprite);
         apply_weld_and_panel(world, entity);
@@ -391,4 +456,71 @@ pub(crate) fn install(world: &mut World) {
         }
     });
     world.add_game_systems(Update, finish_animations);
+}
+
+#[cfg(test)]
+mod tests {
+    use astrocore_ecs::LifecycleWorldExt;
+
+    use super::*;
+
+    const SPRITE: &str = r#"
+sprite: Structures/Doors/Airlocks/Standard/firelock-base.rsi
+layers:
+- state: closed
+  map: ["enum.DoorVisualLayers.Base"]
+- state: closed_unlit
+  map: ["enum.DoorVisualLayers.BaseUnlit"]
+  visible: false
+- state: bolted_unlit
+  map: ["enum.DoorVisualLayers.BaseBolted"]
+  visible: false
+- state: pressure_unlit
+  visible: false
+  map: ["enum.FirelockVisualLayersPressure.Base"]
+- state: temperature_unlit
+  visible: false
+  map: ["enum.FirelockVisualLayersTemperature.Base"]
+"#;
+
+    fn visible(world: &World, entity: Entity, key: &str) -> bool {
+        let sprite = world.get::<Sprite>(entity).unwrap();
+        sprite.layers[sprite.layer_index(key).unwrap()].visible
+    }
+
+    #[test]
+    fn firelock_warning_lights_follow_appearance_only_when_closed() {
+        let mut world = crate::testing::world_with("");
+        install(&mut world);
+        let sprite: Sprite =
+            astrocore_data::from_node(&astrocore_data::parse_yaml(SPRITE).unwrap()).unwrap();
+        let door: Door = astrocore_data::from_node(&astrocore_data::DataNode::map(
+            astrocore_data::DataMap::new(),
+        ))
+        .unwrap();
+        let entity = world.spawn_uninitialized();
+        world.entity_mut(entity).insert((
+            sprite,
+            door,
+            Firelock::default(),
+            astrocore_net::Appearance::default(),
+        ));
+        world.set_appearance(entity, DOOR_STATE, "Closed");
+        world.set_appearance(entity, PRESSURE_WARNING, true);
+        world.set_appearance(entity, CLOSED_LIGHTS, true);
+        assert!(visible(&world, entity, LAYER_PRESSURE));
+        assert!(!visible(&world, entity, LAYER_TEMPERATURE));
+        assert!(visible(&world, entity, LAYER_UNLIT));
+        world.set_appearance(entity, TEMPERATURE_WARNING, true);
+        assert!(visible(&world, entity, LAYER_TEMPERATURE));
+        // Болты гасят огни движения и горят сами.
+        world.set_appearance(entity, BOLT_LIGHTS, true);
+        assert!(!visible(&world, entity, LAYER_UNLIT));
+        assert!(visible(&world, entity, LAYER_BOLTED));
+        // Открытый шлюз предупреждений не показывает.
+        world.set_appearance(entity, BOLT_LIGHTS, false);
+        world.set_appearance(entity, DOOR_STATE, "Open");
+        assert!(!visible(&world, entity, LAYER_PRESSURE));
+        assert!(!visible(&world, entity, LAYER_TEMPERATURE));
+    }
 }

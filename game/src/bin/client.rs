@@ -45,6 +45,8 @@ struct Options {
     storage_nearest: bool,
     hurt: bool,
     ignite: bool,
+    /// Проверка вида пожарного шлюза: игрок у шлюза, который держит давление и огонь.
+    firelock: bool,
     dress: bool,
     console: Vec<String>,
     palette: Option<String>,
@@ -66,6 +68,7 @@ fn options() -> Result<Options, String> {
         storage_nearest: false,
         hurt: false,
         ignite: false,
+        firelock: false,
         dress: false,
         console: Vec::new(),
         palette: None,
@@ -84,6 +87,7 @@ fn options() -> Result<Options, String> {
             "--storage-nearest" => options.storage_nearest = true,
             "--hurt" => options.hurt = true,
             "--ignite" => options.ignite = true,
+            "--firelock" => options.firelock = true,
             "--dress" => options.dress = true,
             "--connect" => options.connect = Some(value("адрес сервера")?),
             "--name" => options.name = value("имя игрока")?,
@@ -366,6 +370,87 @@ fn ignite_player(world: &mut bevy_ecs::world::World, mut ticks: Local<u32>) {
     }
 }
 
+/// Пожарный шлюз для `--firelock`.
+#[derive(Resource)]
+struct HeldFirelock(bevy_ecs::entity::Entity);
+
+/// Клетки по обе стороны шлюза: север и юг.
+fn firelock_sides(
+    world: &bevy_ecs::world::World,
+    firelock: bevy_ecs::entity::Entity,
+) -> Option<(
+    bevy_ecs::entity::Entity,
+    astrocore_map::TileCoord,
+    astrocore_map::TileCoord,
+)> {
+    use astrocore_map::{TileCoord, Transform};
+    let transform = world.get::<Transform>(firelock)?;
+    let grid = transform.grid()?;
+    let cell = TileCoord::containing(transform.local_position(), transform.level());
+    Some((
+        grid,
+        TileCoord::new(cell.x, cell.y + 1, cell.z),
+        TileCoord::new(cell.x, cell.y - 1, cell.z),
+    ))
+}
+
+/// Проверка без человека: игрок появляется рядом с первым пожарным шлюзом, у которого
+/// с севера и с юга воздух.
+fn stand_by_firelock(server: &mut bevy_ecs::world::World) -> Option<bevy_ecs::entity::Entity> {
+    use astrocore_game::doors::Firelock;
+    use astrocore_map::{MapCoordinates, TransformWorldExt};
+    let mut firelocks: Vec<_> = server
+        .query_filtered::<bevy_ecs::entity::Entity, With<Firelock>>()
+        .iter(server)
+        .collect();
+    firelocks.sort_unstable();
+    let mut doors =
+        server.query_filtered::<bevy_ecs::entity::Entity, With<astrocore_game::doors::Door>>();
+    let doors: Vec<_> = doors.iter(server).collect();
+    let firelock = firelocks.into_iter().find(|f| {
+        let at = server.map_coordinates(*f).map(|c| c.position);
+        // Без другой двери на той же клетке: шлюз над пожарным закрыл бы его.
+        let alone = doors
+            .iter()
+            .filter(|d| *d != f)
+            .all(|d| server.map_coordinates(*d).map(|c| c.position) != at);
+        alone
+            && firelock_sides(server, *f).is_some_and(|(grid, north, south)| {
+                astrocore_game::atmos::tile_mixture(server, grid, north).is_some()
+                    && astrocore_game::atmos::tile_mixture(server, grid, south).is_some()
+            })
+    })?;
+    let at = server.map_coordinates(firelock)?;
+    let beside = MapCoordinates {
+        position: at.position + astrocore_math::Vec2::new(1.0, 0.0),
+        ..at
+    };
+    server.insert_resource(server::ArrivalPoint(beside));
+    Some(firelock)
+}
+
+/// Через секунду шлюз закрывается; к северу — горячий воздух, к югу — вакуум.
+fn hold_firelock(world: &mut bevy_ecs::world::World, mut ticks: Local<u32>) {
+    use astrocore_game::atmos::GasMixture;
+    use astrocore_game::atmos::gas::CELL_VOLUME;
+    let firelock = world.resource::<HeldFirelock>().0;
+    *ticks += 1;
+    if *ticks < 30 {
+        return;
+    }
+    if *ticks == 30 {
+        astrocore_game::firelock::emergency_pressure_stop(world, firelock);
+    }
+    let Some((grid, north, south)) = firelock_sides(world, firelock) else {
+        return;
+    };
+    astrocore_game::atmos::with_tile_mixture(world, grid, north, |tile| {
+        tile.copy_from(&GasMixture::standard_air(CELL_VOLUME));
+        tile.set_temperature(700.0);
+    });
+    astrocore_game::atmos::with_tile_mixture(world, grid, south, |tile| tile.clear());
+}
+
 /// Проверка без человека: через секунду игрок одет.
 fn dress_player(world: &mut bevy_ecs::world::World, mut ticks: Local<u32>) {
     use astrocore_game::inventory::{EquipOptions, InventoryWorldExt};
@@ -480,6 +565,15 @@ fn run() -> Result<(), String> {
             start
                 .world
                 .add_game_systems(astrocore_ecs::Update, ignite_player);
+        }
+        if options.firelock {
+            use astrocore_ecs::GameWorldExt;
+            if let Some(firelock) = stand_by_firelock(&mut start.world) {
+                start.world.insert_resource(HeldFirelock(firelock));
+                start
+                    .world
+                    .add_game_systems(astrocore_ecs::Update, hold_firelock);
+            }
         }
         println!(
             "Игра в одиночку: сущностей на карте {}.",

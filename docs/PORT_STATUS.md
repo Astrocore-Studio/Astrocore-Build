@@ -34,7 +34,7 @@
 | `Robust.Shared/Physics`, `SharedJointSystem` | `astrocore-physics` | частично | Тела, фикстуры, слои и маски SS14, события касаний, сон тел, трение между телами, вращение от ударов, дистанционные сочленения (`DistanceJoint`). Упрощено: сочленения без вращения тел, других видов сочленений нет; столкновения только внутри одного грида и этажа (шаттлы — 7.8). |
 | `SharedMoverController` (ядро), ввод движения | `astrocore-movement` | частично | Скорость по `HandleMobMovement`, предсказание своего персонажа. В игре (фаза 3): невесомость, трение тайлов, шаги, передача управления. |
 | Предсказание Robust (откат и повтор тиков) | `astrocore-movement::Prediction` | частично | Только движение своего персонажа (решение владельца); остальные системы — по мере переноса. |
-| `SpriteComponent`, `SpriteSystem`, RSI | `astrocore-client::Sprite`, `Textures` | частично | Слои, состояния, направления 1/4/8, анимация, глубина отрисовки, цвет, смещение, масштаб; движение сглаживается между тактами. Нет шейдеров слоёв. |
+| `SpriteComponent`, `SpriteSystem`, RSI | `astrocore-client::Sprite`, `Textures` | частично | Слои, состояния, направления 1/4/8, анимация, глубина отрисовки, цвет, смещение, масштаб; движение сглаживается между тактами. Нет шейдеров слоёв: светящиеся слои (`unshaded`) затемняются освещением, как обычные (8.9). |
 | `AppearanceComponent`, `GenericVisualizer` | `astrocore-net::Appearance`, `astrocore-client::GenericVisualizer` | готово | Значения внешнего вида по ключам от сервера, смена слоёв по данным прототипа. Визуализаторы с кодом переносятся вместе с системами игры. |
 | Отрисовка тайлов грида | `astrocore-client` (`view`) | частично | Картинка на чанк, варианты тайлов. Нет декалей и краёв тайлов. |
 | `EyeComponent`, камера | `astrocore-client::Eye` | частично | Следует за сущностью игрока, 15 тайлов по вертикали. Нет зума и поворота. |
@@ -56,7 +56,7 @@
 
 | SS14 | Astrocore | Статус | Примечание |
 |---|---|---|---|
-| `SharedDoorSystem`, `SharedAirlockSystem`, `DoorBoltSystem`, `PryingSystem`, `WeldableSystem`, `FirelockSystem` | `game/src/doors.rs`, `firelock.rs`, `weldable.rs`, `door_visuals.rs` | частично | Двери, шлюзы, болты, аварийный доступ, взлом, сварка, автозакрытие, пожарные шлюзы по тревоге и перепаду. Нет топлива сварки (7.2), стыковочных шлюзов (7.8), вида огней пожарного шлюза на клиенте. |
+| `SharedDoorSystem`, `SharedAirlockSystem`, `DoorBoltSystem`, `PryingSystem`, `WeldableSystem`, `FirelockSystem` | `game/src/doors.rs`, `firelock.rs`, `weldable.rs`, `door_visuals.rs` | частично | Двери, шлюзы, болты, аварийный доступ, взлом, сварка, автозакрытие, пожарные шлюзы по тревоге и перепаду. Нет топлива сварки (7.2), стыковочных шлюзов (7.8). |
 | `AccessReaderSystem`, `IdCardSystem`, `IdCardConsoleSystem`, `LockSystem` | `game/src/access.rs`, `id_console.rs`, `lock.rs` | частично | Уровни доступа из прототипов, ID-карты и ПДА, консоль ID-карт, замки шкафов и ящиков. Ключи записей станции — с записями (фаза 6). |
 | `WiresSystem` и действия проводов | `game/src/wires.rs`, `wires_ui.rs` | частично | Панели, провода по прототипам, кусачки и мультитул, действия дверей и питания. Нет провода «паника» воздушной тревоги (7.9). |
 | `PowerNetSystem`, `NodeGroupSystem`, `ApcSystem`, `BatterySystem`, кабели | `game/src/power.rs`, `node_container.rs`, `cables.rs`, `cable_visuals.rs`, `power_ui.rs` | частично | Сети HV/MV/LV, решатель, SMES, подстанции, APC с окном, потребители, удар током. Сеть узлов пересобирается целиком (долг — 8.1). |

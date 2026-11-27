@@ -437,6 +437,45 @@ pub struct Firelock {
     pub temperature: bool,
     #[serde(default)]
     pub powered: bool,
+    /// Кадры огней и панели на клиенте (`OpeningLightSpriteState` и др.).
+    #[serde(default = "firelock_opening_light")]
+    pub opening_light_sprite_state: Option<String>,
+    #[serde(default = "firelock_closing_light")]
+    pub closing_light_sprite_state: Option<String>,
+    #[serde(default = "yes")]
+    pub animate_panel: bool,
+    #[serde(default = "firelock_opening_panel")]
+    pub opening_panel_sprite_state: Option<String>,
+    #[serde(default = "firelock_open_panel")]
+    pub open_panel_sprite_state: Option<String>,
+    #[serde(default = "firelock_closing_panel")]
+    pub closing_panel_sprite_state: Option<String>,
+    #[serde(default = "firelock_warning_light")]
+    pub warning_light_sprite_state: Option<String>,
+    #[serde(default = "firelock_deny")]
+    pub deny_sprite_state: Option<String>,
+}
+
+fn firelock_opening_light() -> Option<String> {
+    Some("opening_unlit".into())
+}
+fn firelock_closing_light() -> Option<String> {
+    Some("closing_unlit".into())
+}
+fn firelock_opening_panel() -> Option<String> {
+    Some("panel_opening".into())
+}
+fn firelock_open_panel() -> Option<String> {
+    Some("panel_open".into())
+}
+fn firelock_closing_panel() -> Option<String> {
+    Some("panel_closing".into())
+}
+fn firelock_warning_light() -> Option<String> {
+    Some("closed_unlit".into())
+}
+fn firelock_deny() -> Option<String> {
+    Some("deny_unlit".into())
 }
 
 impl Default for Firelock {
