@@ -96,7 +96,7 @@ fn move_popups(
     mut commands: Commands,
     game: Res<Game>,
     time: Res<Time>,
-    camera: Single<(&Camera, &GlobalTransform), With<Camera2d>>,
+    camera: Single<(&Camera, &GlobalTransform), With<astrocore_client::WorldCamera>>,
     mut labels: Query<(
         Entity,
         &mut PopupLabel,
@@ -157,7 +157,7 @@ struct BarView {
 fn sync_bars(
     mut commands: Commands,
     game: Res<Game>,
-    camera: Single<(&Camera, &GlobalTransform), With<Camera2d>>,
+    camera: Single<(&Camera, &GlobalTransform), With<astrocore_client::WorldCamera>>,
     mut views: Query<(Entity, &BarView, &mut Node)>,
     mut fills: Query<(&mut Node, &mut BackgroundColor), Without<BarView>>,
 ) {

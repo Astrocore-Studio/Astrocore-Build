@@ -414,11 +414,20 @@ fn stand_by_firelock(server: &mut bevy_ecs::world::World) -> Option<bevy_ecs::en
             .iter()
             .filter(|d| *d != f)
             .all(|d| server.map_coordinates(*d).map(|c| c.position) != at);
+        // Клетки сверху и снизу с воздухом и без непроницаемого: иначе шлюз «не держит».
+        let open = |grid, cell| {
+            astrocore_game::atmos::tile_mixture(server, grid, cell).is_some()
+                && server.get::<astrocore_map::MapGrid>(grid).is_some_and(|g| {
+                    g.anchored_at(cell).iter().all(|e| {
+                        server
+                            .get::<astrocore_game::airtight::Airtight>(*e)
+                            .is_none()
+                    })
+                })
+        };
         alone
-            && firelock_sides(server, *f).is_some_and(|(grid, north, south)| {
-                astrocore_game::atmos::tile_mixture(server, grid, north).is_some()
-                    && astrocore_game::atmos::tile_mixture(server, grid, south).is_some()
-            })
+            && firelock_sides(server, *f)
+                .is_some_and(|(grid, north, south)| open(grid, north) && open(grid, south))
     })?;
     let at = server.map_coordinates(firelock)?;
     let beside = MapCoordinates {
