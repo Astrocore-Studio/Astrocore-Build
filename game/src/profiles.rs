@@ -642,10 +642,12 @@ fn remove_markup(text: &str) -> String {
     crate::examine::strip_markup(text)
 }
 
-fn sets_preference(prototypes: &Prototypes, kind: &str, id: &str) -> bool {
+/// Выбирается ли роль в настройках (`SetPreference`): у должностей по умолчанию да, у
+/// антагонистов — нет.
+pub fn sets_preference(prototypes: &Prototypes, kind: &str, id: &str) -> bool {
     prototypes
         .resolved_node(kind, id)
-        .is_some_and(|n| number::<bool>(n, "setPreference").unwrap_or(true))
+        .is_some_and(|n| number::<bool>(n, "setPreference").unwrap_or(kind == "job"))
 }
 
 /// Черты в пределах очков категорий (`GetValidTraits`).

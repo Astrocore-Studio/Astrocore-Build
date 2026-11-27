@@ -22,6 +22,7 @@ pub mod bans;
 pub mod barotrauma;
 pub mod body;
 pub mod cables;
+pub mod character_editor;
 pub mod combat;
 pub mod connection;
 pub mod construction;
@@ -110,6 +111,8 @@ pub mod alarm_visuals;
 pub mod body_visuals;
 #[cfg(feature = "client")]
 pub mod cable_visuals;
+#[cfg(feature = "client")]
+pub mod character_ui;
 #[cfg(feature = "client")]
 pub mod client;
 #[cfg(feature = "client")]

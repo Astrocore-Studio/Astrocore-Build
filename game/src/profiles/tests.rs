@@ -50,6 +50,9 @@ pub(crate) const PROTOTYPES: &str = r##"
   setPreference: false
 - type: antag
   id: Traitor
+  setPreference: true
+- type: antag
+  id: Thief
 - type: antag
   id: Hidden
   setPreference: false
@@ -122,7 +125,12 @@ fn ensure_valid_repairs_profile() {
             ("Borg".to_owned(), JobPriority::Low),
             ("Unknown".to_owned(), JobPriority::Low),
         ]),
-        antag_preferences: ["Traitor".to_owned(), "Hidden".to_owned()].into(),
+        antag_preferences: [
+            "Traitor".to_owned(),
+            "Hidden".to_owned(),
+            "Thief".to_owned(),
+        ]
+        .into(),
         trait_preferences: ["Blind".to_owned(), "Deaf".to_owned(), "Accent".to_owned()].into(),
         loadouts: BTreeMap::from([
             ("JobPassenger".to_owned(), RoleLoadout::default()),

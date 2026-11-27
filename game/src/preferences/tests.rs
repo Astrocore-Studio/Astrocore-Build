@@ -231,3 +231,41 @@ fn without_database_guests_get_random_character_in_memory() {
         Some("Urist McHands".into())
     );
 }
+
+#[test]
+fn client_side_mirrors_manager() {
+    let mut world = crate::testing::world_with(PROTOTYPES);
+    install(&mut world, Side::Client);
+    assert_eq!(client_create_character(&mut world, &full_profile()), None);
+    let first = HumanoidCharacterProfile {
+        name: "Bob".into(),
+        ..HumanoidCharacterProfile::default()
+    };
+    *world.resource_mut::<ClientPreferences>() = ClientPreferences {
+        preferences: Some(PlayerPreferences {
+            characters: BTreeMap::from([(0, first.clone()), (1, first)]),
+            selected_character_index: 0,
+            admin_ooc_color: Color::WHITE,
+        }),
+        max_character_slots: 3,
+    };
+    let mut edited = full_profile();
+    edited.age = 999;
+    // Новый — в первый свободный слот, проверенным; выбор не меняется.
+    assert_eq!(client_create_character(&mut world, &edited), Some(2));
+    assert_eq!(client_create_character(&mut world, &edited), None);
+    fn prefs(world: &World) -> PlayerPreferences {
+        world
+            .resource::<ClientPreferences>()
+            .preferences
+            .clone()
+            .unwrap()
+    }
+    assert_eq!(prefs(&world).characters[&2].age, 80);
+    assert_eq!(prefs(&world).selected_character_index, 0);
+    client_select_character(&mut world, 2);
+    client_delete_character(&mut world, 1);
+    let prefs = prefs(&world);
+    assert_eq!(prefs.selected_character_index, 2);
+    assert_eq!(prefs.characters.keys().collect::<Vec<_>>(), [&0, &2]);
+}

@@ -198,6 +198,27 @@ fn human_to_unary(color: Color) -> f32 {
 const HSV_TOLERANCE: f32 = 0.019;
 
 impl SkinStrategy {
+    /// Ввод одним числом, а не цветом (`InputType == Unary`): только человеческий тон.
+    pub fn is_unary(&self) -> bool {
+        matches!(self, Self::HumanToned)
+    }
+
+    /// Число ползунка по цвету (`ToUnary`); у цветовых стратегий — 0.
+    pub fn to_unary(&self, color: Color) -> f32 {
+        match self {
+            Self::HumanToned => human_to_unary(color),
+            _ => 0.0,
+        }
+    }
+
+    /// Цвет по числу ползунка (`FromUnary`); у цветовых стратегий — белый.
+    pub fn from_unary(&self, value: f32) -> Color {
+        match self {
+            Self::HumanToned => human_tone(value),
+            _ => Color::WHITE,
+        }
+    }
+
     /// Цвет кожи допустим (`VerifySkinColor`).
     pub fn verify(&self, color: Color) -> bool {
         match self {

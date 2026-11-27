@@ -680,6 +680,60 @@ pub struct ClientPreferences {
     pub max_character_slots: i32,
 }
 
+fn client_prefs(world: &mut World) -> Option<&mut PlayerPreferences> {
+    world
+        .get_resource_mut::<ClientPreferences>()?
+        .into_inner()
+        .preferences
+        .as_mut()
+}
+
+/// Выбрать слот на клиенте (`ClientPreferencesManager.SelectCharacter`).
+pub fn client_select_character(world: &mut World, slot: i32) {
+    let Some(prefs) = client_prefs(world) else {
+        return;
+    };
+    prefs.selected_character_index = slot;
+    world.send_net_event_to_server(&PreferencesMessage::SelectCharacter(slot));
+}
+
+/// Сохранить персонажа в слот (`UpdateCharacter`): проверка на месте, как на сервере;
+/// выбранный слот не меняется.
+pub fn client_update_character(world: &mut World, profile: &HumanoidCharacterProfile, slot: i32) {
+    let profile = validated(world, profile);
+    let Some(prefs) = client_prefs(world) else {
+        return;
+    };
+    prefs.characters.insert(slot, profile.clone());
+    world.send_net_event_to_server(&PreferencesMessage::UpdateCharacter {
+        slot,
+        profile: Box::new(profile),
+    });
+}
+
+/// Создать персонажа в первом свободном слоте (`CreateCharacter`); `None` — слотов нет.
+pub fn client_create_character(
+    world: &mut World,
+    profile: &HumanoidCharacterProfile,
+) -> Option<i32> {
+    let max = world
+        .get_resource::<ClientPreferences>()?
+        .max_character_slots;
+    let prefs = client_prefs(world)?;
+    let slot = (0..max).find(|slot| !prefs.characters.contains_key(slot))?;
+    client_update_character(world, profile, slot);
+    Some(slot)
+}
+
+/// Удалить персонажа (`DeleteCharacter`); выбор поправит сервер.
+pub fn client_delete_character(world: &mut World, slot: i32) {
+    let Some(prefs) = client_prefs(world) else {
+        return;
+    };
+    prefs.characters.remove(&slot);
+    world.send_net_event_to_server(&PreferencesMessage::DeleteCharacter(slot));
+}
+
 pub fn install(world: &mut World, side: Side) {
     world.register_net_event::<PreferencesMessage>();
     if !side.is_server() {
