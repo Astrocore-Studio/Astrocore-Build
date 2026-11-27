@@ -246,7 +246,7 @@ pub fn command_flags(command: &str) -> Option<&'static [u32]> {
         "lsmap" => &[DEBUG],
         "mapping" | "toggleautosave" => &[SERVER, MAPPING],
         "pausemap" | "unpausemap" => &[SERVER, MAPPING],
-        "explosion" => &[FUN],
+        "explosion" | "dockemergencyshuttle" | "launchemergencyshuttle" | "delayroundend" => &[FUN],
         "addgas" | "echo" => &[DEBUG],
         "ban" | "pardon" | "banlist" => &[BAN],
         "adminlogs" => &[LOGS],

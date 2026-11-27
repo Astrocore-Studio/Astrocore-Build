@@ -79,6 +79,9 @@ fn calling_counts_down_and_recall_waits_for_the_cooldown() {
 fn without_an_emergency_shuttle_the_round_ends_when_time_is_up() {
     let mut world = world();
     world
+        .set_cvar(&crate::emergency_shuttle::EMERGENCY_SHUTTLE_ENABLED, false)
+        .unwrap();
+    world
         .set_cvar(&game_ticker::ROUND_RESTART_TIME, 20.0)
         .unwrap();
     request_round_end(

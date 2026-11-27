@@ -46,6 +46,7 @@ pub mod do_after;
 pub mod docking;
 pub mod doors;
 pub mod electrocution;
+pub mod emergency_shuttle;
 pub mod entity_storage;
 pub mod examine;
 pub mod explosion;
@@ -292,6 +293,7 @@ pub fn install_content(world: &mut World, side: Side) {
     game_ticker::install(world, side);
     voting::install(world, side);
     round_end::install(world, side);
+    emergency_shuttle::install(world, side);
     mind::install(world, side);
     ghost::install(world, side);
     ghost_roles::install(world, side);
