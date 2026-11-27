@@ -41,6 +41,7 @@ pub mod interaction;
 pub mod inventory;
 pub mod item;
 pub mod item_slots;
+pub mod lights;
 pub mod lock;
 pub mod map_commands;
 pub mod mobs;
@@ -95,6 +96,8 @@ pub mod hands_hud;
 pub mod inhands;
 #[cfg(feature = "client")]
 pub mod inventory_hud;
+#[cfg(feature = "client")]
+pub mod light_visuals;
 #[cfg(feature = "client")]
 pub mod mapping_ui;
 #[cfg(feature = "client")]
@@ -173,6 +176,7 @@ pub fn install_content(world: &mut World, side: Side) {
     cables::install(world, side);
     access::install(world, side);
     lock::install(world, side);
+    lights::install(world, side);
     id_console::install(world, side);
     airtight::install(world, side);
     atmos::install(world, side);
