@@ -358,17 +358,14 @@ fn draw(
                 },
             ))
             .id();
-        let mark = |on: bool| if on { "☑" } else { "☐" };
+        // Переключатели: нажатый подсвечен (`Button.ToggleMode`).
+        let shade = |on: bool| if on { SELECTED } else { ROW };
         chip(
             &mut commands,
             &style,
             toggles,
-            format!(
-                "{} {}",
-                mark(window.play_sound),
-                loc(world, "admin-bwoink-play-sound", &[])
-            ),
-            ROW,
+            loc(world, "admin-bwoink-play-sound", &[]),
+            shade(window.play_sound),
             UiAction::new(|world| {
                 let mut window = world.get_resource_or_insert_with(AhelpWindow::default);
                 window.play_sound = !window.play_sound;
@@ -379,12 +376,8 @@ fn draw(
             &mut commands,
             &style,
             toggles,
-            format!(
-                "{} {}",
-                mark(window.admin_only),
-                loc(world, "bwoink-message-admin-only", &[])
-            ),
-            ROW,
+            loc(world, "bwoink-message-admin-only", &[]),
+            shade(window.admin_only),
             UiAction::new(|world| {
                 let mut window = world.get_resource_or_insert_with(AhelpWindow::default);
                 window.admin_only = !window.admin_only;

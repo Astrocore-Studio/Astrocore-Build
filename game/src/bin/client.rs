@@ -56,6 +56,9 @@ struct Options {
     /// Когда игрок станет призраком: окно телепорта или режим света
     /// (`--ghost-view warp|roles|halfbright|fullbright`).
     ghost_view: Option<String>,
+    /// Когда игрок получит права администратора: админ-меню на вкладке или окно ahelp
+    /// с пробным сообщением (`--admin-view admin|round|players|ahelp`).
+    admin_view: Option<String>,
     /// С `--host`: сервер с лобби, как выделенный (без него — сразу в раунд).
     lobby: bool,
     /// Секунды лобби (`--lobby-duration`), для проверки без человека.
@@ -86,6 +89,7 @@ fn options() -> Result<Options, String> {
         construct: None,
         character: None,
         ghost_view: None,
+        admin_view: None,
         lobby: false,
         lobby_duration: None,
         late_join: false,
@@ -118,6 +122,7 @@ fn options() -> Result<Options, String> {
             "--construct" => options.construct = Some(value("рецепт")?),
             "--character" => options.character = Some(value("вкладка")?),
             "--ghost-view" => options.ghost_view = Some(value("вид призрака")?),
+            "--admin-view" => options.admin_view = Some(value("окно администратора")?),
             "--lobby" => options.lobby = true,
             "--lobby-duration" => options.lobby_duration = Some(value("секунды")?),
             "--late-join" => options.late_join = true,
@@ -580,6 +585,77 @@ fn apply_pending_ghost_view(mut game: ResMut<Game>, mut pending: ResMut<PendingG
     }
 }
 
+/// Окно администратора из `--admin-view`: открывается, когда пришли права.
+#[derive(Resource)]
+struct PendingAdminView(Option<String>);
+
+fn apply_pending_admin_view(mut game: ResMut<Game>, mut pending: ResMut<PendingAdminView>) {
+    use astrocore_game::admin_ui::{AdminMenu, AdminMenuTab, can_admin_menu};
+    let world = &mut game.0;
+    if pending.0.is_none() || !can_admin_menu(world) {
+        return;
+    }
+    // Список игроков приходит вслед за правами.
+    let players = world
+        .get_resource::<astrocore_game::admin_system::ClientPlayerList>()
+        .is_some_and(|l| !l.players.is_empty());
+    if pending.0.as_deref() == Some("players") && !players {
+        return;
+    }
+    let Some(view) = pending.0.take() else {
+        return;
+    };
+    // ahelp: сначала пробное сообщение, окно — когда оно вернётся от сервера.
+    if view == "ahelp" {
+        let Some(user) = world
+            .get_resource::<astrocore_game::admin_manager::ClientAdmin>()
+            .and_then(|a| a.user_id)
+        else {
+            pending.0 = Some(view);
+            return;
+        };
+        astrocore_net::NetEventWorldExt::send_net_event_to_server(
+            world,
+            &astrocore_game::bwoink::BwoinkTextMessage {
+                user_id: user,
+                true_sender: astrocore_game::bwoink::SYSTEM_USER,
+                text: "Проверка ahelp: [bold]не экранируется?[/bold]".into(),
+                play_sound: true,
+                admin_only: false,
+                channel_name: String::new(),
+            },
+        );
+        pending.0 = Some("ahelp-open".into());
+        return;
+    }
+    if view == "ahelp-open" {
+        let arrived = world
+            .get_resource::<astrocore_game::bwoink::ClientBwoink>()
+            .is_some_and(|b| !b.channels.is_empty());
+        if arrived {
+            astrocore_game::ahelp_ui::toggle(world);
+        } else {
+            pending.0 = Some(view);
+        }
+        return;
+    }
+    let tab = match view.as_str() {
+        "round" => AdminMenuTab::Round,
+        "players" => AdminMenuTab::Players,
+        _ => AdminMenuTab::Admin,
+    };
+    let me = world
+        .get_resource::<astrocore_game::admin_manager::ClientAdmin>()
+        .and_then(|a| a.user_id);
+    let mut menu = world.get_resource_or_insert_with(AdminMenu::default);
+    menu.open = true;
+    menu.tab = tab;
+    if tab == AdminMenuTab::Players {
+        menu.selected = me;
+    }
+    menu.version += 1;
+}
+
 /// Тайлы игры по идентификаторам.
 fn game_world_tiles(app: &App) -> Vec<String> {
     app.world()
@@ -704,6 +780,7 @@ fn run() -> Result<(), String> {
     .add_plugins(astrocore_game::lobby_ui::LobbyUiPlugin)
     .add_plugins(astrocore_game::chat_ui::ChatUiPlugin)
     .add_plugins(astrocore_game::ahelp_ui::AhelpUiPlugin)
+    .add_plugins(astrocore_game::admin_ui::AdminUiPlugin)
     .add_plugins(astrocore_game::ghost_ui::GhostUiPlugin)
     .add_plugins(astrocore_game::decal_visuals::DecalVisualsPlugin)
     .add_plugins(astrocore_game::power_ui::PowerUiPlugin)
@@ -807,6 +884,10 @@ fn run() -> Result<(), String> {
     if let Some(view) = &options.ghost_view {
         app.insert_resource(PendingGhostView(Some(view.clone())));
         app.add_systems(Update, apply_pending_ghost_view);
+    }
+    if let Some(view) = &options.admin_view {
+        app.insert_resource(PendingAdminView(Some(view.clone())));
+        app.add_systems(Update, apply_pending_admin_view);
     }
     if !options.console.is_empty() {
         app.insert_resource(StartupCommands(options.console.clone()));

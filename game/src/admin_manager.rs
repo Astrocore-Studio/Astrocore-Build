@@ -242,6 +242,7 @@ pub fn command_flags(command: &str) -> Option<&'static [u32]> {
         "explosion" => &[FUN],
         "addgas" | "echo" => &[DEBUG],
         "ban" | "pardon" | "banlist" => &[BAN],
+        "adminlogs" => &[LOGS],
         "spawn" => &[SPAWN],
         "delete" => &[SPAWN, SERVER, DEBUG],
         "cvar" | "promotehost" => &[HOST],

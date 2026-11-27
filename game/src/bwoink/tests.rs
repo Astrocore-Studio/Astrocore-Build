@@ -1,47 +1,12 @@
 use astrocore_ecs::EventWorldExt;
-use astrocore_net::{
-    ConnId, NetEventWorldExt, NetTarget, PlayerConnected, PlayerDisconnected, ServerMessage,
-    ServerNet, Session,
-};
+use astrocore_net::{ConnId, PlayerConnected, PlayerDisconnected, ServerNet, Session};
 
 use super::*;
 use crate::mind::tests::{PROTOTYPES, scene};
 
-/// Номер события ahelp в протоколе: отправка пробного сообщения служебной сессии.
-fn event_id(world: &mut World) -> u16 {
-    let probe = world
-        .spawn(Session {
-            conn: ConnId(999),
-            user_id: SYSTEM_USER,
-            name: String::new(),
-            attached: None,
-            last_input: 0,
-            sync: Default::default(),
-        })
-        .id();
-    world.send_net_event(NetTarget::Session(probe), &message(SYSTEM_USER, ""));
-    world.despawn(probe);
-    let outgoing = std::mem::take(&mut world.resource_mut::<ServerNet>().outgoing);
-    let packet = outgoing.iter().find(|o| o.conn == ConnId(999)).unwrap();
-    match postcard::from_bytes::<ServerMessage>(&packet.bytes) {
-        Ok(ServerMessage::Event { id, .. }) => id,
-        _ => unreachable!(),
-    }
-}
-
-/// Сообщения ahelp, ушедшие с последнего вызова: разбор отправленных пакетов.
+/// Сообщения ahelp, ушедшие с последнего вызова.
 fn drain(world: &mut World) -> Vec<(ConnId, BwoinkTextMessage)> {
-    let outgoing = std::mem::take(&mut world.resource_mut::<ServerNet>().outgoing);
-    let id = event_id(world);
-    outgoing
-        .iter()
-        .filter_map(|o| match postcard::from_bytes::<ServerMessage>(&o.bytes) {
-            Ok(ServerMessage::Event { id: got, bytes }) if got == id => {
-                Some((o.conn, postcard::from_bytes(&bytes).unwrap()))
-            }
-            _ => None,
-        })
-        .collect()
+    crate::testing::sent_net_events(world, &message(SYSTEM_USER, ""))
 }
 
 fn received(world: &mut World, session: Entity) -> Vec<BwoinkTextMessage> {

@@ -11,7 +11,9 @@ pub mod actions;
 pub mod activatable_ui;
 pub mod admin_commands;
 pub mod admin_logs;
+pub mod admin_logs_eui;
 pub mod admin_manager;
+pub mod admin_system;
 pub mod admins;
 pub mod airtight;
 pub mod ame;
@@ -116,6 +118,8 @@ pub(crate) mod testing;
 
 #[cfg(feature = "client")]
 pub mod action_bar;
+#[cfg(feature = "client")]
+pub mod admin_ui;
 #[cfg(feature = "client")]
 pub mod ahelp_ui;
 #[cfg(feature = "client")]
@@ -262,6 +266,8 @@ pub fn install_content(world: &mut World, side: Side) {
     admin_logs::install(world, side);
     admin_manager::install(world, side);
     admin_commands::install(world, side);
+    admin_system::install(world, side);
+    admin_logs_eui::install(world, side);
     bwoink::install(world, side);
     profiles::install(world);
     markings::install(world);

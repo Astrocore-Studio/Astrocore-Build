@@ -68,3 +68,41 @@ pub fn spawn_at(world: &mut World, prototype: &str, grid: Entity, x: i32, y: i32
         )
         .unwrap_or_else(|error| panic!("{prototype}: {error}"))
 }
+
+/// Сетевые события вида `E`, ушедшие с сервера с прошлого вызова: исходящие пакеты
+/// забираются и разбираются. Номер события узнаётся отправкой `probe` служебной сессии.
+pub fn sent_net_events<E>(world: &mut World, probe: &E) -> Vec<(astrocore_net::ConnId, E)>
+where
+    E: serde::Serialize + serde::de::DeserializeOwned + 'static,
+{
+    use astrocore_net::{ConnId, NetEventWorldExt, NetTarget, ServerMessage, ServerNet, Session};
+    const PROBE: ConnId = ConnId(u64::MAX);
+    let outgoing = std::mem::take(&mut world.resource_mut::<ServerNet>().outgoing);
+    let session = world
+        .spawn(Session {
+            conn: PROBE,
+            user_id: astrocore_net::NetUserId(uuid::Uuid::nil()),
+            name: String::new(),
+            attached: None,
+            last_input: 0,
+            sync: Default::default(),
+        })
+        .id();
+    world.send_net_event(NetTarget::Session(session), probe);
+    world.despawn(session);
+    let sent = std::mem::take(&mut world.resource_mut::<ServerNet>().outgoing);
+    let decode = |bytes: &[u8]| match postcard::from_bytes::<ServerMessage>(bytes) {
+        Ok(ServerMessage::Event { id, bytes }) => Some((id, bytes)),
+        _ => None,
+    };
+    let Some((id, _)) = sent.iter().find_map(|o| decode(&o.bytes)) else {
+        return Vec::new();
+    };
+    outgoing
+        .iter()
+        .filter_map(|o| {
+            let (got, bytes) = decode(&o.bytes)?;
+            (got == id).then(|| (o.conn, postcard::from_bytes(&bytes).unwrap()))
+        })
+        .collect()
+}

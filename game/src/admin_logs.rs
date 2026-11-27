@@ -49,7 +49,9 @@ pub const ADMIN_LOGS_DROP_THRESHOLD: CVarDef<i32> = CVarDef::new(
 );
 
 /// Вид записи журнала (`LogType`): номера как в SS14 — они хранятся в базе.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, serde::Serialize, serde::Deserialize,
+)]
 pub enum LogType {
     Unknown = 0,
     Damaged = 2,
@@ -380,7 +382,19 @@ impl LogType {
 }
 
 /// Важность записи (`LogImpact`).
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    Default,
+    PartialEq,
+    Eq,
+    Hash,
+    PartialOrd,
+    Ord,
+    serde::Serialize,
+    serde::Deserialize,
+)]
 pub enum LogImpact {
     Low = -1,
     #[default]
@@ -448,6 +462,11 @@ impl AdminLogs {
     /// Записи, ждущие отправки: в раунде и до него.
     pub fn queued(&self) -> (usize, usize) {
         (self.queue.len(), self.pre_round_queue.len())
+    }
+
+    /// Записей в этом раунде (`RoundLogs`).
+    pub fn round_logs(&self) -> i64 {
+        self.next_id - 1
     }
 }
 
@@ -594,6 +613,8 @@ pub struct LogFilter {
     pub limit: Option<i64>,
     /// Сначала старые.
     pub ascending: bool,
+    /// Продолжение выдачи (`LastLogId`): записи после этой в порядке выдачи.
+    pub last_log_id: Option<i64>,
 }
 
 impl Db {
@@ -639,7 +660,9 @@ impl Db {
         let rows = sqlx::query(
             "SELECT round_id, id, type, impact, date, message, json FROM admin_log \
              WHERE ($1 = 0 OR round_id = $2) AND ($3 = 0 OR date < $4) AND ($5 = 0 OR date > $6) \
-             AND ($7 = '' OR message LIKE $8) ORDER BY date, id",
+             AND ($7 = '' OR message LIKE $8) \
+             AND ($9 = 0 OR ($10 = 1 AND id > $11) OR ($10 = 0 AND id < $11)) \
+             ORDER BY date, id",
         )
         .bind(i64::from(filter.round.is_some()))
         .bind(filter.round.unwrap_or(0))
@@ -649,6 +672,9 @@ impl Db {
         .bind(filter.after.unwrap_or(0))
         .bind(filter.search.clone().unwrap_or_default())
         .bind(format!("%{}%", filter.search.clone().unwrap_or_default()))
+        .bind(i64::from(filter.last_log_id.is_some()))
+        .bind(i64::from(filter.ascending))
+        .bind(filter.last_log_id.unwrap_or(0))
         .fetch_all(&self.pool)
         .await
         .map_err(db_error)?;
