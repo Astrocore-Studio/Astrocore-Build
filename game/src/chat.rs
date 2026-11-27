@@ -59,6 +59,15 @@ pub const CHAT_RATE_LIMIT_COUNT: CVarDef<i32> = CVarDef::new(
     CVarFlags::SERVERONLY,
     "Сколько сообщений игрок может отправить за окно.",
 );
+pub const CHAT_RATE_LIMIT_ANNOUNCE_ADMINS_DELAY: CVarDef<i32> = CVarDef::new(
+    "chat.rate_limit_announce_admins_delay",
+    15,
+    CVarFlags::SERVERONLY,
+    "Наименьшая пауза между оповещениями администраторов о превышении частоты, секунды; \
+     отрицательная — не оповещать.",
+);
+/// Ключ ограничения частоты чата (`ChatManager.RateLimitKey`).
+pub const CHAT_RATE_LIMIT_KEY: &str = "Chat";
 pub const CHAT_SANITIZER_ENABLED: CVarDef<bool> = CVarDef::new(
     "chat.chat_sanitizer_enabled",
     true,
@@ -707,11 +716,10 @@ pub fn obfuscate(world: &mut World, message: &str, chance: f32) -> String {
 
 // Менеджер чата.
 
-/// Авторы сообщений и учёт частоты (`ChatManager._players`, `PlayerRateLimitManager`).
+/// Номера авторов сообщений (`ChatManager._players`).
 #[derive(Resource, Debug, Default)]
 pub struct ChatUsers {
     keys: BTreeMap<NetUserId, i32>,
-    recent: BTreeMap<NetUserId, Vec<Duration>>,
 }
 
 impl ChatUsers {
@@ -753,30 +761,33 @@ fn admins(world: &mut World) -> Vec<Entity> {
         .collect()
 }
 
-/// Частота сообщений игрока (`HandleRateLimit`): за окно — не больше заданного.
+/// Частота сообщений игрока (`HandleRateLimit`): общий учёт [`crate::rate_limit`].
 pub fn rate_limit_allows(world: &mut World, session: Entity) -> bool {
-    let Some(user) = session_user(world, session) else {
+    if world.get::<Session>(session).is_none() {
         return true;
-    };
-    let time = now(world);
-    let period = Duration::from_secs_f32(world.cvar(&CHAT_RATE_LIMIT_PERIOD).max(0.0));
-    let count = world.cvar(&CHAT_RATE_LIMIT_COUNT).max(1) as usize;
-    let allowed = {
-        let mut users = world.get_resource_or_insert_with(ChatUsers::default);
-        let recent = users.recent.entry(user).or_default();
-        recent.retain(|t| time.saturating_sub(*t) < period);
-        if recent.len() >= count {
-            false
-        } else {
-            recent.push(time);
-            true
-        }
-    };
-    if !allowed {
-        let text = loc(world, "chat-manager-rate-limited", &[]);
-        dispatch_server_message(world, session, &text);
     }
-    allowed
+    crate::rate_limit::count_action(world, session, CHAT_RATE_LIMIT_KEY)
+        == crate::rate_limit::RateLimitStatus::Allowed
+}
+
+/// Игрок ограничен (`RateLimitPlayerLimited`).
+fn rate_limit_player_limited(world: &mut World, session: Entity) {
+    let text = loc(world, "chat-manager-rate-limited", &[]);
+    dispatch_server_message(world, session, &text);
+}
+
+/// Оповещение администраторов (`RateLimitAlertAdmins`).
+fn rate_limit_alert_admins(world: &mut World, session: Entity) {
+    let name = world
+        .get::<Session>(session)
+        .map(|s| s.name.clone())
+        .unwrap_or_default();
+    let text = loc(
+        world,
+        "chat-manager-rate-limit-admin-announcement",
+        &[("player", LocArg::from(name))],
+    );
+    send_admin_alert(world, &text);
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -2472,6 +2483,7 @@ pub fn install(world: &mut World, side: Side) {
     world.register_cvar(&CHAT_MAX_MESSAGE_LENGTH);
     world.register_cvar(&CHAT_RATE_LIMIT_PERIOD);
     world.register_cvar(&CHAT_RATE_LIMIT_COUNT);
+    world.register_cvar(&CHAT_RATE_LIMIT_ANNOUNCE_ADMINS_DELAY);
     world.register_cvar(&CHAT_SANITIZER_ENABLED);
     world.register_cvar(&IC_PUNCTUATION);
     world.register_cvar(&OOC_ENABLED);
@@ -2502,6 +2514,18 @@ pub fn install(world: &mut World, side: Side) {
         return;
     }
     world.init_resource::<ChatUsers>();
+    crate::rate_limit::register_rate_limit(
+        world,
+        CHAT_RATE_LIMIT_KEY,
+        crate::rate_limit::RateLimitRegistration {
+            period: CHAT_RATE_LIMIT_PERIOD,
+            count: CHAT_RATE_LIMIT_COUNT,
+            player_limited: Some(rate_limit_player_limited),
+            admin_announce_delay: Some(CHAT_RATE_LIMIT_ANNOUNCE_ADMINS_DELAY),
+            admin_announce: Some(rate_limit_alert_admins),
+            log_type: crate::admin_logs::LogType::ChatRateLimited,
+        },
+    );
     // OOC в раунде выключается, в лобби и после — включается (`OnGameChange`).
     world.subscribe_broadcast::<crate::game_ticker::GameRunLevelChanged>(|world, event| {
         if world.cvar(&OOC_ENABLE_DURING_ROUND) {

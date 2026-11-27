@@ -2,7 +2,7 @@
 //! администраторами; игрок пишет только в свой канал, администратор с правом `ADMINHELP` —
 //! в любой, в том числе «только администраторам» и без звука; сообщение получают все
 //! администраторы с этим правом и сам игрок; если администраторов нет — игрок узнаёт об
-//! этом; ограничение частоты; администраторы узнают, что собеседник вышел или вернулся.
+//! этом; ограничение частоты (общий учёт [`crate::rate_limit`]); администраторы узнают, что собеседник вышел или вернулся.
 //! Образец — `BwoinkSystem`, `SharedBwoinkSystem` (`BwoinkTextMessage`), `FormatName`,
 //! `FormatFullMessageForRecipient`, `NotifyAdmins`, `CCVars.Ahelp*`,
 //! `AHelpUIController` (звук и непрочитанное) SS14 @ 2f4a2aad.
@@ -10,7 +10,7 @@
 //! Нет пока: пересылки в Discord, индикатора набора, ссылок на имена, отметки о бане при
 //! выходе собеседника.
 
-use std::collections::{BTreeMap, VecDeque};
+use std::collections::BTreeMap;
 use std::time::Duration;
 
 use astrocore_console::{CVarDef, CVarFlags, Config, ConfigWorldExt};
@@ -71,12 +71,11 @@ pub struct BwoinkTextMessage {
     pub channel_name: String,
 }
 
-/// Беседы и частота. Ресурс сервера.
+/// Беседы. Ресурс сервера.
 #[derive(Resource, Debug, Default)]
 pub struct Bwoink {
     /// Когда в канале писали последний раз (`_activeConversations`).
     pub active_conversations: BTreeMap<NetUserId, Duration>,
-    rate: BTreeMap<NetUserId, VecDeque<Duration>>,
 }
 
 /// Переписка на клиенте. Ресурс мира клиента.
@@ -142,23 +141,24 @@ pub fn format_message(
     format!("{status} {name}: {}", escape_text(text))
 }
 
-fn rate_allows(world: &mut World, user: NetUserId) -> bool {
-    let period = Duration::from_secs_f32(world.cvar(&AHELP_RATE_LIMIT_PERIOD).max(0.0));
-    let count = usize::try_from(world.cvar(&AHELP_RATE_LIMIT_COUNT)).unwrap_or(0);
-    let time = now(world);
-    let mut state = world.get_resource_or_insert_with(Bwoink::default);
-    let queue = state.rate.entry(user).or_default();
-    while queue
-        .front()
-        .is_some_and(|t| time.saturating_sub(*t) >= period)
-    {
-        queue.pop_front();
-    }
-    if queue.len() >= count {
-        return false;
-    }
-    queue.push_back(time);
-    true
+/// Ключ ограничения частоты ahelp (`BwoinkSystem.RateLimitKey`).
+pub const AHELP_RATE_LIMIT_KEY: &str = "AdminHelp";
+
+/// Игрок ограничен (`PlayerRateLimitedAction`): сообщение в его канал.
+fn player_rate_limited(world: &mut World, session: Entity) {
+    let Some(user) = world.get::<Session>(session).map(|s| s.user_id) else {
+        return;
+    };
+    let text = loc(world, "bwoink-system-rate-limited", &[]);
+    let reply = BwoinkTextMessage {
+        user_id: user,
+        true_sender: SYSTEM_USER,
+        text,
+        play_sound: false,
+        admin_only: false,
+        channel_name: String::new(),
+    };
+    world.send_net_event(NetTarget::Session(session), &reply);
 }
 
 fn session_name(world: &World, session: Entity) -> String {
@@ -180,17 +180,9 @@ pub fn receive_message(world: &mut World, sender: Entity, message: &BwoinkTextMe
     if !(personal && !message.admin_only || ahelp_admin) {
         return;
     }
-    if !rate_allows(world, sender_user) {
-        let text = loc(world, "bwoink-system-rate-limited", &[]);
-        let reply = BwoinkTextMessage {
-            user_id: channel,
-            true_sender: SYSTEM_USER,
-            text,
-            play_sound: false,
-            admin_only: false,
-            channel_name: String::new(),
-        };
-        world.send_net_event(NetTarget::Session(sender), &reply);
+    if crate::rate_limit::count_action(world, sender, AHELP_RATE_LIMIT_KEY)
+        != crate::rate_limit::RateLimitStatus::Allowed
+    {
         return;
     }
     let time = now(world);
@@ -338,6 +330,18 @@ pub fn install(world: &mut World, side: Side) {
     world.register_cvar(&AHELP_RATE_LIMIT_COUNT);
     world.register_cvar(&AHELP_ADMIN_PREFIX);
     world.init_resource::<Bwoink>();
+    crate::rate_limit::register_rate_limit(
+        world,
+        AHELP_RATE_LIMIT_KEY,
+        crate::rate_limit::RateLimitRegistration {
+            period: AHELP_RATE_LIMIT_PERIOD,
+            count: AHELP_RATE_LIMIT_COUNT,
+            player_limited: Some(player_rate_limited),
+            admin_announce_delay: None,
+            admin_announce: None,
+            log_type: crate::admin_logs::LogType::RateLimited,
+        },
+    );
     world.subscribe_net_event::<BwoinkTextMessage>(|world, event: &mut NetEvent<_>| {
         let Some(sender) = event.session else {
             return;

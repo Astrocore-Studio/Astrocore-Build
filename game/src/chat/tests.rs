@@ -341,18 +341,24 @@ fn ooc_looc_dead_and_admin_channels() {
 fn rate_limit_and_length_limit() {
     let mut scene = scene();
     let (session, body) = scene.player("Talker", 1, 1);
+    // Учёт частоты идёт по настоящему времени: короткий период, чтобы дождаться нового.
+    scene.world.set_cvar(&CHAT_RATE_LIMIT_PERIOD, 0.3).unwrap();
     for i in 0..10 {
         scene.say(session, body, &format!("line {i}"), InGameIcChatType::Speak);
     }
     assert_eq!(scene.heard().len(), 10);
     scene.say(session, body, "one too many", InGameIcChatType::Speak);
     let sent = scene.heard();
-    // Вместо речи — сообщение сервера о частоте.
-    assert_eq!(sent.len(), 1);
-    assert_eq!(sent[0].message.channel, ChatChannel::SERVER);
-    // Через окно снова можно; длинное — нельзя.
-    let rate = scene.world.resource::<GameTime>().tick_rate;
-    scene.world.resource_mut::<GameTime>().tick.0 += u32::from(rate) * 3;
+    // Вместо речи — сообщение сервера о частоте и оповещение администраторов.
+    // Как в SS14, сначала оповещение администраторов.
+    let channels: Vec<ChatChannel> = sent.iter().map(|m| m.message.channel).collect();
+    assert_eq!(channels, [ChatChannel::ADMIN_ALERT, ChatChannel::SERVER]);
+    assert_eq!(sent[1].recipients, [session]);
+    // Сообщение о частоте — раз за период.
+    scene.say(session, body, "still too many", InGameIcChatType::Speak);
+    assert!(scene.heard().is_empty());
+    // Через период снова можно; длинное — нельзя.
+    std::thread::sleep(std::time::Duration::from_millis(350));
     scene.world.set_cvar(&CHAT_MAX_MESSAGE_LENGTH, 5).unwrap();
     scene.say(session, body, "far too long", InGameIcChatType::Speak);
     let sent = scene.heard();

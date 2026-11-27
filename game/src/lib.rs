@@ -92,6 +92,7 @@ pub mod pulling;
 pub mod radiation;
 pub mod radio;
 pub mod random;
+pub mod rate_limit;
 pub mod respawn;
 pub mod respiration;
 pub mod server;
@@ -264,6 +265,7 @@ pub fn install_content(world: &mut World, side: Side) {
     database::install(world, side);
     bans::install(world);
     admin_logs::install(world, side);
+    rate_limit::install(world, side);
     admin_manager::install(world, side);
     admin_commands::install(world, side);
     admin_system::install(world, side);

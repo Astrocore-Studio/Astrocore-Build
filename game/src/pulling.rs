@@ -543,6 +543,9 @@ fn bind_inputs(world: &mut World) {
         if user == target || !world.is_alive(target) {
             return false;
         }
+        if !crate::interaction::interaction_rate_allows(world, args) {
+            return false;
+        }
         if !world.in_range_unobstructed(user, target, INTERACTION_RANGE) {
             return false;
         }

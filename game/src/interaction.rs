@@ -1,5 +1,6 @@
 //! Взаимодействие игрока с миром: клик рукой, клик предметом, «использовать» (E),
-//! использование предмета в руке, проверка досягаемости и доступа. Образец —
+//! использование предмета в руке, проверка досягаемости и доступа, ограничение частоты
+//! запросов клиента. Образец —
 //! `Content.Shared/Interaction/SharedInteractionSystem.cs` SS14 @ 2f4a2aad.
 //!
 //! Цепочка клика (`UserInteraction`): пустая рука — `InteractHand` на цели, а если его никто
@@ -8,6 +9,7 @@
 //! `AfterInteract` с `can_reach: false`. Клик по самому предмету в руке — `UseInHand`.
 //! Системы отвечают на события и помечают их обработанными.
 
+use astrocore_console::{CVarDef, CVarFlags, ConfigWorldExt};
 use astrocore_ecs::{EventWorldExt, GameWorldExt, LifecycleWorldExt, MetaData, RegistryWorldExt};
 use astrocore_input::{BoundKeyState, InputArgs, InputWorldExt};
 use astrocore_map::{ContainerWorldExt, MapCoordinates, MapGrid, MapWorldExt, TransformWorldExt};
@@ -814,16 +816,68 @@ fn after_interact(
     message.handled
 }
 
-/// Проверка команды клиента: у сессии есть тело, точка на карте, цель существует
-/// (`ValidateClientInput`).
+pub const INTERACTION_RATE_LIMIT_COUNT: CVarDef<i32> = CVarDef::new(
+    "interaction.rate_limit_count",
+    5,
+    CVarFlags::SERVER.union(CVarFlags::REPLICATED),
+    "Сколько взаимодействий игрок может сделать за период.",
+);
+pub const INTERACTION_RATE_LIMIT_PERIOD: CVarDef<f32> = CVarDef::new(
+    "interaction.rate_limit_period",
+    0.5,
+    CVarFlags::SERVER.union(CVarFlags::REPLICATED),
+    "Период подсчёта взаимодействий, секунды.",
+);
+pub const INTERACTION_RATE_LIMIT_ANNOUNCE_ADMINS_DELAY: CVarDef<i32> = CVarDef::new(
+    "interaction.rate_limit_announce_admins_delay",
+    120,
+    CVarFlags::SERVERONLY,
+    "Наименьшая пауза между оповещениями администраторов о превышении, секунды; \
+     отрицательная — не оповещать.",
+);
+/// Ключ ограничения частоты взаимодействий (`RateLimitKey`).
+pub const INTERACTION_RATE_LIMIT_KEY: &str = "Interaction";
+
+/// Оповещение администраторов (`RateLimitAlertAdmins`).
+fn rate_limit_alert_admins(world: &mut World, session: Entity) {
+    let name = world
+        .get::<astrocore_net::Session>(session)
+        .map(|s| s.name.clone())
+        .unwrap_or_default();
+    let text = crate::examine::loc(
+        world,
+        "interaction-rate-limit-admin-announcement",
+        &[("player", astrocore_loc::LocArg::from(name))],
+    );
+    crate::chat::send_admin_alert(world, &text);
+}
+
+/// Учесть взаимодействие игрока (конец `ValidateClientInput`): короткий период и большое
+/// число — ловит изменённые клиенты, а не быстрые нажатия. Ввод без сессии (сервер,
+/// тесты) не считается.
+pub fn interaction_rate_allows(world: &mut World, args: &InputArgs) -> bool {
+    match args.session {
+        Some(session) => {
+            crate::rate_limit::count_action(world, session, INTERACTION_RATE_LIMIT_KEY)
+                == crate::rate_limit::RateLimitStatus::Allowed
+        }
+        None => true,
+    }
+}
+
+/// Проверка команды клиента: у сессии есть тело, точка на карте, цель существует, частота
+/// не превышена (`ValidateClientInput`).
 fn client_input(
-    world: &World,
+    world: &mut World,
     args: &InputArgs,
 ) -> Option<(Entity, MapCoordinates, Option<Entity>)> {
     let user = args.player.filter(|user| world.is_alive(*user))?;
     let click = args.coordinates?;
     world.map_entity(click.map)?;
     let target = args.target.filter(|target| !is_deleted(world, *target));
+    if !interaction_rate_allows(world, args) {
+        return None;
+    }
     Some((user, click, target))
 }
 
@@ -875,7 +929,22 @@ pub fn install(world: &mut World, side: crate::Side) {
     world.add_plugin(astrocore_input::InputPlugin);
     world.register_data_component::<WallMount>();
     world.register_net_serde::<WallMount>();
+    world.register_cvar(&INTERACTION_RATE_LIMIT_COUNT);
+    world.register_cvar(&INTERACTION_RATE_LIMIT_PERIOD);
+    world.register_cvar(&INTERACTION_RATE_LIMIT_ANNOUNCE_ADMINS_DELAY);
     if side.is_server() {
+        crate::rate_limit::register_rate_limit(
+            world,
+            INTERACTION_RATE_LIMIT_KEY,
+            crate::rate_limit::RateLimitRegistration {
+                period: INTERACTION_RATE_LIMIT_PERIOD,
+                count: INTERACTION_RATE_LIMIT_COUNT,
+                player_limited: None,
+                admin_announce_delay: Some(INTERACTION_RATE_LIMIT_ANNOUNCE_ADMINS_DELAY),
+                admin_announce: Some(rate_limit_alert_admins),
+                log_type: crate::admin_logs::LogType::RateLimited,
+            },
+        );
         bind_inputs(world);
     }
 }
