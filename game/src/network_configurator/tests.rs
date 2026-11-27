@@ -1,4 +1,4 @@
-use astrocore_ecs::LifecycleWorldExt;
+use astrocore_ecs::{EventWorldExt, LifecycleWorldExt};
 
 use super::*;
 use crate::device_linking::links_of;
@@ -49,6 +49,14 @@ const PROTOTYPES: &str = r#"
     ports: [ Toggle ]
 - type: entity
   id: Body
+- type: entity
+  id: ActionClearNetworkLinkOverlays
+  components:
+  - type: Action
+    clientExclusive: true
+    temporary: true
+  - type: InstantAction
+    event: !type:ClearAllOverlaysEvent
 "#;
 
 struct Scene {
@@ -204,5 +212,117 @@ fn link_window_state_lists_ports_links_and_defaults() {
     assert_eq!(
         state.defaults,
         Some(vec![("Pressed".to_owned(), "Toggle".to_owned())])
+    );
+}
+
+#[test]
+fn addresses_read_as_numbers_or_hex() {
+    assert_eq!(parse_address("1234"), Some(1234));
+    assert_eq!(parse_address("Vnt-00AB-00CD"), Some(0x00AB));
+    assert_eq!(parse_address("00AB"), Some(0xAB));
+    assert_eq!(parse_address("zz"), None);
+}
+
+#[test]
+fn saved_devices_go_into_the_map_and_come_back() {
+    use astrocore_map::{MapSaveOptions, MapSaveWorldExt};
+    let mut s = scene();
+    let vent = spawn_at(&mut s.world, "Vent", s.grid, 2, 2);
+    switch_mode(&mut s.world, s.tool);
+    on_used(&mut s.world, s.tool, Some(vent), s.user, true);
+    let map = s.world.get::<Transform>(s.grid).unwrap().map().unwrap();
+    let mut save = s
+        .world
+        .save_map(
+            map,
+            MapSaveOptions {
+                allow_initialized: true,
+            },
+        )
+        .unwrap();
+    write_references(&mut s.world, &mut save);
+    let devices =
+        crate::device_network::tests::saved_field(&save, s.tool, "NetworkConfigurator", "devices")
+            .unwrap();
+    let address = s.world.get::<DeviceNetwork>(vent).unwrap().address;
+    let (key, uid) = {
+        let map = devices.as_map().unwrap();
+        let (key, uid) = map.iter().next().unwrap();
+        (key.to_owned(), uid.as_str().unwrap().to_owned())
+    };
+    assert_eq!(key, address.to_string());
+    assert_eq!(uid, save.uids[&vent].to_string());
+    assert!(
+        crate::device_network::tests::saved_field(
+            &save,
+            s.tool,
+            "NetworkConfigurator",
+            "namedDevices"
+        )
+        .is_some()
+    );
+
+    // Загрузка: настройщик из карты помнит устройство.
+    let other = spawn_at(&mut s.world, "Configurator", s.grid, 5, 5);
+    let fields = astrocore_data::parse_yaml(&format!("devices:\n  {address}: 40\n"))
+        .unwrap()
+        .as_map()
+        .cloned()
+        .unwrap();
+    s.world.entity_mut(other).insert(MapPreserved {
+        components: Vec::new(),
+        missing: Vec::new(),
+        fields: vec![("NetworkConfigurator".into(), fields)],
+    });
+    let loaded = MapLoaded {
+        maps: Vec::new(),
+        grids: vec![s.grid],
+        uids: std::collections::HashMap::from([(39, other), (40, vent)]),
+    };
+    adopt_devices(&mut s.world, &loaded);
+    assert_eq!(state(&s.world, other).devices[&address], vent);
+    assert!(state(&s.world, other).named_devices.contains_key(&address));
+}
+
+#[test]
+fn shown_lists_give_a_clear_action_until_cleared() {
+    let mut s = scene();
+    let alarm = spawn_at(&mut s.world, "Alarm", s.grid, 4, 2);
+    show_list(&mut s.world, s.user, alarm, true);
+    let action = s.world.resource::<NetworkLinkOverlays>().shown[&s.user]
+        .1
+        .unwrap();
+    assert!(crate::actions::ActionsWorldExt::actions_of(&s.world, s.user).contains(&action));
+    // Убрать последний показанный — действие пропадает.
+    show_list(&mut s.world, s.user, alarm, false);
+    assert!(
+        !s.world
+            .resource::<NetworkLinkOverlays>()
+            .shown
+            .contains_key(&s.user)
+    );
+    assert!(!s.world.is_alive(action));
+    // Действие «убрать показ» убирает всё.
+    show_list(&mut s.world, s.user, alarm, true);
+    let action = s.world.resource::<NetworkLinkOverlays>().shown[&s.user]
+        .1
+        .unwrap();
+    let mut event = crate::actions::ActionEvent {
+        kind: "ClearAllOverlaysEvent".into(),
+        data: astrocore_data::DataNode::plain(""),
+        performer: s.user,
+        action,
+        target: None,
+        coordinates: None,
+        handled: false,
+        toggle: false,
+    };
+    s.world.raise_broadcast(&mut event);
+    assert!(event.handled);
+    assert!(
+        !s.world
+            .resource::<NetworkLinkOverlays>()
+            .shown
+            .contains_key(&s.user)
     );
 }

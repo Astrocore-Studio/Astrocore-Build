@@ -537,6 +537,7 @@ pub fn save_map_file(
     // Ссылки на сущности, изменённые в игре (ADR-0014): списки устройств и связи сигналов.
     crate::device_network::write_references(world, &mut saved);
     crate::device_linking::write_references(world, &mut saved);
+    crate::network_configurator::write_references(world, &mut saved);
     let text = to_yaml_string(&saved.document);
     file.parent()
         .map_or(Ok(()), std::fs::create_dir_all)

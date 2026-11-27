@@ -9,18 +9,27 @@
 //! Образец — `NetworkConfiguratorComponent`, `NetworkConfiguratorSystem` (с `.UI`, `.Verb`),
 //! `LinkedDeviceNetworkComponent`, сообщения `NetworkConfigurator*Message` SS14 @ 2f4a2aad.
 //!
-//! Нет пока: показа связей списка на карте (кнопка «Показать», `NetworkConfiguratorLinkOverlay`),
-//! паузы использования (`UseDelay`), сохранения запомненных устройств настройщика в карту.
+//! Кнопка «Показать» в окне настройки рисует у игрока линии от списка к его устройствам
+//! (`NetworkConfiguratorLinkOverlay`); пока показ включён, на панели действий есть «убрать
+//! показ» (`ActionClearNetworkLinkOverlays`). В SS14 показ ведёт сам клиент; у нас — сервер:
+//! у клиента нет списков устройств. Запомненные устройства (`devices`, `namedDevices`)
+//! пишутся в карту и читаются из неё (ADR-0014).
+//!
+//! Нет пока паузы использования (`UseDelay`, задача 7.11).
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
+use astrocore_data::{DataMap, DataNode};
 use astrocore_ecs::{EntityTerminating, EventWorldExt, LifecycleWorldExt, RegistryWorldExt};
 use astrocore_loc::{EntityNameWorldExt, LocArg};
-use astrocore_map::{Map, Transform};
-use astrocore_net::AppearanceWorldExt;
+use astrocore_map::{Map, MapLoaded, MapPreserved, MapSave, Transform};
+use astrocore_net::{
+    Actor, AppearanceWorldExt, NetEntity, NetEventWorldExt, NetTarget, PlayerDisconnected,
+};
 use astrocore_ui::{BoundUiClosed, BoundUiMessage, UiWorldExt};
 use bevy_ecs::component::Component;
 use bevy_ecs::entity::Entity;
+use bevy_ecs::resource::Resource;
 use bevy_ecs::world::World;
 use serde::{Deserialize, Serialize};
 
@@ -95,7 +104,37 @@ pub struct SavedDevice {
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub struct DeviceListUiState {
     pub devices: Vec<SavedDevice>,
+    /// Список, открытый в окне настройки: для кнопки «Показать».
+    pub list: Option<NetEntity>,
 }
+
+/// Списки, показанные игроку на карте: список → его устройства. Сервер → клиент.
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
+pub struct NetworkLinkOverlay {
+    pub lists: Vec<(NetEntity, Vec<NetEntity>)>,
+}
+
+/// Показ списков у игроков: тело → (списки, действие «убрать показ»). Ресурс сервера.
+#[derive(Resource, Debug, Default)]
+pub struct NetworkLinkOverlays {
+    pub shown: BTreeMap<Entity, (BTreeSet<Entity>, Option<Entity>)>,
+}
+
+/// Показ на клиенте. Ресурс мира клиента.
+#[derive(Resource, Debug, Clone, Default)]
+pub struct ClientLinkOverlay {
+    pub overlay: NetworkLinkOverlay,
+    pub version: u64,
+}
+
+impl ClientLinkOverlay {
+    pub fn is_shown(&self, list: NetEntity) -> bool {
+        self.overlay.lists.iter().any(|(shown, _)| *shown == list)
+    }
+}
+
+const CLEAR_OVERLAYS_ACTION: &str = "ActionClearNetworkLinkOverlays";
+const CLEAR_OVERLAYS_EVENT: &str = "ClearAllOverlaysEvent";
 
 /// Состояние окна портов (`DeviceLinkUserInterfaceState`): порты как (идентификатор, имя).
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
@@ -129,6 +168,8 @@ pub enum NetworkConfiguratorMessage {
     LinkClear,
     /// Задать связи пары (`NetworkConfiguratorLinkSaveMessage`).
     LinkSave(Vec<(String, String)>),
+    /// Показать или убрать открытый список на карте (кнопка «Показать»).
+    Show(bool),
 }
 
 fn is_source(world: &World, entity: Entity) -> bool {
@@ -228,8 +269,13 @@ fn device_network_address(world: &World, device: Entity) -> i32 {
 
 /// Обновить окна списка и настройки (`UpdateListUiState`).
 pub fn update_list_ui_state(world: &mut World, entity: Entity) {
+    let list = world
+        .get::<NetworkConfigurator>(entity)
+        .and_then(|c| c.active_device_list)
+        .and_then(|list| world.get::<NetEntity>(list).copied());
     let state = DeviceListUiState {
         devices: saved_devices(world, entity),
+        list,
     };
     world.set_ui_state(entity, LIST_UI_KEY, &state);
     world.set_ui_state(entity, CONFIGURE_UI_KEY, &state);
@@ -644,6 +690,11 @@ pub fn handle_message(
                 update_link_ui_state(world, entity);
             }
         }
+        NetworkConfiguratorMessage::Show(show) => {
+            if let Some(list) = list {
+                show_list(world, actor, list, *show);
+            }
+        }
         NetworkConfiguratorMessage::LinkSave(links) => {
             if let Some((source, sink)) = link_pair(world, entity) {
                 let links: Vec<DeviceLink> =
@@ -671,6 +722,177 @@ fn clear_devices(world: &mut World, entity: Entity) {
     });
 }
 
+/// Отправить игроку его показанные списки.
+fn send_overlay(world: &mut World, actor: Entity) {
+    let lists: Vec<Entity> = world
+        .get_resource::<NetworkLinkOverlays>()
+        .and_then(|o| o.shown.get(&actor))
+        .map(|(lists, _)| lists.iter().copied().collect())
+        .unwrap_or_default();
+    let net = |world: &World, e: Entity| world.get::<NetEntity>(e).copied();
+    let overlay = NetworkLinkOverlay {
+        lists: lists
+            .into_iter()
+            .filter(|list| world.is_alive(*list))
+            .filter_map(|list| {
+                let devices = device_network::devices_of(world, list)
+                    .into_iter()
+                    .filter_map(|d| net(world, d))
+                    .collect();
+                Some((net(world, list)?, devices))
+            })
+            .collect(),
+    };
+    if let Some(session) = world.get::<Actor>(actor).map(|a| a.session) {
+        world.send_net_event(NetTarget::Session(session), &overlay);
+    }
+}
+
+/// Показать или убрать список (`ToggleVisualization`): первое показанное даёт действие
+/// «убрать показ», последнее убранное его забирает.
+pub fn show_list(world: &mut World, actor: Entity, list: Entity, show: bool) {
+    let (empty_before, empty_after, action) = {
+        let mut overlays = world.get_resource_or_insert_with(NetworkLinkOverlays::default);
+        let entry = overlays.shown.entry(actor).or_default();
+        let before = entry.0.is_empty();
+        if show {
+            entry.0.insert(list);
+        } else {
+            entry.0.remove(&list);
+        }
+        (before, entry.0.is_empty(), entry.1)
+    };
+    if empty_before && !empty_after && action.is_none() {
+        let added =
+            crate::actions::ActionsWorldExt::add_action(world, actor, CLEAR_OVERLAYS_ACTION, None);
+        if let Some(entry) = world
+            .resource_mut::<NetworkLinkOverlays>()
+            .shown
+            .get_mut(&actor)
+        {
+            entry.1 = added;
+        }
+    }
+    if empty_after {
+        clear_overlays(world, actor);
+        return;
+    }
+    send_overlay(world, actor);
+}
+
+/// Убрать весь показ (`ClearAllOverlays`) и действие.
+pub fn clear_overlays(world: &mut World, actor: Entity) {
+    let removed = world
+        .get_resource_mut::<NetworkLinkOverlays>()
+        .and_then(|mut o| o.shown.remove(&actor));
+    if let Some((_, Some(action))) = removed {
+        crate::actions::ActionsWorldExt::remove_action(world, actor, action);
+        world.delete_entity(action);
+    }
+    send_overlay(world, actor);
+}
+
+/// Адрес из карты (`DeviceAddressTypeSerializer`): число или шестнадцатеричная строка с
+/// необязательным префиксом.
+pub fn parse_address(text: &str) -> Option<i32> {
+    if let Ok(value) = text.parse::<i32>() {
+        return Some(value);
+    }
+    // Как в SS14: при дефисе берётся вторая часть (`Split('-')[1]`).
+    let hex = if text.contains('-') {
+        text.split('-').nth(1).unwrap_or("")
+    } else {
+        text
+    };
+    u32::from_str_radix(hex, 16).ok().map(|v| v as i32)
+}
+
+fn preserved_devices(world: &World, entity: Entity) -> BTreeMap<i32, u32> {
+    world
+        .get::<MapPreserved>(entity)
+        .into_iter()
+        .flat_map(|p| p.fields.iter())
+        .filter(|(name, _)| name == "NetworkConfigurator")
+        .filter_map(|(_, fields)| fields.get("devices").and_then(DataNode::as_map))
+        .flat_map(|map| map.iter())
+        .filter_map(|(address, uid)| Some((parse_address(address)?, uid.as_str()?.parse().ok()?)))
+        .collect()
+}
+
+/// Запомненные устройства из карты (ADR-0014): номера файла → сущности.
+fn adopt_devices(world: &mut World, loaded: &MapLoaded) {
+    let mut configurators: Vec<Entity> = loaded
+        .uids
+        .values()
+        .copied()
+        .filter(|e| world.get::<NetworkConfigurator>(*e).is_some())
+        .collect();
+    configurators.sort();
+    for configurator in configurators {
+        for (address, uid) in preserved_devices(world, configurator) {
+            if let Some(&device) = loaded.uids.get(&uid)
+                && world.get::<DeviceNetwork>(device).is_some()
+            {
+                add_device(world, configurator, device, address);
+            }
+        }
+    }
+}
+
+/// Запомненные устройства, изменённые в игре, — в сохранённую карту (ADR-0014):
+/// `devices` (адрес → номер) и `namedDevices` (адрес → [префикс, имя]).
+pub fn write_references(world: &mut World, save: &mut MapSave) {
+    let mut configurators: Vec<(Entity, NetworkConfigurator)> = world
+        .query::<(Entity, &NetworkConfigurator)>()
+        .iter(world)
+        .filter(|(entity, _)| save.uids.contains_key(entity))
+        .map(|(entity, c)| (entity, c.clone()))
+        .collect();
+    configurators.sort_by_key(|(entity, _)| *entity);
+    for (entity, configurator) in configurators {
+        let current: BTreeMap<i32, u32> = configurator
+            .devices
+            .iter()
+            .filter_map(|(address, device)| Some((*address, *save.uids.get(device)?)))
+            .collect();
+        if current == preserved_devices(world, entity) {
+            continue;
+        }
+        let (devices, named) = if current.is_empty() {
+            (None, None)
+        } else {
+            let mut devices = DataMap::new();
+            let mut named = DataMap::new();
+            for (address, uid) in &current {
+                devices.insert(address.to_string(), DataNode::plain(uid.to_string()));
+                let (prefix, name) = configurator
+                    .named_devices
+                    .get(address)
+                    .cloned()
+                    .unwrap_or_default();
+                named.insert(
+                    address.to_string(),
+                    DataNode::seq(vec![
+                        DataNode::plain(prefix.unwrap_or_else(|| "null".to_owned())),
+                        DataNode::string(name),
+                    ]),
+                );
+            }
+            (Some(DataNode::map(devices)), Some(DataNode::map(named)))
+        };
+        let uid = save.uids[&entity];
+        for (field, value) in [("devices", devices), ("namedDevices", named)] {
+            crate::map_commands::set_saved_component_field(
+                &mut save.document,
+                uid,
+                "NetworkConfigurator",
+                field,
+                value,
+            );
+        }
+    }
+}
+
 fn verb_icon(name: &str) -> Option<String> {
     Some(format!(
         "/Textures/Interface/VerbIcons/{name}.svg.192dpi.png"
@@ -680,9 +902,53 @@ fn verb_icon(name: &str) -> Option<String> {
 pub fn install(world: &mut World, side: Side) {
     world.register_data_component::<NetworkConfigurator>();
     world.register_ui_message::<NetworkConfiguratorMessage>();
+    world.register_net_event::<NetworkLinkOverlay>();
     if !side.is_server() {
+        world.init_resource::<ClientLinkOverlay>();
+        world.subscribe_net_event::<NetworkLinkOverlay>(|world, event| {
+            let overlay = event.event.clone();
+            let mut client = world.resource_mut::<ClientLinkOverlay>();
+            client.overlay = overlay;
+            client.version += 1;
+        });
         return;
     }
+    world.init_resource::<NetworkLinkOverlays>();
+    world.subscribe_broadcast::<MapLoaded>(|world, event| adopt_devices(world, event));
+    // Действие «убрать показ» (`ClearAllOverlaysEvent`).
+    world.subscribe_broadcast::<crate::actions::ActionEvent>(|world, event| {
+        if event.kind != CLEAR_OVERLAYS_EVENT {
+            return;
+        }
+        event.handled = true;
+        let performer = event.performer;
+        clear_overlays(world, performer);
+    });
+    // Список изменился — показ обновляется у всех, кто его смотрит.
+    world.subscribe::<DeviceList, device_network::DeviceListUpdate>(|world, list, _| {
+        let viewers: Vec<Entity> = world
+            .resource::<NetworkLinkOverlays>()
+            .shown
+            .iter()
+            .filter(|(_, (lists, _))| lists.contains(&list))
+            .map(|(actor, _)| *actor)
+            .collect();
+        for viewer in viewers {
+            send_overlay(world, viewer);
+        }
+    });
+    world.subscribe_broadcast::<PlayerDisconnected>(|world, event| {
+        let session = event.session;
+        let attached = world
+            .get::<astrocore_net::Session>(session)
+            .and_then(|s| s.attached);
+        if let Some(actor) = attached {
+            world
+                .resource_mut::<NetworkLinkOverlays>()
+                .shown
+                .remove(&actor);
+        }
+    });
     world.subscribe::<NetworkConfigurator, AfterInteract>(|world, entity, event| {
         let (target, user, can_reach) = (event.target, event.user, event.can_reach);
         on_used(world, entity, target, user, can_reach);
