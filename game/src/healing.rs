@@ -1,7 +1,8 @@
 //! Лечение предметами: бинты, мази, аптечки. Действие с задержкой, себя лечить дольше при
 //! сильных ранах, предмет повторяет лечение, пока есть что лечить. Образец —
 //! `Content.Shared/Medical/Healing` SS14 @ 2f4a2aad (`HealingComponent`, `HealingSystem`).
-//! Кровотечения и крови ещё нет (фаза 7.1).
+//! Бинты и жгуты останавливают кровотечение (`bloodlossModifier`), часть средств возвращает
+//! кровь (`modifyBloodLevel`).
 
 use astrocore_audio::{AudioWorldExt, SoundSpecifier};
 use astrocore_ecs::{EventWorldExt, LifecycleWorldExt, RegistryWorldExt};
@@ -12,6 +13,7 @@ use bevy_ecs::entity::Entity;
 use bevy_ecs::world::World;
 use serde::{Deserialize, Serialize};
 
+use crate::bloodstream::{self, Bloodstream};
 use crate::damage::{DamageSpecifier, Damageable, DamageableWorldExt, Injurable};
 use crate::do_after::{DoAfterArgs, DoAfterDone, DoAfterWorldExt};
 use crate::examine::loc;
@@ -66,18 +68,27 @@ fn container_allows(world: &World, healing: &Healing, target: Entity) -> bool {
     }
 }
 
-/// Есть ли у цели урон, который предмет лечит (`HasDamage`).
-fn has_damage(world: &World, healing: &Healing, target: Entity) -> bool {
+/// Есть ли у цели то, что предмет лечит: урон его типов, нехватка крови или кровотечение
+/// (`HasDamage`).
+pub(crate) fn has_damage(world: &World, healing: &Healing, target: Entity) -> bool {
     let Some(damageable) = world.get::<Damageable>(target) else {
         return false;
     };
-    healing.damage.types.keys().any(|damage_type| {
+    let wounded = healing.damage.types.keys().any(|damage_type| {
         damageable
             .damage
             .types
             .get(damage_type)
             .is_some_and(|v| *v > FixedPoint2::ZERO)
-    })
+    });
+    if wounded {
+        return true;
+    }
+    let Some(bloodstream) = world.get::<Bloodstream>(target) else {
+        return false;
+    };
+    (healing.modify_blood_level > 0.0 && bloodstream.blood_level() < 1.0)
+        || (healing.bloodloss_modifier < 0.0 && bloodstream.bleed_amount > 0.0)
 }
 
 /// Себя лечить дольше: от 1 до множителя по доле урона до крита (`GetScaledHealingPenalty`).
@@ -168,6 +179,38 @@ fn on_do_after(world: &mut World, target: Entity, event: &mut DoAfterDone<Healin
     };
     if !container_allows(world, &healing, target) {
         return;
+    }
+    // Остановить кровотечение.
+    if healing.bloodloss_modifier != 0.0
+        && let Some(bleeding) = world
+            .get::<Bloodstream>(target)
+            .map(|b| b.bleed_amount > 0.0)
+    {
+        bloodstream::modify_bleed_amount(world, target, healing.bloodloss_modifier);
+        let still = world
+            .get::<Bloodstream>(target)
+            .is_some_and(|b| b.bleed_amount > 0.0);
+        if bleeding != still {
+            let text = if event.user == target {
+                loc(world, "medical-item-stop-bleeding-self", &[])
+            } else {
+                let name = world.entity_arg(target);
+                loc(
+                    world,
+                    "medical-item-stop-bleeding",
+                    &[("target", name.into())],
+                )
+            };
+            world.popup_entity_for(&text, target, event.user, PopupType::Small);
+        }
+    }
+    // Вернуть кровь.
+    if healing.modify_blood_level != 0.0 {
+        bloodstream::modify_blood_level(
+            world,
+            target,
+            FixedPoint2::from_f32(healing.modify_blood_level),
+        );
     }
     let healed = world.change_damage(target, &healing.damage, true, true, Some(event.user));
     if healed.is_empty() && healing.bloodloss_modifier != 0.0 {
