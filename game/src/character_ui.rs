@@ -1141,38 +1141,6 @@ fn layer_title(world: &GameWorld, layer: &str, group: &str) -> String {
     }
 }
 
-/// Подсказка о пределе меток слоя (`markings-limits`). Сообщение SS14 передаёт переменную в
-/// именованный аргумент термина — так умеет Linguini Robust, но не fluent-rs, и сообщение
-/// не загружается; тогда — свой текст с теми же числами.
-fn limits_text(world: &GameWorld, required: bool, count: i32, selectable: i32) -> String {
-    if world
-        .get_resource::<Loc>()
-        .is_some_and(|l| l.has("markings-limits"))
-    {
-        return loc(
-            world,
-            "markings-limits",
-            &[
-                (
-                    "required",
-                    LocArg::from(if required { "true" } else { "false" }),
-                ),
-                ("count", LocArg::from(count)),
-                ("selectable", LocArg::from(selectable)),
-            ],
-        );
-    }
-    let need = if required {
-        "Нужна хотя бы одна метка. "
-    } else {
-        ""
-    };
-    match count {
-        -1 => format!("{need}Меток — сколько угодно."),
-        _ => format!("{need}Не больше {count}, можно добавить ещё {selectable}."),
-    }
-}
-
 /// Метки по органам и слоям (`MarkingPicker`, `OrganMarkingPicker`).
 fn markings(
     world: &GameWorld,
@@ -1248,7 +1216,18 @@ fn markings(
     };
     ui.label(
         content,
-        limits_text(world, choice.required, limit, selectable),
+        loc(
+            world,
+            "markings-limits",
+            &[
+                (
+                    "required",
+                    LocArg::from(if choice.required { "true" } else { "false" }),
+                ),
+                ("count", LocArg::from(limit)),
+                ("selectable", LocArg::from(selectable)),
+            ],
+        ),
         12.0,
     );
     let row = ui.row(content);

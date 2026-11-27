@@ -47,7 +47,7 @@
 | `MapLoaderSystem`, `EntityDeserializer`, `EntitySerializer` | `astrocore-map::MapLoadWorldExt`, `MapSaveWorldExt` | готово | Карты SS14 форматов 6–7: загрузка под заданным номером, сохранение неинициализированной карты в формат 7 отличиями от прототипов; непонятые компоненты и поля сохраняются как были, номера сущностей и тайлов из файла сохраняются. Saltern пересохраняется без потерь. |
 | `PlacementManager` (сервер и клиент) | `game/src/placement.rs`, `mapping_ui.rs` | частично | Размещение сущностей, тайлов, декалей, ластик, привязка к клеткам, линии и прямоугольники, поворот, копирование. Нет режимов выравнивания `AlignWall`/`AlignSimilar`. |
 | Края тайлов (`EdgeSprites`, `Clyde.GridRendering`) | `astrocore-map::TileDefinitions`, `astrocore-client` | частично | Края на клетках существующих чанков. |
-| `Robust.Shared/Localization` | `astrocore-loc` | частично | Fluent, запасной язык, названия и описания сущностей из `ent-ID` с наследованием от родителей. Грамматические функции SS14 (`THE`, `GENDER`, …) — в игре (`game/src/grammar.rs`); 13 сообщений en-US с расширением синтаксиса Linguini не разбираются. |
+| `Robust.Shared/Localization` | `astrocore-loc` | частично | Fluent, запасной язык, названия и описания сущностей из `ent-ID` с наследованием от родителей. Грамматические функции SS14 (`THE`, `GENDER`, …) — в игре (`game/src/grammar.rs`); расширения синтаксиса Linguini в файлах SS14 (переменные в аргументах терминов, метка порядка байтов) готовит загрузчик (ADR-0018 Engine) — en-US загружается без ошибок. |
 | `Robust.Shared/ContentPack` (ресурсы), RSI | `astrocore-resources` | частично | Каталоги контента с приоритетом, описания RSI. Нет архивов и перезагрузки на лету. |
 
 ## Игра (Space Station 14 → Astrocore Build)
