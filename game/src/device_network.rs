@@ -164,6 +164,9 @@ impl Default for DeviceList {
 pub struct LinkedDeviceNetwork {
     #[serde(skip)]
     pub device_lists: BTreeSet<Entity>,
+    /// Настройщики, запомнившие устройство (`Configurators`).
+    #[serde(skip)]
+    pub configurators: BTreeSet<Entity>,
 }
 
 /// Устройство в сети (`Device`).

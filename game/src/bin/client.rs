@@ -781,6 +781,7 @@ fn run() -> Result<(), String> {
     .add_plugins(astrocore_game::chat_ui::ChatUiPlugin)
     .add_plugins(astrocore_game::ahelp_ui::AhelpUiPlugin)
     .add_plugins(astrocore_game::admin_ui::AdminUiPlugin)
+    .add_plugins(astrocore_game::network_configurator_ui::NetworkConfiguratorUiPlugin)
     .add_plugins(astrocore_game::ghost_ui::GhostUiPlugin)
     .add_plugins(astrocore_game::decal_visuals::DecalVisualsPlugin)
     .add_plugins(astrocore_game::power_ui::PowerUiPlugin)

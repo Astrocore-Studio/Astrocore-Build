@@ -79,6 +79,7 @@ pub mod mind;
 pub mod mobs;
 pub mod movement_speed;
 pub mod multipart;
+pub mod network_configurator;
 pub mod node_container;
 pub mod ordered;
 pub mod particle_accelerator;
@@ -168,6 +169,8 @@ pub mod lobby_ui;
 pub mod mapping_ui;
 #[cfg(feature = "client")]
 pub mod mob_visuals;
+#[cfg(feature = "client")]
+pub mod network_configurator_ui;
 #[cfg(feature = "client")]
 pub mod overlays;
 #[cfg(feature = "client")]
@@ -288,6 +291,7 @@ pub fn install_content(world: &mut World, side: Side) {
     connection::install(world, side);
     device_network::install(world, side);
     device_linking::install(world, side);
+    network_configurator::install(world, side);
     signal_devices::install(world, side);
     atmos_devices::install(world, side);
     atmos_portables::install(world, side);
