@@ -256,6 +256,109 @@ pub struct VoteCanCall {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct VoteMenuOpened;
 
+/// Голосование у клиента (`ActiveVote`): время — по часам клиента.
+#[derive(Debug, Clone, PartialEq)]
+pub struct ClientVote {
+    pub title: String,
+    pub initiator: String,
+    pub start: Instant,
+    pub end: Instant,
+    /// (текст, голоса).
+    pub entries: Vec<(String, u16)>,
+    pub our_vote: Option<u8>,
+    pub display_votes: bool,
+}
+
+/// Голосования клиента (`VoteManager` клиента). Ресурс мира клиента.
+#[derive(Resource, Debug, Clone, Default)]
+pub struct ClientVotes {
+    pub votes: BTreeMap<i32, ClientVote>,
+    pub can_call: bool,
+    /// Недоступные виды: до какого времени; `None` — выключены.
+    pub timeouts: BTreeMap<StandardVoteType, Option<Instant>>,
+    pub version: u64,
+}
+
+impl ClientVotes {
+    /// Можно ли вызвать вид (`CanCallStandardVote`): ждать ли и сколько.
+    pub fn can_call_standard(&self, kind: StandardVoteType) -> Result<(), Option<Duration>> {
+        match self.timeouts.get(&kind) {
+            None => Ok(()),
+            Some(None) => Err(None),
+            Some(Some(until)) => Err(Some(until.saturating_duration_since(Instant::now()))),
+        }
+    }
+}
+
+/// Пришло голосование (`ReceiveVoteData`): новое, изменённое или законченное. `true` —
+/// голосование новое (звук).
+pub fn client_receive_vote(world: &mut World, data: &VoteData) -> bool {
+    let mut client = world.get_resource_or_insert_with(ClientVotes::default);
+    client.version += 1;
+    if !data.active {
+        client.votes.remove(&data.vote_id);
+        return false;
+    }
+    let now = Instant::now();
+    let end = now + Duration::from_secs_f32((data.duration - data.elapsed).max(0.0));
+    let start = end
+        .checked_sub(Duration::from_secs_f32(data.duration.max(0.0)))
+        .unwrap_or(now);
+    let new = !client.votes.contains_key(&data.vote_id);
+    let vote = client
+        .votes
+        .entry(data.vote_id)
+        .or_insert_with(|| ClientVote {
+            title: String::new(),
+            initiator: String::new(),
+            start,
+            end,
+            entries: Vec::new(),
+            our_vote: None,
+            display_votes: false,
+        });
+    vote.title.clone_from(&data.title);
+    vote.initiator.clone_from(&data.initiator);
+    vote.start = start;
+    vote.end = end;
+    vote.display_votes = data.display_votes;
+    vote.entries = data.options.iter().map(|(v, t)| (t.clone(), *v)).collect();
+    if let Some(ours) = data.your_vote {
+        vote.our_vote = ours;
+    }
+    new
+}
+
+/// Право вызова (`ReceiveVoteCanCall`).
+pub fn client_receive_can_call(world: &mut World, data: &VoteCanCall) {
+    let now = Instant::now();
+    let mut client = world.get_resource_or_insert_with(ClientVotes::default);
+    client.can_call = data.can_call;
+    client.timeouts = data
+        .unavailable
+        .iter()
+        .map(|(kind, wait)| {
+            let until = (*wait > 0.0).then(|| now + Duration::from_secs_f32(*wait));
+            (*kind, until)
+        })
+        .collect();
+    client.version += 1;
+}
+
+/// Голос с клиента (`SendCastVote`): сразу у себя и командой `vote` на сервер.
+pub fn send_cast_vote(world: &mut World, id: i32, option: u8) {
+    if let Some(mut client) = world.get_resource_mut::<ClientVotes>()
+        && let Some(vote) = client.votes.get_mut(&id)
+    {
+        vote.our_vote = Some(option);
+        client.version += 1;
+    }
+    astrocore_net::RemoteConsoleWorldExt::execute_remote_command(
+        world,
+        &format!("vote {id} {option}"),
+    );
+}
+
 fn votes(world: &mut World) -> bevy_ecs::world::Mut<'_, Votes> {
     world.get_resource_or_insert_with(Votes::default)
 }
@@ -1175,6 +1278,22 @@ pub fn install(world: &mut World, side: Side) {
     world.register_net_event::<VoteCanCall>();
     world.register_net_event::<VoteMenuOpened>();
     if !side.is_server() {
+        world.init_resource::<ClientVotes>();
+        world.subscribe_net_event::<VoteData>(|world, event| {
+            let data = event.event.clone();
+            if client_receive_vote(world, &data) {
+                // Звук нового голосования (`voteding.ogg`).
+                astrocore_audio::AudioWorldExt::play_local(
+                    world,
+                    &astrocore_audio::SoundSpecifier::path("/Audio/Effects/voteding.ogg"),
+                    astrocore_audio::SoundSource::Global,
+                );
+            }
+        });
+        world.subscribe_net_event::<VoteCanCall>(|world, event| {
+            let data = event.event.clone();
+            client_receive_can_call(world, &data);
+        });
         return;
     }
     for def in [

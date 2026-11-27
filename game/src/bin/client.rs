@@ -59,6 +59,8 @@ struct Options {
     /// Когда игрок получит права администратора: админ-меню на вкладке или окно ahelp
     /// с пробным сообщением (`--admin-view admin|round|players|ahelp`).
     admin_view: Option<String>,
+    /// Окно голосований для проверки: меню вызова или игровое меню (`--vote-view call|escape`).
+    vote_view: Option<String>,
     /// С `--host`: сервер с лобби, как выделенный (без него — сразу в раунд).
     lobby: bool,
     /// Секунды лобби (`--lobby-duration`), для проверки без человека.
@@ -90,6 +92,7 @@ fn options() -> Result<Options, String> {
         character: None,
         ghost_view: None,
         admin_view: None,
+        vote_view: None,
         lobby: false,
         lobby_duration: None,
         late_join: false,
@@ -123,6 +126,7 @@ fn options() -> Result<Options, String> {
             "--character" => options.character = Some(value("вкладка")?),
             "--ghost-view" => options.ghost_view = Some(value("вид призрака")?),
             "--admin-view" => options.admin_view = Some(value("окно администратора")?),
+            "--vote-view" => options.vote_view = Some(value("окно голосований")?),
             "--lobby" => options.lobby = true,
             "--lobby-duration" => options.lobby_duration = Some(value("секунды")?),
             "--late-join" => options.late_join = true,
@@ -782,6 +786,7 @@ fn run() -> Result<(), String> {
     .add_plugins(astrocore_game::ahelp_ui::AhelpUiPlugin)
     .add_plugins(astrocore_game::admin_ui::AdminUiPlugin)
     .add_plugins(astrocore_game::network_configurator_ui::NetworkConfiguratorUiPlugin)
+    .add_plugins(astrocore_game::vote_ui::VoteUiPlugin)
     .add_plugins(astrocore_game::ghost_ui::GhostUiPlugin)
     .add_plugins(astrocore_game::decal_visuals::DecalVisualsPlugin)
     .add_plugins(astrocore_game::power_ui::PowerUiPlugin)
@@ -892,6 +897,18 @@ fn run() -> Result<(), String> {
     if let Some(view) = &options.ghost_view {
         app.insert_resource(PendingGhostView(Some(view.clone())));
         app.add_systems(Update, apply_pending_ghost_view);
+    }
+    if let Some(view) = &options.vote_view {
+        let call = view == "call";
+        app.world_mut().resource_mut::<Game>().0.insert_resource(
+            astrocore_game::vote_ui::VoteWindows {
+                call_menu: call,
+                selected: call.then_some(astrocore_game::voting::StandardVoteType::Restart),
+                escape_menu: !call,
+                version: 1,
+                ..Default::default()
+            },
+        );
     }
     if let Some(view) = &options.admin_view {
         app.insert_resource(PendingAdminView(Some(view.clone())));

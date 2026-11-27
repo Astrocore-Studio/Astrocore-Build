@@ -372,6 +372,18 @@ fn lobby_screen(
         };
         ui.label(buttons, state, 13.0);
     }
+    // Вызов голосования (`VoteCallMenuButton`): доступен, если сервер разрешает.
+    if world
+        .get_resource::<crate::voting::ClientVotes>()
+        .is_some_and(|v| v.can_call)
+    {
+        ui.chip(
+            buttons,
+            text_or(world, "ui-vote-menu-button", "Голосование"),
+            false,
+            UiAction::new(crate::vote_ui::open_call_menu),
+        );
+    }
     if lobby.round_started && windows.late_join_open {
         late_join_window(world, ui, side);
     }

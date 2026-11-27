@@ -242,3 +242,55 @@ fn clients_see_counts_only_when_shown_or_as_admins_and_leavers_lose_votes() {
     update(&mut world);
     assert!(active_votes(&world).is_empty());
 }
+
+#[test]
+fn the_client_follows_votes_and_its_own_choice() {
+    let mut world = World::new();
+    let data = |active: bool, your_vote: Option<Option<u8>>| VoteData {
+        vote_id: 4,
+        active,
+        title: "Next map".into(),
+        initiator: "player1".into(),
+        elapsed: 10.0,
+        duration: 90.0,
+        options: vec![(2, "Small".into()), (1, "Big".into())],
+        your_vote,
+        display_votes: true,
+    };
+    assert!(client_receive_vote(&mut world, &data(true, Some(Some(1)))));
+    let votes = world.resource::<ClientVotes>();
+    let vote = &votes.votes[&4];
+    assert_eq!(vote.our_vote, Some(1));
+    assert_eq!(vote.entries, [("Small".into(), 2), ("Big".into(), 1)]);
+    let left = vote
+        .end
+        .saturating_duration_since(Instant::now())
+        .as_secs_f32();
+    assert!((79.0..=80.0).contains(&left), "{left}");
+    // Свой голос не трогается, если сервер его не менял.
+    assert!(!client_receive_vote(&mut world, &data(true, None)));
+    assert_eq!(world.resource::<ClientVotes>().votes[&4].our_vote, Some(1));
+    // Законченное убирается.
+    client_receive_vote(&mut world, &data(false, None));
+    assert!(world.resource::<ClientVotes>().votes.is_empty());
+
+    client_receive_can_call(
+        &mut world,
+        &VoteCanCall {
+            can_call: true,
+            when_can_call: 0.0,
+            unavailable: vec![
+                (StandardVoteType::Map, 0.0),
+                (StandardVoteType::Preset, 120.0),
+            ],
+        },
+    );
+    let votes = world.resource::<ClientVotes>();
+    assert!(votes.can_call);
+    assert_eq!(votes.can_call_standard(StandardVoteType::Restart), Ok(()));
+    assert_eq!(votes.can_call_standard(StandardVoteType::Map), Err(None));
+    assert!(matches!(
+        votes.can_call_standard(StandardVoteType::Preset),
+        Err(Some(wait)) if wait > Duration::from_secs(100)
+    ));
+}

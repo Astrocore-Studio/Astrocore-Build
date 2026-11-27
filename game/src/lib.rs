@@ -186,6 +186,8 @@ pub mod storage_hud;
 #[cfg(feature = "client")]
 pub mod storage_visuals;
 #[cfg(feature = "client")]
+pub mod vote_ui;
+#[cfg(feature = "client")]
 pub mod wires_ui;
 
 use bevy_ecs::world::World;
