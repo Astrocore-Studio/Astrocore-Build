@@ -4,7 +4,7 @@
 //! автосохранения выбывает. Команда `toggleautosave` включает и выключает его вручную.
 //! Образец — `MappingSystem` и `CCVars.Mapping` SS14 @ 2f4a2aad.
 //!
-//! Нет пока автосохранения отдельных гридов: загрузки грида (`loadgrid`) ещё нет.
+//! Грид, загруженный командой `mapping` из файла грида, сохраняется как грид.
 
 use std::collections::BTreeMap;
 use std::time::{Duration, Instant};
@@ -50,19 +50,33 @@ fn next_time(world: &World) -> Instant {
     Instant::now() + Duration::from_secs_f32(world.cvar(&AUTOSAVE_INTERVAL).max(0.0))
 }
 
-fn initialized(world: &World, map: Entity) -> bool {
-    world.get::<Map>(map).is_none_or(|m| m.initialized)
+/// Карта или грид уже инициализированы (или удалены).
+fn initialized(world: &World, root: Entity) -> bool {
+    match world.get::<Map>(root) {
+        Some(map) => map.initialized,
+        None => world
+            .get::<astrocore_ecs::MetaData>(root)
+            .is_none_or(|m| m.stage == astrocore_ecs::LifeStage::MapInitialized),
+    }
 }
 
 /// Включить или выключить автосохранение карты (`ToggleAutosave`): уже сохраняемая
 /// выключается; без пути — только выключение.
 pub fn toggle_autosave(world: &mut World, id: MapId, path: Option<&str>) {
+    if let Some(map) = world.map_entity(id) {
+        toggle_autosave_entity(world, map, path);
+    }
+}
+
+/// То же для карты или грида (`ToggleAutosave(EntityUid)`).
+pub fn toggle_autosave_entity(world: &mut World, map: Entity, path: Option<&str>) {
     if !world.cvar(&AUTOSAVE_ENABLED) {
         return;
     }
-    let Some(map) = world.map_entity(id) else {
+    if world.get::<Map>(map).is_none() && world.get::<astrocore_map::MapGrid>(map).is_none() {
+        eprintln!("автосохранение: не карта и не грид");
         return;
-    };
+    }
     let mut saves = world.get_resource_or_insert_with(MappingAutosaves::default);
     if saves.maps.remove(&map).is_some() {
         return;
@@ -71,7 +85,7 @@ pub fn toggle_autosave(world: &mut World, id: MapId, path: Option<&str>) {
         return;
     };
     if initialized(world, map) {
-        eprintln!("автосохранение: карта {} уже инициализирована", id.0);
+        eprintln!("автосохранение: карта или грид уже инициализированы");
         return;
     }
     // Имя файла без каталогов (`Path.GetFileName`).

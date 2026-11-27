@@ -234,7 +234,8 @@ pub fn command_flags(command: &str) -> Option<&'static [u32]> {
         | "golobby"
         | "toggledisallowlatejoin" => &[ROUND],
         "tp" | "tpto" | "aghost" | "makeghostrole" | "rejuvenate" => &[ADMIN],
-        "addmap" | "loadmap" | "mapinit" | "savemap" | "tpgrid" | "rmmap" => &[MAPPING],
+        "addmap" | "loadmap" | "loadgrid" | "mapinit" | "savemap" | "savegrid" | "tpgrid"
+        | "rmmap" => &[MAPPING],
         "querymappaused" => &[DEBUG, MAPPING],
         "lsmap" => &[DEBUG],
         "mapping" | "toggleautosave" => &[SERVER, MAPPING],

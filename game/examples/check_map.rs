@@ -1,6 +1,7 @@
 //! Проверка сохранения карты на настоящей карте SS14: загружает карту раунда без
 //! инициализации, сохраняет её, загружает сохранённое в новый мир и сохраняет снова. Обе
-//! записи должны совпасть, а число сущностей и тайлов — остаться прежним.
+//! записи должны совпасть, а число сущностей и тайлов — остаться прежним. Файл грида
+//! (`category: Grid`, например шаттл) загружается на пустую карту и сохраняется как грид.
 //!
 //! `cargo run --release -p astrocore-game --example check_map [-- Maps/saltern.yml [out.yml]]`
 //!
@@ -11,7 +12,8 @@ use std::time::Instant;
 use astrocore_data::{DataNode, parse_yaml, to_yaml_string};
 use astrocore_ecs::GameWorldExt;
 use astrocore_game::{Side, content, install_content};
-use astrocore_map::{MapGrid, MapLoadWorldExt, MapSaveOptions, MapSaveWorldExt};
+use astrocore_map::{MapGrid, MapLoadWorldExt, MapSaveOptions, MapSaveWorldExt, MapWorldExt};
+use astrocore_math::{Angle, Vec2};
 use astrocore_movement::MovementServerPlugin;
 use astrocore_net::NetServerPlugin;
 use astrocore_physics::PhysicsPlugin;
@@ -35,24 +37,42 @@ fn content_world() -> Result<World, String> {
 fn round_trip(document: &DataNode) -> Result<(String, usize, usize), String> {
     let mut world = content_world()?;
     let started = Instant::now();
-    let loaded = world
-        .load_map(document, false)
-        .map_err(|error| error.to_string())?;
+    let grid_file = document
+        .get("meta")
+        .and_then(|meta| meta.get("category"))
+        .and_then(DataNode::as_str)
+        == Some("Grid");
+    let (loaded, root) = if grid_file {
+        let (_, id) = world.create_map(false);
+        let loaded = world
+            .load_grid(document, id, Vec2::ZERO, Angle(0.0))
+            .map_err(|error| error.to_string())?;
+        let grid = *loaded.grids.first().ok_or("в файле нет грида")?;
+        (loaded, grid)
+    } else {
+        let loaded = world
+            .load_map(document, false)
+            .map_err(|error| error.to_string())?;
+        let map = loaded.maps.first().ok_or("в файле нет карты")?.0;
+        (loaded, map)
+    };
     for error in loaded.errors.iter().take(10) {
         println!("  карта: {error}");
     }
-    let (map, _) = *loaded.maps.first().ok_or("в файле нет карты")?;
     let tiles: usize = loaded
         .grids
         .iter()
         .filter_map(|grid| world.get::<MapGrid>(*grid))
         .map(|grid| grid.tile_count() as usize)
         .sum();
-    astrocore_game::decals::write_for_save(&mut world, map);
-    astrocore_game::atmos::write_for_save(&mut world, map);
-    let mut saved = world
-        .save_map(map, MapSaveOptions::default())
-        .map_err(|error| error.to_string())?;
+    astrocore_game::decals::write_for_save(&mut world, root);
+    astrocore_game::atmos::write_for_save(&mut world, root);
+    let saved = if grid_file {
+        world.save_grid(root, MapSaveOptions::default())
+    } else {
+        world.save_map(root, MapSaveOptions::default())
+    };
+    let mut saved = saved.map_err(|error| error.to_string())?;
     // Ссылки на устройства, как в `savemap` (ADR-0014): без правок поля остаются как в файле.
     astrocore_game::device_network::write_references(&mut world, &mut saved);
     astrocore_game::device_linking::write_references(&mut world, &mut saved);

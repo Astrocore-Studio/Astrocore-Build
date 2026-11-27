@@ -17,8 +17,8 @@ use astrocore_ecs::{
     ComponentInit, EntityTerminating, EventWorldExt, GameTime, GameWorldExt, Paused, Update,
 };
 use astrocore_map::{
-    AnchorStateChanged, Map, MapGrid, MapLoaded, MapPreserved, TileChanged, TileCoord,
-    TileDefinitions, Transform,
+    AnchorStateChanged, MapGrid, MapLoaded, MapPreserved, TileChanged, TileCoord, TileDefinitions,
+    Transform,
 };
 use astrocore_prototypes::Prototypes;
 use bevy_ecs::entity::Entity;
@@ -1355,11 +1355,10 @@ fn adopt(world: &mut World, loaded: &MapLoaded) {
     }
 }
 
-/// Перед сохранением: запись `GridAtmosphere` гридов карты — по текущему воздуху.
-pub fn write_for_save(world: &mut World, map: Entity) {
-    let Some(grids) = world.get::<Map>(map).map(|m| m.grids().to_vec()) else {
-        return;
-    };
+/// Перед сохранением: запись `GridAtmosphere` гридов карты (или одного грида) — по
+/// текущему воздуху.
+pub fn write_for_save(world: &mut World, root: Entity) {
+    let grids = crate::decals::saved_grids(world, root);
     for grid in grids {
         let Some(node) = world.get::<GridAtmosphere>(grid).map(write_tiles) else {
             continue;

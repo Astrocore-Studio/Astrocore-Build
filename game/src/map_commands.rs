@@ -164,6 +164,38 @@ fn load_map_file(world: &mut World, id: MapId, path: &str) -> Result<usize, Stri
     Ok(report.entities)
 }
 
+/// Файл — грид (`meta.category: Grid`), а не карта.
+pub fn is_grid_file(world: &World, path: &str) -> Result<bool, String> {
+    let text = read_map_file(world, path)?;
+    let node = parse_yaml(&text).map_err(|error| format!("{path}: {error}"))?;
+    Ok(node
+        .get("meta")
+        .and_then(|meta| meta.get("category"))
+        .and_then(astrocore_data::DataNode::as_str)
+        == Some("Grid"))
+}
+
+/// Загружает файл грида на карту `id` со сдвигом и поворотом (`TryLoadGrid`): грид и число
+/// сущностей.
+pub fn load_grid_file(
+    world: &mut World,
+    id: MapId,
+    path: &str,
+    offset: Vec2,
+    rotation: Angle,
+) -> Result<(Entity, usize), String> {
+    let text = read_map_file(world, path)?;
+    let node = parse_yaml(&text).map_err(|error| format!("{path}: {error}"))?;
+    let report = world
+        .load_grid(&node, id, offset, rotation)
+        .map_err(|error| format!("{path}: {error}"))?;
+    let grid = *report
+        .grids
+        .first()
+        .ok_or_else(|| format!("{path}: в файле нет грида"))?;
+    Ok((grid, report.entities))
+}
+
 /// Сущность, которой управляет игрок оболочки.
 fn attached(world: &World, shell: &mut ConsoleShell) -> Option<Entity> {
     let entity = shell
@@ -257,9 +289,21 @@ pub fn apply_load_transform(world: &mut World, id: MapId, offset: Vec2, rotation
 }
 
 /// `loadmap` Robust: номер новой карты, путь, сдвиг и поворот (радианы).
+/// `storeUids` загрузки Robust (`StoreYamlUids`): номера сущностей файла у нас хранятся
+/// всегда (`MapFileEntity`), флаг лишь проверяется.
+fn store_uids(shell: &mut ConsoleShell, text: Option<&String>) -> bool {
+    match text {
+        Some(text) => flag(shell, text).is_some(),
+        None => true,
+    }
+}
+
 fn loadmap(world: &mut World, shell: &mut ConsoleShell, args: &[String]) {
-    if args.len() < 2 || args.len() > 5 {
-        shell.write_line("loadmap <номер> <путь> [x] [y] [поворот, радианы]");
+    if args.len() < 2 || args.len() > 6 {
+        shell.write_line("loadmap <номер> <путь> [x] [y] [поворот, радианы] [storeUids]");
+        return;
+    }
+    if !store_uids(shell, args.get(5)) {
         return;
     }
     let Some(id) = map_id(shell, &args[0]) else {
@@ -270,7 +314,7 @@ fn loadmap(world: &mut World, shell: &mut ConsoleShell, args: &[String]) {
         return;
     }
     let mut values = [0.0f32; 3];
-    for (value, text) in values.iter_mut().zip(&args[2..]) {
+    for (value, text) in values.iter_mut().zip(args[2..].iter().take(3)) {
         match number(shell, text) {
             Some(parsed) => *value = parsed,
             None => return,
@@ -287,6 +331,86 @@ fn loadmap(world: &mut World, shell: &mut ConsoleShell, args: &[String]) {
             ));
         }
         Err(error) => shell.write_error(error),
+    }
+}
+
+/// `loadgrid` Robust: карта, путь, сдвиг и поворот в градусах. Карты нет — она
+/// создаётся без инициализации.
+fn loadgrid(world: &mut World, shell: &mut ConsoleShell, args: &[String]) {
+    if args.len() < 2 || args.len() == 3 || args.len() > 6 {
+        shell.write_error("loadgrid <карта> <путь> [x y] [поворот, градусы] [storeUids]");
+        return;
+    }
+    let Some(id) = map_id(shell, &args[0]) else {
+        return;
+    };
+    if id.0 == 0 {
+        shell.write_error("номер карты 0 занят под «нигде»");
+        return;
+    }
+    let mut values = [0.0f32; 3];
+    for (value, text) in values.iter_mut().zip(args[2..].iter().take(3)) {
+        match number(shell, text) {
+            Some(parsed) => *value = parsed,
+            None => return,
+        }
+    }
+    if !store_uids(shell, args.get(5)) {
+        return;
+    }
+    if world.map_entity(id).is_none() {
+        shell.write_error(format!("карты {} не было: создана без инициализации", id.0));
+        if let Err(error) = world.create_map_with_id(id, false) {
+            return shell.write_error(error.to_string());
+        }
+        if let Some(map) = world.map_entity(id) {
+            world.set_map_paused(map, true);
+        }
+    }
+    let [x, y, degrees] = values;
+    let path = &args[1];
+    match load_grid_file(world, id, path, Vec2::new(x, y), Angle::degrees(degrees)) {
+        Ok((grid, entities)) => {
+            let net = world.get::<NetEntity>(grid).map_or(0, |n| n.0);
+            shell.write_line(format!(
+                "грид {net} загружен на карту {} из {path}: сущностей {entities}",
+                id.0
+            ));
+        }
+        Err(error) => shell.write_error(error),
+    }
+}
+
+/// `savegrid` Robust: грид по сетевому номеру, путь.
+fn savegrid(world: &mut World, shell: &mut ConsoleShell, args: &[String]) {
+    if args.len() < 2 || args.len() > 3 {
+        shell.write_line("savegrid <грид> <путь> [force]");
+        return;
+    }
+    let grid = args[0]
+        .parse::<u32>()
+        .ok()
+        .and_then(|n| world.resource::<NetEntities>().entity(NetEntity(n)))
+        .filter(|e| world.get::<astrocore_map::MapGrid>(*e).is_some());
+    let Some(grid) = grid else {
+        return shell.write_error(format!("«{}» — не грид", args[0]));
+    };
+    let force = match args.get(2) {
+        Some(text) => match flag(shell, text) {
+            Some(value) => value,
+            None => return,
+        },
+        None => false,
+    };
+    match save_map_file(world, grid, &args[1], force) {
+        Ok((file, entities)) => shell.write_line(format!(
+            "грид сохранён в {}: сущностей {entities}",
+            file.display()
+        )),
+        Err(SaveError::Initialized(error)) => shell.write_error(format!(
+            "{error}; сохранить всё равно: savegrid <грид> <путь> true"
+        )),
+        Err(SaveError::Other(error)) => shell.write_error(error),
     }
 }
 
@@ -387,24 +511,29 @@ pub enum SaveError {
     Other(String),
 }
 
-/// Сохраняет карту в файл данных пользователя (`TrySaveMap`): путь и число сущностей.
+/// Сохраняет карту или отдельный грид в файл данных пользователя (`TrySaveMap`,
+/// `TrySaveGrid`): путь и число сущностей.
 pub fn save_map_file(
     world: &mut World,
-    map: Entity,
+    root: Entity,
     path: &str,
     force: bool,
 ) -> Result<(PathBuf, usize), SaveError> {
     let file = user_file(world, path).map_err(SaveError::Other)?;
-    crate::decals::write_for_save(world, map);
-    crate::atmos::write_for_save(world, map);
-    let mut saved = world
-        .save_map(
-            map,
-            MapSaveOptions {
-                allow_initialized: force,
-            },
-        )
-        .map_err(|error| SaveError::Initialized(error.to_string()))?;
+    crate::decals::write_for_save(world, root);
+    crate::atmos::write_for_save(world, root);
+    let options = MapSaveOptions {
+        allow_initialized: force,
+    };
+    let result = if world.get::<Map>(root).is_some() {
+        world.save_map(root, options)
+    } else {
+        world.save_grid(root, options)
+    };
+    let mut saved = result.map_err(|error| match error {
+        astrocore_map::MapSaveError::Initialized => SaveError::Initialized(error.to_string()),
+        other => SaveError::Other(other.to_string()),
+    })?;
     // Ссылки на сущности, изменённые в игре (ADR-0014): списки устройств и связи сигналов.
     crate::device_network::write_references(world, &mut saved);
     crate::device_linking::write_references(world, &mut saved);
@@ -679,20 +808,38 @@ fn mapping(world: &mut World, shell: &mut ConsoleShell, args: &[String]) {
         shell.write_error(format!("карта {} уже есть", id.0));
         return;
     }
+    // Файл грида ставится на новую карту (`MappingCommand`: загрузка грида).
+    let grid_file = match args.get(1) {
+        Some(path) => match is_grid_file(world, path) {
+            Ok(grid) => grid,
+            Err(error) => return shell.write_error(error),
+        },
+        None => false,
+    };
+    let mut grid = None;
     match args.get(1) {
-        Some(path) => {
+        Some(path) if !grid_file => {
             if let Err(error) = load_map_file(world, id, path) {
                 shell.write_error(error);
                 return;
             }
         }
-        None => {
+        _ => {
             if let Err(error) = world.create_map_with_id(id, false) {
                 shell.write_error(error.to_string());
                 return;
             }
             if let Some(map) = world.map_entity(id) {
                 world.set_map_paused(map, true);
+            }
+            if let Some(path) = args.get(1) {
+                match load_grid_file(world, id, path, Vec2::ZERO, Angle(0.0)) {
+                    Ok((loaded, _)) => grid = Some(loaded),
+                    Err(error) => {
+                        shell.write_error(error);
+                        return;
+                    }
+                }
             }
         }
     }
@@ -719,9 +866,17 @@ fn mapping(world: &mut World, shell: &mut ConsoleShell, args: &[String]) {
     {
         shell.write_error(error);
     }
-    // Автосохранение карты маппинга (`ToggleAutosave` в `MappingCommand`).
-    let name = args.get(1).map_or("NEWMAP", String::as_str);
-    crate::mapping_autosave::toggle_autosave(world, id, Some(name));
+    // Автосохранение карты или грида маппинга (`ToggleAutosave` в `MappingCommand`).
+    match grid {
+        Some(grid) => {
+            let name = args.get(1).map_or("NEWGRID", String::as_str);
+            crate::mapping_autosave::toggle_autosave_entity(world, grid, Some(name));
+        }
+        None => {
+            let name = args.get(1).map_or("NEWMAP", String::as_str);
+            crate::mapping_autosave::toggle_autosave(world, id, Some(name));
+        }
+    }
     match args.get(1) {
         Some(path) => shell.write_line(format!("маппинг карты {} из {path}", id.0)),
         None => shell.write_line(format!("маппинг новой карты {}", id.0)),
@@ -860,8 +1015,22 @@ pub fn install(world: &mut World, side: Side) {
         command(
             "loadmap",
             "Загружает карту из файла.",
-            "loadmap <номер> <путь> [x] [y] [поворот, радианы]",
+            "loadmap <номер> <путь> [x] [y] [поворот, радианы] [storeUids]",
             loadmap,
+            false,
+        ),
+        command(
+            "loadgrid",
+            "Загружает грид из файла на карту.",
+            "loadgrid <карта> <путь> [x y] [поворот, градусы] [storeUids]",
+            loadgrid,
+            true,
+        ),
+        command(
+            "savegrid",
+            "Сохраняет грид в файл данных пользователя.",
+            "savegrid <грид> <путь> [force]",
+            savegrid,
             false,
         ),
         command(

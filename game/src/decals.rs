@@ -12,7 +12,9 @@ use std::collections::BTreeMap;
 
 use astrocore_data::{DataMap, DataNode};
 use astrocore_ecs::{EventWorldExt, LifecycleWorldExt, MetaData};
-use astrocore_map::{Map, MapFileEntity, MapLoaded, MapPreserved, MapWorldExt, TransformWorldExt};
+use astrocore_map::{
+    Map, MapFileEntity, MapLoaded, MapPreserved, MapWorldExt, Transform, TransformWorldExt,
+};
 use astrocore_math::Vec2;
 use astrocore_net::NetRegistryWorldExt;
 use astrocore_prototypes::PrototypeWorldExt;
@@ -328,21 +330,39 @@ fn adopt(world: &mut World, loaded: &MapLoaded) {
 }
 
 /// Номера сущностей карты в файле: следующий свободный.
-fn next_file_uid(world: &mut World, map: Entity) -> u32 {
+/// Новый номер сущности файла корня (карты или грида): больше номеров всего, что
+/// сохраняется с корнем и с картой, на которой стоит грид, — номер не совпадёт ни в файле
+/// грида, ни в файле карты.
+fn next_file_uid(world: &mut World, root: Entity) -> u32 {
+    let map = world
+        .get::<Transform>(root)
+        .and_then(Transform::map)
+        .unwrap_or(root);
     let mut query = world.query::<(Entity, &MapFileEntity)>();
     let mut max = 0;
     for (entity, file) in query.iter(world) {
         let on_map = file.nullspace_of == Some(map)
+            || file.nullspace_of == Some(root)
             || world
                 .map_coordinates(entity)
                 .and_then(|c| world.map_entity(c.map))
                 == Some(map)
-            || entity == map;
+            || entity == map
+            || entity == root;
         if on_map {
             max = max.max(file.uid);
         }
     }
     max + 1
+}
+
+/// Гриды, которые сохраняются с корнем: все гриды карты или сам грид.
+pub fn saved_grids(world: &World, root: Entity) -> Vec<Entity> {
+    match world.get::<Map>(root) {
+        Some(map) => map.grids().to_vec(),
+        None if world.get::<astrocore_map::MapGrid>(root).is_some() => vec![root],
+        None => Vec::new(),
+    }
 }
 
 /// Номер сущности в файле: прежний или новый.
@@ -382,14 +402,18 @@ fn typed(name: &str, fields: DataMap) -> DataNode {
     DataNode::map(node)
 }
 
-/// Перед сохранением карты: чанк-сущности её гридов получают декали в формате SS14, грид —
+/// Перед сохранением карты или грида: чанк-сущности гридов получают декали в формате SS14, грид —
 /// их список в `ChunkContainer`; пустые чанк-сущности удаляются.
-pub fn write_for_save(world: &mut World, map: Entity) {
-    let Some(grids) = world.get::<Map>(map).map(|m| m.grids().to_vec()) else {
-        return;
-    };
+pub fn write_for_save(world: &mut World, root: Entity) {
+    let grids = saved_grids(world, root);
+    // Корень — карта или отдельный грид (ADR-0020 движка): чанки сохраняются с ним.
+    let map = root;
+    let map_entity = world
+        .get::<Transform>(root)
+        .and_then(Transform::map)
+        .unwrap_or(root);
     let paused = world
-        .get::<Map>(map)
+        .get::<Map>(map_entity)
         .is_some_and(|m| m.paused || !m.initialized);
     for grid in grids {
         let decals = world.get::<GridDecals>(grid).cloned().unwrap_or_default();

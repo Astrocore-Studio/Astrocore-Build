@@ -1,5 +1,5 @@
 use astrocore_console::{ConfigWorldExt, ConsoleShell, ConsoleWorldExt};
-use astrocore_ecs::MetaData;
+use astrocore_ecs::{GameWorldExt, MetaData};
 use astrocore_map::{Map, MapId, MapWorldExt, TransformWorldExt};
 use astrocore_math::Vec2;
 use astrocore_net::{ConnId, ServerNet, Session, SessionWorldExt};
@@ -264,4 +264,85 @@ fn addgas_adds_moles_to_a_tile() {
     let air =
         crate::atmos::tile_mixture(&world, grid, astrocore_map::TileCoord::new(3, 4, 0)).unwrap();
     assert_eq!(air.moles[crate::atmos::gas::PLASMA], 30.0);
+}
+
+#[test]
+fn grids_save_and_load_onto_other_maps() {
+    let mut world = world_with(PROTOTYPES);
+    let dir = user_data(&mut world, "savegrid");
+    run(&mut world, "addmap 3 true");
+    let map = world.map_entity(MapId(3)).unwrap();
+    let grid = world.create_grid(map);
+    world.set_tiles(
+        grid,
+        (0..3).map(|x| {
+            (
+                astrocore_map::TileCoord::new(x, 0, 0),
+                astrocore_map::Tile::new(1),
+            )
+        }),
+    );
+    spawn_at(&mut world, "Crate", grid, 1, 0);
+    world.run_tick();
+    let net = world.get::<astrocore_net::NetEntity>(grid).unwrap().0;
+    let (out, errors) = run(&mut world, &format!("savegrid {net} Grids/test.yml"));
+    assert!(errors.is_empty(), "{errors:?}");
+    assert!(out[0].contains("сущностей 2"), "{out:?}");
+    let text = std::fs::read_to_string(dir.join("Grids/test.yml")).unwrap();
+    assert!(text.contains("category: Grid") && text.contains("parent: invalid"));
+    assert!(!run(&mut world, "savegrid 999999 Grids/x.yml").1.is_empty());
+
+    // На новую карту: её нет — создаётся; сдвиг и поворот в градусах.
+    let (out, errors) = run(&mut world, "loadgrid 8 Grids/test.yml 4 2 90");
+    assert_eq!(errors, ["карты 8 не было: создана без инициализации"]);
+    assert!(out[0].contains("сущностей 2"), "{out:?}");
+    let loaded_map = world.map_entity(MapId(8)).unwrap();
+    let state = world.get::<Map>(loaded_map).unwrap();
+    assert!(!state.initialized && state.paused);
+    let loaded = state.grids()[0];
+    let transform = world.get::<astrocore_map::Transform>(loaded).unwrap();
+    assert_eq!(transform.local_position(), Vec2::new(4.0, 2.0));
+    assert!((transform.local_rotation().to_degrees() - 90.0).abs() < 1e-3);
+    // Неверное число аргументов и storeUids.
+    assert!(!run(&mut world, "loadgrid 8 Grids/test.yml 4").1.is_empty());
+    assert!(
+        !run(&mut world, "loadgrid 8 Grids/test.yml 0 0 0 maybe")
+            .1
+            .is_empty()
+    );
+    let (_, errors) = run(&mut world, "loadmap 11 Grids/test.yml 0 0 0 true");
+    assert!(!errors.is_empty(), "файл грида — не карта");
+    let _ = std::fs::remove_dir_all(dir);
+}
+
+#[test]
+fn mapping_a_grid_file_maps_the_grid_on_a_new_map() {
+    let mut world = world_with(PROTOTYPES);
+    let dir = user_data(&mut world, "mapgrid");
+    run(&mut world, "addmap 3 true");
+    let map = world.map_entity(MapId(3)).unwrap();
+    let grid = world.create_grid(map);
+    world.set_tile(
+        grid,
+        astrocore_map::TileCoord::new(0, 0, 0),
+        astrocore_map::Tile::new(1),
+    );
+    world.run_tick();
+    let net = world.get::<astrocore_net::NetEntity>(grid).unwrap().0;
+    run(&mut world, &format!("savegrid {net} Grids/shuttle.yml"));
+    let station = station(&mut world);
+    let body = spawn_at(&mut world, "Body", station, 1, 1);
+    let session = player(&mut world, "127.0.0.1:5000", body);
+    let mut shell = ConsoleShell::player(session);
+    world
+        .execute_command(&mut shell, "mapping 12 Grids/shuttle.yml")
+        .unwrap();
+    assert!(shell.errors.is_empty(), "{:?}", shell.errors);
+    let mapped = world.map_entity(MapId(12)).unwrap();
+    let grids = world.get::<Map>(mapped).unwrap().grids().to_vec();
+    assert_eq!(grids.len(), 1);
+    // Автосохраняется грид, а не карта.
+    let saves = world.resource::<crate::mapping_autosave::MappingAutosaves>();
+    assert_eq!(saves.maps[&grids[0]].1, "shuttle.yml");
+    let _ = std::fs::remove_dir_all(dir);
 }
