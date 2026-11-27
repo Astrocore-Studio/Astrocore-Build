@@ -189,6 +189,8 @@ pub struct UseInHand {
     pub user: Entity,
     pub used: Entity,
     pub handled: bool,
+    /// Начать паузу использования после обработки (`ApplyDelay`).
+    pub apply_delay: bool,
 }
 
 /// Сущности соприкоснулись при взаимодействии (`ContactInteractionEvent`): отпечатки,
@@ -559,6 +561,10 @@ impl InteractionWorldExt for World {
         if is_deleted(self, user) || is_deleted(self, target) {
             return false;
         }
+        // Предмет на паузе использования.
+        if crate::use_delay::is_delayed(self, target, crate::use_delay::DEFAULT_ID) {
+            return false;
+        }
         if !self.can_interact(user, Some(target)) {
             return false;
         }
@@ -576,6 +582,10 @@ impl InteractionWorldExt for World {
         if is_deleted(self, user) || is_deleted(self, used) {
             return false;
         }
+        // Предмет на паузе использования: считается обработанным.
+        if crate::use_delay::is_delayed(self, used, crate::use_delay::DEFAULT_ID) {
+            return true;
+        }
         if !self.can_interact(user, Some(used)) || !self.can_use_held_entity(user, used) {
             return false;
         }
@@ -583,10 +593,14 @@ impl InteractionWorldExt for World {
             user,
             used,
             handled: false,
+            apply_delay: true,
         };
         self.raise_and_broadcast(used, &mut message);
         if message.handled {
             contact(self, user, used);
+            if message.apply_delay {
+                crate::use_delay::try_reset_delay(self, used, false, crate::use_delay::DEFAULT_ID);
+            }
             return true;
         }
         // Иначе предмет «используется», как по клавише E.
@@ -699,6 +713,7 @@ fn activate(world: &mut World, user: Entity, target: Entity, complex: bool) -> b
     world.raise_and_broadcast(target, &mut message);
     if message.handled {
         contact(world, user, target);
+        crate::use_delay::try_reset_delay(world, target, false, crate::use_delay::DEFAULT_ID);
         return true;
     }
     if is_deleted(world, user) || is_deleted(world, target) {
@@ -713,6 +728,7 @@ fn activate(world: &mut World, user: Entity, target: Entity, complex: bool) -> b
     world.raise_and_broadcast(user, &mut user_message);
     if user_message.handled {
         contact(world, user, target);
+        crate::use_delay::try_reset_delay(world, target, false, crate::use_delay::DEFAULT_ID);
     }
     user_message.handled
 }

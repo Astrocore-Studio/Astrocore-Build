@@ -132,6 +132,14 @@ pub struct Battery {
     pub price_per_joule: f32,
     #[serde(default = "yes")]
     pub show_item_status: bool,
+    /// Когда записан `last_charge` (`LastUpdate`).
+    #[serde(skip)]
+    pub last_update: std::time::Duration,
+    /// Скорость заряда, Дж/с: заряд меняется линейно от `last_update` (`ChargeRate`).
+    #[serde(skip)]
+    pub charge_rate: f32,
+    #[serde(skip)]
+    pub state: crate::battery::BatteryState,
 }
 
 fn price_per_joule() -> f32 {
@@ -773,12 +781,6 @@ pub fn install(world: &mut World, side: Side) {
     world.subscribe::<ApcPowerReceiver, MapInit>(|world, entity, _| {
         let powered = is_powered(world, entity);
         world.set_appearance(entity, POWERED_VISUALS, powered);
-    });
-    // Заряд на старте (`SharedBatterySystem.OnMapInit`).
-    world.subscribe::<Battery, MapInit>(|world, entity, _| {
-        if let Some(mut battery) = world.get_mut::<Battery>(entity) {
-            battery.last_charge = battery.starting_charge.min(battery.max_charge);
-        }
     });
     world.subscribe::<ExtensionCableReceiver, ComponentInit>(|world, _, _| mark_links_dirty(world));
     world.subscribe::<ExtensionCableProvider, ComponentInit>(|world, _, _| mark_links_dirty(world));
