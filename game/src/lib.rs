@@ -20,6 +20,7 @@ pub mod cables;
 pub mod combat;
 pub mod construction;
 pub mod container_fill;
+pub mod containment;
 pub mod content;
 pub mod damage;
 pub mod damage_other_on_hit;
@@ -184,6 +185,7 @@ pub fn install_content(world: &mut World, side: Side) {
     gravity::install(world, side);
     projectiles::install(world, side);
     guns::install(world, side);
+    containment::install(world, side);
     id_console::install(world, side);
     airtight::install(world, side);
     atmos::install(world, side);
