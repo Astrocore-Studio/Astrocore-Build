@@ -72,6 +72,7 @@ pub mod gravity;
 pub mod guns;
 pub mod hands;
 pub mod healing;
+pub mod health_analyzer;
 pub mod health_examinable;
 pub mod id_console;
 pub mod input_contexts;
@@ -118,6 +119,7 @@ pub mod standing;
 pub mod station_spawning;
 pub mod stations;
 pub mod status_effects;
+pub mod stethoscope;
 pub mod storage;
 pub mod tag;
 pub mod temperature;
@@ -179,6 +181,8 @@ pub mod gas_overlay_visuals;
 pub mod ghost_ui;
 #[cfg(feature = "client")]
 pub mod hands_hud;
+#[cfg(feature = "client")]
+pub mod health_analyzer_ui;
 #[cfg(feature = "client")]
 pub mod inhands;
 #[cfg(feature = "client")]
@@ -253,6 +257,8 @@ pub fn install_content(world: &mut World, side: Side) {
     healing::install(world, side);
     bloodstream::install(world, side);
     health_examinable::install(world, side);
+    health_analyzer::install(world, side);
+    stethoscope::install(world, side);
     stack::install(world, side);
     tools::install(world, side);
     virtual_item::install(world, side);

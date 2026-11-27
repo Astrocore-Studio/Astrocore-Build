@@ -277,6 +277,17 @@ pub fn catalog(world: &mut World) -> Arc<DamageCatalog> {
     built
 }
 
+/// Каталог урона, если он уже собран; иначе — собранный заново из прототипов (без записи в
+/// мир).
+pub fn catalog_of(world: &World) -> Option<Arc<DamageCatalog>> {
+    if let Some(catalog) = world.get_resource::<SharedCatalog>() {
+        return Some(catalog.0.clone());
+    }
+    world
+        .get_resource::<Prototypes>()
+        .map(|p| Arc::new(DamageCatalog::build(p)))
+}
+
 #[derive(Resource)]
 struct SharedCatalog(Arc<DamageCatalog>);
 
