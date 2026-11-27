@@ -5,7 +5,8 @@
 //! (`ParticleAcceleratorBoundUserInterface`, `ParticleAcceleratorControlMenu`), газовый баллон
 //! (`GasTankBoundUserInterface`, `GasTankWindow`), канистра (`GasCanisterBoundUserInterface`,
 //! `GasCanisterWindow`) и термомашина (`GasThermomachineBoundUserInterface`,
-//! `GasThermomachineWindow`) SS14 @ 2f4a2aad. Поля ввода давления и температуры заменены
+//! `GasThermomachineWindow`), газоанализатор (`GasAnalyzerBoundUserInterface`,
+//! `GasAnalyzerWindow`, без схемы устройства) SS14 @ 2f4a2aad. Поля ввода давления и температуры заменены
 //! кнопками шага.
 
 use astrocore_client::{UiAction, WindowKinds, spawn_button, spawn_label};
@@ -18,6 +19,7 @@ use crate::atmos_portables::{
     GasCanisterHoldingTankEject, GasCanisterUiState, GasThermomachineChangeTemperature,
     GasThermomachineToggle, THERMOMACHINE_UI_KEY, ThermoMachineUiState,
 };
+use crate::gas_analyzer::GasAnalyzerState;
 use crate::gas_tank::{
     GAS_TANK_UI_KEY, GasTankSetPressure, GasTankToggleInternals, GasTankUiState,
 };
@@ -29,6 +31,22 @@ use crate::particle_accelerator::{
     ParticleAcceleratorUiState, RescanParts, SetEnable, SetPowerState, UI_KEY as PA_UI_KEY,
 };
 use crate::power::{APC_UI_KEY, ApcExternalPower, ApcToggleMainBreaker, ApcUiState};
+
+/// Название газа в окне анализатора (`gas-*` из перевода SS14).
+fn gas_name(id: &str) -> &str {
+    match id {
+        "Oxygen" => "Кислород",
+        "Nitrogen" => "Азот",
+        "CarbonDioxide" => "Углекислый газ",
+        "Plasma" => "Плазма",
+        "Tritium" => "Тритий",
+        "WaterVapor" => "Водяной пар",
+        "Ammonia" => "Аммиак",
+        "NitrousOxide" => "Оксид азота",
+        "Frezon" => "Фрезон",
+        other => other,
+    }
+}
 
 fn yes_no(value: bool) -> &'static str {
     if value { "да" } else { "нет" }
@@ -521,6 +539,56 @@ impl Plugin for PowerUiPlugin {
                         );
                     }),
                 );
+            },
+        );
+        kinds.register(
+            "GasAnalyzerBoundUserInterface",
+            |commands, content, ui, _, style| {
+                let Some(state) = ui.state::<GasAnalyzerState>() else {
+                    spawn_label(commands, content, style, "Нет данных");
+                    return;
+                };
+                if !state.device_name.is_empty() {
+                    spawn_label(
+                        commands,
+                        content,
+                        style,
+                        &format!("Устройство: {}", state.device_name),
+                    );
+                }
+                for mix in &state.mixes {
+                    spawn_label(commands, content, style, &format!("— {} —", mix.name));
+                    spawn_label(
+                        commands,
+                        content,
+                        style,
+                        &format!(
+                            "Давление {:.2} кПа, температура {:.1} K ({:.1} °C), объём {:.0} л",
+                            mix.pressure,
+                            mix.temperature,
+                            mix.temperature - 273.15,
+                            mix.volume
+                        ),
+                    );
+                    let total: f32 = mix.gases.iter().map(|g| g.amount).sum();
+                    for gas in &mix.gases {
+                        let share = if total > 0.0 {
+                            gas.amount / total * 100.0
+                        } else {
+                            0.0
+                        };
+                        spawn_label(
+                            commands,
+                            content,
+                            style,
+                            &format!(
+                                "{}: {:.2} моль ({share:.1} %)",
+                                gas_name(&gas.gas),
+                                gas.amount
+                            ),
+                        );
+                    }
+                }
             },
         );
         kinds.register(

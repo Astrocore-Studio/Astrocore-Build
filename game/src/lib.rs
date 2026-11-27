@@ -38,6 +38,7 @@ pub mod flammable;
 pub mod flatpack;
 pub mod floor_tile;
 pub mod friction;
+pub mod gas_analyzer;
 pub mod gas_tank;
 pub mod grammar;
 pub mod gravity;
@@ -221,6 +222,7 @@ pub fn install_content(world: &mut World, side: Side) {
     pipes::install(world, side);
     atmos_devices::install(world, side);
     atmos_portables::install(world, side);
+    gas_analyzer::install(world, side);
     weldable::install(world, side);
     status_effects::install(world, side);
     electrocution::install(world, side);
