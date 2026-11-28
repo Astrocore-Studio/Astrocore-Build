@@ -1,14 +1,20 @@
-//! Кровоток: кровь по эталонному составу, кровотечение от ран, потеря крови и её урон,
-//! восстановление крови, значок кровотечения, сообщения осмотра здоровья, прижигание ран
-//! ожогом. Раз в 3 секунды живое тело восстанавливает кровь, течёт кровью (кровотечение
-//! слабеет) и при крови ниже порога получает урон `Bloodloss`, выше — лечит его; мёртвое
-//! только течёт. Образец — `BloodstreamComponent`, `BloodstreamSystem` SS14 @ 2f4a2aad.
+//! Кровоток: кровь — раствор `bloodstream` на теле по эталонному составу (с ДНК в данных
+//! реагентов), вытекшая кровь — раствор `bloodstreamTemporary`, метаболиты — `metabolites`.
+//! Кровотечение от ран, потеря крови и её урон, восстановление крови, значок
+//! кровотечения, сообщения осмотра здоровья, прижигание ран ожогом, очистка крови от
+//! лекарств и ядов, смена состава крови. Раз в 3 секунды живое тело восстанавливает
+//! кровь, течёт кровью (кровотечение слабеет) и при крови ниже порога получает урон
+//! `Bloodloss`, выше — лечит его; мёртвое только течёт. Реагенты крови не перерабатываются
+//! метаболизмом, в крови не идут реакции с появлением сущностей, дымом и пеной. Образец —
+//! `BloodstreamComponent`, `BloodstreamSystem`, эффекты `ModifyBleed`, `ModifyBloodLevel`,
+//! `CleanBloodstream` SS14 @ 2f4a2aad.
 //!
-//! Кровь — список «реагент → количество», не раствор (ADR-0016): вытекшая кровь сверх
-//! порога лужи пропадает, луж нет. Лекарств в крови, метаболитов, ДНК и головокружения от
-//! потери крови (`StatusEffectBloodloss`) пока нет.
+//! Как в SS14, восстановление крови меняет раствор без проведения изменений (без событий
+//! и реакций). Луж пока нет: вытекшая кровь сверх порога лужи пропадает. Нет ДНК тела
+//! (`DnaComponent`: в данных крови — «неизвестная ДНК») и головокружения от потери крови
+//! (`StatusEffectBloodloss`).
 
-use std::collections::BTreeMap;
+use std::sync::Arc;
 use std::time::Duration;
 
 use astrocore_audio::{AudioWorldExt, SoundSpecifier};
@@ -23,42 +29,29 @@ use crate::damage::{DamageChanged, DamageSpecifier, DamageableWorldExt, Rejuvena
 use crate::examine::loc;
 use crate::fixed_point::FixedPoint2;
 use crate::health_examinable::HealthBeingExamined;
+use crate::metabolism::MetabolismExclusion;
 use crate::mobs::MobStateWorldExt;
 use crate::popups::{PopupType, PopupWorldExt};
+use crate::reactions::ReactionAttempt;
+use crate::solution::{ReagentData, ReagentId, Solution};
+use crate::solution_container::{self as containers, SolutionComponent};
 
-/// Количество реагента в данных (`ReagentQuantity`).
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct ReagentQuantity {
-    #[serde(rename = "ReagentId")]
-    pub reagent_id: String,
-    #[serde(rename = "Quantity")]
-    pub quantity: FixedPoint2,
+/// Имена растворов кровотока по умолчанию.
+pub const BLOOD_SOLUTION: &str = "bloodstream";
+pub const BLOOD_TEMPORARY_SOLUTION: &str = "bloodstreamTemporary";
+pub const METABOLITES_SOLUTION: &str = "metabolites";
+
+fn reference_blood() -> Solution {
+    Solution::from_reagents([(ReagentId::new("Blood"), FixedPoint2::new(600))])
 }
-
-/// Состав крови в данных (`Solution` с `reagents`).
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(default)]
-pub struct ReferenceSolution {
-    pub reagents: Vec<ReagentQuantity>,
+fn blood_solution_name() -> String {
+    BLOOD_SOLUTION.into()
 }
-
-impl Default for ReferenceSolution {
-    fn default() -> Self {
-        Self {
-            reagents: vec![ReagentQuantity {
-                reagent_id: "Blood".into(),
-                quantity: FixedPoint2::new(600),
-            }],
-        }
-    }
+fn temporary_solution_name() -> String {
+    BLOOD_TEMPORARY_SOLUTION.into()
 }
-
-impl ReferenceSolution {
-    pub fn volume(&self) -> FixedPoint2 {
-        self.reagents
-            .iter()
-            .fold(FixedPoint2::ZERO, |sum, r| sum + r.quantity)
-    }
+fn metabolites_solution_name() -> String {
+    METABOLITES_SOLUTION.into()
 }
 
 fn update_interval() -> f32 {
@@ -146,16 +139,20 @@ pub struct Bloodstream {
     /// Крови не больше этой доли эталона.
     #[serde(default = "max_volume_modifier")]
     pub max_volume_modifier: f32,
-    #[serde(default)]
-    pub blood_reference_solution: ReferenceSolution,
+    /// Эталонный состав крови.
+    #[serde(default = "reference_blood")]
+    pub blood_reference_solution: Solution,
+    /// Данные реагентов крови этого тела (ДНК), при первом обращении.
+    #[serde(skip)]
+    pub blood_data: Option<Vec<ReagentData>>,
+    #[serde(default = "blood_solution_name")]
+    pub blood_solution_name: String,
+    #[serde(default = "temporary_solution_name")]
+    pub blood_temporary_solution_name: String,
+    #[serde(default = "metabolites_solution_name")]
+    pub metabolites_solution_name: String,
     #[serde(default = "bleeding_alert")]
     pub bleeding_alert: String,
-    /// Кровь (раствор `bloodstream`).
-    #[serde(default)]
-    pub blood: BTreeMap<String, FixedPoint2>,
-    /// Вытекшая кровь (раствор `bloodstreamTemporary`).
-    #[serde(default)]
-    pub leaked: BTreeMap<String, FixedPoint2>,
 }
 
 impl Bloodstream {
@@ -163,134 +160,87 @@ impl Bloodstream {
     pub fn adjusted_interval(&self) -> Duration {
         Duration::from_secs_f32(self.update_interval * self.update_interval_multiplier)
     }
-
-    /// Всего крови.
-    pub fn blood_volume(&self) -> FixedPoint2 {
-        self.blood
-            .values()
-            .fold(FixedPoint2::ZERO, |sum, quantity| sum + *quantity)
-    }
-
-    /// Доля пригодной крови, от 0 до `max_volume_modifier` (`GetBloodLevel`): меньшая по
-    /// реагентам эталона.
-    pub fn blood_level(&self) -> f32 {
-        if self.blood_reference_solution.volume() == FixedPoint2::ZERO {
-            return 0.0;
-        }
-        let mut level = FixedPoint2::from_f32(self.max_volume_modifier);
-        for reference in &self.blood_reference_solution.reagents {
-            let have = self
-                .blood
-                .get(&reference.reagent_id)
-                .copied()
-                .unwrap_or_default();
-            level = level.min(have / reference.quantity);
-        }
-        level.float()
-    }
-
-    /// Подвести кровь к эталону × `reference_factor`, не больше `amount` за раз
-    /// (`TryRegulateBloodLevel`).
-    pub fn regulate(&mut self, amount: FixedPoint2, reference_factor: f32) -> bool {
-        if amount == FixedPoint2::ZERO {
-            return false;
-        }
-        if !self.blood_increase_enabled && amount > FixedPoint2::ZERO {
-            return false;
-        }
-        let factor = reference_factor.clamp(0.0, self.max_volume_modifier);
-        let volume = self.blood_reference_solution.volume().float();
-        let ratio = amount.float() / volume;
-        for reference in self.blood_reference_solution.reagents.clone() {
-            let have = self
-                .blood
-                .get(&reference.reagent_id)
-                .copied()
-                .unwrap_or_default();
-            let error = reference.quantity.scale(factor) - have;
-            let adjusted = reference.quantity.scale(ratio);
-            if error > FixedPoint2::ZERO {
-                *self.blood.entry(reference.reagent_id).or_default() += error.min(adjusted);
-            } else if error < FixedPoint2::ZERO {
-                let removed = (-error).min(adjusted);
-                remove_reagent(&mut self.blood, &reference.reagent_id, removed);
-            }
-        }
-        true
-    }
-
-    /// Поднять или опустить кровь на `amount`, не выше нормы (`TryModifyBloodLevel`).
-    pub fn modify_level(&mut self, amount: FixedPoint2) -> bool {
-        if amount < FixedPoint2::ZERO {
-            self.regulate(-amount, 0.0)
-        } else {
-            self.regulate(amount, 1.0)
-        }
-    }
-
-    /// Выпустить кровь (`TryBleedOut`): часть крови поровну по составу уходит в вытекшую;
-    /// больше порога лужи — вытекшая пропадает.
-    pub fn bleed_out(&mut self, amount: FixedPoint2) -> bool {
-        if amount <= FixedPoint2::ZERO {
-            return false;
-        }
-        let leaked = split(&mut self.blood, amount);
-        for (reagent, quantity) in leaked {
-            *self.leaked.entry(reagent).or_default() += quantity;
-        }
-        let leaked_volume = self
-            .leaked
-            .values()
-            .fold(FixedPoint2::ZERO, |sum, q| sum + *q);
-        if leaked_volume > self.bleed_puddle_threshold {
-            // Лужи — фаза 7.2 (ADR-0016).
-            self.leaked.clear();
-        }
-        true
-    }
 }
 
-fn remove_reagent(map: &mut BTreeMap<String, FixedPoint2>, reagent: &str, amount: FixedPoint2) {
-    if let Some(have) = map.get_mut(reagent) {
-        *have = (*have - amount).max(FixedPoint2::ZERO);
-        if *have == FixedPoint2::ZERO {
-            map.remove(reagent);
-        }
-    }
+/// Раствор тела по имени без событий доступа (`ResolveSolution`).
+pub fn named_solution(world: &World, entity: Entity, name: &str) -> Option<Entity> {
+    containers::enumerate_solutions(world, entity)
+        .into_iter()
+        .find(|(id, _)| id == name)
+        .map(|(_, soln)| soln)
 }
 
-/// Отделить `amount` от раствора пропорционально составу (`SplitSolution`).
-fn split(
-    map: &mut BTreeMap<String, FixedPoint2>,
+/// Раствор крови тела.
+pub fn blood_solution(world: &World, entity: Entity) -> Option<Entity> {
+    let name = &world.get::<Bloodstream>(entity)?.blood_solution_name;
+    named_solution(world, entity, name)
+}
+
+/// Всего крови в растворе крови (с лекарствами и ядами).
+pub fn blood_volume(world: &World, entity: Entity) -> FixedPoint2 {
+    blood_solution(world, entity)
+        .and_then(|soln| containers::solution(world, soln))
+        .map_or(FixedPoint2::ZERO, |s| s.volume)
+}
+
+/// Доля пригодной крови, от 0 до `max_volume_modifier` (`GetBloodLevel`): меньшая по
+/// реагентам эталона; без кровотока или раствора — 0.
+pub fn blood_level(world: &World, entity: Entity) -> f32 {
+    let Some(bloodstream) = world.get::<Bloodstream>(entity) else {
+        return 0.0;
+    };
+    let Some(solution) = blood_solution(world, entity).and_then(|s| containers::solution(world, s))
+    else {
+        return 0.0;
+    };
+    let reference = &bloodstream.blood_reference_solution;
+    if reference.volume == FixedPoint2::ZERO {
+        return 0.0;
+    }
+    let mut level = FixedPoint2::from_f32(bloodstream.max_volume_modifier);
+    for (id, quantity) in &reference.contents {
+        level = level.min(solution.prototype_quantity(&id.prototype) / *quantity);
+    }
+    level.float()
+}
+
+/// Подвести кровь к эталону × `reference_factor`, не больше доли `amount` по каждому
+/// реагенту (`TryRegulateBloodLevel`). Раствор меняется без проведения изменений.
+pub fn regulate_blood_level_to(
+    world: &mut World,
+    entity: Entity,
     amount: FixedPoint2,
-) -> BTreeMap<String, FixedPoint2> {
-    let volume = map.values().fold(FixedPoint2::ZERO, |sum, q| sum + *q);
-    if volume == FixedPoint2::ZERO {
-        return BTreeMap::new();
+    reference_factor: f32,
+) -> bool {
+    let Some(bloodstream) = world.get::<Bloodstream>(entity).cloned() else {
+        return false;
+    };
+    let Some(soln) = blood_solution(world, entity) else {
+        return false;
+    };
+    if amount == FixedPoint2::ZERO {
+        return false;
     }
-    if amount >= volume {
-        return std::mem::take(map);
+    if !bloodstream.blood_increase_enabled && amount > FixedPoint2::ZERO {
+        return false;
     }
-    let ratio = (amount / volume).float();
-    let mut taken = BTreeMap::new();
-    let mut left = amount;
-    let keys: Vec<String> = map.keys().cloned().collect();
-    let last = keys.len().saturating_sub(1);
-    for (index, reagent) in keys.into_iter().enumerate() {
-        let have = map[&reagent];
-        // Остаток округления — последнему реагенту.
-        let part = if index == last {
-            left.min(have)
-        } else {
-            have.scale(ratio).min(left)
-        };
-        left -= part;
-        remove_reagent(map, &reagent, part);
-        if part > FixedPoint2::ZERO {
-            taken.insert(reagent, part);
+    let factor = reference_factor.clamp(0.0, bloodstream.max_volume_modifier);
+    let reference = &bloodstream.blood_reference_solution;
+    let ratio = amount.float() / reference.volume.float();
+    let Some(mut component) = world.get_mut::<SolutionComponent>(soln) else {
+        return false;
+    };
+    let solution = &mut component.solution;
+    for (id, quantity) in &reference.contents {
+        let error = quantity.scale(factor) - solution.prototype_quantity(&id.prototype);
+        let adjusted = quantity.scale(ratio);
+        if error > FixedPoint2::ZERO {
+            solution.add_reagent(id.clone(), error.min(adjusted));
+        } else if error < FixedPoint2::ZERO {
+            solution.remove_reagent(id, (-error).min(adjusted), false);
         }
     }
-    taken
+    true
 }
 
 /// Изменить кровотечение (`BleedModifierEvent`): системы меняют потерю крови и
@@ -303,13 +253,6 @@ pub struct BleedModifier {
 
 fn now(world: &World) -> Duration {
     world.resource::<GameTime>().cur_time()
-}
-
-/// Уровень крови (`GetBloodLevel`); без кровотока — 0.
-pub fn blood_level(world: &World, entity: Entity) -> f32 {
-    world
-        .get::<Bloodstream>(entity)
-        .map_or(0.0, Bloodstream::blood_level)
 }
 
 /// Изменить кровотечение (`TryModifyBleedAmount`): от 0 до наибольшего, значок `Bleed` с
@@ -331,25 +274,137 @@ pub fn modify_bleed_amount(world: &mut World, entity: Entity, amount: f32) -> bo
     true
 }
 
-/// Поднять или опустить кровь (`TryModifyBloodLevel`).
+/// Поднять или опустить кровь на `amount`, не выше нормы (`TryModifyBloodLevel`).
 pub fn modify_blood_level(world: &mut World, entity: Entity, amount: FixedPoint2) -> bool {
-    world
-        .get_mut::<Bloodstream>(entity)
-        .is_some_and(|mut b| b.modify_level(amount))
+    if amount < FixedPoint2::ZERO {
+        regulate_blood_level_to(world, entity, -amount, 0.0)
+    } else {
+        regulate_blood_level_to(world, entity, amount, 1.0)
+    }
 }
 
 /// Подвести кровь к норме (`TryRegulateBloodLevel`).
 pub fn regulate_blood_level(world: &mut World, entity: Entity, amount: FixedPoint2) -> bool {
-    world
-        .get_mut::<Bloodstream>(entity)
-        .is_some_and(|mut b| b.regulate(amount, 1.0))
+    regulate_blood_level_to(world, entity, amount, 1.0)
 }
 
-/// Выпустить кровь (`TryBleedOut`).
+/// Выпустить кровь (`TryBleedOut`): часть раствора крови по составу уходит в вытекшую;
+/// больше порога лужи — разлив (луж пока нет: пропадает).
 pub fn bleed_out(world: &mut World, entity: Entity, amount: FixedPoint2) -> bool {
-    world
-        .get_mut::<Bloodstream>(entity)
-        .is_some_and(|mut b| b.bleed_out(amount))
+    let Some(bloodstream) = world.get::<Bloodstream>(entity).cloned() else {
+        return false;
+    };
+    let Some(soln) = blood_solution(world, entity) else {
+        return false;
+    };
+    if amount <= FixedPoint2::ZERO {
+        return false;
+    }
+    let leaked = containers::split_solution(world, soln, amount);
+    let Some(temporary) = named_solution(world, entity, &bloodstream.blood_temporary_solution_name)
+    else {
+        return true;
+    };
+    let catalog = crate::solution::reagents(world);
+    if let Some(mut component) = world.get_mut::<SolutionComponent>(temporary) {
+        let solution = &mut component.solution;
+        solution.add_solution(&leaked, &catalog);
+        if solution.volume > bloodstream.bleed_puddle_threshold {
+            // Лужи — с жидкостями (фаза 7.4).
+            solution.remove_all();
+        }
+    }
+    containers::update_chemicals(world, temporary, true);
+    true
+}
+
+/// Добавить раствор в кровь (`TryAddToBloodstream`).
+pub fn try_add_to_bloodstream(world: &mut World, entity: Entity, solution: &Solution) -> bool {
+    if world.get::<Bloodstream>(entity).is_none() {
+        return false;
+    }
+    let Some(soln) = blood_solution(world, entity) else {
+        return false;
+    };
+    containers::try_add_solution(world, soln, solution)
+}
+
+/// Убрать из крови понемногу всё, кроме реагентов крови и исключённого
+/// (`FlushChemicals`); `None` — ничего не убрано.
+pub fn flush_chemicals(
+    world: &mut World,
+    entity: Entity,
+    quantity: FixedPoint2,
+    excluded: Option<&str>,
+) -> Option<Solution> {
+    let reference = world
+        .get::<Bloodstream>(entity)?
+        .blood_reference_solution
+        .clone();
+    let soln = blood_solution(world, entity)?;
+    let contents = containers::solution(world, soln)?.contents.clone();
+    let mut flushed = Solution::default();
+    for (id, _) in contents.into_iter().rev() {
+        if reference.contains_prototype(&id.prototype) || Some(id.prototype.as_str()) == excluded {
+            continue;
+        }
+        let removed = containers::remove_reagent(world, soln, &id, quantity);
+        flushed.add_reagent(id, removed);
+    }
+    (flushed.volume != FixedPoint2::ZERO).then_some(flushed)
+}
+
+/// Сменить состав крови на ходу (`ChangeBloodReagents`): кровь старого состава
+/// заменяется тем же объёмом нового.
+pub fn change_blood_reagents(world: &mut World, entity: Entity, reagents: &Solution) {
+    let Some(old) = world
+        .get::<Bloodstream>(entity)
+        .map(|b| b.blood_reference_solution.clone())
+    else {
+        return;
+    };
+    let Some(soln) = blood_solution(world, entity) else {
+        if let Some(mut bloodstream) = world.get_mut::<Bloodstream>(entity) {
+            bloodstream.blood_reference_solution = reagents.clone();
+        }
+        return;
+    };
+    let mut current = FixedPoint2::ZERO;
+    if let Some(mut component) = world.get_mut::<SolutionComponent>(soln) {
+        for (id, _) in &old.contents {
+            let volume = component.solution.volume;
+            current += component.solution.remove_reagent(id, volume, true);
+        }
+    }
+    let mut reference = reagents.clone();
+    reference.scale_to(old.max_volume);
+    if let Some(mut bloodstream) = world.get_mut::<Bloodstream>(entity) {
+        bloodstream.blood_reference_solution = reference.clone();
+    }
+    if current == FixedPoint2::ZERO {
+        return;
+    }
+    let mut solution = reference;
+    solution.scale((current / solution.volume).float());
+    containers::add_solution(world, soln, &solution);
+}
+
+/// Данные реагентов крови тела (`GetEntityBloodData`): ДНК; без ДНК тела —
+/// «неизвестная».
+pub fn entity_blood_data(world: &mut World, entity: Entity) -> Vec<ReagentData> {
+    if let Some(data) = world
+        .get::<Bloodstream>(entity)
+        .and_then(|b| b.blood_data.clone())
+    {
+        return data;
+    }
+    let data = vec![ReagentData::Dna {
+        dna: loc(world, "forensics-dna-unknown", &[]),
+    }];
+    if let Some(mut bloodstream) = world.get_mut::<Bloodstream>(entity) {
+        bloodstream.blood_data = Some(data.clone());
+    }
+    data
 }
 
 /// Течь кровью за обновление (`TickBleed`).
@@ -371,6 +426,9 @@ pub fn tick_bleed(world: &mut World, entity: Entity) {
 
 /// Обновить одно тело (`Update`).
 fn update_body(world: &mut World, entity: Entity) {
+    if blood_solution(world, entity).is_none() {
+        return;
+    }
     if world.is_mob_dead(entity) {
         tick_bleed(world, entity);
         return;
@@ -386,7 +444,7 @@ fn update_body(world: &mut World, entity: Entity) {
     let Some(bloodstream) = world.get::<Bloodstream>(entity).cloned() else {
         return;
     };
-    let level = bloodstream.blood_level();
+    let level = blood_level(world, entity);
     if level < bloodstream.bloodloss_threshold {
         // Чем меньше крови, тем сильнее урон.
         let damage = bloodstream.bloodloss_damage.scale(1.0 / (0.1 + level));
@@ -414,21 +472,51 @@ fn update(world: &mut World) {
     }
 }
 
-/// Наполнить кровью по эталону (`OnMapInit`).
+/// Растворы кровотока и кровь по эталону (`OnMapInit`).
 fn on_map_init(world: &mut World, entity: Entity) {
     let time = now(world);
     let Some(mut bloodstream) = world.get_mut::<Bloodstream>(entity) else {
         return;
     };
     bloodstream.next_update = time + bloodstream.adjusted_interval();
-    let reference = bloodstream.blood_reference_solution.volume();
-    let missing = reference - bloodstream.blood_volume();
-    if missing <= FixedPoint2::ZERO || reference == FixedPoint2::ZERO {
+    let bloodstream = bloodstream.clone();
+    let Some((blood, _)) =
+        containers::ensure_solution(world, entity, &bloodstream.blood_solution_name)
+    else {
         return;
+    };
+    let temporary =
+        containers::ensure_solution(world, entity, &bloodstream.blood_temporary_solution_name);
+    let metabolites =
+        containers::ensure_solution(world, entity, &bloodstream.metabolites_solution_name);
+    let max = bloodstream
+        .blood_reference_solution
+        .volume
+        .scale(bloodstream.max_volume_modifier);
+    let set_max = |world: &mut World, soln: Entity, max: FixedPoint2| {
+        if let Some(mut component) = world.get_mut::<SolutionComponent>(soln) {
+            component.solution.max_volume = max;
+        }
+    };
+    set_max(world, blood, max);
+    if let Some((soln, _)) = metabolites {
+        set_max(world, soln, max);
     }
-    let ratio = (missing / reference).float();
-    for reagent in bloodstream.blood_reference_solution.reagents.clone() {
-        *bloodstream.blood.entry(reagent.reagent_id).or_default() += reagent.quantity.scale(ratio);
+    if let Some((soln, _)) = temporary {
+        // С запасом, в том числе для химии.
+        set_max(world, soln, bloodstream.bleed_puddle_threshold * 4);
+    }
+    let data = entity_blood_data(world, entity);
+    let mut reference = bloodstream.blood_reference_solution.clone();
+    reference.set_reagent_data(data);
+    if let Some(mut component) = world.get_mut::<Bloodstream>(entity) {
+        component.blood_reference_solution = reference.clone();
+    }
+    let catalog = crate::solution::reagents(world);
+    if let Some(mut component) = world.get_mut::<SolutionComponent>(blood) {
+        let mut fill = reference.clone();
+        fill.scale_to(reference.volume - component.solution.volume);
+        component.solution.add_solution(&fill, &catalog);
     }
 }
 
@@ -494,7 +582,7 @@ pub fn health_examine_lines(world: &World, entity: Entity) -> Vec<String> {
     if let Some(key) = key {
         lines.push(loc(world, key, &[("target", target().into())]));
     }
-    if bloodstream.blood_level() < bloodstream.bloodloss_threshold {
+    if blood_level(world, entity) < bloodstream.bloodloss_threshold {
         lines.push(loc(
             world,
             "bloodstream-component-looks-pale",
@@ -506,22 +594,121 @@ pub fn health_examine_lines(world: &World, entity: Entity) -> Vec<String> {
 
 /// Полное исцеление: кровотечение — ноль, кровь — норма (`OnRejuvenate`).
 fn on_rejuvenate(world: &mut World, entity: Entity) {
-    let Some(bleed) = world.get::<Bloodstream>(entity).map(|b| b.bleed_amount) else {
+    let Some(bloodstream) = world.get::<Bloodstream>(entity).cloned() else {
         return;
     };
-    modify_bleed_amount(world, entity, -bleed);
-    if let Some(mut bloodstream) = world.get_mut::<Bloodstream>(entity) {
-        bloodstream.blood.clear();
-        let volume = bloodstream.blood_reference_solution.volume();
-        bloodstream.regulate(volume, 1.0);
+    modify_bleed_amount(world, entity, -bloodstream.bleed_amount);
+    if let Some(soln) = blood_solution(world, entity) {
+        containers::remove_all_solution(world, soln);
+        regulate_blood_level(world, entity, bloodstream.blood_reference_solution.volume);
+    }
+}
+
+/// В крови и вытекшей крови не идут реакции с появлением сущностей, дымом и пеной
+/// (`OnReactionAttempt`).
+fn on_reaction_attempt(world: &mut World, soln: Entity, event: &mut ReactionAttempt) {
+    if event.cancelled {
+        return;
+    }
+    let owner = containers::solution_owner(world, soln);
+    let Some(bloodstream) = world.get::<Bloodstream>(owner) else {
+        return;
+    };
+    let Some(id) = world.get::<SolutionComponent>(soln).map(|s| s.id.clone()) else {
+        return;
+    };
+    if id != bloodstream.blood_solution_name && id != bloodstream.blood_temporary_solution_name {
+        return;
+    }
+    let reactions = crate::reactions::reactions(world);
+    if let Some(reaction) = reactions.get(&event.reaction)
+        && reaction
+            .effect_kinds
+            .iter()
+            .any(|kind| kind == "SpawnEntity" || kind == "AreaReactionEffect")
+    {
+        event.cancelled = true;
+    }
+}
+
+/// Кровотечение сильнее или слабее (`ModifyBleed`).
+#[derive(Debug)]
+struct ModifyBleed {
+    amount: f32,
+}
+
+impl crate::entity_effects::EffectKind for ModifyBleed {
+    fn apply(&self, world: &mut World, target: Entity, scale: f32, _: Option<Entity>) {
+        modify_bleed_amount(world, target, self.amount * scale);
+    }
+}
+
+/// Больше или меньше крови (`ModifyBloodLevel`).
+#[derive(Debug)]
+struct ModifyBloodLevel {
+    amount: FixedPoint2,
+}
+
+impl crate::entity_effects::EffectKind for ModifyBloodLevel {
+    fn apply(&self, world: &mut World, target: Entity, scale: f32, _: Option<Entity>) {
+        modify_blood_level(world, target, self.amount.scale(scale));
+    }
+}
+
+/// Очистить кровь (`CleanBloodstream`).
+#[derive(Debug)]
+struct CleanBloodstream {
+    cleanse_rate: FixedPoint2,
+    excluded: Option<String>,
+}
+
+impl crate::entity_effects::EffectKind for CleanBloodstream {
+    fn apply(&self, world: &mut World, target: Entity, scale: f32, _: Option<Entity>) {
+        if world.get::<Bloodstream>(target).is_some() {
+            flush_chemicals(
+                world,
+                target,
+                self.cleanse_rate.scale(scale),
+                self.excluded.as_deref(),
+            );
+        }
     }
 }
 
 pub fn install(world: &mut World, side: Side) {
+    use crate::entity_effects::{EffectsWorldExt, field, number, text};
     world.register_data_component::<Bloodstream>();
+    world.register_effect("ModifyBleed", |node| {
+        Some(Arc::new(ModifyBleed {
+            amount: number(node, "amount").unwrap_or(-1.0),
+        }))
+    });
+    world.register_effect("ModifyBloodLevel", |node| {
+        Some(Arc::new(ModifyBloodLevel {
+            amount: field(node, "amount").unwrap_or(FixedPoint2::new(1)),
+        }))
+    });
+    world.register_effect("CleanBloodstream", |node| {
+        Some(Arc::new(CleanBloodstream {
+            cleanse_rate: field(node, "cleanseRate").unwrap_or(FixedPoint2::new(3)),
+            excluded: text(node, "excluded"),
+        }))
+    });
     if !side.is_server() {
         return;
     }
+    world.subscribe::<Bloodstream, MetabolismExclusion>(|world, entity, event| {
+        if let Some(bloodstream) = world.get::<Bloodstream>(entity) {
+            event.reagents.extend(
+                bloodstream
+                    .blood_reference_solution
+                    .contents
+                    .iter()
+                    .map(|(id, _)| id.clone()),
+            );
+        }
+    });
+    world.subscribe::<SolutionComponent, ReactionAttempt>(on_reaction_attempt);
     world.subscribe::<Bloodstream, MapInit>(|world, entity, _| on_map_init(world, entity));
     world.subscribe::<Bloodstream, DamageChanged>(|world, entity, event| {
         on_damage_changed(world, entity, event);

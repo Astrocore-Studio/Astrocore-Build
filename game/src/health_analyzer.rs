@@ -109,7 +109,7 @@ pub fn ui_state(world: &World, target: Option<Entity>, scan_mode: bool) -> Healt
     HealthAnalyzerUiState {
         target_entity: world.get::<NetEntity>(entity).copied(),
         temperature: crate::temperature::temperature_of(world, entity),
-        blood_level: blood.map(crate::bloodstream::Bloodstream::blood_level),
+        blood_level: blood.map(|_| crate::bloodstream::blood_level(world, entity)),
         scan_mode,
         bleeding: blood.is_some_and(|b| b.bleed_amount > 0.0),
         unrevivable: false,

@@ -196,6 +196,7 @@ fn reactions_keep_heat_and_order_by_priority() {
         mixing_categories: None,
         products: (0..products).map(|i| (format!("P{i}"), n(1))).collect(),
         effects: Vec::new(),
+        effect_kinds: Vec::new(),
         impact: LogImpact::Low,
         sound: None,
         quantized: false,

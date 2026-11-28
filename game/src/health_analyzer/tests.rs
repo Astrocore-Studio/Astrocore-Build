@@ -7,6 +7,12 @@ use super::*;
 use crate::testing::{spawn_at, station, world_with};
 
 const PROTOTYPES: &str = r#"
+- type: reagent
+  id: Blood
+- type: entity
+  id: Solution
+  components:
+  - type: Solution
 - type: damageType
   id: Slash
   name: damage-type-slash

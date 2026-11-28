@@ -87,7 +87,7 @@ pub(crate) fn has_damage(world: &World, healing: &Healing, target: Entity) -> bo
     let Some(bloodstream) = world.get::<Bloodstream>(target) else {
         return false;
     };
-    (healing.modify_blood_level > 0.0 && bloodstream.blood_level() < 1.0)
+    (healing.modify_blood_level > 0.0 && crate::bloodstream::blood_level(world, target) < 1.0)
         || (healing.bloodloss_modifier < 0.0 && bloodstream.bleed_amount > 0.0)
 }
 

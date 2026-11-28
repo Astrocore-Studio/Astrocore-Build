@@ -57,6 +57,8 @@ pub struct Reaction {
     pub mixing_categories: Option<Vec<String>>,
     pub products: Vec<(String, FixedPoint2)>,
     pub effects: Vec<EntityEffect>,
+    /// Виды всех эффектов из данных, в том числе ещё не перенесённых.
+    pub effect_kinds: Vec<String>,
     pub impact: LogImpact,
     pub sound: Option<SoundSpecifier>,
     pub quantized: bool,
@@ -136,6 +138,15 @@ fn parse_reaction(world: &mut World, id: &str, node: &DataNode) -> Option<Reacti
         None => Some(SoundSpecifier::path("/Audio/Effects/Chemistry/bubbles.ogg")),
     };
     let effects = parse_effects(world, node.get("effects"));
+    let effect_kinds = node
+        .get("effects")
+        .and_then(DataNode::as_seq)
+        .map(|list| {
+            list.iter()
+                .map(|n| crate::entity_effects::tag(n).to_owned())
+                .collect()
+        })
+        .unwrap_or_default();
     Some(Reaction {
         id: id.to_owned(),
         name: crate::entity_effects::text(node, "name").unwrap_or_default(),
@@ -146,6 +157,7 @@ fn parse_reaction(world: &mut World, id: &str, node: &DataNode) -> Option<Reacti
         mixing_categories: field(node, "requiredMixerCategories"),
         products,
         effects,
+        effect_kinds,
         impact,
         sound,
         quantized: crate::entity_effects::flag(node, "quantized").unwrap_or(false),
