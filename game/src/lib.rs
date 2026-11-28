@@ -150,6 +150,7 @@ pub mod verbs;
 pub mod virtual_item;
 pub mod voting;
 pub mod weldable;
+pub mod welder;
 pub mod whitelist;
 pub mod wires;
 
@@ -301,6 +302,7 @@ pub fn install_content(world: &mut World, side: Side) {
     reactive::install(world, side);
     injector::install(world, side);
     labels::install(world, side);
+    welder::install(world, side);
     ingestion::install(world, side);
     placeable::install(world, side);
     chem_machines::install(world, side);

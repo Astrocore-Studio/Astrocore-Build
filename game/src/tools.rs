@@ -95,6 +95,24 @@ pub struct ToolDoAfter<E> {
     pub wrapped: E,
 }
 
+/// Действие инструментом продолжается (`DoAfterAttemptEvent<ToolDoAfterEvent>`): инструмент
+/// может отменить (сварка без топлива). На инструменте.
+#[derive(Debug, Clone, Copy)]
+pub struct ToolDoAfterAttempt {
+    pub user: Entity,
+    pub fuel: f32,
+    pub cancelled: bool,
+}
+
+/// Действие инструментом закончилось (`ToolDoAfterEvent` на инструменте): сварка тратит
+/// топливо. На инструменте.
+#[derive(Debug, Clone, Copy)]
+pub struct ToolDoAfterFinished {
+    pub user: Entity,
+    pub fuel: f32,
+    pub cancelled: bool,
+}
+
 /// Название качества по прототипу `tool`.
 pub fn quality_name(world: &World, quality: &str) -> String {
     let key = world
@@ -294,7 +312,26 @@ fn set_multiple_tool(world: &mut World, tool: Entity, play_sound: bool, _user: O
 /// Подписывает событие системы на окончание действия инструментом: звук инструмента и
 /// `DoAfterDone<E>` на исходной цели (`OnDoAfter`).
 pub fn register_tool_event<E: Clone + Send + Sync + 'static>(world: &mut World) {
+    world.subscribe::<Tool, crate::do_after::DoAfterAttempt<ToolDoAfter<E>>>(
+        |world, tool, event| {
+            let mut attempt = ToolDoAfterAttempt {
+                user: event.user,
+                fuel: event.event.fuel,
+                cancelled: false,
+            };
+            world.raise(tool, &mut attempt);
+            event.cancelled |= attempt.cancelled;
+        },
+    );
     world.subscribe::<Tool, DoAfterDone<ToolDoAfter<E>>>(|world, tool, event| {
+        world.raise(
+            tool,
+            &mut ToolDoAfterFinished {
+                user: event.user,
+                fuel: event.event.fuel,
+                cancelled: event.cancelled,
+            },
+        );
         if !event.cancelled
             && let Some(sound) = world.get::<Tool>(tool).and_then(|t| t.use_sound.clone())
         {
