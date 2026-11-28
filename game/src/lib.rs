@@ -46,6 +46,7 @@ pub mod damage_other_on_hit;
 pub mod damage_overlay;
 pub mod database;
 pub mod decals;
+pub mod defibrillator;
 pub mod destructible;
 pub mod device_linking;
 pub mod device_network;
@@ -112,6 +113,7 @@ pub mod random;
 pub mod rate_limit;
 pub mod respawn;
 pub mod respiration;
+pub mod return_to_body;
 pub mod round_end;
 pub mod server;
 pub mod shuttles;
@@ -208,6 +210,8 @@ pub mod power_ui;
 #[cfg(feature = "client")]
 pub mod quick_dialog_ui;
 #[cfg(feature = "client")]
+pub mod return_to_body_ui;
+#[cfg(feature = "client")]
 pub mod smooth;
 #[cfg(feature = "client")]
 pub mod stack_visuals;
@@ -267,6 +271,8 @@ pub fn install_content(world: &mut World, side: Side) {
     stethoscope::install(world, side);
     battery::install(world, side);
     power_cell::install(world, side);
+    defibrillator::install(world, side);
+    return_to_body::install(world, side);
     stack::install(world, side);
     tools::install(world, side);
     virtual_item::install(world, side);

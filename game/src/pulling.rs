@@ -593,6 +593,14 @@ pub(crate) fn install(world: &mut World, side: crate::Side) {
     if !side.is_server() {
         return;
     }
+    // Тянущий взаимодействует с тем, кого тянет (`OnGetInteractingEntities`).
+    world.subscribe::<Pullable, crate::interaction::GetInteractingEntities>(
+        |world, entity, event| {
+            if let Some(puller) = world.get::<Pullable>(entity).and_then(|p| p.puller) {
+                event.interacting.insert(puller);
+            }
+        },
+    );
     // Нажатия на значки (`OnStopPullingAlert`, `OnStopBeingPulledAlert`).
     world.subscribe::<Puller, crate::alerts::AlertClicked>(|world, entity, event| {
         if event.handled || event.event != "StopPullingAlertEvent" {

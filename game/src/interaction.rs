@@ -193,6 +193,25 @@ pub struct UseInHand {
     pub apply_delay: bool,
 }
 
+/// Кто сейчас взаимодействует с целью (`GetInteractingEntitiesEvent`): тянущий, тот, кто
+/// делает с ней действие с задержкой. Поднимается на цели и широковещательно.
+#[derive(Debug, Clone)]
+pub struct GetInteractingEntities {
+    pub target: Entity,
+    pub interacting: std::collections::BTreeSet<Entity>,
+}
+
+/// Кто взаимодействует с целью, кроме неё самой (`GetEntitiesInteractingWithTarget`).
+pub fn entities_interacting_with(world: &mut World, target: Entity) -> Vec<Entity> {
+    let mut event = GetInteractingEntities {
+        target,
+        interacting: Default::default(),
+    };
+    world.raise_and_broadcast(target, &mut event);
+    event.interacting.remove(&target);
+    event.interacting.into_iter().collect()
+}
+
 /// Сущности соприкоснулись при взаимодействии (`ContactInteractionEvent`): отпечатки,
 /// заразы. Поднимается на обеих.
 #[derive(Debug, Clone, Copy)]

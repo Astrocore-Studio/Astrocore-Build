@@ -11,7 +11,8 @@
 //! `--storage-nearest` (только с `--host`) ставит игрока у ящика с инструментами, кладёт в него
 //! инструменты, открывает его окно и ближайший шкаф, `--hurt` (только с `--host`) через секунду
 //! наносит игроку смертельный урон (`--hurt-amount <урон>` — заданный), `--scan-self` (только с
-//! `--host`) ранит игрока и открывает ему окно медсканера с ним самим, `--dress` (только с `--host`) надевает на игрока
+//! `--host`) ранит игрока и открывает ему окно медсканера с ним самим, `--return-prompt` (только
+//! с `--host`) показывает игроку окно «вернуться в тело», `--dress` (только с `--host`) надевает на игрока
 //! комбинезон, ботинки и рюкзак, `--console "<команда>"` (можно несколько раз) после входа
 //! открывает консоль и выполняет команды на сервере, `--palette entities:<поиск>` или
 //! `tiles:<поиск>` открывает палитру маппинга и берёт первую найденную строку, курсор при
@@ -47,6 +48,7 @@ struct Options {
     hurt: bool,
     hurt_amount: i32,
     scan_self: bool,
+    return_prompt: bool,
     ignite: bool,
     /// Проверка вида пожарного шлюза: игрок у шлюза, который держит давление и огонь.
     firelock: bool,
@@ -88,6 +90,7 @@ fn options() -> Result<Options, String> {
         hurt: false,
         hurt_amount: 500,
         scan_self: false,
+        return_prompt: false,
         ignite: false,
         firelock: false,
         dress: false,
@@ -115,6 +118,7 @@ fn options() -> Result<Options, String> {
             "--storage-nearest" => options.storage_nearest = true,
             "--hurt" => options.hurt = true,
             "--scan-self" => options.scan_self = true,
+            "--return-prompt" => options.return_prompt = true,
             "--hurt-amount" => {
                 options.hurt = true;
                 options.hurt_amount = value("урон")?
@@ -443,6 +447,24 @@ fn scan_self(
             astrocore_game::health_analyzer::HEALTH_ANALYZER_UI_KEY,
             player,
         );
+    }
+}
+
+/// Проверка без человека: через секунду игроку предлагают вернуться в тело.
+fn return_prompt(world: &mut bevy_ecs::world::World, mut ticks: Local<u32>) {
+    let Some((player, session)) = world
+        .query::<(bevy_ecs::entity::Entity, &astrocore_net::Actor)>()
+        .iter(world)
+        .next()
+        .map(|(entity, actor)| (entity, actor.session))
+    else {
+        return;
+    };
+    *ticks += 1;
+    if *ticks == 30
+        && let Some(mind) = astrocore_game::mind::mind_of(world, player)
+    {
+        astrocore_game::return_to_body::offer(world, session, mind);
     }
 }
 
@@ -776,6 +798,12 @@ fn run() -> Result<(), String> {
                 .world
                 .add_game_systems(astrocore_ecs::Update, hurt_player);
         }
+        if options.return_prompt {
+            use astrocore_ecs::GameWorldExt;
+            start
+                .world
+                .add_game_systems(astrocore_ecs::Update, return_prompt);
+        }
         if options.scan_self {
             use astrocore_ecs::GameWorldExt;
             start
@@ -861,6 +889,7 @@ fn run() -> Result<(), String> {
     .add_plugins(astrocore_game::quick_dialog_ui::QuickDialogUiPlugin)
     .add_plugins(astrocore_game::damage_overlay_view::DamageOverlayViewPlugin)
     .add_plugins(astrocore_game::health_analyzer_ui::HealthAnalyzerUiPlugin)
+    .add_plugins(astrocore_game::return_to_body_ui::ReturnToBodyUiPlugin)
     .add_plugins(astrocore_game::ghost_ui::GhostUiPlugin)
     .add_plugins(astrocore_game::decal_visuals::DecalVisualsPlugin)
     .add_plugins(astrocore_game::power_ui::PowerUiPlugin)

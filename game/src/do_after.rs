@@ -611,9 +611,22 @@ fn complete(world: &mut World, user: Entity, index: u16, do_after: &DoAfter, tim
 pub(crate) fn install(world: &mut World, side: crate::Side) {
     world.register_data_component_as::<DoAfterComponent>("DoAfter");
     world.register_net_serde::<DoAfterBars>();
-    if side.is_server() {
-        world.add_game_systems(Update, update);
+    if !side.is_server() {
+        return;
     }
+    world.add_game_systems(Update, update);
+    // Кто делает действие с целью — взаимодействует с ней (`OnGetInteractingEntities`).
+    world.subscribe_broadcast::<crate::interaction::GetInteractingEntities>(|world, event| {
+        let target = event.target;
+        let users: Vec<Entity> = world
+            .query::<(&DoAfterComponent, &ActiveDoAfter)>()
+            .iter(world)
+            .flat_map(|(component, _)| component.do_afters.values())
+            .filter(|d| d.cancelled_time.is_none() && !d.completed && d.args.target == Some(target))
+            .map(|d| d.args.user)
+            .collect();
+        event.interacting.extend(users);
+    });
 }
 
 #[cfg(test)]
