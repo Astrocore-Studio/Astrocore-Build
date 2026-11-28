@@ -26,6 +26,7 @@ use bevy_ecs::world::World;
 use serde::{Deserialize, Serialize};
 
 use crate::Side;
+use crate::entity_effects::EffectsWorldExt;
 
 /// Значок тревоги: картинка или состояние RSI (`SpriteSpecifier`).
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -454,8 +455,54 @@ fn update(world: &mut World) {
     }
 }
 
+/// Показать или убрать значок (`AdjustAlert`): `clear` со временем — показать и убрать по
+/// истечении.
+#[derive(Debug)]
+struct AdjustAlert {
+    alert_type: String,
+    clear: bool,
+    show_cooldown: bool,
+    /// С.
+    time: f32,
+}
+
+impl crate::entity_effects::EffectKind for AdjustAlert {
+    fn apply(&self, world: &mut World, target: Entity, _: f32, _: Option<Entity>) {
+        if world.get::<Alerts>(target).is_none() {
+            return;
+        }
+        if self.clear && self.time <= 0.0 {
+            clear_alert(world, target, &self.alert_type);
+            return;
+        }
+        let now = world.resource::<GameTime>().cur_time();
+        let cooldown = ((self.show_cooldown || self.clear) && self.time >= 0.0)
+            .then(|| (now, now + Duration::from_secs_f32(self.time)));
+        show_alert_state(
+            world,
+            target,
+            AlertState {
+                alert_type: self.alert_type.clone(),
+                severity: None,
+                cooldown,
+                auto_remove: self.clear,
+                show_cooldown: self.show_cooldown,
+            },
+        );
+    }
+}
+
 pub fn install(world: &mut World, side: Side) {
     world.register_data_component::<Alerts>();
+    world.register_effect("AdjustAlert", |node| {
+        use crate::entity_effects::{flag, number, text};
+        Some(std::sync::Arc::new(AdjustAlert {
+            alert_type: text(node, "alertType")?,
+            clear: flag(node, "clear").unwrap_or(false),
+            show_cooldown: flag(node, "showCooldown").unwrap_or(false),
+            time: number(node, "time").unwrap_or(0.0),
+        }))
+    });
     world.register_net_component::<Alerts>();
     world.register_net_event::<ClickAlert>();
     world.init_resource::<AlertCache>();

@@ -30,6 +30,7 @@ use crate::atmos::gas::OXYGEN;
 use crate::atmos::{TileFire, hotspot_expose_at};
 use crate::combat::{Attacked, MeleeHit};
 use crate::damage::{DamageChanged, DamageSpecifier, DamageableWorldExt, Rejuvenate};
+use crate::entity_effects::EffectsWorldExt;
 use crate::fixed_point::FixedPoint2;
 use crate::interaction::InteractUsing;
 use crate::temperature::{change_heat, worn_items};
@@ -526,8 +527,47 @@ fn update(world: &mut World) {
     }
 }
 
+/// Горючие стопки (`Flammable`): на уже горящем — свой множитель, если задан.
+#[derive(Debug)]
+struct FlammableEffect {
+    multiplier: f32,
+    multiplier_on_existing: Option<f32>,
+}
+
+impl crate::entity_effects::EffectKind for FlammableEffect {
+    fn apply(&self, world: &mut World, target: Entity, scale: f32, _: Option<Entity>) {
+        let Some(stacks) = world.get::<Flammable>(target).map(|f| f.fire_stacks) else {
+            return;
+        };
+        let multiplier = match self.multiplier_on_existing {
+            Some(existing) if stacks != 0.0 => existing,
+            _ => self.multiplier,
+        };
+        adjust_fire_stacks(world, target, scale * multiplier, false);
+    }
+}
+
+/// Поджечь (`Ignite`).
+#[derive(Debug)]
+struct IgniteEffect;
+
+impl crate::entity_effects::EffectKind for IgniteEffect {
+    fn apply(&self, world: &mut World, target: Entity, _: f32, _: Option<Entity>) {
+        if world.get::<Flammable>(target).is_some() {
+            ignite(world, target);
+        }
+    }
+}
+
 pub fn install(world: &mut World, side: Side) {
     world.register_data_component::<Flammable>();
+    world.register_effect("Flammable", |node| {
+        Some(std::sync::Arc::new(FlammableEffect {
+            multiplier: crate::entity_effects::number(node, "multiplier").unwrap_or(0.05),
+            multiplier_on_existing: crate::entity_effects::number(node, "multiplierOnExisting"),
+        }))
+    });
+    world.register_effect("Ignite", |_| Some(std::sync::Arc::new(IgniteEffect)));
     world.register_data_component::<IgnitionSource>();
     world.register_data_component::<IgniteOnCollide>();
     world.register_data_component::<IgniteOnMeleeHit>();

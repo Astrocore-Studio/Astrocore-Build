@@ -232,6 +232,7 @@ SS14). Оттуда переносятся устройство движка, с
 | Смена вида ёмкости по реагенту (`Metamorphic`), заполнение ёмкости в руках и на одежде | 7.4 (вместе с баром, где это нужно) |
 | Закрытые ёмкости (`Openable`) | 7.4 (вместе с напитками) |
 | Эффекты реакций: дым и пена (`AreaReactionEffect`) — 7.4 (вместе с жидкостями); ЭМИ (`Emp`) и вспышка (`Flash`) — 7.3; таблицы появления (`SpawnEntityTable`) — 7.11; ДНК в продуктах (`DnaImprinterReaction`) — 7.6 (вместе с клонированием) | 7.3, 7.4, 7.6, 7.11 |
+| Эффекты метаболизма: кровь (`ModifyBleed`, `ModifyBloodLevel`, `CleanBloodstream`) — 7.2 (вместе с кровью на растворах); статус-эффекты, дрожь, опьянение, оглушение, скорость, выносливость, удар током, ускоренный обмен веществ (`ModifyStatusEffect`, `GenericStatusEffect`, `Jitter`, `Drunk`, `ModifyKnockdown`, `MovementSpeedModifier`, `StaminaDamage`, `Electrocute`, `ResetNarcolepsy`, `RushedMetabolism`) — 7.3; зомби (`CureZombieInfection`, `CauseZombieInfection`) — 7.7; эмоции, сытость и рвота, превращение, разумность, гниение, повреждение глаз (`Emote`, `Satiate`, `SatiationCondition`, `Vomit`, `Polymorph`, `MakeSentient`, `ReduceRotting`, `EyeDamage`) — 7.11; ДНК (`DnaImprint`) — 7.6 | 7.2, 7.3, 7.6, 7.7, 7.11 |
 | Картинка пациента в окне медсканера (вид сущности в окне, `SpriteView`) | 7.9 (вместе с камерами наблюдения, где вид сущности в окне тоже нужен) |
 
 ## Фаза 0. Порядок в репозиториях (≈1–2 недели)

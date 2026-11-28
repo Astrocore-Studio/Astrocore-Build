@@ -4,6 +4,7 @@ use astrocore_map::TileCoord;
 use super::*;
 use crate::atmos::gas::{CARBON_DIOXIDE, CELL_VOLUME, OXYGEN, PLASMA};
 use crate::atmos::{ensure_grid_atmosphere, tile_mixture, with_tile_mixture};
+use crate::damage::Damageable;
 use crate::testing::{spawn_at, station, world_with};
 
 const PROTOTYPES: &str = r#"
@@ -63,6 +64,10 @@ const PROTOTYPES: &str = r#"
             Poison: 0.1
 - type: reagent
   id: CarbonDioxide
+- type: entity
+  id: Solution
+  components:
+  - type: Solution
 - type: entity
   id: TestLungs
   components:
@@ -213,16 +218,31 @@ fn plasma_poisons() {
 #[test]
 fn effect_data_parses() {
     let mut world = world_with(PROTOTYPES);
-    let oxygen = reagent_effects(&mut world, "Oxygen").unwrap();
-    // `AdjustAlert` не перенесён и пропускается.
-    assert_eq!(oxygen.len(), 3);
-    assert_eq!(oxygen[0].kind, EffectKind::Oxygenate { factor: 1.0 });
+    let oxygen = crate::metabolism::reagent_metabolisms(&mut world, "Oxygen");
+    let effects = &oxygen.stages[RESPIRATION_STAGE].effects;
+    let names: Vec<&str> = effects.iter().map(|e| e.name.as_str()).collect();
     assert_eq!(
-        oxygen[1].conditions,
-        [Condition::MetabolizerType {
-            types: vec!["Vox".into()],
-            inverted: true
-        }]
+        names,
+        ["Oxygenate", "ModifyLungGas", "HealthChange", "AdjustAlert"]
     );
-    assert_eq!(reagent_effects(&mut world, "CarbonDioxide"), None);
+    assert!(effects[1].conditions[0].inverted);
+    let dioxide = crate::metabolism::reagent_metabolisms(&mut world, "CarbonDioxide");
+    assert!(dioxide.stages.is_empty());
+}
+
+#[test]
+fn lungs_hold_breath_in_a_solution() {
+    let (mut world, grid) = setup(Some(GasMixture::standard_air(CELL_VOLUME)));
+    let breather = spawn_at(&mut world, "Breather", grid, 8, 8);
+    let lung = lungs_of(&world, breather)[0];
+    let soln = containers::try_get_solution(&mut world, lung, LUNG_SOLUTION).unwrap();
+    let solution = containers::solution(&world, soln).unwrap();
+    assert_eq!(solution.max_volume, FixedPoint2::new(100));
+    assert!(!solution.can_react);
+    // Вдох на 2-й секунде: кислород в растворе до переработки на 3-й.
+    ticks(&mut world, 30 * 2 + 5);
+    let oxygen = containers::solution(&world, soln)
+        .unwrap()
+        .prototype_quantity("Oxygen");
+    assert!(oxygen > FixedPoint2::new(4), "{oxygen}");
 }

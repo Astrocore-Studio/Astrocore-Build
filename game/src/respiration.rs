@@ -1,34 +1,36 @@
-//! Дыхание: раз в 2 секунды вдох или выдох, лёгкие превращают воздух в реагенты и раз в
-//! секунду перерабатывают их по эффектам стадии `Respiration` из прототипов реагентов SS14:
-//! кислород насыщает, плазма и углекислый газ ранят, кислород в лёгких становится
-//! углекислым газом. Без насыщения — удушье. Образец — `RespiratorComponent`,
-//! `RespiratorSystem`, `LungComponent`, `LungSystem`, `MetabolizerComponent`,
-//! `MetabolizerSystem` (стадия `Respiration`), эффекты `Oxygenate`, `HealthChange`,
-//! `ModifyLungGas` и условие `MetabolizerTypeCondition` SS14 @ 2f4a2aad.
+//! Дыхание: раз в 2 секунды вдох или выдох; вдох идёт в воздух лёгких и превращается в
+//! реагенты раствора лёгких «Lung» (100 ед., без реакций), выдох возвращает воздух наружу
+//! и очищает раствор. Раствор перерабатывает метаболизм лёгких (стадия `Respiration`,
+//! модуль `metabolism`) по эффектам реагентов SS14: кислород насыщает (`Oxygenate`),
+//! плазма и углекислый газ ранят, кислород в лёгких становится углекислым газом
+//! (`ModifyLungGas`). Без насыщения — удушье. Образец — `RespiratorComponent`,
+//! `RespiratorSystem`, `LungComponent`, `LungSystem`, эффекты `Oxygenate`, `ModifyLungGas`,
+//! условие `BreathingCondition` SS14 @ 2f4a2aad.
 //!
-//! Растворов пока нет (ADR-0009): реагенты лёгких — список «реагент → количество». Нет
-//! пока: остальных эффектов дыхания (сон, опьянение, рвота, эмоции), вздоха при удушье
-//! (`Gasp`, чат) и значков тревоги.
+//! Нет пока: остальных эффектов дыхания (сон, опьянение, рвота, эмоции), вздоха при
+//! удушье (`Gasp`, чат).
 
-use std::collections::{BTreeMap, HashMap};
+use std::sync::Arc;
 use std::time::Duration;
 
-use astrocore_data::DataNode;
 use astrocore_ecs::{EventWorldExt, GameTime, GameWorldExt, MapInit, RegistryWorldExt, Update};
-use astrocore_prototypes::Prototypes;
 use bevy_ecs::component::Component;
 use bevy_ecs::entity::Entity;
 use bevy_ecs::resource::Resource;
+use bevy_ecs::schedule::IntoScheduleConfigs;
 use bevy_ecs::world::World;
 use serde::{Deserialize, Serialize};
 
 use crate::Side;
 use crate::atmos::gas::{GAS_COUNT, gas_index};
 use crate::atmos::{GasData, GasMixture};
-use crate::body::{BodyWorldExt, Organ};
-use crate::damage::{DamageSpecifier, Damageable, DamageableWorldExt};
+use crate::body::BodyWorldExt;
+use crate::damage::{DamageSpecifier, DamageableWorldExt};
+use crate::entity_effects::{ConditionKind, EffectKind, EffectsWorldExt, number};
 use crate::fixed_point::FixedPoint2;
 use crate::mobs::MobStateWorldExt;
+use crate::solution::ReagentId;
+use crate::solution_container::{self as containers, SolutionComponent};
 
 /// Объём вдоха (`Atmospherics.BreathVolume`), л.
 pub const BREATH_VOLUME: f32 = 0.5;
@@ -38,8 +40,10 @@ pub const BREATH_MOLES_TO_REAGENT: f32 = 1144.0;
 const LUNG_AIR_TEMPERATURE: f32 = 37.0;
 /// Стадия метаболизма лёгких.
 pub const RESPIRATION_STAGE: &str = "Respiration";
-/// Сколько реагента без эффектов дыхания уходит за раз (`TransferRate`).
-const TRANSFER_RATE: f32 = 0.25;
+/// Раствор лёгких по умолчанию.
+pub const LUNG_SOLUTION: &str = "Lung";
+/// Вместимость раствора лёгких (`LungSystem.OnMapInit`).
+const LUNG_SOLUTION_VOLUME: i32 = 100;
 
 fn breath_volume() -> f32 {
     BREATH_VOLUME
@@ -119,9 +123,9 @@ fn lung_air() -> GasMixture {
 pub struct Lung {
     #[serde(skip, default = "lung_air")]
     pub air: GasMixture,
-    /// Реагенты лёгких (раствор `Lung` в SS14, ADR-0009).
-    #[serde(skip)]
-    pub reagents: BTreeMap<String, FixedPoint2>,
+    /// Раствор лёгких, в который воздух превращается в реагенты (`SolutionName`).
+    #[serde(default = "lung_solution")]
+    pub solution_name: String,
     /// Значок удушья (`Alert`): у людей — нехватка кислорода, у вокса — азота.
     #[serde(default = "low_oxygen_alert")]
     pub alert: String,
@@ -131,11 +135,15 @@ fn low_oxygen_alert() -> String {
     "LowOxygen".into()
 }
 
+fn lung_solution() -> String {
+    LUNG_SOLUTION.into()
+}
+
 impl Default for Lung {
     fn default() -> Self {
         Self {
             air: lung_air(),
-            reagents: BTreeMap::new(),
+            solution_name: lung_solution(),
             alert: low_oxygen_alert(),
         }
     }
@@ -154,156 +162,6 @@ fn suffocation_alert(world: &mut World, body: Entity, show: bool) {
             crate::alerts::clear_alert(world, body, &alert);
         }
     }
-}
-
-/// Перерабатывает реагенты (`MetabolizerComponent`). Здесь — только стадия дыхания.
-#[derive(Component, Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct Metabolizer {
-    #[serde(default = "one")]
-    pub update_interval: f32,
-    #[serde(default = "one")]
-    pub update_interval_multiplier: f32,
-    #[serde(default)]
-    pub metabolizer_types: Option<Vec<String>>,
-    #[serde(rename = "maxReagents", default = "three")]
-    pub max_reagents_processable: i32,
-    #[serde(default)]
-    pub stages: Vec<String>,
-    #[serde(skip)]
-    pub next_update: Duration,
-}
-
-/// Условие эффекта (`EntityCondition`).
-#[derive(Debug, Clone, PartialEq)]
-pub enum Condition {
-    /// Тип метаболизма органа (`MetabolizerTypeCondition`).
-    MetabolizerType { types: Vec<String>, inverted: bool },
-    /// Не перенесено: эффект с ним не применяется.
-    Unsupported,
-}
-
-/// Что делает эффект дыхания.
-#[derive(Debug, Clone, PartialEq)]
-pub enum EffectKind {
-    /// Насыщение кислородом (`Oxygenate`).
-    Oxygenate { factor: f32 },
-    /// Урон или лечение (`HealthChange`).
-    HealthChange {
-        damage: DamageSpecifier,
-        ignore_resistances: bool,
-    },
-    /// Газ в лёгких: газ → доля (`ModifyLungGas`).
-    ModifyLungGas { ratios: Vec<(usize, f32)> },
-}
-
-/// Эффект стадии дыхания (`EntityEffect`).
-#[derive(Debug, Clone, PartialEq)]
-pub struct Effect {
-    pub kind: EffectKind,
-    pub conditions: Vec<Condition>,
-    pub min_scale: f32,
-    pub probability: f32,
-}
-
-fn number(node: &DataNode, key: &str) -> Option<f32> {
-    node.get(key)?.as_str()?.parse().ok()
-}
-
-fn flag(node: &DataNode, key: &str) -> Option<bool> {
-    let text = node.get(key)?.as_str()?;
-    Some(text.eq_ignore_ascii_case("true"))
-}
-
-fn tag(node: &DataNode) -> &str {
-    node.tag
-        .as_deref()
-        .and_then(|t| t.strip_prefix("type:"))
-        .unwrap_or("")
-}
-
-fn parse_condition(node: &DataNode) -> Condition {
-    match tag(node) {
-        "MetabolizerTypeCondition" => Condition::MetabolizerType {
-            types: node
-                .get("type")
-                .and_then(DataNode::as_seq)
-                .map(|s| {
-                    s.iter()
-                        .filter_map(|t| t.as_str().map(str::to_owned))
-                        .collect()
-                })
-                .unwrap_or_default(),
-            inverted: flag(node, "inverted").unwrap_or(false),
-        },
-        _ => Condition::Unsupported,
-    }
-}
-
-/// Эффект из данных; `None` — эффект не перенесён.
-pub fn parse_effect(node: &DataNode) -> Option<Effect> {
-    let kind = match tag(node) {
-        "Oxygenate" => EffectKind::Oxygenate {
-            factor: number(node, "factor").unwrap_or(1.0),
-        },
-        "HealthChange" => EffectKind::HealthChange {
-            damage: astrocore_data::from_node(node.get("damage")?).ok()?,
-            ignore_resistances: flag(node, "ignoreResistances").unwrap_or(true),
-        },
-        "ModifyLungGas" => EffectKind::ModifyLungGas {
-            ratios: node
-                .get("ratios")?
-                .as_map()?
-                .iter()
-                .filter_map(|(gas, ratio)| {
-                    Some((gas_index(gas)?, ratio.as_str()?.parse::<f32>().ok()?))
-                })
-                .collect(),
-        },
-        _ => return None,
-    };
-    Some(Effect {
-        kind,
-        conditions: node
-            .get("conditions")
-            .and_then(DataNode::as_seq)
-            .map(|s| s.iter().map(parse_condition).collect())
-            .unwrap_or_default(),
-        min_scale: number(node, "minScale").unwrap_or(0.0),
-        probability: number(node, "probability").unwrap_or(1.0),
-    })
-}
-
-/// Эффекты стадии дыхания реагентов: `None` — у реагента нет этой стадии.
-#[derive(Resource, Debug, Default)]
-pub struct RespirationEffects(HashMap<String, Option<Vec<Effect>>>);
-
-/// Эффекты дыхания реагента из прототипа (`ReagentPrototype.Metabolisms`).
-pub fn reagent_effects(world: &mut World, reagent: &str) -> Option<Vec<Effect>> {
-    if let Some(cached) = world
-        .get_resource::<RespirationEffects>()
-        .and_then(|c| c.0.get(reagent))
-    {
-        return cached.clone();
-    }
-    let effects = world.get_resource::<Prototypes>().and_then(|p| {
-        let stage = p
-            .resolved_node("reagent", reagent)?
-            .get("metabolisms")?
-            .get(RESPIRATION_STAGE)?;
-        Some(
-            stage
-                .get("effects")
-                .and_then(DataNode::as_seq)
-                .map(|s| s.iter().filter_map(parse_effect).collect())
-                .unwrap_or_default(),
-        )
-    });
-    world
-        .get_resource_or_insert_with(RespirationEffects::default)
-        .0
-        .insert(reagent.to_owned(), effects.clone());
-    effects
 }
 
 /// Откуда вдыхать (`InhaleLocationEvent`): баллон кладёт сюда себя.
@@ -359,20 +217,32 @@ pub fn is_breathing(world: &World, entity: Entity) -> bool {
         .is_some_and(|r| r.saturation > r.suffocation_threshold)
 }
 
-/// Воздух лёгких → реагенты (`GasToReagent`).
-fn gas_to_reagent(data: &GasData, air: &GasMixture, reagents: &mut BTreeMap<String, FixedPoint2>) {
-    for gas in 0..GAS_COUNT {
-        let moles = air.moles[gas];
-        if moles <= 0.0 {
-            continue;
+/// Воздух лёгких → реагенты раствора лёгких (`GasToReagent`).
+fn gas_to_reagent(world: &mut World, data: &GasData, lung: Entity) {
+    let Some(component) = world.get::<Lung>(lung) else {
+        return;
+    };
+    let air = component.air.clone();
+    let name = component.solution_name.clone();
+    let Some(soln) = containers::try_get_solution(world, lung, &name) else {
+        return;
+    };
+    if let Some(mut solution) = world.get_mut::<SolutionComponent>(soln) {
+        for gas in 0..GAS_COUNT {
+            let moles = air.moles[gas];
+            if moles <= 0.0 {
+                continue;
+            }
+            let Some(reagent) = &data.reagents[gas] else {
+                continue;
+            };
+            let amount = FixedPoint2::from_f32(moles * BREATH_MOLES_TO_REAGENT);
+            solution
+                .solution
+                .add_reagent(ReagentId::new(reagent.clone()), amount);
         }
-        let Some(reagent) = &data.reagents[gas] else {
-            continue;
-        };
-        let amount = FixedPoint2::from_f32(moles * BREATH_MOLES_TO_REAGENT);
-        let entry = reagents.entry(reagent.clone()).or_default();
-        *entry += amount;
     }
+    containers::update_chemicals(world, soln, true);
 }
 
 /// Вдох (`Inhale`): объём вдоха из воздуха вокруг или баллона в лёгкие.
@@ -401,11 +271,10 @@ pub fn inhale(world: &mut World, data: &GasData, entity: Entity) {
         give_back(world, data, entity, location.tank, &gas);
         return;
     };
-    if let Some(mut lung) = world.get_mut::<Lung>(lung) {
-        let lung = &mut *lung;
-        data.merge(&mut lung.air, &gas);
-        gas_to_reagent(data, &lung.air, &mut lung.reagents);
+    if let Some(mut component) = world.get_mut::<Lung>(lung) {
+        data.merge(&mut component.air, &gas);
     }
+    gas_to_reagent(world, data, lung);
 }
 
 /// Вернуть невдохнутый газ туда, откуда он взят (`Merge(ev.Gas, gas)`).
@@ -434,128 +303,56 @@ pub fn exhale(world: &mut World, data: &GasData, entity: Entity) {
         };
         let air = component.air.clone();
         component.air.clear();
-        component.reagents.clear();
+        let name = component.solution_name.clone();
         crate::barotrauma::with_containing_mixture(world, entity, true, |outside| {
             data.merge(outside, &air)
         });
-    }
-}
-
-/// Условия эффекта на органе (`CanMetabolizeEffect`).
-fn conditions_hold(world: &World, organ: Entity, conditions: &[Condition]) -> bool {
-    let types = world
-        .get::<Metabolizer>(organ)
-        .and_then(|m| m.metabolizer_types.clone())
-        .unwrap_or_default();
-    conditions.iter().all(|condition| match condition {
-        Condition::MetabolizerType {
-            types: wanted,
-            inverted,
-        } => wanted.iter().any(|t| types.contains(t)) != *inverted,
-        Condition::Unsupported => false,
-    })
-}
-
-/// Применить эффект (`ApplyEffect`): насыщение и урон — телу, газ — лёгким.
-fn apply_effect(world: &mut World, organ: Entity, body: Entity, effect: &EffectKind, scale: f32) {
-    match effect {
-        EffectKind::Oxygenate { factor } => {
-            update_saturation(world, body, scale * factor);
-        }
-        EffectKind::HealthChange {
-            damage,
-            ignore_resistances,
-        } => {
-            if world.get::<Damageable>(body).is_some() {
-                world.change_damage(body, &damage.scale(scale), *ignore_resistances, false, None);
-            }
-        }
-        EffectKind::ModifyLungGas { ratios } => {
-            let Some(mut lung) = world.get_mut::<Lung>(organ) else {
-                return;
-            };
-            for (gas, ratio) in ratios {
-                let mut quantity = ratio * scale / BREATH_MOLES_TO_REAGENT;
-                if quantity < 0.0 {
-                    quantity = quantity.max(-lung.air.moles[*gas]);
-                }
-                lung.air.adjust_moles(*gas, quantity);
-            }
+        if let Some(soln) = containers::try_get_solution(world, lung, &name) {
+            containers::remove_all_solution(world, soln);
         }
     }
 }
 
-/// Переработка реагентов лёгких (`TryMetabolizeStage`, стадия `Respiration`,
-/// `MetabolizeAll`).
-fn metabolize_lung(world: &mut World, organ: Entity) {
-    let Some(lung) = world.get::<Lung>(organ) else {
-        return;
-    };
-    let mut list: Vec<(String, FixedPoint2)> = lung
-        .reagents
-        .iter()
-        .map(|(id, quantity)| (id.clone(), *quantity))
-        .collect();
-    if list.is_empty() {
-        return;
+/// Насыщение кислородом (`Oxygenate`): у дышащего тела.
+#[derive(Debug)]
+struct Oxygenate {
+    factor: f32,
+}
+
+impl EffectKind for Oxygenate {
+    fn apply(&self, world: &mut World, target: Entity, scale: f32, _: Option<Entity>) {
+        update_saturation(world, target, scale * self.factor);
     }
-    let max = world
-        .get::<Metabolizer>(organ)
-        .map_or(3, |m| m.max_reagents_processable);
-    // Порядок случайный, как в SS14.
-    {
-        let mut random = crate::random::random(world);
-        for i in (1..list.len()).rev() {
-            let j = random.range(0, i as i32 + 1) as usize;
-            list.swap(i, j);
-        }
-    }
-    let body = world
-        .get::<Organ>(organ)
-        .and_then(|o| o.body)
-        .unwrap_or(organ);
-    let mut processed = 0;
-    for (reagent, quantity) in list {
-        let Some(effects) = reagent_effects(world, &reagent) else {
-            // Без стадии дыхания реагент уходит в кровь; крови пока нет (ADR-0009).
-            remove_reagent(world, organ, &reagent, FixedPoint2::from_f32(TRANSFER_RATE));
-            continue;
-        };
-        if processed >= max {
+}
+
+/// Газ в воздухе лёгких: газ → доля (`ModifyLungGas`). На лёгких.
+#[derive(Debug)]
+struct ModifyLungGas {
+    ratios: Vec<(usize, f32)>,
+}
+
+impl EffectKind for ModifyLungGas {
+    fn apply(&self, world: &mut World, target: Entity, scale: f32, _: Option<Entity>) {
+        let Some(mut lung) = world.get_mut::<Lung>(target) else {
             return;
-        }
-        let scale = quantity.float();
-        for effect in &effects {
-            if scale < effect.min_scale {
-                continue;
+        };
+        for (gas, ratio) in &self.ratios {
+            let mut quantity = ratio * scale / BREATH_MOLES_TO_REAGENT;
+            if quantity < 0.0 {
+                quantity = quantity.max(-lung.air.moles[*gas]);
             }
-            if crate::random::random(world).next_f32() >= effect.probability {
-                continue;
-            }
-            if !conditions_hold(world, organ, &effect.conditions) {
-                continue;
-            }
-            apply_effect(world, organ, body, &effect.kind, scale);
-        }
-        if quantity > FixedPoint2::ZERO {
-            remove_reagent(world, organ, &reagent, quantity);
-            processed += 1;
+            lung.air.adjust_moles(*gas, quantity);
         }
     }
 }
 
-fn remove_reagent(world: &mut World, organ: Entity, reagent: &str, amount: FixedPoint2) {
-    let Some(mut lung) = world.get_mut::<Lung>(organ) else {
-        return;
-    };
-    let Some(current) = lung.reagents.get(reagent).copied() else {
-        return;
-    };
-    let left = current - amount;
-    if left <= FixedPoint2::ZERO {
-        lung.reagents.remove(reagent);
-    } else {
-        lung.reagents.insert(reagent.to_owned(), left);
+/// Дышит ли тело (`BreathingCondition`).
+#[derive(Debug)]
+struct BreathingCondition;
+
+impl ConditionKind for BreathingCondition {
+    fn check(&self, world: &mut World, target: Entity, _: Option<Entity>) -> bool {
+        world.get::<Respirator>(target).is_some() && is_breathing(world, target)
     }
 }
 
@@ -587,25 +384,6 @@ fn update(world: &mut World) {
         crate::atmos::gas_data(world);
     }
     let time = now(world);
-
-    // Лёгкие перерабатывают вдох раньше нового вдоха (`UpdatesAfter MetabolizerSystem`).
-    let organs: Vec<Entity> = world
-        .query::<(Entity, &Metabolizer, &Lung)>()
-        .iter(world)
-        .filter(|(_, m, _)| {
-            time >= m.next_update && m.stages.iter().any(|s| s == RESPIRATION_STAGE)
-        })
-        .map(|(e, _, _)| e)
-        .collect();
-    for organ in organs {
-        if let Some(mut metabolizer) = world.get_mut::<Metabolizer>(organ) {
-            let interval = Duration::from_secs_f32(
-                metabolizer.update_interval * metabolizer.update_interval_multiplier,
-            );
-            metabolizer.next_update += interval;
-        }
-        metabolize_lung(world, organ);
-    }
 
     let due: Vec<Entity> = world
         .query::<(Entity, &Respirator)>()
@@ -670,7 +448,23 @@ fn set_status(world: &mut World, entity: Entity, status: RespiratorStatus) {
 pub fn install(world: &mut World, side: Side) {
     world.register_data_component::<Respirator>();
     world.register_data_component::<Lung>();
-    world.register_data_component::<Metabolizer>();
+    world.register_effect("Oxygenate", |node| {
+        Some(Arc::new(Oxygenate {
+            factor: number(node, "factor").unwrap_or(1.0),
+        }))
+    });
+    world.register_effect("ModifyLungGas", |node| {
+        let ratios = node
+            .get("ratios")?
+            .as_map()?
+            .iter()
+            .filter_map(|(gas, ratio)| {
+                Some((gas_index(gas)?, ratio.as_str()?.trim().parse().ok()?))
+            })
+            .collect();
+        Some(Arc::new(ModifyLungGas { ratios }))
+    });
+    world.register_condition("BreathingCondition", |_| Some(Arc::new(BreathingCondition)));
     if !side.is_server() {
         return;
     }
@@ -686,16 +480,21 @@ pub fn install(world: &mut World, side: Side) {
             respirator.next_update = time + respirator.adjusted_interval();
         }
     });
-    world.subscribe::<Metabolizer, MapInit>(|world, entity, _| {
-        let time = now(world);
-        if let Some(mut metabolizer) = world.get_mut::<Metabolizer>(entity) {
-            metabolizer.next_update = time
-                + Duration::from_secs_f32(
-                    metabolizer.update_interval * metabolizer.update_interval_multiplier,
-                );
+    // Раствор лёгких: 100 ед., без реакций (`LungSystem.OnMapInit`).
+    world.subscribe::<Lung, MapInit>(|world, lung, _| {
+        let Some(name) = world.get::<Lung>(lung).map(|l| l.solution_name.clone()) else {
+            return;
+        };
+        let Some((soln, _)) = containers::ensure_solution(world, lung, &name) else {
+            return;
+        };
+        if let Some(mut solution) = world.get_mut::<SolutionComponent>(soln) {
+            solution.solution.max_volume = FixedPoint2::new(LUNG_SOLUTION_VOLUME);
+            solution.solution.can_react = false;
         }
     });
-    world.add_game_systems(Update, update);
+    // Лёгкие перерабатывают вдох раньше нового вдоха (`UpdatesAfter MetabolizerSystem`).
+    world.add_game_systems(Update, update.after(crate::metabolism::update));
 }
 
 #[cfg(test)]

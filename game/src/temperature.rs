@@ -25,6 +25,7 @@ use serde::{Deserialize, Serialize};
 use crate::Side;
 use crate::atmos::gas::{HEAT_SCALE, T20C};
 use crate::damage::{DamageSpecifier, Damageable, DamageableWorldExt, Rejuvenate};
+use crate::entity_effects::EffectsWorldExt;
 use crate::fixed_point::FixedPoint2;
 use crate::inventory::{Inventory, InventoryWorldExt, SlotFlags};
 use crate::mobs::MobStateWorldExt;
@@ -656,8 +657,27 @@ fn update(world: &mut World) {
     }
 }
 
+/// Тепло телу (`AdjustTemperature`): без защиты одеждой.
+#[derive(Debug)]
+struct AdjustTemperature {
+    amount: f32,
+}
+
+impl crate::entity_effects::EffectKind for AdjustTemperature {
+    fn apply(&self, world: &mut World, target: Entity, scale: f32, _: Option<Entity>) {
+        if world.get::<Temperature>(target).is_some() {
+            change_heat(world, target, self.amount * scale, true);
+        }
+    }
+}
+
 pub fn install(world: &mut World, side: Side) {
     world.register_data_component::<Temperature>();
+    world.register_effect("AdjustTemperature", |node| {
+        Some(std::sync::Arc::new(AdjustTemperature {
+            amount: crate::entity_effects::number(node, "amount").unwrap_or(0.0),
+        }))
+    });
     world.register_data_component::<TemperatureDamage>();
     world.register_data_component::<TemperatureSpeed>();
     world.register_data_component::<TemperatureProtection>();

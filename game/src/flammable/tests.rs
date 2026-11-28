@@ -226,3 +226,32 @@ fn fire_alert_shows_while_burning_and_resisting_puts_it_out_faster() {
     ticks(&mut world, 31);
     assert!(!crate::alerts::is_showing_alert(&world, mob, "Fire"));
 }
+
+#[test]
+fn fire_and_heat_effects_from_data() {
+    let (mut world, grid) = setup();
+    let torch = spawn_at(&mut world, "Torch", grid, 4, 4);
+    let node = astrocore_data::parse_yaml(
+        r#"
+- !type:Flammable
+  multiplier: 2
+  multiplierOnExisting: 0.5
+- !type:AdjustTemperature
+  amount: 1000
+"#,
+    )
+    .unwrap();
+    let effects = crate::entity_effects::parse_effects(&mut world, Some(&node));
+    assert_eq!(effects.len(), 2);
+    let before = temperature_of(&world, torch).unwrap();
+    crate::entity_effects::apply_effects(&mut world, torch, &effects, 1.0, None);
+    // Без стопок — обычный множитель, со стопками — свой.
+    assert_eq!(flammable(&world, torch).fire_stacks, 2.0);
+    crate::entity_effects::apply_effects(&mut world, torch, &effects[..1], 1.0, None);
+    assert_eq!(flammable(&world, torch).fire_stacks, 2.5);
+    assert!(temperature_of(&world, torch).unwrap() > before);
+    let ignite = astrocore_data::parse_yaml("- !type:Ignite").unwrap();
+    let ignite = crate::entity_effects::parse_effects(&mut world, Some(&ignite));
+    crate::entity_effects::apply_effects(&mut world, torch, &ignite, 1.0, None);
+    assert!(flammable(&world, torch).on_fire);
+}

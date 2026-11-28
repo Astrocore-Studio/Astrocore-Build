@@ -103,8 +103,19 @@ fn main() -> Result<(), String> {
         );
     }
 
-    // Реакции и виды эффектов (ADR-0018): каких видов ещё нет.
+    // Реакции, метаболизм реагентов и виды эффектов (ADR-0018): каких видов ещё нет.
     let reactions = astrocore_game::reactions::reactions(&mut world);
+    let mut reagent_ids: Vec<String> = astrocore_game::solution::reagents(&mut world)
+        .ids()
+        .map(str::to_owned)
+        .collect();
+    reagent_ids.sort();
+    let mut stages = 0;
+    for id in &reagent_ids {
+        stages += astrocore_game::metabolism::reagent_metabolisms(&mut world, id)
+            .stages
+            .len();
+    }
     let mut effects: Vec<(String, usize)> = world
         .resource::<astrocore_game::entity_effects::EffectRegistry>()
         .unknown
@@ -113,11 +124,13 @@ fn main() -> Result<(), String> {
         .collect();
     effects.sort_by_key(|e| std::cmp::Reverse(e.1));
     println!(
-        "Реакции: {}, неперенесённых видов эффектов и условий: {}",
+        "Реакции: {}, реагенты: {} (стадий метаболизма {stages}), неперенесённых видов \
+         эффектов и условий: {}",
         reactions.reactions.len(),
+        reagent_ids.len(),
         effects.len()
     );
-    for (name, count) in effects.iter().take(20) {
+    for (name, count) in effects.iter().take(80) {
         println!("  нет: {name}: {count}");
     }
 

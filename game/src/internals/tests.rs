@@ -48,6 +48,10 @@ pub(crate) const PROTOTYPES: &str = r#"
   - type: InstantAction
     event: !type:ToggleActionEvent
 - type: entity
+  id: Solution
+  components:
+  - type: Solution
+- type: entity
   id: TestLungs
   components:
   - type: Organ

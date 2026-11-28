@@ -125,3 +125,41 @@ fn auto_removed_alerts_expire_and_clicks_raise_events() {
     assert!(activate_alert(&mut world, entity, "Fire"));
     assert!(!activate_alert(&mut world, entity, "LowPressure"));
 }
+
+#[test]
+fn adjust_alert_effect_shows_and_clears() {
+    let mut world = world_with(PROTOTYPES);
+    let entity = mob(&mut world);
+    let node = astrocore_data::parse_yaml(
+        r#"
+- !type:AdjustAlert
+  alertType: Fire
+- !type:AdjustAlert
+  alertType: Fire
+  clear: true
+- !type:AdjustAlert
+  alertType: Fire
+  clear: true
+  time: 2
+"#,
+    )
+    .unwrap();
+    let effects = crate::entity_effects::parse_effects(&mut world, Some(&node));
+    assert_eq!(effects.len(), 3);
+    let apply = |world: &mut World, index: usize| {
+        crate::entity_effects::apply_effects(world, entity, &effects[index..=index], 1.0, None);
+    };
+    apply(&mut world, 0);
+    assert!(is_showing_alert(&world, entity, "Fire"));
+    // `clear` без времени — сразу убрать.
+    apply(&mut world, 1);
+    assert!(!is_showing_alert(&world, entity, "Fire"));
+    // `clear` со временем — показать и убрать через 2 с.
+    apply(&mut world, 2);
+    update(&mut world);
+    assert!(is_showing_alert(&world, entity, "Fire"));
+    let rate = u32::from(world.resource::<GameTime>().tick_rate);
+    world.resource_mut::<GameTime>().tick.0 += rate * 3;
+    update(&mut world);
+    assert!(!is_showing_alert(&world, entity, "Fire"));
+}

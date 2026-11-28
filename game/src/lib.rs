@@ -91,6 +91,7 @@ pub mod lock;
 pub mod map_commands;
 pub mod mapping_autosave;
 pub mod markings;
+pub mod metabolism;
 pub mod mind;
 pub mod mobs;
 pub mod movement_speed;
@@ -326,6 +327,7 @@ pub fn install_content(world: &mut World, side: Side) {
     barotrauma::install(world, side);
     temperature::install(world, side);
     flammable::install(world, side);
+    metabolism::install(world, side);
     respiration::install(world, side);
     internals::install(world, side);
     pipes::install(world, side);
