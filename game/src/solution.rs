@@ -347,6 +347,17 @@ impl Solution {
         quantity: FixedPoint2,
         ignore_data: bool,
     ) -> FixedPoint2 {
+        self.remove_reagent_ordered(id, quantity, ignore_data, false)
+    }
+
+    /// Убрать реагент; `preserve_order` — не переставлять остальные (`preserveOrder`).
+    pub fn remove_reagent_ordered(
+        &mut self,
+        id: &ReagentId,
+        quantity: FixedPoint2,
+        ignore_data: bool,
+        preserve_order: bool,
+    ) -> FixedPoint2 {
         if quantity <= FixedPoint2::ZERO {
             return FixedPoint2::ZERO;
         }
@@ -378,7 +389,11 @@ impl Solution {
             );
             let left = current - split;
             if left <= FixedPoint2::ZERO {
-                self.contents.swap_remove(index);
+                if preserve_order {
+                    self.contents.remove(index);
+                } else {
+                    self.contents.swap_remove(index);
+                }
                 self.volume -= current;
                 removed += current;
                 continue;

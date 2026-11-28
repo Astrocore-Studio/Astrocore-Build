@@ -25,16 +25,20 @@ const DISABLED: Color = Color::srgba(0.12, 0.12, 0.14, 1.0);
 const DIM: Color = Color::srgb(0.6, 0.6, 0.65);
 
 fn disabled_button(commands: &mut Commands, parent: Entity, style: &UiStyle, text: &str) {
-    commands.spawn((
-        ChildOf(parent),
-        Node {
-            padding: UiRect::axes(Val::Px(10.0), Val::Px(4.0)),
-            margin: UiRect::top(Val::Px(6.0)),
-            ..default()
-        },
-        BackgroundColor(DISABLED),
-        children![(style.text(text, 14.0), TextColor(DIM))],
-    ));
+    let node = commands
+        .spawn((
+            ChildOf(parent),
+            Node {
+                padding: UiRect::axes(Val::Px(10.0), Val::Px(4.0)),
+                margin: UiRect::top(Val::Px(6.0)),
+                ..default()
+            },
+            BackgroundColor(DISABLED),
+        ))
+        .id();
+    commands
+        .spawn((ChildOf(node), style.text(text, 14.0)))
+        .insert(TextColor(DIM));
 }
 
 fn column(commands: &mut Commands, parent: Entity, width: Option<f32>) -> Entity {
@@ -243,18 +247,14 @@ fn window(
         };
         let line = row(commands, right);
         spawn_label(commands, line, style, &format!("{name}: "));
-        commands.spawn((
-            ChildOf(line),
-            style.text(
-                loc(
-                    world,
-                    "reagent-dispenser-window-quantity-label-text",
-                    &[("quantity", quantity.to_string().into())],
-                ),
-                14.0,
-            ),
-            TextColor(DIM),
-        ));
+        let text = loc(
+            world,
+            "reagent-dispenser-window-quantity-label-text",
+            &[("quantity", quantity.to_string().into())],
+        );
+        commands
+            .spawn((ChildOf(line), style.text(text, 14.0)))
+            .insert(TextColor(DIM));
     }
 }
 

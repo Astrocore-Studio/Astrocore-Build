@@ -270,6 +270,27 @@ impl NetComponent for Storage {
 }
 
 /// Форма предмета: своя или форма его размера (`GetItemShape`).
+/// Сколько клеток занимают прямоугольники вместе, без повторов (`StorageHelpers.GetArea`).
+pub fn shape_area(boxes: &[CellBox]) -> i32 {
+    let cells: std::collections::BTreeSet<(i32, i32)> = boxes
+        .iter()
+        .flat_map(|b| b.cells().map(|c| (c.x, c.y)).collect::<Vec<_>>())
+        .collect();
+    cells.len() as i32
+}
+
+/// Сколько клеток занимают предметы хранилища (`GetCumulativeItemAreas`).
+pub fn cumulative_item_areas(world: &World, storage: Entity) -> i32 {
+    world
+        .container(storage, STORAGE_CONTAINER)
+        .map(|c| c.entities().to_vec())
+        .unwrap_or_default()
+        .into_iter()
+        .filter(|item| world.get::<crate::item::Item>(*item).is_some())
+        .map(|item| shape_area(&item_shape(world, item)))
+        .sum()
+}
+
 pub fn item_shape(world: &World, item: Entity) -> Vec<CellBox> {
     let Some(component) = world.get::<Item>(item) else {
         return Vec::new();
@@ -740,6 +761,30 @@ pub(crate) fn install(world: &mut World, side: crate::Side) {
     if !side.is_server() {
         return;
     }
+    // Попавшему в контейнер напрямую (начинка, слоты) — место в сетке; не влез — наружу
+    // (`OnEntInserted`).
+    world.subscribe::<Storage, astrocore_map::EntInsertedIntoContainer>(|world, storage, event| {
+        if &*event.container != STORAGE_CONTAINER {
+            return;
+        }
+        let item = event.entity;
+        if world
+            .get::<Storage>(storage)
+            .is_some_and(|s| s.stored_items.contains_key(&item))
+        {
+            return;
+        }
+        match available_space(world, storage, item) {
+            Some(location) => {
+                if let Some(mut component) = world.get_mut::<Storage>(storage) {
+                    component.stored_items.insert(item, location);
+                }
+            }
+            None => {
+                let _ = world.remove_from_container(item, None);
+            }
+        }
+    });
     // Вынутый предмет освобождает место.
     world.subscribe::<Item, EntGotRemovedFromContainer>(|world, item, event| {
         if &*event.container != STORAGE_CONTAINER {

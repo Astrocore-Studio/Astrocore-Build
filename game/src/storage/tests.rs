@@ -313,3 +313,21 @@ fn bent_shape_takes_three_cells() {
         ItemStorageLocation::new(Angle::ZERO, IVec2::new(1, 1))
     ));
 }
+
+#[test]
+fn items_put_straight_into_the_container_get_a_place() {
+    let (mut world, grid, _, backpack) = scene();
+    let pen = spawn_at(&mut world, "Pen", grid, 3, 2);
+    let expected = available_space(&world, backpack, pen);
+    assert!(expected.is_some());
+    world
+        .force_insert_into_container(pen, backpack, STORAGE_CONTAINER)
+        .unwrap();
+    let location = world
+        .get::<Storage>(backpack)
+        .unwrap()
+        .stored_items
+        .get(&pen)
+        .copied();
+    assert_eq!(location, expected);
+}

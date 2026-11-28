@@ -47,6 +47,7 @@ pub fn start(name: &str) -> Result<(World, Resources), String> {
     crate::mob_visuals::install(&mut world);
     crate::stack_visuals::install(&mut world);
     crate::solution_visuals::install(&mut world);
+    crate::chem_master_ui::install(&mut world);
     crate::body_visuals::install(&mut world);
     crate::cable_visuals::install(&mut world);
     crate::door_visuals::install(&mut world);

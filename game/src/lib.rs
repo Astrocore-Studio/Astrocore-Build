@@ -33,6 +33,7 @@ pub mod cables;
 pub mod character_editor;
 pub mod chat;
 pub mod chem_machines;
+pub mod chem_master;
 pub mod color_naming;
 pub mod combat;
 pub mod communications;
@@ -89,6 +90,7 @@ pub mod inventory;
 pub mod item;
 pub mod item_slots;
 pub mod item_toggle;
+pub mod labels;
 pub mod lights;
 pub mod lock;
 pub mod map_commands;
@@ -172,6 +174,8 @@ pub mod cable_visuals;
 pub mod character_ui;
 #[cfg(feature = "client")]
 pub mod chat_ui;
+#[cfg(feature = "client")]
+pub mod chem_master_ui;
 #[cfg(feature = "client")]
 pub mod client;
 #[cfg(feature = "client")]
@@ -296,10 +300,12 @@ pub fn install_content(world: &mut World, side: Side) {
     reactions::install(world, side);
     reactive::install(world, side);
     injector::install(world, side);
+    labels::install(world, side);
     ingestion::install(world, side);
     placeable::install(world, side);
     chem_machines::install(world, side);
     reagent_dispenser::install(world, side);
+    chem_master::install(world, side);
     defibrillator::install(world, side);
     return_to_body::install(world, side);
     stack::install(world, side);

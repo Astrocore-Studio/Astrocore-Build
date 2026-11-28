@@ -1,12 +1,12 @@
 //! Химраздатчик: банки с реагентами лежат в его хранилище, ёмкость — в слоте
 //! `beakerSlot`. Окно: количество за раз (1…120), карточки банок (название, остаток, цвет;
-//! нажатие — налить в ёмкость, кнопка — вынуть банку в руку), состав ёмкости, очистить и
+//! нажатие — налить в ёмкость, кнопка — вынуть банку в руку; название — этикетка, без неё —
+//! имя), состав ёмкости, очистить и
 //! вынуть ёмкость. Налив — обычное переливание из банки в ёмкость. Образец —
 //! `ReagentDispenserSystem`, `ReagentDispenserComponent`, `SharedReagentDispenser`,
 //! `ReagentDispenserBoundUserInterfaceState`, `ContainerInfo` SS14 @ 2f4a2aad.
 //!
-//! Нет пока: этикеток банок (`Label`, вместо них — имя), открытия закрытой банки при наливе
-//! (`Openable`).
+//! Нет пока: открытия закрытой банки при наливе (`Openable`).
 
 use astrocore_audio::{AudioWorldExt, SoundSpecifier};
 use astrocore_ecs::{ComponentStartup, EventWorldExt, MapInit, RegistryWorldExt};
@@ -61,6 +61,8 @@ pub struct ContainerInfo {
     pub current_volume: FixedPoint2,
     pub max_volume: FixedPoint2,
     pub reagents: Option<Vec<(ReagentId, FixedPoint2)>>,
+    /// Предметы внутри (таблетки в баночке): имя и объём.
+    pub entities: Option<Vec<(String, FixedPoint2)>>,
 }
 
 /// Банка в окне (`ReagentInventoryItem`).
@@ -114,6 +116,7 @@ pub fn build_container_info(world: &mut World, container: Option<Entity>) -> Opt
         current_volume: solution.volume,
         max_volume: solution.max_volume,
         reagents: Some(solution.contents),
+        entities: None,
     })
 }
 
@@ -128,7 +131,9 @@ fn inventory(world: &mut World, dispenser: Entity) -> Vec<ReagentInventoryItem> 
     let catalog = reagents(world);
     let mut list = Vec::new();
     for (item, location) in stored {
-        let label = world.entity_name(item);
+        let label = crate::labels::label_text(world, item)
+            .filter(|l| !l.is_empty())
+            .unwrap_or_else(|| world.entity_name(item));
         let (quantity, color) = match containers::drainable_solution(world, item)
             .and_then(|soln| containers::solution(world, soln).cloned())
         {
