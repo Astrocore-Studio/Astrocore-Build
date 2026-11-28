@@ -12,7 +12,8 @@
 //! инструменты, открывает его окно и ближайший шкаф, `--hurt` (только с `--host`) через секунду
 //! наносит игроку смертельный урон (`--hurt-amount <урон>` — заданный), `--scan-self` (только с
 //! `--host`) ранит игрока и открывает ему окно медсканера с ним самим, `--return-prompt` (только
-//! с `--host`) показывает игроку окно «вернуться в тело», `--dress` (только с `--host`) надевает на игрока
+//! с `--host`) показывает игроку окно «вернуться в тело», `--spawn <прототип>` (только с
+//! `--host`, можно несколько) через секунду ставит сущности в ряд слева от игрока, `--dress` (только с `--host`) надевает на игрока
 //! комбинезон, ботинки и рюкзак, `--console "<команда>"` (можно несколько раз) после входа
 //! открывает консоль и выполняет команды на сервере, `--palette entities:<поиск>` или
 //! `tiles:<поиск>` открывает палитру маппинга и берёт первую найденную строку, курсор при
@@ -49,6 +50,7 @@ struct Options {
     hurt_amount: i32,
     scan_self: bool,
     return_prompt: bool,
+    spawn: Vec<String>,
     ignite: bool,
     /// Проверка вида пожарного шлюза: игрок у шлюза, который держит давление и огонь.
     firelock: bool,
@@ -91,6 +93,7 @@ fn options() -> Result<Options, String> {
         hurt_amount: 500,
         scan_self: false,
         return_prompt: false,
+        spawn: Vec::new(),
         ignite: false,
         firelock: false,
         dress: false,
@@ -119,6 +122,7 @@ fn options() -> Result<Options, String> {
             "--hurt" => options.hurt = true,
             "--scan-self" => options.scan_self = true,
             "--return-prompt" => options.return_prompt = true,
+            "--spawn" => options.spawn.push(value("прототип")?),
             "--hurt-amount" => {
                 options.hurt = true;
                 options.hurt_amount = value("урон")?
@@ -447,6 +451,37 @@ fn scan_self(
             astrocore_game::health_analyzer::HEALTH_ANALYZER_UI_KEY,
             player,
         );
+    }
+}
+
+/// Прототипы для `--spawn`.
+#[derive(Resource, Clone, Default)]
+struct SpawnNearPlayer(Vec<String>);
+
+/// Проверка без человека: через секунду сущности в ряд слева от игрока.
+fn spawn_near_player(world: &mut bevy_ecs::world::World, mut ticks: Local<u32>) {
+    use astrocore_map::{EntityCoordinates, SpawnWorldExt, TransformWorldExt};
+    let Some(player) = world
+        .query_filtered::<bevy_ecs::entity::Entity, With<astrocore_net::Actor>>()
+        .iter(world)
+        .next()
+    else {
+        return;
+    };
+    *ticks += 1;
+    if *ticks != 30 {
+        return;
+    }
+    let Some(at) = world.coordinates(player) else {
+        return;
+    };
+    let list = world
+        .get_resource::<SpawnNearPlayer>()
+        .cloned()
+        .unwrap_or_default();
+    for (i, prototype) in list.0.iter().enumerate() {
+        let position = at.position - astrocore_math::Vec2::new(0.6 * (i + 1) as f32, 0.0);
+        let _ = world.spawn_attached(prototype, EntityCoordinates { position, ..at });
     }
 }
 
@@ -797,6 +832,15 @@ fn run() -> Result<(), String> {
             start
                 .world
                 .add_game_systems(astrocore_ecs::Update, hurt_player);
+        }
+        if !options.spawn.is_empty() {
+            use astrocore_ecs::GameWorldExt;
+            start
+                .world
+                .insert_resource(SpawnNearPlayer(options.spawn.clone()));
+            start
+                .world
+                .add_game_systems(astrocore_ecs::Update, spawn_near_player);
         }
         if options.return_prompt {
             use astrocore_ecs::GameWorldExt;

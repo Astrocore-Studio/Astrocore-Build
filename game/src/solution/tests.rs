@@ -169,3 +169,20 @@ fn data_form_matches_ss14() {
     assert_eq!(empty.max_volume, n(15));
     assert_eq!(empty.temperature, DEFAULT_TEMPERATURE);
 }
+
+#[test]
+fn solution_survives_the_network_format() {
+    let mut solution = Solution::of("Water", n(10));
+    solution.add_reagent(
+        ReagentId {
+            prototype: "Blood".into(),
+            data: vec![ReagentData::Dna { dna: "ACGT".into() }],
+        },
+        n(5),
+    );
+    solution.max_volume = n(60);
+    solution.temperature = 310.0;
+    let bytes = postcard::to_stdvec(&solution).unwrap();
+    let back: Solution = postcard::from_bytes(&bytes).unwrap();
+    assert_eq!(back, solution);
+}

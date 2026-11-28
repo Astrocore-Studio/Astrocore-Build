@@ -968,8 +968,8 @@ pub fn install(world: &mut World, side: Side) {
     world.register_data_component::<FitsInDispenser>();
     world.register_data_component::<ExaminableSolution>();
     world.register_data_component::<SolutionScanner>();
+    // Только из прототипа: сервер вид не меняет, а поле спрайта — узел данных.
     world.register_data_component::<SolutionContainerVisuals>();
-    world.register_net_serde::<SolutionContainerVisuals>();
     world.register_net_serde::<SolutionComponent>();
     world.register_net_serde::<ExaminableSolution>();
     if !side.is_server() {

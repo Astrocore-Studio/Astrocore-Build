@@ -65,7 +65,8 @@ pub struct ReagentQuantity {
     pub reagent: String,
     #[serde(rename = "Quantity")]
     pub quantity: FixedPoint2,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    /// Без пропуска пустого списка: сетевой двоичный формат не терпит пропущенных полей.
+    #[serde(default)]
     pub data: Vec<ReagentData>,
 }
 

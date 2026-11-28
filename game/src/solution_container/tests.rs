@@ -204,3 +204,16 @@ fn vague_volume_names_follow_fill() {
     };
     assert_eq!(examined_volume(&exact, &solution, "Urist"), "exact");
 }
+
+#[test]
+fn solution_component_survives_the_network_format() {
+    let mut solution = Solution::of("Water", n(15));
+    solution.max_volume = n(60);
+    let component = SolutionComponent {
+        id: "beaker".into(),
+        solution,
+    };
+    let bytes = postcard::to_stdvec(&component).unwrap();
+    let back: SolutionComponent = postcard::from_bytes(&bytes).unwrap();
+    assert_eq!(back, component);
+}
