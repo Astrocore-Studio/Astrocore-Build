@@ -120,6 +120,7 @@ pub mod random;
 pub mod rate_limit;
 pub mod reactions;
 pub mod reactive;
+pub mod reagent_dispenser;
 pub mod respawn;
 pub mod respiration;
 pub mod return_to_body;
@@ -222,6 +223,8 @@ pub mod power_ui;
 #[cfg(feature = "client")]
 pub mod quick_dialog_ui;
 #[cfg(feature = "client")]
+pub mod reagent_dispenser_ui;
+#[cfg(feature = "client")]
 pub mod return_to_body_ui;
 #[cfg(feature = "client")]
 pub mod smooth;
@@ -296,6 +299,7 @@ pub fn install_content(world: &mut World, side: Side) {
     ingestion::install(world, side);
     placeable::install(world, side);
     chem_machines::install(world, side);
+    reagent_dispenser::install(world, side);
     defibrillator::install(world, side);
     return_to_body::install(world, side);
     stack::install(world, side);

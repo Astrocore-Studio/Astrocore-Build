@@ -351,8 +351,46 @@ fn on_verbs(world: &mut World, owner: Entity, event: &mut GetVerbs) {
     }
 }
 
+/// Кнопка слота в окне машины (`ItemSlotButtonPressedEvent`): вынуть, если есть, иначе
+/// вставить из руки.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct ItemSlotButtonPressed {
+    pub slot_id: String,
+    pub try_eject: bool,
+    pub try_insert: bool,
+}
+
+impl ItemSlotButtonPressed {
+    pub fn new(slot_id: impl Into<String>) -> Self {
+        Self {
+            slot_id: slot_id.into(),
+            try_eject: true,
+            try_insert: true,
+        }
+    }
+}
+
+/// Нажата кнопка слота (`HandleButtonPressed`).
+fn on_button_pressed(
+    world: &mut World,
+    owner: Entity,
+    actor: Entity,
+    message: &ItemSlotButtonPressed,
+) {
+    let Some(slot) = slot(world, owner, &message.slot_id) else {
+        return;
+    };
+    let has_item = slot_item(world, owner, &message.slot_id).is_some();
+    if message.try_eject && has_item && !slot.disable_eject {
+        try_eject_to_hands(world, owner, &message.slot_id, Some(actor));
+    } else if message.try_insert && !has_item {
+        try_insert_from_hand(world, owner, &message.slot_id, actor);
+    }
+}
+
 pub fn install(world: &mut World, side: Side) {
     world.register_data_component::<ItemSlots>();
+    astrocore_ui::UiWorldExt::register_ui_message::<ItemSlotButtonPressed>(world);
     world.subscribe::<ItemSlots, ComponentInit>(|world, owner, _| {
         let ids: Vec<String> = world
             .get::<ItemSlots>(owner)
@@ -365,6 +403,12 @@ pub fn install(world: &mut World, side: Side) {
     if !side.is_server() {
         return;
     }
+    world.subscribe::<ItemSlots, astrocore_ui::BoundUiMessage<ItemSlotButtonPressed>>(
+        |world, owner, event| {
+            let message = event.message.clone();
+            on_button_pressed(world, owner, event.actor, &message);
+        },
+    );
     // Стартовые предметы (`OnMapInit`).
     world.subscribe::<ItemSlots, MapInit>(|world, owner, _| {
         let starting: Vec<(String, String)> = world
