@@ -890,6 +890,7 @@ fn run() -> Result<(), String> {
     .add_plugins(astrocore_game::damage_overlay_view::DamageOverlayViewPlugin)
     .add_plugins(astrocore_game::health_analyzer_ui::HealthAnalyzerUiPlugin)
     .add_plugins(astrocore_game::return_to_body_ui::ReturnToBodyUiPlugin)
+    .add_plugins(astrocore_game::solution_transfer_ui::SolutionTransferUiPlugin)
     .add_plugins(astrocore_game::ghost_ui::GhostUiPlugin)
     .add_plugins(astrocore_game::decal_visuals::DecalVisualsPlugin)
     .add_plugins(astrocore_game::power_ui::PowerUiPlugin)

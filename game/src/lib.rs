@@ -122,6 +122,7 @@ pub mod signal_devices;
 pub mod singularity;
 pub mod solution;
 pub mod solution_container;
+pub mod solution_transfer;
 pub mod stack;
 pub mod standing;
 pub mod station_spawning;
@@ -217,6 +218,10 @@ pub mod return_to_body_ui;
 #[cfg(feature = "client")]
 pub mod smooth;
 #[cfg(feature = "client")]
+pub mod solution_transfer_ui;
+#[cfg(feature = "client")]
+pub mod solution_visuals;
+#[cfg(feature = "client")]
 pub mod stack_visuals;
 #[cfg(feature = "client")]
 pub mod storage_hud;
@@ -275,6 +280,7 @@ pub fn install_content(world: &mut World, side: Side) {
     battery::install(world, side);
     power_cell::install(world, side);
     solution_container::install(world, side);
+    solution_transfer::install(world, side);
     defibrillator::install(world, side);
     return_to_body::install(world, side);
     stack::install(world, side);
