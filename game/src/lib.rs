@@ -56,6 +56,7 @@ pub mod docking;
 pub mod doors;
 pub mod electrocution;
 pub mod emergency_shuttle;
+pub mod entity_effects;
 pub mod entity_storage;
 pub mod examine;
 pub mod explosion;
@@ -112,6 +113,7 @@ pub mod radiation;
 pub mod radio;
 pub mod random;
 pub mod rate_limit;
+pub mod reactions;
 pub mod respawn;
 pub mod respiration;
 pub mod return_to_body;
@@ -254,6 +256,7 @@ impl Side {
 pub fn install_content(world: &mut World, side: Side) {
     tag::install(world);
     item::install(world);
+    entity_effects::install(world);
     use_delay::install(world, side);
     item_toggle::install(world, side);
     action_blocker::install(world);
@@ -281,6 +284,7 @@ pub fn install_content(world: &mut World, side: Side) {
     power_cell::install(world, side);
     solution_container::install(world, side);
     solution_transfer::install(world, side);
+    reactions::install(world, side);
     defibrillator::install(world, side);
     return_to_body::install(world, side);
     stack::install(world, side);

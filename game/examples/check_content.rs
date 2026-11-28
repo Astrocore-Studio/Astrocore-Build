@@ -103,6 +103,24 @@ fn main() -> Result<(), String> {
         );
     }
 
+    // Реакции и виды эффектов (ADR-0018): каких видов ещё нет.
+    let reactions = astrocore_game::reactions::reactions(&mut world);
+    let mut effects: Vec<(String, usize)> = world
+        .resource::<astrocore_game::entity_effects::EffectRegistry>()
+        .unknown
+        .iter()
+        .map(|(name, count)| (name.clone(), *count))
+        .collect();
+    effects.sort_by_key(|e| std::cmp::Reverse(e.1));
+    println!(
+        "Реакции: {}, неперенесённых видов эффектов и условий: {}",
+        reactions.reactions.len(),
+        effects.len()
+    );
+    for (name, count) in effects.iter().take(20) {
+        println!("  нет: {name}: {count}");
+    }
+
     let audit = astrocore_game::construction::audit(&mut world);
     println!(
         "Строительство: графов {}, рецептов {}, без пути {}",
