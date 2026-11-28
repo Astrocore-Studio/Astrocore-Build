@@ -79,6 +79,7 @@ pub mod healing;
 pub mod health_analyzer;
 pub mod health_examinable;
 pub mod id_console;
+pub mod ingestion;
 pub mod injector;
 pub mod input_contexts;
 pub mod interaction;
@@ -290,6 +291,7 @@ pub fn install_content(world: &mut World, side: Side) {
     reactions::install(world, side);
     reactive::install(world, side);
     injector::install(world, side);
+    ingestion::install(world, side);
     defibrillator::install(world, side);
     return_to_body::install(world, side);
     stack::install(world, side);
