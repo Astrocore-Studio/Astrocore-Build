@@ -201,23 +201,47 @@ pub fn reactions(world: &mut World) -> Arc<ReactionCatalog> {
     catalog
 }
 
-fn yes() -> bool {
-    true
+fn mixing_success() -> String {
+    "default-mixing-success".into()
 }
 
-/// Смешивает раствор особыми способами (`ReactionMixerComponent`): мешалка, центрифуга.
+/// Как перемешивают (`ReactionMixerType`).
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub enum ReactionMixerType {
+    /// Своей системой.
+    None,
+    /// Щелчком по ёмкости.
+    #[default]
+    Machine,
+    /// В руке.
+    Handheld,
+}
+
+/// Смешивает раствор особыми способами (`ReactionMixerComponent`): палочка, центрифуга,
+/// электролиз.
 #[derive(Component, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ReactionMixer {
     #[serde(default)]
     pub reaction_types: Vec<String>,
+    #[serde(default = "mixing_success")]
+    pub mix_message: String,
     #[serde(default)]
-    pub mix_message: Option<String>,
+    pub mixing_sound: Option<SoundSpecifier>,
+    #[serde(default)]
+    pub mixer_type: ReactionMixerType,
     /// С.
     #[serde(default)]
     pub time_to_mix: f32,
-    #[serde(default = "yes")]
-    pub mix_on_interact: bool,
+}
+
+/// Провести изменение раствора с реакциями особого смешивания (`UpdateChemicals` с
+/// `mixerComponent`).
+pub fn update_chemicals_mixed(world: &mut World, soln: Entity, mixer: &[String]) {
+    if containers::solution(world, soln).is_some_and(|s| s.can_react) {
+        fully_react_solution(world, soln, Some(mixer));
+    }
+    containers::update_chemicals(world, soln, false);
 }
 
 /// Можно ли реакции идти (`ReactionAttemptEvent`). На сущности раствора.
